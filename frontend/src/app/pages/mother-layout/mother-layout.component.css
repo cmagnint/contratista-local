@@ -1,0 +1,812 @@
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes jump {
+    0%, 100% {
+        transform: translateY(0); /* Comienza y termina en la posición original */
+    }
+    50% {
+        transform: translateY(-5px); /* Se mueve 10px hacia arriba */
+    }
+}
+
+@keyframes slide {
+    0% {
+        background-position: -100% 0; /* Empieza fuera de la pantalla a la izquierda */
+    }
+    100% {
+        background-position: 100% 0; /* Termina fuera de la pantalla a la derecha */
+    }
+}
+
+.mat-drawer-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    z-index: 1000;
+    color: black;
+    overflow: hidden;
+}
+
+.left-drawer, .right-drawer {
+    width: 28vw;
+    background-color: #032e2d;
+}
+
+.menu-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.menu-list > li {
+    padding: 10px;
+    border: 1px solid #444; /* Borde de cada celda */
+    margin-bottom: 10px; /* Espacio entre celdas */
+}
+
+.menu-list h3 {
+    color: white;
+    font-size: 16px;
+    margin: 0;
+    cursor: pointer;
+    padding: 10px;
+}
+
+.menu-list h3:hover {
+    background-color: #149085; /* Efecto hover para los títulos de los grupos */
+}
+
+.sub-menu-list {
+    list-style-type: none;
+    padding-left: 15px;
+    display: none; /* Ocultar inicialmente */
+}
+
+.sub-menu-list.show {
+    display: block; /* Mostrar cuando se hace clic */
+}
+
+.sub-menu-list li {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #444; /* Borde de cada celda */
+    cursor: pointer;
+    margin-bottom: 5px; /* Espacio entre elementos de submenú */
+}
+
+.sub-menu-list li mat-icon {
+    margin-right: 10px;
+    color: white;
+}
+
+.sub-menu-list li {
+    color: white;
+    font-weight: bold;
+}
+
+.icon-label {
+    font-weight: bold;
+}
+
+.sub-menu-list li:hover {
+    background-color: #38982b; /* Efecto hover para los elementos del submenú */
+}
+
+.svg-container {
+    position: relative;
+}
+
+.menu-button-left, .menu-button-right {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 70%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+.menu-button-left {
+    left: 0%;
+}
+
+.menu-button-right {
+    right: 1%;
+}
+
+.menu-button-left mat-icon, .menu-button-right mat-icon {
+    font-size: 40px;
+    height: 40px;
+    width: 40px;
+}
+
+.menu-button-left mat-icon:hover, .menu-button-right mat-icon:hover {
+    color: #0ad5b3 !important;
+    
+}
+
+.custom-divider {
+    position: relative;
+    top: 0%;
+    height: 4px;
+    background: linear-gradient(to right, transparent, white, transparent);
+    background-size: 200% 100%;
+    animation: slide 3s linear infinite;
+    mask-image: linear-gradient(to left, transparent, black, transparent);
+    margin: 20px 2%;
+}
+
+.terra-white-image {
+    position: absolute;
+    top: 90%;
+    left: 85%;
+    transform: translate(-50%, -50%);
+    width: 25%;
+}
+
+.user-label {
+    position: absolute;
+    color: white;
+    right: 24%;
+}
+
+.profile, .holding {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.profile {
+    top: 3.5%;
+    left: 10%;
+}
+
+.holding {
+
+    top: 8%;
+    left: 10%;
+}
+
+.holding-label {
+    position: absolute;
+    color: white;
+    top: 5%;
+    right: 55%;
+}
+
+.low-bar {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  height: 38px;
+  background-image: linear-gradient(to bottom right, #084D6E, #0ad5b3);
+  z-index: 1;
+}
+
+.bar-text {
+    position: absolute;
+    right: 0;
+    bottom: 10;
+    padding: 10px;
+    font-family: 'Times New Roman', serif;
+    font-size: 14px;
+    color: white;
+    font-weight: bolder;
+}
+
+/* Estilo para el botón que activa el dropdown */
+.dropdown-button {
+    padding: 5px 10px;
+    background-color: #349e6e;
+    color: white;
+    border: #032e2d;
+    cursor: pointer;
+    width: 250px;
+    border-right: 1px solid black;
+    border-bottom: 1px solid black;
+    border-left: 1px solid black;
+    border-top: 1px solid black;
+    font-weight: bold;
+}
+
+/* Contenedor del dropdown */
+.dropdown {
+    position: absolute;
+    display: inline-block;
+    width: 250px;
+}
+
+/* Contenido del dropdown */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    overflow-y: auto;
+    width: 250px;
+}
+
+/* Mostrar dropdown-content cuando dropdown está activo */
+.dropdown-content.show {
+    display: block;
+}
+
+/* Estilo para las etiquetas de las checkboxes */
+.dropdown-content label {
+    display: block;
+    cursor: pointer;
+}
+
+.menu-label-sociedad {
+    margin-right: 10px;
+}
+
+.sociedad-container, .sucursal-container {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    position: absolute;
+    top: 66%;
+    width: auto;
+}
+
+.sociedad-container {
+    left: 36%;
+}
+
+.sucursal-container {
+    left: 55.3%;
+}
+
+.icon-foundation-left {
+    background-color: transparent !important;
+    color: rgb(217, 250, 6) !important;
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+    width: 30px;
+    height: 30px;
+    font-size: 30px;
+}
+
+.manage-accounts-buttons {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 30%;
+    left: 25%;
+    transform: translate(-50%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+.manage-accounts-buttons mat-icon {
+    font-size: 70px;
+    height: 70px;
+    width: 70px;
+}
+
+.manage-accounts-buttons mat-icon:hover {
+    color: rgb(21, 167, 145) !important;
+}
+
+.logout-buttons {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 30%;
+    left: 80%;
+    transform: translate(-50%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+.logout-buttons mat-icon {
+    font-size: 70px;
+    height: 70px;
+    width: 70px;
+}
+
+.logout-buttons mat-icon:hover {
+    color: rgb(21, 167, 145) !important;
+}
+
+.add-profile-buttons, .add-user-buttons, .add-client-buttons, .add-worker-buttons, .add-driver-buttons, .add-area-buttons {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+.add-profile-buttons {
+    top: 30%;
+    left: 20%;
+}
+
+.add-user-buttons {
+    top: 30%;
+    left: 50%;
+}
+
+.add-client-buttons {
+    top: 30%;
+    left: 80%;
+}
+
+.add-worker-buttons {
+    top: 50%;
+    left: 20%;
+}
+
+.add-driver-buttons {
+    top: 50%;
+    left: 50%;
+}
+
+.add-area-buttons {
+    top: 50%;
+    left: 80%;
+}
+
+.add-profile-buttons mat-icon, .add-user-buttons mat-icon, .add-client-buttons mat-icon, .add-worker-buttons mat-icon, .add-driver-buttons mat-icon, .add-area-buttons mat-icon {
+    font-size: 70px;
+    height: 70px;
+    width: 70px;
+}
+
+.add-profile-buttons mat-icon:hover, .add-user-buttons mat-icon:hover, .add-client-buttons mat-icon:hover, .add-worker-buttons mat-icon:hover, .add-driver-buttons mat-icon:hover, .add-area-buttons mat-icon:hover {
+    color: rgb(21, 167, 145) !important;
+}
+
+.menu-label-left {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 70%;
+    left: 7%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.icon-label-left {
+    background-color: transparent !important;
+    color: rgb(217, 250, 6) !important;
+    position: absolute;
+    top: 70%;
+    left: 5%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.icon-domain-left {
+    background-color: transparent !important;
+    color: rgb(217, 250, 6) !important;
+    position: absolute;
+    top: 70%;
+    left: 22%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.menu-label-left-2 {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 70%;
+    left: 24%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.menu-label-left-3 {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 70%;
+    left: 36%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.menu-label-left-4 {
+    background-color: transparent !important;
+    color: white !important;
+    position: absolute;
+    top: 70%;
+    left: 52.3%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+
+.icon-corporate_fare-left {
+    background-color: transparent !important;
+    color: rgb(217, 250, 6) !important;
+    position: absolute;
+    top: 70%;
+    left: 34%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.icon-domain-change-left {
+    background-color: transparent !important;
+    color: rgb(219, 240, 24) !important;
+    position: absolute;
+    top: 70%;
+    left: 92%;
+    transform: translate(0%, -50%);
+    border: none !important;
+    box-shadow: none !important;
+    width: 30px;
+    height: 30px;
+    font-size: 30px;
+    cursor: pointer;
+}
+
+.icon-domain-change-left:hover{
+    color: rgb(21, 167, 145) !important;
+}
+
+.modal-perfiles {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: -40%; /* Ajustado para que comience desde la parte superior */
+    width: 100%;
+    height: 140%; /* Ajustado para cubrir toda la altura de la ventana */
+    overflow: hidden; /* Asegurar que el fondo no se desplace */
+    background-color: rgba(0,0,0,0.85); /* Color de fondo semitransparente */
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Alinear el contenido del modal verticalmente al centro */
+}
+
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+    padding: 20px;
+    margin: auto;
+    width: 70%;
+    max-height: 90vh; /* 80% de la altura de la ventana gráfica */
+    overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+    overflow-x: hidden;
+    background-color: #fefefe;
+    border: 3px solid black;
+}
+
+.modal-header {
+    width: 100%;
+    position: relative;
+    margin-bottom: 20px; /* Espacio entre el encabezado y el contenido */
+  }
+  
+  .header-bar {
+    position: absolute;
+    height: 30px;
+    background-color: #00A693;
+    width: 105.2%;
+    top: -25%;
+    left: -2.9%;
+    border: 3px solid black;
+  }
+  
+  .title-container {
+    background-color: rgb(20, 179, 92);
+    border: 3px solid black;
+    padding: 0px 0; /* Reducir el espacio vertical */
+    width: 50%; /* Reducir el ancho */
+    text-align: center;
+    color: white;
+    margin: auto; /* Centrar horizontalmente */
+    margin-top: 20px;
+  
+  }
+
+  .table-button {
+    position: relative;
+    z-index: 2;
+    width: 400px; /* Ajusta el ancho aquí */
+    margin: 20px auto;
+    border: 3px solid black;
+  }
+
+  .group-title {
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+
+  .mini-modal {
+    display: flex;
+    position: absolute;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+    padding: 20px;
+    margin: auto;
+    border: 1px solid #888;
+    width: 40%;
+    height: 30%;
+    max-height: 90vh; /* 80% de la altura de la ventana gráfica */
+    overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+    overflow-x: hidden;
+    background-color: #fefefe;
+    border: 3px solid black;
+    z-index: 5;
+    left: 28%;
+    top: 33%;
+    
+  }
+
+  /* Estilo para el botón que activa el dropdown */
+.dropdown-button {
+    position: relative;
+    padding: 10px !important;
+    width: 100% !important; /* Establecer el ancho al 100% del contenedor para aumentarlo */
+    margin-bottom: 10px !important;
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    text-align: center !important;
+    bottom: 50% !important; /* Alinea el texto a la izquierda */
+    z-index: auto;
+  }
+  
+  /* Contenedor del dropdown */
+  .dropdown {
+    position: absolute;
+    display: inline-block;
+    width: 400px;
+  }
+  
+  /* Contenido del dropdown */
+  .dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    padding: 10px;
+    z-index: 1;
+    max-height: 400px; /* Limita la altura y agrega scroll */
+    overflow-y: auto;
+    width: 100%;
+  }
+  
+  /* Mostrar dropdown-content cuando dropdown está activo */
+  .dropdown-content.show {
+    display: block;
+  }
+  
+  /* Estilo para las etiquetas de las checkboxes */
+  .dropdown-content label {
+    display: block;
+    cursor: pointer;
+  }
+
+  .custom-button-sociedades {
+    position: absolute;
+    padding: 8px 16px !important;
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    border-radius: 5px !important;
+    margin-top: 10px !important;
+    width: 100px !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
+    font-size: 16px !important;
+    display: inline-block !important;
+    bottom: 10% !important;
+    z-index: auto;
+  }
+  
+  .custom-button-ingreso {
+    position: relative;
+    padding: 8px 16px !important;
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    border-radius: 5px !important;
+    margin-top: 10px !important;
+    width: 200px !important; /* Ajusta el ancho aquí */
+    font-size: 16px !important;
+    display: inline-block !important;
+    bottom: 0 !important;
+    z-index: auto;
+    height: 50px;
+  }
+
+button:disabled {
+    color: gray;
+    background-color: #ccc;
+  }
+   
+  button:not(:disabled):hover {
+    background-color: green;
+    color: white;
+  }
+  
+  .error-message {
+    color: red;
+    font-size: 12px;
+    margin-top: -10px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.table-button.error {
+    border-color: red;
+}
+
+.content {
+    height: calc(100% - 88px); /* Ajusta para acomodar la barra superior e inferior */
+    overflow-y: auto;
+  }
+
+/* Estilos para el dropdown de sociedades de trabajo */
+/* Contenedor principal */
+.sociedad-trabajo-container {
+  position: absolute;
+  top: 70%;
+  left: 45%;
+  transform: translate(0%, -50%);
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+.icon-business-trabajo {
+  color: rgb(217, 250, 6);
+  margin-right: 10px;
+}
+
+.menu-label-sociedad-trabajo {
+  color: white;
+  margin-right: 10px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Para cuando solo hay una sociedad */
+.sociedad-unica {
+  color: white;
+  font-size: 14px;
+}
+
+.sociedad-nombre {
+  font-weight: bold;
+}
+
+.sociedad-rut {
+  color: #ccc;
+  font-size: 12px;
+  margin-left: 5px;
+}
+
+/* Dropdown para múltiples sociedades */
+.dropdown-sociedad-trabajo {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-button-sociedad-trabajo {
+  background-color: #0a4f4a;
+  color: white;
+  padding: 8px 16px;
+  border: 1px solid #38982b;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 250px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.dropdown-button-sociedad-trabajo:hover {
+  background-color: #149085;
+  border-color: #0ad5b3;
+}
+
+.dropdown-icon {
+  margin-left: 10px;
+}
+
+.dropdown-content-sociedad-trabajo {
+  display: none;
+  position: absolute;
+  background-color: #032e2d;
+  min-width: 250px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1000;
+  border: 1px solid #38982b;
+  border-radius: 4px;
+  margin-top: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dropdown-content-sociedad-trabajo.show {
+  display: block;
+}
+
+.dropdown-item-sociedad {
+  color: white;
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #444;
+  transition: background-color 0.3s ease;
+}
+
+.dropdown-item-sociedad:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item-sociedad:hover {
+  background-color: #149085;
+}
+
+.dropdown-item-sociedad.selected {
+  background-color: #38982b;
+}
+
+.item-nombre {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.item-rut {
+  color: #ccc;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.check-icon {
+  color: #0ad5b3;
+  font-size: 20px;
+}
+
+/* Ajuste para cuando el dropdown está abierto */
+@media (max-width: 1400px) {
+  .sociedad-trabajo-container {
+    left: 42%;
+  }
+}

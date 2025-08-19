@@ -1,0 +1,106 @@
+<div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+
+    <button mat-raised-button color="primary" (click)=" openModal('crearCasa')">Crear Casa</button>
+    <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearCasa']">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <span class="close" (click)="closeModal('crearCasa')">&times;</span>
+                  <div class="header-bar"></div>
+                  <div class="title-container">
+                      <h2>Crear Casa</h2>
+                  </div>
+              </div>
+              
+              <h3>Nombre Casa:</h3>
+              
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="nombreCasa" (ngModelChange)="nombreCasa = $event.toUpperCase()"><br><br>
+                
+              <button class="custom-button-ingreso" id="ingresarHoldingBtn" (click)="crearCasa()">Crear Casa</button>
+          </div>
+    </div>
+
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)"  (click)="openModal('modificarCasa')" >Modificar Casa</button>
+    <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarCasa']">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <span class="close" (click)="closeModal('modificarCasa')">&times;</span>
+                  <div class="header-bar"></div>
+                  <div class="title-container">
+                    <h2>Modificar Casa </h2>
+                </div>
+              </div>
+              
+              <h3>Modificar Nombre Casa:</h3>
+              <input type="text" class="input-perfil" id="nombreUsuarioNew" name="nombreUsuarioNew" [(ngModel)]="nombreCasaNew" (ngModelChange)="nombreCasaNew = $event.toUpperCase()"><br><br>
+              
+               <!-- Toggle de Estado -->
+                <h3>ESTADO : {{ estadoCasaNew ? 'ACTIVO' : 'INACTIVO' }}</h3>
+                <mat-icon (click)="toggleEstado()" [ngClass]="{'activo': estadoCasaNew, 'inactivo': !estadoCasaNew}">
+                {{estadoCasaNew ? 'toggle_on' : 'toggle_off'}}
+                </mat-icon>
+                <br><br>
+              <button class="custom-button-ingreso"  (click)=" modificarCasa()" id="ingresarHoldingBtn">Modificar Casa</button>
+              
+          </div>
+    </div>
+
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')" >Eliminar Casa(s)</button>
+        
+    <table mat-table [dataSource]="casasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+    
+        <ng-container matColumnDef="codigo">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Codigo </th>
+            <td mat-cell *matCellDef="let casa" class="mat-cell"> {{ casa.id }} </td>
+        </ng-container>  
+        
+        <ng-container matColumnDef="nombre">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
+            <td mat-cell *matCellDef="let casa" class="mat-cell"> {{ casa.nombre }} </td>
+        </ng-container>
+        
+        <ng-container matColumnDef="estado">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Estado </th>
+            <td mat-cell *matCellDef="let casa" class="mat-cell">
+              <span *ngIf="casa.estado; else inactivo">ACTIVO</span>
+              <ng-template #inactivo>INNACTIVO</ng-template>
+            </td>
+          </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    
+        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
+    </table>
+    
+</div>
+    
+<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Éxito!</h2>
+            <div class="exito-message" id="exitoText"></div>
+            <button class="custom-button" (click)="closeModal('exitoModal')" >Cerrar</button>
+        </div>
+</div>
+      
+<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Error!</h2>
+            <div class="error-icon-container">
+                <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+            </div>
+            <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+            <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+        </div>
+</div>
+      
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+      <div class="modal-content">
+          <h2 style="color:white;">¿Desea eliminar la(las) Casa(s) seleccionada(s)?</h2>
+          <div class="exito-message" id="exitoText"></div>
+          <!-- Botones para confirmar o cancelar la acción -->
+          <div class="modal-actions">
+              <button class="custom-button yes-button" (click)="eliminarCasasSeleccionadas()" >Sí</button>
+              <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+          </div>
+      </div>
+</div>
+    

@@ -1,0 +1,1484 @@
+<!-- facturas-venta-automatizada.component.html - CORREGIDO CON MEJORAS BOLETA MANUAL -->
+
+<div class="container">
+  <!-- Header con estado del proceso -->
+  <mat-card class="status-card">
+    <mat-card-header>
+      <div class="title-container">
+        <mat-icon class="title-icon">auto_mode</mat-icon>
+        <mat-card-title>Facturas de Ventas - Modo Automático</mat-card-title>
+      </div>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <!-- CONFIGURACIÓN DE PERÍODO -->
+      <div class="periodo-configuration-section" *ngIf="configuracionCargada">
+        <h4 class="periodo-title">
+          <mat-icon>date_range</mat-icon>
+          Período de Búsqueda
+        </h4>
+        
+        <form [formGroup]="periodoForm" class="periodo-form">
+          <div class="periodo-inputs">
+            <!-- Selector de Mes -->
+            <mat-form-field appearance="outline" class="mes-field">
+              <mat-label>Mes</mat-label>
+              <mat-select formControlName="mes">
+                <mat-option *ngFor="let mes of mesesOptions" [value]="mes.value">
+                  {{ mes.label }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>calendar_month</mat-icon>
+              <mat-error *ngIf="periodoForm.get('mes')?.hasError('required')">
+                Mes es requerido
+              </mat-error>
+            </mat-form-field>
+            
+            <!-- Selector de Año -->
+            <mat-form-field appearance="outline" class="year-field">
+              <mat-label>Año</mat-label>
+              <mat-select formControlName="year">
+                <mat-option *ngFor="let year of yearOptions" [value]="year">
+                  {{ year }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>today</mat-icon>
+              <mat-error *ngIf="periodoForm.get('year')?.hasError('required')">
+                Año es requerido
+              </mat-error>
+            </mat-form-field>
+            
+            <!-- Botón de actualizar período -->
+            <button mat-raised-button 
+                    color="accent" 
+                    (click)="actualizarPeriodo()"
+                    [disabled]="periodoForm.invalid || loading"
+                    class="actualizar-periodo-btn"
+                    type="button">
+              <mat-icon *ngIf="!loading">update</mat-icon>
+              <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+              {{ loading ? 'Actualizando...' : 'Actualizar Período' }}
+            </button>
+          </div>
+          
+          <!-- Información del período actual -->
+          <div class="periodo-info">
+            <div class="periodo-actual">
+              <span class="periodo-label">Período Configurado:</span>
+              <mat-chip color="primary" selected>
+                <mat-icon>event</mat-icon>
+                {{ periodoConfigurado }}
+              </mat-chip>
+            </div>
+            
+            <!-- Información adicional sobre PDFs -->
+            <div class="pdf-periodo-info" *ngIf="periodoForm.valid">
+              <mat-icon class="info-icon">info</mat-icon>
+              <span class="info-text">
+                Los PDFs se buscarán desde 8 días antes del período hasta el último día del mes seleccionado
+              </span>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <div class="status-container">
+        <div class="status-item">
+          <span class="status-label">Estado del Proceso:</span>
+          <mat-chip [color]="getEstadoProcesoBadge()" selected>
+            <mat-icon>{{ procesoStatus.estado === 'ejecutando' ? 'sync' : 
+                         procesoStatus.estado === 'completado' ? 'check_circle' :
+                         procesoStatus.estado === 'error' ? 'error' : 'pause_circle' }}</mat-icon>
+            {{ getEstadoProcesoTexto() }}
+          </mat-chip>
+        </div>
+        
+        <div class="status-item" *ngIf="procesoStatus.ultima_ejecucion">
+          <span class="status-label">Última Ejecución:</span>
+          <span>{{ formatearFechaHora(procesoStatus.ultima_ejecucion) }}</span>
+        </div>
+        
+        <div class="status-item" *ngIf="procesoStatus.proxima_ejecucion">
+          <span class="status-label">Próxima Ejecución:</span>
+          <span>{{ formatearFechaHora(procesoStatus.proxima_ejecucion) }}</span>
+        </div>
+        
+        <div class="status-item">
+          <span class="status-label">Facturas Encontradas:</span>
+          <mat-chip color="primary" selected>{{ facturas.length }}</mat-chip>
+        </div>
+
+        <div class="status-item">
+          <span class="status-label">Configuración:</span>
+          <mat-chip [color]="configuracionActiva ? 'primary' : 'warn'" selected>
+            <mat-icon>{{ configuracionActiva ? 'check_circle' : 'warning' }}</mat-icon>
+            {{ configuracionActiva ? 'Activa' : 'Pendiente' }}
+          </mat-chip>
+        </div>
+      </div>
+      
+      <div class="status-actions">
+        <button mat-raised-button 
+                color="primary" 
+                [disabled]="loading || procesoStatus.estado === 'ejecutando' || !configuracionValida"
+                (click)="ejecutarProcesoManual()"
+                type="button">
+          <mat-icon *ngIf="!loading">play_arrow</mat-icon>
+          <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+          {{ loading ? 'Ejecutando...' : 'Ejecutar Búsqueda Manual' }}
+        </button>
+        
+        <button mat-button 
+                (click)="cargarFacturas()"
+                [disabled]="loadingFacturas"
+                type="button"
+                class="button-Actualizar">
+          <mat-icon *ngIf="!loadingFacturas">refresh</mat-icon>
+          <mat-spinner *ngIf="loadingFacturas" diameter="20"></mat-spinner>
+          Actualizar
+        </button>
+
+        <!-- BOTÓN PARA CREAR BOLETA MANUAL -->
+        <button mat-raised-button 
+                color="accent"
+                (click)="abrirDialogoFacturaManual()"
+                [disabled]="loadingCrearFactura"
+                type="button"
+                class="crear-boleta-btn">
+          <mat-icon *ngIf="!loadingCrearFactura">add_circle</mat-icon>
+          <mat-spinner *ngIf="loadingCrearFactura" diameter="20"></mat-spinner>
+          {{ loadingCrearFactura ? 'Creando...' : 'Crear Boleta de Venta' }}
+        </button>
+      </div>
+
+      <!-- Mensaje de configuración pendiente -->
+      <div class="configuracion-pendiente-mensaje" *ngIf="!configuracionValida">
+        <mat-icon>info</mat-icon>
+        <span>Para usar el modo automático, primero debe configurar las credenciales y el período en la sección de Parámetros.</span>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Mensajes de Error y Éxito -->
+  <div class="alert alert-error" *ngIf="error">
+    <mat-icon>error</mat-icon>
+    {{ error }}
+  </div>
+
+  <div class="alert alert-success" *ngIf="success">
+    <mat-icon>check_circle</mat-icon>
+    {{ success }}
+  </div>
+
+  <!-- ESTADÍSTICAS DE PDF MEJORADAS -->
+  <mat-card class="status-card pdf-stats-card-enhanced" *ngIf="mostrarEstadisticasPdf && hayFacturasPorDistribuir">
+    <mat-card-header>
+      <div class="title-container">
+        <mat-icon class="title-icon">assessment</mat-icon>
+        <mat-card-title>Estado Detallado de Documentos PDF</mat-card-title>
+      </div>
+      
+      <!-- Indicador de estado general -->
+      <div class="estado-general-badge">
+        <mat-chip 
+          [color]="porcentajeConPdf >= 90 ? 'primary' : 
+                  porcentajeConPdf >= 70 ? 'primary' : 
+                  porcentajeConPdf >= 50 ? 'accent' : 'warn'" 
+          selected>
+          {{ porcentajeConPdf >= 90 ? 'Excelente' :
+             porcentajeConPdf >= 70 ? 'Bueno' :
+             porcentajeConPdf >= 50 ? 'Regular' : 'Necesita Atención' }}
+        </mat-chip>
+      </div>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <!-- Grid de estadísticas -->
+      <div class="pdf-stats-grid">
+        
+        <!-- Total de facturas -->
+        <div class="pdf-stat-card">
+          <div class="stat-icon-container">
+            <mat-icon color="primary">description</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ estadisticasPdf.total_facturas }}</div>
+            <div class="stat-label">Total Facturas</div>
+          </div>
+        </div>
+        
+        <!-- Con PDF -->
+        <div class="pdf-stat-card pdf-success">
+          <div class="stat-icon-container">
+            <mat-icon color="primary">picture_as_pdf</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ estadisticasPdf.facturas_con_pdf }}</div>
+            <div class="stat-label">Con PDF</div>
+            <div class="stat-percentage">{{ estadisticasPdf.porcentaje_con_pdf }}%</div>
+          </div>
+        </div>
+        
+        <!-- Facturas manuales -->
+        <div class="pdf-stat-card pdf-manual" *ngIf="facturasManuales > 0">
+          <div class="stat-icon-container">
+            <mat-icon color="accent">edit</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ facturasManuales }}</div>
+            <div class="stat-label">Manuales</div>
+            <div class="stat-percentage">{{ ((facturasManuales / facturas.length) * 100).toFixed(1) }}%</div>
+          </div>
+        </div>
+        
+        <!-- Sin PDF -->
+        <div class="pdf-stat-card pdf-warning" *ngIf="estadisticasPdf.facturas_sin_pdf > 0">
+          <div class="stat-icon-container">
+            <mat-icon color="warn">cloud_download</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ estadisticasPdf.facturas_sin_pdf }}</div>
+            <div class="stat-label">Sin PDF</div>
+            <div class="stat-percentage">{{ estadisticasPdf.porcentaje_sin_pdf }}%</div>
+          </div>
+        </div>
+        
+        <!-- Con errores -->
+        <div class="pdf-stat-card pdf-error" *ngIf="estadisticasPdf.facturas_error_pdf > 0">
+          <div class="stat-icon-container">
+            <mat-icon color="warn">error</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">{{ estadisticasPdf.facturas_error_pdf }}</div>
+            <div class="stat-label">Con Errores</div>
+            <div class="stat-percentage">{{ estadisticasPdf.porcentaje_error_pdf }}%</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Barra de progreso -->
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-label">Completitud de PDFs</span>
+          <span class="progress-percentage">{{ estadisticasPdf.porcentaje_con_pdf }}%</span>
+        </div>
+        
+        <mat-progress-bar 
+          mode="determinate" 
+          [value]="estadisticasPdf.porcentaje_con_pdf"
+          [color]="estadisticasPdf.porcentaje_con_pdf >= 80 ? 'primary' : 
+                  estadisticasPdf.porcentaje_con_pdf >= 50 ? 'accent' : 'warn'"
+          class="enhanced-progress-bar">
+        </mat-progress-bar>
+        
+        <div class="progress-details">
+          <span class="progress-detail-item">
+            <mat-icon class="detail-icon success">check_circle</mat-icon>
+            {{ estadisticasPdf.facturas_con_pdf }} completos
+          </span>
+          
+          <span class="progress-detail-item" *ngIf="facturasManuales > 0">
+            <mat-icon class="detail-icon manual">edit</mat-icon>
+            {{ facturasManuales }} manuales
+          </span>
+          
+          <span class="progress-detail-item" *ngIf="estadisticasPdf.facturas_sin_pdf > 0">
+            <mat-icon class="detail-icon pending">schedule</mat-icon>
+            {{ estadisticasPdf.facturas_sin_pdf }} pendientes
+          </span>
+          
+          <span class="progress-detail-item" *ngIf="estadisticasPdf.facturas_error_pdf > 0">
+            <mat-icon class="detail-icon error">error</mat-icon>
+            {{ estadisticasPdf.facturas_error_pdf }} con errores
+          </span>
+        </div>
+      </div>
+      
+      <!-- Acciones de PDF -->
+      <div class="pdf-actions-enhanced">
+        
+        <!-- Búsqueda automática -->
+        <button mat-raised-button 
+                color="accent" 
+                [disabled]="loadingPdfSearch || procesoStatus.estado === 'ejecutando' || estadisticasPdf.facturas_sin_pdf === 0"
+                (click)="buscarPdfsFacturasExistentes()"
+                class="pdf-action-button"
+                type="button">
+          <mat-icon *ngIf="!loadingPdfSearch">search</mat-icon>
+          <mat-spinner *ngIf="loadingPdfSearch" diameter="20"></mat-spinner>
+          <span>{{ loadingPdfSearch ? 'Buscando PDFs...' : 'Buscar PDFs Faltantes' }}</span>
+        </button>
+        
+        <!-- Actualizar estadísticas -->
+        <button mat-stroked-button 
+                (click)="cargarEstadisticasPdf()"
+                class="pdf-action-button"
+                type="button">
+          <mat-icon>refresh</mat-icon>
+          <span>Actualizar</span>
+        </button>
+        
+        <!-- Información adicional -->
+        <div class="pdf-help-section" *ngIf="estadisticasPdf.facturas_sin_pdf > 0">
+          <mat-icon class="help-icon">info</mat-icon>
+          <span class="help-text">
+            Se buscarán PDFs para {{ estadisticasPdf.facturas_sin_pdf }} facturas. 
+            El proceso puede tomar varios minutos.
+          </span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- TABLA DE FACTURAS CON SELECCIÓN MÚLTIPLE -->
+  <mat-card class="form-card" *ngIf="hayFacturasPorDistribuir || loadingFacturas">
+    <mat-card-header>
+      <div class="title-container">
+        <mat-icon class="title-icon">receipt</mat-icon>
+        <mat-card-title>
+          Facturas Para Distribuir
+          <span class="facturas-count">({{ facturas.length }})</span>
+        </mat-card-title>
+      </div>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <!-- Progreso de carga -->
+      <div *ngIf="loadingFacturas" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Cargando facturas...</p>
+      </div>
+
+      <!-- CONTROLES DE SELECCIÓN MÚLTIPLE -->
+      <div class="selection-controls" *ngIf="!loadingFacturas && hayFacturasPorDistribuir">
+        <div class="selection-header">
+          <div class="selection-checkbox">
+            <mat-checkbox 
+              [checked]="todasLasVisiblesSeleccionadas"
+              [indeterminate]="algunaVisibleSeleccionada && !todasLasVisiblesSeleccionadas"
+              (change)="seleccionarTodasVisibles()"
+              color="primary">
+              <span class="checkbox-label">
+                {{ todasLasVisiblesSeleccionadas ? 'Deseleccionar todas' : 'Seleccionar todas' }}
+              </span>
+            </mat-checkbox>
+          </div>
+          
+          <div class="selection-info" *ngIf="facturasSeleccionadas.length > 0">
+            <mat-chip-set>
+              <mat-chip color="accent" selected>
+                <mat-icon>check_circle</mat-icon>
+                {{ facturasSeleccionadas.length }} seleccionada{{ facturasSeleccionadas.length === 1 ? '' : 's' }}
+              </mat-chip>
+            </mat-chip-set>
+          </div>
+          
+          <div class="selection-actions" *ngIf="facturasSeleccionadas.length > 0">
+            <button mat-raised-button 
+                    color="primary"
+                    (click)="abrirDialogoDistribucionMultiple()"
+                    type="button">
+              <mat-icon>assignment</mat-icon>
+              {{ facturasSeleccionadas.length === 1 ? 'Distribuir Factura' : 'Distribuir Múltiples' }}
+            </button>
+            
+            <button mat-stroked-button 
+                    (click)="limpiarSeleccion()"
+                    type="button">
+              <mat-icon>clear</mat-icon>
+              Limpiar Selección
+            </button>
+          </div>
+        </div>
+        
+        <!-- Información de distribución múltiple -->
+        <div class="multiple-distribution-info" *ngIf="modoDistribucionMultiple && distribucionMultiple">
+          <mat-card class="info-card">
+            <mat-card-content>
+              <div class="multiple-info-grid">
+                <div class="info-item">
+                  <span class="label">Facturas Seleccionadas:</span>
+                  <span class="value">{{ distribucionMultiple.facturas.length }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Monto Total Disponible:</span>
+                  <span class="value amount">{{ formatearMonto(distribucionMultiple.monto_total_disponible) }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Monto Mínimo (Limitante):</span>
+                  <span class="value amount">{{ formatearMonto(distribucionMultiple.monto_minimo_por_factura) }}</span>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- Filtros CON FILTRO DE TIPO -->
+      <div class="filters-container" *ngIf="!loadingFacturas && hayFacturasPorDistribuir">
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Filtrar por estado</mat-label>
+          <mat-select [(value)]="filtroEstado" (selectionChange)="aplicarFiltros()">
+            <mat-option value="todos">Todas las facturas</mat-option>
+            <mat-option value="sin_distribuir">Sin distribuir</mat-option>
+            <mat-option value="parcialmente_distribuidas">Parcialmente distribuidas</mat-option>
+            <mat-option value="con_distribucion">Con alguna distribución</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- FILTRO POR TIPO -->
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Filtrar por tipo</mat-label>
+          <mat-select [(value)]="filtroTipo" (selectionChange)="aplicarFiltros()">
+            <mat-option value="todos">Todas las facturas</mat-option>
+            <mat-option value="sii">Facturas del SII</mat-option>
+            <mat-option value="manual">Boletas Manuales</mat-option>
+          </mat-select>
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Buscar por folio, proveedor o RUT</mat-label>
+          <input matInput [value]="filtroTexto" (input)="onFiltroTextoChange($event)" placeholder="Buscar...">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <!-- Estadísticas de distribución -->
+      <div class="distribucion-stats" *ngIf="!loadingFacturas && hayFacturasPorDistribuir">
+        <div class="stat-chip-container">
+          <mat-chip-set>
+            <mat-chip color="primary" selected>
+              <mat-icon>inbox</mat-icon>
+              Sin distribuir: {{ facturasSinDistribuir }}
+            </mat-chip>
+            <mat-chip color="accent" selected>
+              <mat-icon>pie_chart</mat-icon>
+              Parciales: {{ facturasParcialmenteDistribuidas }}
+            </mat-chip>
+            <mat-chip color="warn" selected>
+              <mat-icon>assignment_turned_in</mat-icon>
+              Con distribución: {{ facturasConDistribucion }}
+            </mat-chip>
+            <!-- ESTADÍSTICAS PARA BOLETAS MANUALES -->
+            <mat-chip color="accent" selected *ngIf="facturasManuales > 0">
+              <mat-icon>edit</mat-icon>
+              Manuales: {{ facturasManuales }}
+            </mat-chip>
+            <mat-chip color="primary" selected *ngIf="facturasSII > 0">
+              <mat-icon>cloud</mat-icon>
+              SII: {{ facturasSII }}
+            </mat-chip>
+          </mat-chip-set>
+        </div>
+      </div>
+
+      <!-- Tabla de facturas CON SELECCIÓN -->
+      <div class="table-container" *ngIf="!loadingFacturas && hayFacturasPorDistribuir">
+        <table mat-table [dataSource]="facturasFiltradas" class="facturas-table">
+          
+          <!-- Columna de Selección -->
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef>
+              <mat-checkbox 
+                [checked]="todasLasVisiblesSeleccionadas"
+                [indeterminate]="algunaVisibleSeleccionada && !todasLasVisiblesSeleccionadas"
+                (change)="seleccionarTodasVisibles()"
+                color="primary">
+              </mat-checkbox>
+            </th>
+            <td mat-cell *matCellDef="let factura">
+              <mat-checkbox 
+                [checked]="factura.selected"
+                [disabled]="factura.completamente_distribuida"
+                (change)="toggleSeleccionFactura(factura)"
+                color="primary">
+              </mat-checkbox>
+            </td>
+          </ng-container>
+          
+          <!-- Folio CON IDENTIFICACIÓN DE TIPO -->
+          <ng-container matColumnDef="folio">
+            <th mat-header-cell *matHeaderCellDef>Folio</th>
+            <td mat-cell *matCellDef="let factura">
+              <div class="folio-container">
+                <span class="folio-number">{{ factura.folio || 'Sin folio' }}</span>
+                <span class="doc-type" [class.manual-type]="factura.es_manual">
+                  {{ factura.es_manual ? 'BOLETA MANUAL' : (factura.tipo_doc || 'N/A') }}
+                </span>
+                <!-- Indicador visual para boletas manuales -->
+                <mat-icon *ngIf="factura.es_manual" class="manual-indicator" [matTooltip]="'Boleta creada manualmente'">
+                  edit
+                </mat-icon>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Proveedor -->
+          <ng-container matColumnDef="proveedor">
+            <th mat-header-cell *matHeaderCellDef>Cliente</th>
+            <td mat-cell *matCellDef="let factura">
+              <div class="proveedor-info">
+                <span class="razon-social" [title]="factura.razon_social">
+                  {{ factura.razon_social || 'Sin razón social' }}
+                </span>
+                <span class="rut-proveedor">{{ factura.rut_receptor || 'Sin RUT' }}</span>
+                <!-- Mostrar descripción para boletas manuales -->
+                <span *ngIf="factura.es_manual && factura.descripcion" class="descripcion-manual" [title]="factura.descripcion">
+                  {{ factura.descripcion }}
+                </span>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Montos -->
+          <ng-container matColumnDef="montos">
+            <th mat-header-cell *matHeaderCellDef>Montos</th>
+            <td mat-cell *matCellDef="let factura">
+              <div class="montos-info">
+                <div class="monto-total">
+                  {{ formatearMonto(factura.monto_total || 0) }}
+                </div>
+                <div class="monto-fecha">{{ formatearFecha(factura.fecha_docto) }}</div>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Progreso de distribución -->
+          <ng-container matColumnDef="progreso">
+            <th mat-header-cell *matHeaderCellDef>Distribución</th>
+            <td mat-cell *matCellDef="let factura">
+              <div class="distribucion-progress">
+                
+                <!-- Barra de progreso -->
+                <mat-progress-bar 
+                  mode="determinate" 
+                  [value]="factura.porcentaje_distribuido || 0"
+                  [color]="(factura.porcentaje_distribuido || 0) === 0 ? 'warn' : 
+                          (factura.porcentaje_distribuido || 0) < 100 ? 'accent' : 'primary'"
+                  class="progress-bar-small">
+                </mat-progress-bar>
+                
+                <!-- Información de distribución -->
+                <div class="distribucion-info-compact">
+                  <span class="porcentaje">{{ (factura.porcentaje_distribuido || 0).toFixed(1) }}%</span>
+                  <span class="monto-distribuido">{{ formatearMonto(factura.monto_distribuido || 0) }}</span>
+                </div>
+                
+                <!-- Indicador de distribuciones -->
+                <div class="distribuciones-indicator" *ngIf="(factura.distribuciones_count || 0) > 0">
+                  <mat-chip class="mini-chip" color="primary" selected>
+                    {{ factura.distribuciones_count || 0 }} dist.
+                  </mat-chip>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- PDF PARA INCLUIR BOLETAS MANUALES -->
+          <ng-container matColumnDef="pdf">
+            <th mat-header-cell *matHeaderCellDef>
+              <div class="pdf-header">
+                <mat-icon class="pdf-header-icon">picture_as_pdf</mat-icon>
+                <span class="pdf-header-text">PDF</span>
+              </div>
+            </th>
+            <td mat-cell *matCellDef="let factura" class="pdf-cell">
+              <div class="pdf-status-container">
+                
+                <!-- BOLETA MANUAL - NO TIENE PDF -->
+                <ng-container *ngIf="factura.es_manual">
+                  <div class="pdf-manual">
+                    <button mat-icon-button 
+                            class="pdf-button pdf-manual"
+                            [matTooltip]="getTooltipPdf(factura)"
+                            disabled
+                            type="button">
+                      <mat-icon class="pdf-icon">description</mat-icon>
+                    </button>
+                    <div class="pdf-status-badge manual">
+                      <mat-icon>edit</mat-icon>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- PDF DISPONIBLE (SOLO PARA FACTURAS SII) -->
+                <ng-container *ngIf="!factura.es_manual && factura.pdf_disponible">
+                  <div class="pdf-available">
+                    <button mat-icon-button 
+                            class="pdf-button pdf-success"
+                            [matTooltip]="getTooltipPdf(factura)"
+                            (click)="visualizarPdfFactura(factura)"
+                            type="button">
+                      <mat-icon class="pdf-icon">picture_as_pdf</mat-icon>
+                    </button>
+                    <div class="pdf-status-badge success">
+                      <mat-icon>check_circle</mat-icon>
+                    </div>
+                  </div>
+                </ng-container>
+                
+                <!-- PDF NO DISPONIBLE (SOLO PARA FACTURAS SII) -->
+                <ng-container *ngIf="!factura.es_manual && !factura.pdf_disponible">
+                  
+                  <!-- Con Error -->
+                  <div class="pdf-error" *ngIf="factura.error_descarga_pdf">
+                    <button mat-icon-button 
+                            class="pdf-button pdf-error"
+                            [matTooltip]="getTooltipPdf(factura)"
+                            disabled
+                            type="button">
+                      <mat-icon class="pdf-icon">error</mat-icon>
+                    </button>
+                    <div class="pdf-status-badge error">
+                      <span class="error-count">{{ factura.intentos_descarga_pdf || 0 }}</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Pendiente -->
+                  <div class="pdf-pending" *ngIf="!factura.error_descarga_pdf">
+                    <button mat-icon-button 
+                            class="pdf-button pdf-pending"
+                            [matTooltip]="getTooltipPdf(factura)"
+                            disabled
+                            type="button">
+                      <mat-icon class="pdf-icon">cloud_download</mat-icon>
+                    </button>
+                    <div class="pdf-status-badge pending">
+                      <mat-icon>schedule</mat-icon>
+                    </div>
+                  </div>
+                </ng-container>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Acciones -->
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let factura" class="acciones-cell">
+              <div class="acciones-container">
+                
+                <!-- Distribuir -->
+                <button mat-icon-button 
+                        color="primary"
+                        [matTooltip]="'Nueva distribución'"
+                        (click)="abrirDialogoDistribucion(factura)"
+                        [disabled]="factura.completamente_distribuida"
+                        type="button">
+                  <mat-icon>add_circle</mat-icon>
+                </button>
+                
+                <!-- Ver distribuciones -->
+                <button mat-icon-button 
+                        color="accent"
+                        [matTooltip]="'Ver distribuciones (' + (factura.distribuciones_count || 0) + ')'"
+                        (click)="verDistribuciones(factura)"
+                        [disabled]="(factura.distribuciones_count || 0) === 0"
+                        type="button">
+                  <mat-icon>visibility</mat-icon>
+                </button>
+                
+                <!-- Menú de opciones -->
+                <button mat-icon-button 
+                        [matMenuTriggerFor]="accionesMenu"
+                        [matTooltip]="'Más opciones'"
+                        type="button">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                
+                <mat-menu #accionesMenu="matMenu">
+                  <button mat-menu-item 
+                          (click)="abrirDialogoDistribucion(factura)" 
+                          [disabled]="factura.completamente_distribuida"
+                          type="button">
+                    <mat-icon>add_circle</mat-icon>
+                    <span>Nueva distribución</span>
+                  </button>
+                  
+                  <button mat-menu-item 
+                          (click)="verDistribuciones(factura)" 
+                          [disabled]="(factura.distribuciones_count || 0) === 0"
+                          type="button">
+                    <mat-icon>list</mat-icon>
+                    <span>Ver distribuciones</span>
+                  </button>
+                  
+                  <mat-divider *ngIf="factura.pdf_disponible && !factura.es_manual"></mat-divider>
+                  
+                  <button mat-menu-item 
+                          (click)="visualizarPdfFactura(factura)" 
+                          *ngIf="factura.pdf_disponible && !factura.es_manual"
+                          type="button">
+                    <mat-icon>picture_as_pdf</mat-icon>
+                    <span>Ver PDF</span>
+                  </button>
+                  
+                  <!-- Indicador especial para boletas manuales -->
+                  <mat-divider *ngIf="factura.es_manual"></mat-divider>
+                  <button mat-menu-item *ngIf="factura.es_manual" disabled type="button">
+                    <mat-icon>edit</mat-icon>
+                    <span>Boleta Manual</span>
+                  </button>
+                </mat-menu>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+              [class.selected-row]="row.selected"
+              [class.completamente-distribuida]="row.completamente_distribuida"
+              [class.parcialmente-distribuida]="(row.porcentaje_distribuido || 0) > 0 && (row.porcentaje_distribuido || 0) < 100"
+              [class.factura-manual]="row.es_manual"></tr>
+        </table>
+      </div>
+
+      <!-- Paginación -->
+      <mat-paginator 
+        *ngIf="!loadingFacturas && facturasFiltradas.length > 0"
+        [length]="facturasFiltradas.length"
+        [pageSize]="10"
+        [pageSizeOptions]="[5, 10, 25, 50]"
+        showFirstLastButtons>
+      </mat-paginator>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Sin facturas por distribuir -->
+  <mat-card class="form-card" *ngIf="!hayFacturasPorDistribuir && !loadingFacturas">
+    <mat-card-content class="no-facturas">
+      <mat-icon class="no-facturas-icon">inbox</mat-icon>
+      <h3>No hay facturas por distribuir</h3>
+      <p *ngIf="configuracionValida">El proceso automático no ha encontrado facturas nuevas para el período {{ periodoConfigurado }}.</p>
+      <p *ngIf="!configuracionValida">Configure las credenciales y el período en la sección de Parámetros para comenzar a buscar facturas automáticamente.</p>
+      <p *ngIf="procesoStatus.proxima_ejecucion && configuracionValida">
+        <strong>Próxima búsqueda:</strong> {{ formatearFechaHora(procesoStatus.proxima_ejecucion) }}
+      </p>
+      
+      <div class="no-facturas-actions">
+        <button mat-raised-button 
+                color="primary" 
+                (click)="ejecutarProcesoManual()"
+                [disabled]="loading || procesoStatus.estado === 'ejecutando' || !configuracionValida"
+                type="button">
+          <mat-icon>search</mat-icon>
+          Buscar Facturas Ahora
+        </button>
+        
+        <button mat-raised-button 
+                color="accent"
+                (click)="abrirDialogoFacturaManual()"
+                type="button">
+          <mat-icon>add_circle</mat-icon>
+          Crear Boleta de Venta
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- DIÁLOGO DE DISTRIBUCIÓN PARA MÚLTIPLES -->
+  <div class="dialog-overlay" *ngIf="mostrarDialogoDistribucion" (click)="cerrarDialogoDistribucion()">
+    <div class="dialog-container" [class.large-dialog]="modoDistribucionMultiple" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>
+          <mat-icon>{{ modoDistribucionMultiple ? 'assignment_turned_in' : 'assignment' }}</mat-icon>
+          {{ modoDistribucionMultiple ? 'Distribuir Múltiples Facturas' : 'Distribuir Factura' }}
+        </h2>
+        <button mat-icon-button (click)="cerrarDialogoDistribucion()" type="button">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      
+      <div class="dialog-content">
+        
+        <!-- Información para distribución múltiple -->
+        <div class="facturas-multiples-info" *ngIf="modoDistribucionMultiple && distribucionMultiple">
+          <mat-card class="multiple-info-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>info</mat-icon>
+                Distribución Múltiple ({{ distribucionMultiple.facturas.length }} facturas)
+              </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="multiple-summary">
+                <div class="summary-item">
+                  <span class="label">Monto Total Disponible:</span>
+                  <span class="value amount">{{ formatearMonto(distribucionMultiple.monto_total_disponible) }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="label">Monto Máximo por Factura:</span>
+                  <span class="value amount">{{ formatearMonto(distribucionMultiple.monto_minimo_por_factura) }}</span>
+                </div>
+              </div>
+              
+              <!-- Tipo de distribución múltiple -->
+              <div class="multiple-type-section">
+                <h4>Modo de Distribución:</h4>
+                <mat-radio-group formControlName="tipo_distribucion_multiple" class="multiple-radio-group">
+                  <mat-radio-button value="INDIVIDUAL">
+                    <div class="radio-option">
+                      <span class="radio-title">Individual</span>
+                      <span class="radio-description">Cada factura recibe el mismo monto/porcentaje</span>
+                    </div>
+                  </mat-radio-button>
+                  <mat-radio-button value="GRUPAL">
+                    <div class="radio-option">
+                      <span class="radio-title">Proporcional</span>
+                      <span class="radio-description">Distribución proporcional según el monto de cada factura</span>
+                    </div>
+                  </mat-radio-button>
+                </mat-radio-group>
+              </div>
+              
+              <!-- Lista compacta de facturas -->
+              <div class="facturas-list-compact">
+                <h4>Facturas Seleccionadas:</h4>
+                <div class="facturas-chips">
+                  <mat-chip-set>
+                    <mat-chip *ngFor="let f of distribucionMultiple.facturas" 
+                             [color]="f.es_manual ? 'accent' : 'primary'" 
+                             selected>
+                      <span class="chip-content">
+                        <strong>{{ f.folio }}</strong> 
+                        <span *ngIf="f.es_manual" class="manual-chip-indicator">(Manual)</span>
+                        - {{ formatearMonto(f.monto_pendiente) }}
+                      </span>
+                    </mat-chip>
+                  </mat-chip-set>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Información de factura simple -->
+        <div class="factura-info-card" *ngIf="!modoDistribucionMultiple && facturaSeleccionada">
+          <h4>
+            <mat-icon>{{ facturaSeleccionada.es_manual ? 'edit' : 'receipt' }}</mat-icon>
+            Información de la {{ facturaSeleccionada.es_manual ? 'Boleta Manual' : 'Factura' }}
+          </h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="label">Folio:</span>
+              <span class="value">
+                {{ facturaSeleccionada.tipo_doc }} - {{ facturaSeleccionada.folio }}
+                <mat-chip *ngIf="facturaSeleccionada.es_manual" class="mini-manual-chip" color="accent" selected>
+                  Manual
+                </mat-chip>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="label">Cliente:</span>
+              <span class="value">{{ facturaSeleccionada.razon_social }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">RUT:</span>
+              <span class="value">{{ facturaSeleccionada.rut_receptor }}</span>
+            </div>
+            <div class="info-item" *ngIf="facturaSeleccionada.es_manual && facturaSeleccionada.descripcion">
+              <span class="label">Descripción:</span>
+              <span class="value">{{ facturaSeleccionada.descripcion }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Monto Total:</span>
+              <span class="value amount">{{ formatearMonto(facturaSeleccionada.monto_total) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Ya Distribuido:</span>
+              <span class="value">{{ formatearMonto(facturaSeleccionada.monto_distribuido) }} ({{ facturaSeleccionada.porcentaje_distribuido.toFixed(1) }}%)</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Disponible:</span>
+              <span class="value amount-available">{{ formatearMonto(facturaSeleccionada.monto_pendiente) }} ({{ facturaSeleccionada.porcentaje_pendiente.toFixed(1) }}%)</span>
+            </div>
+          </div>
+          
+          <!-- Progreso visual -->
+          <div class="progress-visual">
+            <mat-progress-bar 
+              mode="determinate" 
+              [value]="facturaSeleccionada.porcentaje_distribuido"
+              [color]="facturaSeleccionada.porcentaje_distribuido < 100 ? 'accent' : 'primary'">
+            </mat-progress-bar>
+            <span class="progress-text">{{ facturaSeleccionada.porcentaje_distribuido.toFixed(1) }}% distribuido</span>
+          </div>
+        </div>
+
+        <!-- Formulario de distribución -->
+        <form [formGroup]="distribucionForm" class="distribucion-form">
+          
+          <!-- Tipo de distribución -->
+          <div class="form-section">
+            <h4>Tipo de Distribución</h4>
+            <mat-radio-group formControlName="tipo_distribucion" (change)="onTipoDistribucionChange()">
+              <mat-radio-button value="MONTO">Por Monto Específico</mat-radio-button>
+              <mat-radio-button value="PORCENTAJE">Por Porcentaje</mat-radio-button>
+            </mat-radio-group>
+          </div>
+
+          <!-- Monto o porcentaje -->
+          <div class="form-section" *ngIf="distribucionForm.get('tipo_distribucion')?.value">
+            <div class="amount-input-container">
+              
+              <!-- Campo de monto -->
+              <mat-form-field appearance="outline" class="full-width" *ngIf="distribucionForm.get('tipo_distribucion')?.value === 'MONTO'">
+                <mat-label>{{ modoDistribucionMultiple ? 'Monto por Factura' : 'Monto a Distribuir' }}</mat-label>
+                <input matInput 
+                       type="number" 
+                       formControlName="monto_a_distribuir"
+                       [max]="(modoDistribucionMultiple ? distribucionMultiple?.monto_minimo_por_factura : facturaSeleccionada?.monto_pendiente) || null"
+                       placeholder="0">
+                <span matPrefix>$&nbsp;</span>
+                <mat-hint *ngIf="modoDistribucionMultiple && distribucionMultiple">
+                  Máximo: {{ formatearMonto(distribucionMultiple.monto_minimo_por_factura) }} (por la factura más pequeña)
+                </mat-hint>
+                <mat-hint *ngIf="!modoDistribucionMultiple && facturaSeleccionada">
+                  Máximo: {{ formatearMonto(facturaSeleccionada.monto_pendiente) }}
+                </mat-hint>
+                <mat-error *ngIf="distribucionForm.get('monto_a_distribuir')?.hasError('max')">
+                  El monto excede el máximo permitido
+                </mat-error>
+                <mat-error *ngIf="distribucionForm.get('monto_a_distribuir')?.hasError('required')">
+                  Monto es requerido
+                </mat-error>
+              </mat-form-field>
+
+              <!-- Campo de porcentaje -->
+              <mat-form-field appearance="outline" class="full-width" *ngIf="distribucionForm.get('tipo_distribucion')?.value === 'PORCENTAJE'">
+                <mat-label>{{ modoDistribucionMultiple ? 'Porcentaje por Factura' : 'Porcentaje a Distribuir' }}</mat-label>
+                <input matInput 
+                       type="number" 
+                       formControlName="porcentaje_a_distribuir"
+                       [max]="(modoDistribucionMultiple ? 100 : facturaSeleccionada?.porcentaje_pendiente) || null"
+                       placeholder="0">
+                <span matSuffix>%</span>
+                <mat-hint *ngIf="modoDistribucionMultiple">
+                  Máximo: 100%
+                </mat-hint>
+                <mat-hint *ngIf="!modoDistribucionMultiple && facturaSeleccionada">
+                  Máximo: {{ facturaSeleccionada.porcentaje_pendiente.toFixed(2) }}%
+                </mat-hint>
+                <mat-error *ngIf="distribucionForm.get('porcentaje_a_distribuir')?.hasError('max')">
+                  El porcentaje excede el máximo permitido
+                </mat-error>
+                <mat-error *ngIf="distribucionForm.get('porcentaje_a_distribuir')?.hasError('required')">
+                  Porcentaje es requerido
+                </mat-error>
+              </mat-form-field>
+
+              <!-- Botones de ayuda -->
+              <div class="amount-helpers">
+                <button type="button" mat-stroked-button (click)="distribuirResto()">
+                  <mat-icon>select_all</mat-icon>
+                  {{ modoDistribucionMultiple ? 'Máximo' : 'Todo el resto' }}
+                </button>
+                <button type="button" mat-stroked-button (click)="distribuirMitad()">
+                  <mat-icon>pie_chart</mat-icon>
+                  50%
+                </button>
+              </div>
+            </div>
+
+            <!-- Vista previa del monto -->
+            <div class="preview-amount" *ngIf="getValorDistribucion() > 0">
+              <div class="preview-card">
+                <div class="preview-item" *ngIf="!modoDistribucionMultiple">
+                  <span class="preview-label">Monto a distribuir:</span>
+                  <span class="preview-value">{{ formatearMonto(getValorDistribucion()) }}</span>
+                </div>
+                <div class="preview-item" *ngIf="modoDistribucionMultiple">
+                  <span class="preview-label">Monto total a distribuir:</span>
+                  <span class="preview-value">{{ formatearMonto(getValorDistribucion()) }}</span>
+                </div>
+                <div class="preview-item">
+                  <span class="preview-label">Porcentaje:</span>
+                  <span class="preview-value">{{ getPorcentajeDistribucion().toFixed(2) }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Campos de asignación -->
+          <div class="form-section">
+            <h4>Asignación</h4>
+            
+            <!-- Cliente -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Cliente *</mat-label>
+              <mat-select formControlName="cliente_id" (selectionChange)="onClienteSeleccionado()">
+                <mat-option *ngFor="let cliente of clientes" [value]="cliente.id">
+                  {{ cliente.nombre }} ({{ cliente.rut }})
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>business</mat-icon>
+              <mat-error *ngIf="distribucionForm.get('cliente_id')?.hasError('required')">
+                Cliente es obligatorio
+              </mat-error>
+            </mat-form-field>
+
+            <!-- Fundo/Campo -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Fundo/Campo</mat-label>
+              <mat-select formControlName="fundo_id" [disabled]="!distribucionForm.get('cliente_id')?.value || loadingFundos">
+                <mat-option *ngIf="loadingFundos" disabled>
+                  Cargando fundos...
+                </mat-option>
+                <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">
+                  {{ fundo.nombre_campo }} - {{ fundo.direccion_campo }}
+                </mat-option>
+                <mat-option *ngIf="fundos.length === 0 && !loadingFundos && distribucionForm.get('cliente_id')?.value" disabled>
+                  No hay fundos disponibles para este cliente
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>location_on</mat-icon>
+            </mat-form-field>
+
+            <!-- Labor -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Labor</mat-label>
+              <mat-select formControlName="labor_id">
+                <mat-option *ngFor="let labor of labores" [value]="labor.id">
+                  {{ labor.nombre }} ({{ labor.especie }})
+                </mat-option>
+                <mat-option *ngIf="labores.length === 0" disabled>
+                  No hay labores disponibles
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>work</mat-icon>
+            </mat-form-field>
+
+            <!-- Cuenta Contable -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Cuenta Contable</mat-label>
+              <mat-select formControlName="cuenta_id">
+                <mat-option *ngFor="let cuenta of cuentas" [value]="cuenta.id">
+                  {{ cuenta.nombre_cuenta }} ({{ cuenta.cuenta_contable }})
+                </mat-option>
+                <mat-option *ngIf="cuentas.length === 0" disabled>
+                  No hay cuentas disponibles
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>account_balance</mat-icon>
+            </mat-form-field>
+
+            <!-- Observaciones -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Observaciones (opcional)</mat-label>
+              <textarea matInput 
+                        formControlName="observaciones" 
+                        placeholder="Ingrese observaciones adicionales sobre la distribución"
+                        rows="3">
+              </textarea>
+              <mat-icon matSuffix>note</mat-icon>
+              <mat-hint>Máximo 1000 caracteres</mat-hint>
+            </mat-form-field>
+          </div>
+        </form>
+
+        <!-- Barra de progreso -->
+        <div *ngIf="loadingDistribucion" class="progress-container">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <div class="progress-text">
+            <span>{{ modoDistribucionMultiple ? 'Distribuyendo facturas...' : 'Distribuyendo factura...' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button mat-stroked-button 
+                (click)="cerrarDialogoDistribucion()" 
+                [disabled]="loadingDistribucion"
+                type="button">
+          Cancelar
+        </button>
+        <button mat-raised-button 
+                color="primary" 
+                (click)="confirmarDistribucion()"
+                [disabled]="distribucionForm.invalid || loadingDistribucion"
+                type="button">
+          <mat-icon>check</mat-icon>
+          {{ modoDistribucionMultiple ? 'Confirmar Distribución Múltiple' : 'Confirmar Distribución' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIÁLOGO PARA CREAR BOLETA MANUAL CORREGIDO -->
+  <div class="dialog-overlay" *ngIf="mostrarDialogoFacturaManual" (click)="cerrarDialogoFacturaManual()">
+    <div class="dialog-container large-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>
+          <mat-icon>add_circle</mat-icon>
+          Crear Boleta de Venta Manual
+        </h2>
+        <button mat-icon-button (click)="cerrarDialogoFacturaManual()" type="button">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      
+      <div class="dialog-content">
+        <!-- Información sobre boletas manuales -->
+        <div class="manual-invoice-info">
+          <mat-card class="info-card">
+            <mat-card-content>
+              <div class="info-header">
+                <mat-icon>info</mat-icon>
+                <h4>Información sobre Boletas Manuales</h4>
+              </div>
+              <p>Las boletas de venta manuales son documentos creados para registrar ingresos que no tienen factura oficial del SII. Estos documentos:</p>
+              <ul>
+                <li>Siempre son boletas de venta (sin IVA)</li>
+                <li>El folio se genera automáticamente: <strong>Próximo folio: {{ proximoFolio }}</strong></li>
+                <li>No requieren PDF del SII</li>
+                <li>Pueden distribuirse igual que las facturas automáticas</li>
+                <li>Se identifican visualmente en la tabla con un color diferente</li>
+                <li>Son útiles para registrar trabajos realizados sin facturación formal</li>
+              </ul>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Formulario para crear boleta manual -->
+        <form [formGroup]="facturaManualForm" class="factura-manual-form">
+          
+          <!-- Información del cliente -->
+          <div class="form-section">
+            <h4>Información del Cliente</h4>
+            
+            <div class="cliente-form-row">
+              <mat-form-field appearance="outline" class="rut-field">
+                <mat-label>RUT del Cliente *</mat-label>
+                <input matInput 
+                       formControlName="rut_receptor"
+                       placeholder="12345678-9"
+                       maxlength="12">
+                <mat-icon matSuffix>person</mat-icon>
+                <mat-error *ngIf="facturaManualForm.get('rut_receptor')?.hasError('required')">
+                  RUT es requerido
+                </mat-error>
+                <mat-error *ngIf="facturaManualForm.get('rut_receptor')?.hasError('pattern')">
+                  Formato: 12345678-9
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="razon-social-field">
+                <mat-label>Razón Social *</mat-label>
+                <input matInput 
+                       formControlName="razon_social_receptor"
+                       placeholder="Nombre o empresa del cliente">
+                <mat-icon matSuffix>business</mat-icon>
+                <mat-error *ngIf="facturaManualForm.get('razon_social_receptor')?.hasError('required')">
+                  Razón social es requerida
+                </mat-error>
+                <mat-error *ngIf="facturaManualForm.get('razon_social_receptor')?.hasError('minlength')">
+                  Mínimo 3 caracteres
+                </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Información del documento -->
+          <div class="form-section">
+            <h4>Información del Documento</h4>
+            
+            <div class="documento-form-row">
+              <!-- Folio automático -->
+              <div class="folio-automatico-info">
+                <mat-icon>confirmation_number</mat-icon>
+                <span><strong>Folio automático:</strong> {{ proximoFolio }}</span>
+              </div>
+
+              <mat-form-field appearance="outline" class="fecha-field">
+                <mat-label>Fecha de Emisión *</mat-label>
+                <input matInput 
+                       [matDatepicker]="fechaEmisionPicker"
+                       formControlName="fecha_emision">
+                <mat-datepicker-toggle matSuffix [for]="fechaEmisionPicker"></mat-datepicker-toggle>
+                <mat-datepicker #fechaEmisionPicker></mat-datepicker>
+                <mat-error *ngIf="facturaManualForm.get('fecha_emision')?.hasError('required')">
+                  Fecha de emisión es requerida
+                </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Descripción del trabajo/servicio -->
+          <div class="form-section">
+            <h4>Descripción del Trabajo/Servicio</h4>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Descripción *</mat-label>
+              <textarea matInput 
+                        formControlName="descripcion"
+                        placeholder="Describe el trabajo o servicio realizado"
+                        rows="3">
+              </textarea>
+              <mat-icon matSuffix>work</mat-icon>
+              <mat-hint>Descripción detallada del trabajo realizado</mat-hint>
+              <mat-error *ngIf="facturaManualForm.get('descripcion')?.hasError('required')">
+                Descripción es requerida
+              </mat-error>
+              <mat-error *ngIf="facturaManualForm.get('descripcion')?.hasError('minlength')">
+                Mínimo 5 caracteres
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <!-- Montos SIMPLIFICADO -->
+          <div class="form-section">
+            <h4>Información de Montos (Sin IVA)</h4>
+            
+            <!-- Monto total (campo principal) -->
+            <mat-form-field appearance="outline" class="monto-total-field">
+              <mat-label>Monto Total *</mat-label>
+              <input matInput 
+                     type="number"
+                     formControlName="monto_total"
+                     (blur)="onMontoTotalChange()"
+                     placeholder="0">
+              <span matPrefix>$&nbsp;</span>
+              <mat-icon matSuffix>attach_money</mat-icon>
+              <mat-hint>Para boletas manuales no se aplica IVA - Todo va a monto neto</mat-hint>
+              <mat-error *ngIf="facturaManualForm.get('monto_total')?.hasError('required')">
+                Monto total es requerido
+              </mat-error>
+              <mat-error *ngIf="facturaManualForm.get('monto_total')?.hasError('min')">
+                Monto debe ser mayor a 0
+              </mat-error>
+            </mat-form-field>
+
+            <!-- Desglose simplificado -->
+            <div class="montos-desglose-simplificado">
+              <mat-form-field appearance="outline" class="monto-field">
+                <mat-label>Monto Neto (=Total)</mat-label>
+                <input matInput 
+                       type="number"
+                       formControlName="monto_neto"
+                       readonly>
+                <span matPrefix>$&nbsp;</span>
+              </mat-form-field>
+            </div>
+
+            <!-- Información sobre el cálculo -->
+            <div class="calculo-info">
+              <mat-icon>info</mat-icon>
+              <span>
+                Las boletas manuales no tienen IVA - El monto total equivale al monto neto
+              </span>
+            </div>
+          </div>
+
+          <!-- Observaciones adicionales -->
+          <div class="form-section">
+            <h4>Observaciones Adicionales</h4>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Observaciones</mat-label>
+              <textarea matInput 
+                        formControlName="observaciones"
+                        placeholder="Observaciones adicionales sobre la boleta (opcional)"
+                        rows="2">
+              </textarea>
+              <mat-icon matSuffix>note</mat-icon>
+              <mat-hint>Información adicional que considere relevante</mat-hint>
+            </mat-form-field>
+          </div>
+        </form>
+
+        <!-- Barra de progreso -->
+        <div *ngIf="loadingCrearFactura" class="progress-container">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <div class="progress-text">
+            <span>Creando boleta de venta...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button mat-stroked-button 
+                (click)="cerrarDialogoFacturaManual()" 
+                [disabled]="loadingCrearFactura"
+                type="button">
+          Cancelar
+        </button>
+        <button mat-raised-button 
+                color="primary" 
+                (click)="confirmarCrearFacturaManual()"
+                [disabled]="facturaManualForm.invalid || loadingCrearFactura"
+                type="button">
+          <mat-icon>add_circle</mat-icon>
+          {{ loadingCrearFactura ? 'Creando...' : 'Crear Boleta de Venta' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIÁLOGO PARA VER DISTRIBUCIONES (sin cambios) -->
+  <div class="dialog-overlay" *ngIf="mostrarDialogoDistribuciones" (click)="cerrarDialogoDistribuciones()">
+    <div class="dialog-container large-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>
+          <mat-icon>list</mat-icon>
+          Distribuciones de Factura
+        </h2>
+        <button mat-icon-button (click)="cerrarDialogoDistribuciones()" type="button">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      
+      <div class="dialog-content" *ngIf="facturaSeleccionada">
+        
+        <!-- Información de la factura -->
+        <div class="factura-info-card">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="label">Folio:</span>
+              <span class="value">{{ facturaSeleccionada.tipo_doc }} - {{ facturaSeleccionada.folio }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Cliente:</span>
+              <span class="value">{{ facturaSeleccionada.razon_social }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Monto Total:</span>
+              <span class="value amount">{{ formatearMonto(facturaSeleccionada.monto_total) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Distribuido:</span>
+              <span class="value">{{ formatearMonto(facturaSeleccionada.monto_distribuido) }} ({{ facturaSeleccionada.porcentaje_distribuido.toFixed(1) }}%)</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Pendiente:</span>
+              <span class="value amount-available">{{ formatearMonto(facturaSeleccionada.monto_pendiente) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Total Distribuciones:</span>
+              <span class="value">{{ facturaSeleccionada.distribuciones_count }}</span>
+            </div>
+            <div class="info-item" *ngIf="facturaSeleccionada.es_manual">
+              <span class="label">Tipo:</span>
+              <span class="value">
+                <mat-chip color="accent" selected>Boleta Manual</mat-chip>
+              </span>
+            </div>
+          </div>
+          
+          <!-- Progreso -->
+          <div class="progress-visual">
+            <mat-progress-bar 
+              mode="determinate" 
+              [value]="facturaSeleccionada.porcentaje_distribuido"
+              [color]="facturaSeleccionada.porcentaje_distribuido < 100 ? 'accent' : 'primary'">
+            </mat-progress-bar>
+            <span class="progress-text">{{ facturaSeleccionada.porcentaje_distribuido.toFixed(1) }}% distribuido</span>
+          </div>
+        </div>
+
+        <!-- Lista de distribuciones -->
+        <div class="distribuciones-list">
+          <h4>Distribuciones Existentes</h4>
+          
+          <div *ngIf="facturaSeleccionada.distribuciones.length === 0" class="no-distribuciones">
+            <mat-icon>inbox</mat-icon>
+            <p>No hay distribuciones para esta factura</p>
+          </div>
+
+          <div *ngFor="let distribucion of facturaSeleccionada.distribuciones; let i = index" 
+               class="distribucion-item">
+            <div class="distribucion-header">
+              <div class="distribucion-number">
+                <mat-icon>assignment</mat-icon>
+                <span>Distribución #{{ i + 1 }}</span>
+              </div>
+              <div class="distribucion-actions">
+                <button mat-icon-button 
+                        color="warn"
+                        [matTooltip]="'Eliminar distribución'"
+                        (click)="eliminarDistribucion(distribucion)"
+                        type="button">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+            
+            <div class="distribucion-content">
+              <div class="distribucion-info-grid">
+                <div class="info-item">
+                  <span class="label">Cliente:</span>
+                  <span class="value">{{ distribucion.cliente.nombre }}</span>
+                </div>
+                <div class="info-item" *ngIf="distribucion.fundo">
+                  <span class="label">Fundo:</span>
+                  <span class="value">{{ distribucion.fundo.nombre }}</span>
+                </div>
+                <div class="info-item" *ngIf="distribucion.labor">
+                  <span class="label">Labor:</span>
+                  <span class="value">{{ distribucion.labor.nombre }}</span>
+                </div>
+                <div class="info-item" *ngIf="distribucion.cuenta">
+                  <span class="label">Cuenta:</span>
+                  <span class="value">{{ distribucion.cuenta.nombre }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Monto:</span>
+                  <span class="value amount">{{ formatearMonto(distribucion.monto_distribuido) }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Porcentaje:</span>
+                  <span class="value">{{ distribucion.porcentaje_distribuido.toFixed(2) }}%</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Fecha:</span>
+                  <span class="value">{{ formatearFechaHora(distribucion.fecha_distribucion) }}</span>
+                </div>
+                <div class="info-item" *ngIf="distribucion.usuario_distribuyente">
+                  <span class="label">Usuario:</span>
+                  <span class="value">{{ distribucion.usuario_distribuyente.nombre }}</span>
+                </div>
+              </div>
+              
+              <div class="distribucion-observaciones" *ngIf="distribucion.observaciones">
+                <span class="label">Observaciones:</span>
+                <p>{{ distribucion.observaciones }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button mat-stroked-button (click)="cerrarDialogoDistribuciones()" type="button">
+          Cerrar
+        </button>
+        <button mat-raised-button 
+                color="primary" 
+                (click)="abrirDialogoDistribucion(facturaSeleccionada!)"
+                [disabled]="facturaSeleccionada!.completamente_distribuida"
+                type="button">
+          <mat-icon>add</mat-icon>
+          Nueva Distribución
+        </button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Alertas específicas para PDFs -->
+  <div class="alert alert-warning pdf-warning" *ngIf="estadisticasPdf.facturas_sin_pdf > 0 && !loadingFacturas && hayFacturasPorDistribuir">
+    <mat-icon>info</mat-icon>
+    <span>
+      Hay {{ estadisticasPdf.facturas_sin_pdf }} facturas sin PDF para el período {{ periodoConfigurado }}. 
+      <button mat-button color="primary" (click)="buscarPdfsFacturasExistentes()" [disabled]="loadingPdfSearch" type="button">
+        <mat-icon>search</mat-icon>
+        Buscar PDFs Ahora
+      </button>
+    </span>
+  </div>
+
+  <div class="alert alert-info pdf-info" *ngIf="estadisticasPdf.porcentaje_con_pdf === 100 && estadisticasPdf.total_facturas > 0">
+    <mat-icon>check_circle</mat-icon>
+    <span>¡Excelente! Todas las facturas del período {{ periodoConfigurado }} tienen sus PDFs disponibles.</span>
+  </div>
+
+</div>

@@ -1,0 +1,339 @@
+<div class="container">
+  <!-- Formulario de cálculo -->
+  <div class="calculo-container">
+    <h2>Proformas de Transportistas</h2>
+    <form [formGroup]="calculoForm" (ngSubmit)="generarProformas()" class="calculo-form">
+      <div class="form-section">
+        <div class="form-column">
+          <!-- Selección de empresa -->
+          <div class="form-group">
+            <label for="sociedad">Empresa:</label>
+            <select id="sociedad" formControlName="sociedad" class="form-control">
+              <option value="">Seleccione una empresa</option>
+              <option *ngFor="let s of sociedades" [value]="s.id">{{s.nombre}} - {{s.rol_sociedad}}</option>
+            </select>
+            <div class="validation-error" *ngIf="calculoForm.get('sociedad')?.touched && calculoForm.get('sociedad')?.invalid">
+              La empresa es requerida
+            </div>
+          </div>
+
+          <!-- Fecha de Emisión -->
+          <div class="form-group">
+            <label for="fecha_emision">Fecha de Emisión:</label>
+            <input type="date" id="fecha_emision" formControlName="fecha_emision" class="form-control">
+            <div class="validation-error" *ngIf="calculoForm.get('fecha_emision')?.touched && calculoForm.get('fecha_emision')?.invalid">
+              La fecha de emisión es requerida
+            </div>
+          </div>
+
+          <!-- Fecha de Vencimiento -->
+          <div class="form-group">
+            <label for="fecha_vencimiento">Fecha de Vencimiento:</label>
+            <input type="date" id="fecha_vencimiento" formControlName="fecha_vencimiento" class="form-control">
+            <div class="validation-error" *ngIf="calculoForm.get('fecha_vencimiento')?.touched && calculoForm.get('fecha_vencimiento')?.invalid">
+              La fecha de vencimiento es requerida
+            </div>
+          </div>
+
+          <!-- Fecha Inicio Periodo -->
+          <div class="form-group">
+            <label for="fecha_inicio_periodo">Periodo Inicio:</label>
+            <input type="date" id="fecha_inicio_periodo" formControlName="fecha_inicio_periodo" class="form-control">
+            <div class="validation-error" *ngIf="calculoForm.get('fecha_inicio_periodo')?.touched && calculoForm.get('fecha_inicio_periodo')?.invalid">
+              La fecha de inicio del periodo es requerida
+            </div>
+          </div>
+
+          <!-- Fecha Fin Periodo -->
+          <div class="form-group">
+            <label for="fecha_fin_periodo">Periodo Fin:</label>
+            <input type="date" id="fecha_fin_periodo" formControlName="fecha_fin_periodo" class="form-control">
+            <div class="validation-error" *ngIf="calculoForm.get('fecha_fin_periodo')?.touched && calculoForm.get('fecha_fin_periodo')?.invalid">
+              La fecha de fin del periodo es requerida
+            </div>
+          </div>
+
+          <!-- Selección de empresas de transporte -->
+          <div class="form-group">
+            <label>Seleccione Empresas de Transporte</label>
+            <div class="empresas-grid">
+              <div *ngFor="let t of transportistas" 
+                   class="empresa-card"
+                   [class.selected]="isTransportistaSelected(t.id)"
+                   [style.border-left]="'5px solid ' + getColorEmpresa(t.id)"
+                   (click)="toggleEmpresaTransporte(t)">
+                <div class="empresa-info">
+                  <h4>{{ t.nombre }}</h4>
+                  <p>RUT: {{ t.rut }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="validation-error" *ngIf="calculoForm.get('transportistas')?.touched && calculoForm.get('transportistas')?.invalid">
+              Debe seleccionar al menos una empresa
+            </div>
+          </div>
+
+          <!-- Botón de generación -->
+          <div class="form-actions">
+            <button type="submit" [disabled]="!calculoForm.valid || calculando" class="btn-submit">
+              <span *ngIf="!calculando">Generar y Emitir Proforma</span>
+              <span *ngIf="calculando" class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i> Generando...
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sección de proformas existentes -->
+  <div class="proformas-existentes">
+    <h3>Proformas Existentes</h3>
+    
+    <!-- Filtros de búsqueda -->
+    <form [formGroup]="filtrosForm" class="filtros-container">
+      <div class="filtro-group">
+        <label for="filtroFechaInicio">Fecha Inicio:</label>
+        <input type="date" id="filtroFechaInicio" formControlName="fecha_inicio" class="form-control" (change)="aplicarFiltros()">
+      </div>
+      <div class="filtro-group">
+        <label for="filtroFechaFin">Fecha Fin:</label>
+        <input type="date" id="filtroFechaFin" formControlName="fecha_fin" class="form-control" (change)="aplicarFiltros()">
+      </div>
+      <div class="filtro-group">
+        <label for="filtroEstado">Estado:</label>
+        <select id="filtroEstado" formControlName="estado" class="form-control" (change)="aplicarFiltros()">
+          <option value="">Todos</option>
+          <option value="EMITIDO">Emitido</option>
+          <option value="FACTURADO">Facturado</option>
+        </select>
+      </div>
+      <div class="filtro-group">
+        <label for="filtroTransportista">Transportista:</label>
+        <select id="filtroTransportista" formControlName="transportista" class="form-control" (change)="aplicarFiltros()">
+          <option value="">Todos</option>
+          <option *ngFor="let t of transportistas" [value]="t.id">{{ t.nombre }}</option>
+        </select>
+      </div>
+    </form>
+
+    <!-- Acciones en lote -->
+    <div class="bulk-actions" *ngIf="hasSelectableProformas()">
+      <button 
+        class="btn-bulk-facturar" 
+        [disabled]="!hasSelectedProformas()"
+        (click)="facturarProformasSeleccionadas()">
+        <i class="fas fa-file-invoice-dollar"></i>
+        Facturar Seleccionadas ({{selectedProformas.length}})
+      </button>
+    </div>
+
+    <!-- Tabla de proformas -->
+    <div class="tabla-container">
+      <table class="tabla-proformas">
+        <thead>
+          <tr>
+            <th>
+              <div class="checkbox-wrapper">
+                <input 
+                  type="checkbox" 
+                  [checked]="areAllProformasSelected()" 
+                  (change)="toggleAllProformas()"
+                  [disabled]="!hasSelectableProformas()">
+              </div>
+            </th>
+            <th>N° Proforma</th>
+            <th>Empresa</th>
+            <th>Transportista</th>
+            <th>RUT</th>
+            <th>Fecha Emisión</th>
+            <th>Período</th>
+            <th>Estado</th>
+            <th>Tramo</th>
+            <th>Total</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="cargandoProformas">
+            <td colspan="11" class="loading-row">
+              <i class="fas fa-spinner fa-spin"></i> Cargando proformas...
+            </td>
+          </tr>
+          <tr *ngIf="!cargandoProformas && proformas.length === 0">
+            <td colspan="11" class="empty-row">
+              No se encontraron proformas
+            </td>
+          </tr>
+          <tr *ngFor="let p of proformas">
+            <td>
+              <div class="checkbox-wrapper">
+                <input 
+                  type="checkbox" 
+                  [checked]="isProformaSelected(p)"
+                  (change)="toggleProformaSelection(p)"
+                  [disabled]="p.estado !== 'EMITIDO'">
+              </div>
+            </td>
+            <td>PROFORMA - {{ p.id }}</td>
+            <td>{{ p.sociedad_nombre }}</td>
+            <td>{{ p.transportista_nombre }}</td>
+            <td>{{ p.transportista_rut }}</td>
+            <td>{{ p.fecha_emision | date:'dd/MM/yyyy' }}</td>
+            <td>{{ p.fecha_inicio_periodo | date:'dd/MM/yyyy' }} - {{ p.fecha_fin_periodo | date:'dd/MM/yyyy' }}</td>
+            <td>
+              <span 
+                class="estado-badge" 
+                [class.emitido]="p.estado === 'EMITIDO'" 
+                [class.facturado]="p.estado === 'FACTURADO'"
+                (click)="p.estado === 'FACTURADO' ? mostrarDetallesFactura(p) : null"
+                [class.clickable]="p.estado === 'FACTURADO'">
+                {{ p.estado }}
+              </span>
+            </td>
+            <td>{{ p.tramo }}</td>
+            <td class="monto">{{ p.total | currency:'CLP':'symbol-narrow':'1.0-0' }}</td>
+            <td>
+              <div class="action-buttons">
+                <button 
+                  class="btn-action btn-download" 
+                  (click)="descargarProformaExistente(p.id)" 
+                  title="Descargar PDF">
+                  <i class="fas fa-file-pdf"></i>
+                  <span class="button-text">PDF</span>
+                </button>
+                <button 
+                  *ngIf="p.estado === 'EMITIDO'"
+                  class="btn-action btn-facturar" 
+                  (click)="facturarProforma(p.id)" 
+                  title="Marcar como Facturada">
+                  <i class="fas fa-file-invoice-dollar"></i>
+                  <span class="button-text">Facturar</span>
+                </button>
+                <button 
+                  *ngIf="p.estado === 'EMITIDO'"
+                  class="btn-action btn-eliminar" 
+                  (click)="eliminarProforma(p)" 
+                  title="Eliminar Proforma">
+                  <i class="fas fa-trash"></i>
+                  <span class="button-text">Eliminar</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal para datos de factura -->
+  <div class="modal-perfiles" *ngIf="showInvoiceModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="close" (click)="closeModal()">&times;</span>
+        <div class="header-bar"></div>
+        <div class="title-container">
+          <h2>Datos de Factura</h2>
+        </div>
+      </div>
+
+      <form [formGroup]="facturaForm" (ngSubmit)="submitFactura()">
+        <h3>Fecha de Factura:</h3>
+        <input 
+          type="date" 
+          class="input-usuario"
+          formControlName="factura_fecha">
+        
+        <h3>Número de Factura:</h3>
+        <input 
+          type="text" 
+          class="input-usuario"
+          formControlName="factura_numero"
+          (input)="onNumeroFacturaInput($event)">
+        
+          <h3>RUT de Factura:</h3>
+          <input 
+            type="text" 
+            class="input-usuario"
+            formControlName="factura_rut"
+            (input)="onRutFacturaInput($event)"
+            placeholder="12.345.678-9">
+          <div class="validation-error" 
+               *ngIf="facturaForm.get('factura_rut')?.touched && facturaForm.get('factura_rut')?.errors">
+            <span *ngIf="facturaForm.get('factura_rut')?.errors?.['required']">
+              El RUT es requerido
+            </span>
+            <span *ngIf="facturaForm.get('factura_rut')?.errors?.['invalidRut']">
+              El RUT ingresado no es válido
+            </span>
+          </div>
+        
+        <h3>Monto de Factura:</h3>
+        <input 
+          type="number" 
+          class="input-usuario"
+          formControlName="factura_monto">
+
+        <button 
+          type="submit" 
+          class="custom-button-ingreso" 
+          [disabled]="!facturaForm.valid || processingFactura">
+          <span *ngIf="!processingFactura">Facturar</span>
+          <span *ngIf="processingFactura">
+            <i class="fas fa-spinner fa-spin"></i> Procesando...
+          </span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal para detalles de factura -->
+  <div class="modal-perfiles" *ngIf="showFacturaDetalles">
+    <div class="modal-content detalles-factura">
+      <div class="modal-header">
+        <span class="close" (click)="closeDetallesFactura()">&times;</span>
+        <div class="header-bar"></div>
+        <div class="title-container">
+          <h2>Detalles de Factura</h2>
+          <h3>PROFORMA - {{facturaSeleccionada?.id}}</h3>
+        </div>
+      </div>
+
+      <div class="detalles-content">
+        <div class="detalle-item">
+          <label>Fecha de Factura:</label>
+          <span>{{facturaSeleccionada?.factura_fecha | date:'dd/MM/yyyy'}}</span>
+        </div>
+        
+        <div class="detalle-item">
+          <label>Número de Factura:</label>
+          <span>{{facturaSeleccionada?.factura_numero}}</span>
+        </div>
+        
+        <div class="detalle-item">
+          <label>RUT Factura:</label>
+          <span>{{facturaSeleccionada?.factura_rut}}</span>
+        </div>
+        
+        <div class="detalle-item">
+          <label>Monto Facturado:</label>
+          <span>{{facturaSeleccionada?.factura_monto | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+      </div>
+
+      <button class="custom-button-ingreso" (click)="closeDetallesFactura()">
+        Cerrar
+      </button>
+    </div>
+  </div>
+
+  <!-- Overlay de carga global -->
+  <div class="loading-overlay" *ngIf="calculando">
+    <div class="loading-content">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Generando y emitiendo proforma...</p>
+    </div>
+  </div>
+</div>
+      

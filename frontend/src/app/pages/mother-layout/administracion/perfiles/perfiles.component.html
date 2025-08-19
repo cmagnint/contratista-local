@@ -1,0 +1,147 @@
+<!--perfiles.component.html-->
+<div class="admin-perfiles-container">
+  <button mat-raised-button color="primary" class="custom-button" (click)="openModal('crearPerfil')">CREAR PERFIL</button>
+  <button mat-raised-button color="primary" class="custom-button" [disabled]="selectedRows.length !== 1" (click)="openModal('modificarPerfil')">MODIFICAR PERFIL</button>
+  <button mat-raised-button color="primary" class="custom-button" [disabled]="isDeleteButtonDisabled()" (click)="openModal('confirmacionModal')">ELIMINAR PERFIL</button>
+
+  <table mat-table [dataSource]="perfiles" class="mat-elevation-z8">
+    <ng-container matColumnDef="codigo_perfil">
+      <th mat-header-cell *matHeaderCellDef class="mat-header"> Código </th>
+      <td mat-cell *matCellDef="let perfil" class="mat-cell"> {{perfil.id}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="nombre_perfiles">
+      <th mat-header-cell *matHeaderCellDef class="mat-header"> Perfiles </th>
+      <td mat-cell *matCellDef="let perfil" class="mat-cell"> {{perfil.nombre_perfil}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="tipo">
+      <th mat-header-cell *matHeaderCellDef class="mat-header"> Tipo </th>
+      <td mat-cell *matCellDef="let perfil" class="mat-cell"> {{perfil.tipo}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="modulos">
+      <th mat-header-cell *matHeaderCellDef class="mat-header modulos-column"> Módulos </th>
+      <td mat-cell *matCellDef="let perfil" class="mat-cell modulos-column"> 
+        <pre>{{ getModulosDisplay(perfil) }}</pre>
+      </td>
+    </ng-container>
+    
+    <ng-container matColumnDef="estado">
+      <th mat-header-cell *matHeaderCellDef class="mat-header"> Estado </th>
+      <td mat-cell *matCellDef="let perfil" class="mat-cell"> 
+        <mat-slide-toggle [checked]="perfil.estado" (change)="toggleEstado(perfil)" [disabled]="isRestrictedNameProfile(perfil)">
+          {{ perfil.estado ? 'Activo' : 'Inactivo' }}
+        </mat-slide-toggle>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" 
+        [class.selected]="isSelected(row)"
+        [class.admin-principal]="isAdminPrincipal(row)"
+        (click)="selectRow(row)">
+    </tr>
+  </table>
+</div>
+
+<div class="modal" *ngIf="modals['crearPerfil'] || modals['modificarPerfil']">
+  <div class="modal-content">
+    <div class="modal-section">
+      <h2>{{ modals['crearPerfil'] ? 'CREAR' : 'MODIFICAR' }} PERFIL</h2>
+      <input type="text" 
+             class="input-perfil" 
+             id="nombrePerfil" 
+             placeholder="Nombre del perfil" 
+             name="nombrePerfil" 
+             [(ngModel)]="nombrePerfil" 
+             (ngModelChange)="nombrePerfil = $event.toUpperCase()"
+             [disabled]="!modals['crearPerfil'] && isRestrictedNameProfile(selectedRows[0])">
+      <select [(ngModel)]="tipoPerfil" (change)="onTipoPerfilChange()">
+        <option value="WEB">Web</option>
+        <option value="MOVIL">Móvil</option>
+        <option value="AMBOS">Ambos</option>
+      </select>
+    </div>
+    
+    <div class="modal-section" *ngIf="tipoPerfil !== 'MOVIL'">
+      <h3>MÓDULOS WEB</h3>
+      <div class="modulos-container">
+        <div *ngFor="let modulo of modulos_web" class="modulo-dropdown">
+          <div class="modulo-header" (click)="toggleDropdown(modulo.id, 'WEB')">
+            <input type="checkbox" 
+                   [checked]="selectedModulosWeb.includes(modulo.id)"
+                   (change)="toggleModuloSelection(modulo.id, 'WEB'); $event.stopPropagation()">
+            <span>{{modulo.nombre}}</span>
+          </div>
+          <div class="submodulos-list" [class.show]="isDropdownOpen(modulo.id, 'WEB')">
+            <div *ngFor="let submodulo of getSubmodulos(modulo.id, 'WEB')">
+              <input type="checkbox" 
+                     [checked]="selectedSubmodulosWeb.includes(submodulo.id)"
+                     (change)="toggleSubmoduloSelection(submodulo.id, modulo.id, 'WEB')"> 
+              {{submodulo.nombre}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section" *ngIf="tipoPerfil !== 'WEB'">
+      <h3>MÓDULOS MÓVIL</h3>
+      <div class="modulos-container">
+        <div *ngFor="let modulo of modulos_movil" class="modulo-dropdown">
+          <div class="modulo-header" (click)="toggleDropdown(modulo.id, 'MOVIL')">
+            <input type="checkbox" 
+                   [checked]="selectedModulosMovil.includes(modulo.id)"
+                   (change)="toggleModuloSelection(modulo.id, 'MOVIL'); $event.stopPropagation()">
+            <span>{{modulo.nombre}}</span>
+          </div>
+          <div class="submodulos-list" [class.show]="isDropdownOpen(modulo.id, 'MOVIL')">
+            <div *ngFor="let submodulo of getSubmodulos(modulo.id, 'MOVIL')">
+              <input type="checkbox" 
+                      [checked]="selectedSubmodulosMovil.includes(submodulo.id)"
+                      (change)="toggleSubmoduloSelection(submodulo.id, modulo.id, 'MOVIL')">
+              {{submodulo.nombre}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="button-container">
+      <button (click)="modals['crearPerfil'] ? agregarPerfil() : modificarPerfil()">
+        {{ modals['crearPerfil'] ? 'Crear' : 'Modificar' }}
+      </button>
+      <button (click)="closeModal(modals['crearPerfil'] ? 'crearPerfil' : 'modificarPerfil')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de éxito -->
+<div class="modal" *ngIf="modals['exitoModal']">
+  <div class="modal-content">
+    <h2>¡Éxito!</h2>
+    <p>La operación se ha completado exitosamente.</p>
+    <button (click)="closeModal('exitoModal')">Cerrar</button>
+  </div>
+</div>
+
+<!-- Modal de error -->
+<div class="modal" *ngIf="modals['errorModal']">
+  <div class="modal-content">
+    <h2>Error</h2>
+    <p>{{ errorMessage }}</p>
+    <button (click)="closeModal('errorModal')">Cerrar</button>
+  </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+  <div class="modal-content">
+    <p style="color:black; font-weight: 500;">¿Está seguro que desea eliminar el(los) usuario(s) seleccionado(s)?</p>
+    <div class="modal-actions">
+      <button class="custom-button-yes-button" (click)="eliminarPerfilesSeleccionados()">Sí</button>
+      <button class="custom-button-no-button" (click)="closeModal('confirmacionModal')">No</button>
+    </div>
+  </div>
+</div>

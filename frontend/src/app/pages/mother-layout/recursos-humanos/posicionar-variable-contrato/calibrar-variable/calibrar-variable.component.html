@@ -1,0 +1,421 @@
+<!-- calibrar-variable.component.html -->
+<div class="calibracion-container">
+  <!-- Encabezado -->
+  <header class="calibracion-header">
+    <h1>Calibración de Variables en Documento</h1>
+    <div class="header-actions">
+      <button class="action-btn back-btn" (click)="cancelar()">
+        <span class="back-icon">←</span> Volver a Posicionamiento
+      </button>
+    </div>
+  </header>
+
+  <!-- Mensajes de estado -->
+  <div class="mensajes">
+    <div *ngIf="isLoading" class="loading-indicator">
+      <div class="spinner"></div>
+      <p>Procesando...</p>
+    </div>
+    
+    <div *ngIf="errorMessage" class="error-message">
+      <p>{{ errorMessage }}</p>
+      <button class="close-btn" (click)="errorMessage = null">×</button>
+    </div>
+    
+    <div *ngIf="successMessage" class="success-message">
+      <p>{{ successMessage }}</p>
+      <button class="close-btn" (click)="successMessage = null">×</button>
+    </div>
+  </div>
+
+  <!-- Contenido principal -->
+  <div class="calibracion-content">
+    <!-- Panel izquierdo: Lista de variables -->
+    <section class="variables-panel">
+      <h2>Variables Disponibles</h2>
+      <p class="panel-instruction">Selecciona una variable para calibrar su posición</p>
+      
+      <div class="variables-list">
+        <div 
+          *ngFor="let variable of variables" 
+          class="variable-item"
+          [class.selected]="variableSeleccionada?.nombre === variable.nombre"
+          [class.no-colocada]="!variable.colocada"
+          (click)="variable.colocada && seleccionarVariable(variable)"
+        >
+          <div class="variable-header">
+            <span class="variable-nombre">{{ variable.nombre }}</span>
+            <span class="variable-badge" 
+                  [class.placed]="variable.colocada">
+              {{ variable.colocada ? 'Colocada' : 'No colocada' }}
+            </span>
+          </div>
+          
+          <div *ngIf="variable.colocada" class="variable-info">
+            <div *ngFor="let ubicacion of variable.ubicaciones" class="variable-position">
+              Página: {{ ubicacion.pagina }}, 
+              X: {{ ubicacion.posX | number:'1.0-0' }}, 
+              Y: {{ ubicacion.posY | number:'1.0-0' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="calibraciones-guardadas">
+        <h3>Calibraciones Guardadas</h3>
+        
+        <div *ngIf="calibracionesGuardadas.length === 0" class="empty-state">
+          <p>No hay calibraciones guardadas para este documento</p>
+        </div>
+        
+        <div *ngIf="calibracionesGuardadas.length > 0" class="calibraciones-list">
+          <div 
+            *ngFor="let calibracion of calibracionesGuardadas" 
+            class="calibracion-item"
+            [class.active]="calibracion.activo"
+            (click)="cargarCalibracionGuardada(calibracion)"
+          >
+            <div class="calibracion-header">
+              <span class="calibracion-nombre">{{ calibracion.nombre }}</span>
+              <span *ngIf="calibracion.activo" class="active-badge">Activa</span>
+            </div>
+            
+            <div class="calibracion-params">
+              <div class="param-item">
+                <span>Escala:</span>
+                <code>X: {{ calibracion.escala_x }}, Y: {{ calibracion.escala_y }}</code>
+              </div>
+              <div class="param-item">
+                <span>Offset:</span>
+                <code>X: {{ calibracion.offset_x }}, Y: {{ calibracion.offset_y }}</code>
+              </div>
+              <div class="param-item">
+                <span>Invertir Y:</span>
+                <code>{{ calibracion.invertir_y ? 'Sí' : 'No' }}</code>
+              </div>
+            </div>
+            
+            <div class="calibracion-actions">
+              <button 
+                *ngIf="!calibracion.activo" 
+                class="action-btn activate-btn" 
+                (click)="establecerCalibracionComoActiva(calibracion.id || 0); $event.stopPropagation()">
+                Establecer como Activa
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Panel central: Controles de calibración -->
+    <section class="calibracion-panel">
+      <h2>Panel de Calibración</h2>
+      
+      <div *ngIf="!variableSeleccionada" class="empty-state">
+        <p>Selecciona una variable de la lista para comenzar la calibración</p>
+        <div class="empty-instructions">
+          <p>La calibración te permite ajustar la posición de las variables en el PDF generado.</p>
+          <p>Los ajustes se aplican solo en el backend sin modificar las posiciones originales en el frontend.</p>
+        </div>
+      </div>
+      
+      <div *ngIf="variableSeleccionada && ubicacionSeleccionada" class="calibracion-controls">
+        <div class="variable-preview">
+          <h3>Variable: {{ variableSeleccionada.nombre }}</h3>
+          
+          <!-- PDF Preview Section - Solo Backend -->
+          <div class="pdf-preview-box" #pdfPreviewContainer>
+            <div *ngIf="!pdfPreviewLoaded" class="pdf-loading">
+              <p>Cargando vista previa...</p>
+            </div>
+            <canvas #pdfCanvas class="pdf-preview-canvas"></canvas>
+          </div>
+
+          <!-- Añadir después del panel de PDF preview -->
+          <div class="transformation-controls" *ngIf="variableSeleccionada">
+            <h4>Calibración de Coordenadas</h4>
+            <p>
+              Ajuste estos parámetros para que coincida lo que ve en el frontend con lo que se genera en el backend.
+            </p>
+            
+            <div class="param-group">
+              <div class="param-control">
+                <label>Escala X:</label>
+                <div class="param-buttons">
+                  <button (click)="ajustarTransformacion('SCALE_X', -1)">-</button>
+                  <span>{{ COORD_TRANSFORM.SCALE_X | number:'1.2-2' }}</span>
+                  <button (click)="ajustarTransformacion('SCALE_X', 1)">+</button>
+                </div>
+              </div>
+              
+              <div class="param-control">
+                <label>Escala Y:</label>
+                <div class="param-buttons">
+                  <button (click)="ajustarTransformacion('SCALE_Y', -1)">-</button>
+                  <span>{{ COORD_TRANSFORM.SCALE_Y | number:'1.2-2' }}</span>
+                  <button (click)="ajustarTransformacion('SCALE_Y', 1)">+</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="param-group">
+              <div class="param-control">
+                <label>Offset X:</label>
+                <div class="param-buttons">
+                  <button (click)="ajustarTransformacion('OFFSET_X', -1)">-</button>
+                  <span>{{ COORD_TRANSFORM.OFFSET_X | number:'1.0-0' }}</span>
+                  <button (click)="ajustarTransformacion('OFFSET_X', 1)">+</button>
+                </div>
+              </div>
+              
+              <div class="param-control">
+                <label>Offset Y:</label>
+                <div class="param-buttons">
+                  <button (click)="ajustarTransformacion('OFFSET_Y', -1)">-</button>
+                  <span>{{ COORD_TRANSFORM.OFFSET_Y | number:'1.0-0' }}</span>
+                  <button (click)="ajustarTransformacion('OFFSET_Y', 1)">+</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="coordinate-info">
+              <p>
+                <strong>Coordenadas Frontend:</strong> 
+                X:{{ variableSeleccionada.posX | number:'1.0-0' }}, 
+                Y:{{ variableSeleccionada.posY | number:'1.0-0' }}
+              </p>
+              <p>
+                <strong>Coordenadas Backend (estimadas):</strong> 
+                X:{{ getBackendX() | number:'1.0-0' }}, 
+                Y:{{ getBackendY() | number:'1.0-0' }}
+              </p>
+            </div>
+            
+            <div class="calibration-tip">
+              <p>
+                <i class="info-icon">ℹ</i>
+                Con estos controles puedes ajustar cómo se mapean las coordenadas del frontend al backend. 
+                El objetivo es que el panel muestre exactamente cómo aparecerá la variable en el PDF generado.
+              </p>
+            </div>
+          </div>
+          
+          <div class="position-info">
+            <div>
+              <span>Posición Original:</span>
+              <code>X: {{ ubicacionSeleccionada.posX | number:'1.0-0' }}, Y: {{ ubicacionSeleccionada.posY | number:'1.0-0' }}</code>
+            </div>
+            <div>
+              <span>Posición Ajustada:</span>
+              <code>X: {{ ubicacionSeleccionada.visualX | number:'1.0-0' }}, 
+                Y: {{ ubicacionSeleccionada.visualY | number:'1.0-0' }}</code>
+            </div>
+            <div>
+              <span>Página:</span>
+              <code>{{ ubicacionSeleccionada.pagina }}</code>
+            </div>
+          </div>
+        </div>
+        
+        <div class="ajuste-posicion">
+          <h3>Ajuste de Posición</h3>
+          
+          <div class="pixel-control">
+            <label for="pixel-incremento">Incremento (px):</label>
+            <div class="incremento-control">
+              <button class="pixel-btn" (click)="pixelIncremento = Math.max(1, pixelIncremento - 1)">-</button>
+              <input 
+                type="number" 
+                id="pixel-incremento"
+                [(ngModel)]="pixelIncremento" 
+                min="1" 
+                max="20"
+              >
+              <button class="pixel-btn" (click)="pixelIncremento = Math.min(20, pixelIncremento + 1)">+</button>
+            </div>
+          </div>
+          
+          <div class="direction-controls">
+            <!-- Control arriba -->
+            <button class="direction-btn up-btn" (click)="ajustarPosicion(0, -1)" title="Mover arriba">
+              <span class="arrow">↑</span>
+            </button>
+            
+            <div class="horizontal-controls">
+              <!-- Control izquierda -->
+              <button class="direction-btn left-btn" (click)="ajustarPosicion(-1, 0)" title="Mover a la izquierda">
+                <span class="arrow">←</span>
+              </button>
+              
+              <!-- Control centro (restablecer) -->
+              <button class="direction-btn center-btn" (click)="reestablecerPosicion()" title="Restablecer posición">
+                <span class="center-icon">⊙</span>
+              </button>
+              
+              <!-- Control derecha -->
+              <button class="direction-btn right-btn" (click)="ajustarPosicion(1, 0)" title="Mover a la derecha">
+                <span class="arrow">→</span>
+              </button>
+            </div>
+            
+            <!-- Control abajo -->
+            <button class="direction-btn down-btn" (click)="ajustarPosicion(0, 1)" title="Mover abajo">
+              <span class="arrow">↓</span>
+            </button>
+          </div>
+          
+          <div class="position-actions">
+            <button class="action-btn apply-btn" (click)="aplicarCalibracion()">
+              Aplicar Cambios
+            </button>
+            
+            <button class="action-btn preview-btn" (click)="generarPDFPrueba()">
+              Generar PDF Variable
+            </button>
+          </div>
+        </div>
+        
+        <div class="calibracion-parametros">
+          <h3>Parámetros de Transformación</h3>
+          
+          <div class="parametro-grupo">
+            <div class="parametro-control">
+              <label>Escala X:</label>
+              <div class="parametro-ajuste">
+                <button class="parametro-btn decrease" (click)="ajustarParametro('escala_x', -1)">−</button>
+                <input type="number" [(ngModel)]="calibracionActual.escala_x" step="0.01" min="0.01" max="2">
+                <button class="parametro-btn increase" (click)="ajustarParametro('escala_x', 1)">+</button>
+              </div>
+            </div>
+            
+            <div class="parametro-control">
+              <label>Escala Y:</label>
+              <div class="parametro-ajuste">
+                <button class="parametro-btn decrease" (click)="ajustarParametro('escala_y', -1)">−</button>
+                <input type="number" [(ngModel)]="calibracionActual.escala_y" step="0.01" min="0.01" max="2">
+                <button class="parametro-btn increase" (click)="ajustarParametro('escala_y', 1)">+</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="parametro-grupo">
+            <div class="parametro-control">
+              <label>Offset X:</label>
+              <div class="parametro-ajuste">
+                <button class="parametro-btn decrease" (click)="ajustarParametro('offset_x', -1)">−</button>
+                <input type="number" [(ngModel)]="calibracionActual.offset_x" step="1">
+                <button class="parametro-btn increase" (click)="ajustarParametro('offset_x', 1)">+</button>
+              </div>
+            </div>
+            
+            <div class="parametro-control">
+              <label>Offset Y:</label>
+              <div class="parametro-ajuste">
+                <button class="parametro-btn decrease" (click)="ajustarParametro('offset_y', -1)">−</button>
+                <input type="number" [(ngModel)]="calibracionActual.offset_y" step="1">
+                <button class="parametro-btn increase" (click)="ajustarParametro('offset_y', 1)">+</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="parametro-toggle">
+            <label>Invertir Y:</label>
+            <div class="toggle-switch">
+              <input 
+                type="checkbox" 
+                id="invertir-y" 
+                [checked]="calibracionActual.invertir_y"
+                (change)="toggleInvertirY()"
+              >
+              <label for="invertir-y"></label>
+            </div>
+            <span class="toggle-description">{{ calibracionActual.invertir_y ? 'Sí (PDF coordenadas desde abajo)' : 'No (coordenadas desde arriba)' }}</span>
+          </div>
+          
+          <div class="calibracion-nombre">
+            <label for="calibracion-nombre">Nombre de la Calibración:</label>
+            <input 
+              type="text" 
+              id="calibracion-nombre"
+              [(ngModel)]="calibracionActual.nombre" 
+              placeholder="Ej: Calibración para documentos tipo contrato"
+            >
+          </div>
+          
+          <div class="calibracion-acciones">
+            <button class="action-btn save-btn" (click)="guardarCalibracion()">
+              Guardar Nueva Calibración
+            </button>
+
+            <button class="action-btn test-all-btn" (click)="generarPDFPruebaCompleto()">
+              Generar PDF Completo
+            </button>
+            
+          </div>
+
+          <div class="calibracion-info">
+            <p>Los parámetros de calibración se aplican a todas las variables del documento.</p>
+            <p>
+              <strong>Escala X/Y:</strong> Ajustan el tamaño relativo de las coordenadas (normalmente 0.72 para escala frontend 1.4).<br>
+              <strong>Offset X/Y:</strong> Desplazan todas las variables en píxeles.<br>
+              <strong>Invertir Y:</strong> Cambia el origen de coordenadas en el eje Y (importante para PDF).
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Panel derecho: Historial y PDFs generados -->
+    <section class="historial-panel">
+      <div class="pdfs-generados">
+        <h3>PDFs de Prueba</h3>
+        
+        <div *ngIf="pdfsGenerados.length === 0" class="empty-state">
+          <p>No hay PDFs generados durante esta sesión</p>
+        </div>
+        
+        <div *ngIf="pdfsGenerados.length > 0" class="pdfs-list">
+          <div *ngFor="let pdf of pdfsGenerados" class="pdf-item">
+            <span class="pdf-fecha">{{ pdf.fecha | date:'short' }}</span>
+            <div class="pdf-actions">
+              <a [href]="pdf.url" target="_blank" class="pdf-link">Ver</a>
+              <a [href]="pdf.url" download="calibracion_{{pdf.fecha | date:'yyyyMMdd_HHmmss'}}.pdf" class="pdf-download">Descargar</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="calibracion-help">
+        <h3>Ayuda de Calibración</h3>
+        <div class="help-content">
+          <div class="help-section">
+            <h4>¿Cómo calibrar?</h4>
+            <ol>
+              <li>Selecciona una variable de la lista izquierda</li>
+              <li>Ajusta su posición usando los controles de dirección</li>
+              <li>Genera un PDF de prueba para ver el resultado</li>
+              <li>Ajusta los parámetros de transformación si es necesario</li>
+              <li>Guarda la calibración cuando estés satisfecho</li>
+            </ol>
+          </div>
+          <div class="help-section">
+            <h4>Consejos:</h4>
+            <ul>
+              <li>La calibración afecta a <strong>todas</strong> las variables del documento</li>
+              <li>Los valores típicos para escala X e Y son 0.72 (1/1.4)</li>
+              <li>Invertir Y suele ser necesario para documentos PDF</li>
+              <li>Los offset ayudan a ajustar desplazamientos globales</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+  <!-- Footer con acciones -->
+  <footer class="calibracion-footer">
+    <button class="action-btn cancel-btn" (click)="cancelar()">Cancelar</button>
+    <button class="action-btn finish-btn" (click)="finalizarCalibracion()">Finalizar Calibración</button>
+  </footer>
+</div>

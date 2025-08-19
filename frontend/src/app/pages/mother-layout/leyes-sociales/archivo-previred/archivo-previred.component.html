@@ -1,0 +1,238 @@
+<mat-card class="filtros-card">
+    <mat-card-header>
+      <mat-card-title>Generación de Archivo Previred</mat-card-title>
+      <mat-card-subtitle>Seleccione los filtros para buscar trabajadores</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form [formGroup]="filtroForm">
+        <div class="filtros-container">
+          <!-- Primera fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Sociedad (Obligatorio) -->
+            <mat-form-field appearance="outline">
+              <mat-label>Sociedad</mat-label>
+              <mat-select formControlName="sociedad_id" required>
+                <mat-option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+                  {{ sociedad.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="filtroForm.get('sociedad_id')?.invalid && filtroForm.get('sociedad_id')?.touched">
+                La sociedad es obligatoria
+              </mat-error>
+            </mat-form-field>
+          </div>
+          
+          <!-- Segunda fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Filtros adicionales -->
+            <mat-form-field appearance="outline">
+              <mat-label>Cliente</mat-label>
+              <mat-select formControlName="cliente_id">
+                <mat-option value="">Todos</mat-option>
+                <mat-option *ngFor="let cliente of clientes" [value]="cliente.id">
+                  {{ cliente.nombre }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Fundo</mat-label>
+              <mat-select formControlName="fundo_id">
+                <mat-option value="">Todos</mat-option>
+                <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">
+                  {{ fundo.nombre_campo }}
+                </mat-option>
+              </mat-select>
+              <mat-hint *ngIf="cargandoFundos">Cargando fundos...</mat-hint>
+              <mat-hint *ngIf="!filtroForm.get('cliente_id')?.value && !cargandoFundos">
+                Seleccione un cliente primero
+              </mat-hint>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Casa</mat-label>
+              <mat-select formControlName="casa_id">
+                <mat-option value="">Todas</mat-option>
+                <mat-option *ngFor="let casa of casas" [value]="casa.id">
+                  {{ casa.nombre }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+        
+        <div class="botones-container">
+          <button mat-raised-button color="primary" type="button" 
+                  [disabled]="filtroForm.invalid || cargando"
+                  (click)="buscarTrabajadores()">
+            <mat-icon>search</mat-icon> Buscar Trabajadores
+          </button>
+          
+          <button mat-raised-button type="button" (click)="limpiarFiltros()">
+            <mat-icon>clear</mat-icon> Limpiar Filtros
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Mensaje de error si existe -->
+  <div *ngIf="mensajeError" class="mensaje-error">
+    <mat-icon>error</mat-icon> {{ mensajeError }}
+  </div>
+  
+  <!-- Spinner de carga para trabajadores -->
+  <div *ngIf="cargandoTrabajadores" class="cargando-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Buscando trabajadores...</p>
+  </div>
+  
+  <!-- Lista de trabajadores -->
+  <mat-card *ngIf="trabajadores.length > 0 && !cargandoTrabajadores" class="trabajadores-card">
+    <mat-card-header>
+      <mat-card-title>Trabajadores Disponibles</mat-card-title>
+      <mat-card-subtitle>Seleccione los trabajadores para generar el archivo Previred</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="acciones-tabla">
+        <mat-checkbox 
+          [checked]="estanTodosSeleccionados()"
+          [indeterminate]="trabajadoresSeleccionados.length > 0 && !estanTodosSeleccionados()"
+          (change)="seleccionarTodos($event)">
+          Seleccionar Todos
+        </mat-checkbox>
+        
+        <span class="contador-seleccionados" *ngIf="trabajadoresSeleccionados.length > 0">
+          {{ trabajadoresSeleccionados.length }} trabajador(es) seleccionado(s)
+        </span>
+      </div>
+      
+      <table mat-table [dataSource]="trabajadores" class="trabajadores-table">
+        <!-- Columna de selección -->
+        <ng-container matColumnDef="seleccionar">
+          <th mat-header-cell *matHeaderCellDef>Seleccionar</th>
+          <td mat-cell *matCellDef="let trabajador">
+            <mat-checkbox 
+              [checked]="estaSeleccionado(trabajador)"
+              (change)="seleccionarTrabajador(trabajador, $event)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+        
+        <!-- Columna de nombre -->
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef>Nombre</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ getNombreTrabajador(trabajador) }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de RUT/DNI -->
+        <ng-container matColumnDef="rut">
+          <th mat-header-cell *matHeaderCellDef>RUT/DNI</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ trabajador.rut || trabajador.dni || 'No disponible' }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de nacionalidad -->
+        <ng-container matColumnDef="nacionalidad">
+          <th mat-header-cell *matHeaderCellDef>Nacionalidad</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ trabajador.nacionalidad || 'No especificada' }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de AFP -->
+        <ng-container matColumnDef="afp">
+          <th mat-header-cell *matHeaderCellDef>AFP/Previsión</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ trabajador.nombre_afp || 'No especificada' }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de acciones -->
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let trabajador">
+            <button mat-icon-button color="primary" 
+                    matTooltip="Ver detalles del trabajador"
+                    (click)="$event.stopPropagation()">
+              <mat-icon>visibility</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+        
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+            [class.selected-row]="estaSeleccionado(row)"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Selección de periodo para Previred -->
+  <mat-card *ngIf="trabajadoresSeleccionados.length > 0" class="periodo-card">
+    <mat-card-header>
+      <mat-card-title>Selección de Periodo</mat-card-title>
+      <mat-card-subtitle>
+        Seleccione el mes y año para generar el archivo Previred
+      </mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form [formGroup]="periodoForm" class="periodo-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Mes</mat-label>
+          <mat-select formControlName="mes" required>
+            <mat-option *ngFor="let mes of meses" [value]="mes.valor">
+              {{ mes.nombre }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline">
+          <mat-label>Año</mat-label>
+          <mat-select formControlName="ano" required>
+            <mat-option *ngFor="let ano of anos" [value]="ano">
+              {{ ano }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        
+        <button mat-raised-button color="accent" 
+                [disabled]="periodoForm.invalid || cargando || trabajadoresSeleccionados.length === 0"
+                (click)="generarArchivoPrevired()">
+          <mat-icon>file_download</mat-icon> Generar Archivo Previred
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Spinner de carga para generación de archivo -->
+  <div *ngIf="cargando" class="cargando-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Generando archivo Previred...</p>
+  </div>
+  
+  <!-- Resultado del archivo generado -->
+  <mat-card *ngIf="archivoGenerado" class="resultado-card">
+    <mat-card-header>
+      <mat-card-title>Archivo Previred Generado</mat-card-title>
+      <mat-card-subtitle>Se ha generado exitosamente el archivo</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="archivo-info">
+        <mat-icon color="primary">check_circle</mat-icon>
+        <p>El archivo <strong>{{ nombreArchivo }}</strong> ha sido generado y descargado.</p>
+      </div>
+      
+      <div class="archivo-acciones">
+        <button mat-raised-button color="primary" (click)="generarArchivoPrevired()">
+          <mat-icon>refresh</mat-icon> Generar de Nuevo
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>

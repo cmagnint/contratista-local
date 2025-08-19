@@ -1,0 +1,177 @@
+<!-- reprocesar-pago.component.html -->
+<div class="reprocesar-container">
+    <!-- Tarjeta Principal -->
+    <mat-card class="main-card">
+      <mat-card-header>
+        <mat-card-title>Reprocesar Pagos</mat-card-title>
+        <mat-card-subtitle>
+          Ajuste el valor de pago del folio para un período específico. Los cambios se reflejarán 
+          en los saldos de los trabajadores para futuros pagos.
+        </mat-card-subtitle>
+      </mat-card-header>
+  
+      <mat-card-content>
+        <!-- Formulario de Reproceso -->
+        <form [formGroup]="reprocesarForm" (ngSubmit)="onSubmit()" class="reprocesar-form">
+          <div class="form-row">
+            <!-- Campo Fecha Inicio -->
+            <mat-form-field>
+              <mat-label>Fecha Inicio</mat-label>
+              <input matInput [matDatepicker]="pickerInicio" formControlName="fechaInicio">
+              <mat-datepicker-toggle matIconSuffix [for]="pickerInicio"></mat-datepicker-toggle>
+              <mat-datepicker #pickerInicio></mat-datepicker>
+              <mat-error *ngIf="reprocesarForm.get('fechaInicio')?.hasError('required')">
+                Fecha de inicio es requerida
+              </mat-error>
+            </mat-form-field>
+  
+            <!-- Campo Fecha Fin -->
+            <mat-form-field>
+              <mat-label>Fecha Fin</mat-label>
+              <input matInput [matDatepicker]="pickerFin" formControlName="fechaFin">
+              <mat-datepicker-toggle matIconSuffix [for]="pickerFin"></mat-datepicker-toggle>
+              <mat-datepicker #pickerFin></mat-datepicker>
+              <mat-error *ngIf="reprocesarForm.get('fechaFin')?.hasError('required')">
+                Fecha de fin es requerida
+              </mat-error>
+            </mat-form-field>
+          </div>
+  
+          <div class="form-row">
+            <!-- Selector de Folio -->
+            <mat-form-field class="folio-field">
+              <mat-label>Seleccione Folio</mat-label>
+              <mat-select formControlName="folioId">
+                <mat-option *ngFor="let folio of folios" [value]="folio.id">
+                    {{ folio.nombre_cliente }} - Valor actual: {{ folio.valor_pago_trabajador | currency:'CLP' }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="reprocesarForm.get('folioId')?.hasError('required')">
+                Folio es requerido
+              </mat-error>
+            </mat-form-field>
+  
+            <!-- Campo Nuevo Valor -->
+            <mat-form-field>
+              <mat-label>Nuevo Valor de Pago</mat-label>
+              <input matInput type="number" formControlName="nuevoValorPago" min="1">
+              <span matTextSuffix>CLP</span>
+              <mat-error *ngIf="reprocesarForm.get('nuevoValorPago')?.hasError('required')">
+                Valor de pago es requerido
+              </mat-error>
+              <mat-error *ngIf="reprocesarForm.get('nuevoValorPago')?.hasError('min')">
+                El valor debe ser mayor a 0
+              </mat-error>
+            </mat-form-field>
+          </div>
+  
+          <!-- Botones de Acción -->
+          <div class="action-buttons">
+            <button mat-button type="button" [disabled]="isLoading">
+              Cancelar
+            </button>
+            <button mat-raised-button color="primary" type="submit" 
+                    [disabled]="!reprocesarForm.valid || isLoading">
+              <span *ngIf="!isLoading">Reprocesar Pagos</span>
+              <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
+            </button>
+          </div>
+        </form>
+  
+        <!-- Tabla de Resultados -->
+        <div class="resultados-section" *ngIf="resultados?.length">
+          <h3 class="section-title">Resultados del Reproceso</h3>
+          
+          <div class="table-container mat-elevation-z8">
+            <table mat-table [dataSource]="resultados">
+              <!-- Columna Trabajador -->
+              <ng-container matColumnDef="trabajador">
+                <th mat-header-cell *matHeaderCellDef> Trabajador </th>
+                <td mat-cell *matCellDef="let element"> {{element.trabajador}} </td>
+              </ng-container>
+  
+              <!-- Columna Monto Original -->
+              <ng-container matColumnDef="montoOriginal">
+                <th mat-header-cell *matHeaderCellDef> Monto Original </th>
+                <td mat-cell *matCellDef="let element"> {{formatCurrency(element.montoOriginal)}} </td>
+              </ng-container>
+  
+              <!-- Columna Monto Nuevo -->
+              <ng-container matColumnDef="montoNuevo">
+                <th mat-header-cell *matHeaderCellDef> Monto Nuevo </th>
+                <td mat-cell *matCellDef="let element"> {{formatCurrency(element.montoNuevo)}} </td>
+              </ng-container>
+  
+              <!-- Columna Diferencia -->
+              <ng-container matColumnDef="diferencia">
+                <th mat-header-cell *matHeaderCellDef> Diferencia </th>
+                <td mat-cell *matCellDef="let element" 
+                    [class.monto-positivo]="element.diferencia > 0"
+                    [class.monto-negativo]="element.diferencia < 0">
+                  {{formatCurrency(element.diferencia)}}
+                </td>
+              </ng-container>
+  
+              <!-- Columna Saldo Nuevo -->
+              <ng-container matColumnDef="saldoNuevo">
+                <th mat-header-cell *matHeaderCellDef> Saldo Próximo Pago </th>
+                <td mat-cell *matCellDef="let element"
+                    [class.monto-positivo]="element.saldoNuevo > 0"
+                    [class.monto-negativo]="element.saldoNuevo < 0">
+                  {{formatCurrency(element.saldoNuevo)}}
+                </td>
+              </ng-container>
+  
+              <!-- Columna Estado -->
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef> Estado </th>
+                <td mat-cell *matCellDef="let element">
+                  <span class="estado-badge" 
+                        [class]="getEstadoClass(element.estado)"
+                        [matTooltip]="getEstadoTooltip(element.estado)">
+                    {{element.estado}}
+                  </span>
+                </td>
+              </ng-container>
+  
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  
+  <!-- Template del diálogo al final del archivo HTML principal -->
+<ng-template #dialogTemplate>
+    <div class="dialog-container">
+      <h2 mat-dialog-title class="dialog-title">Confirmar Reproceso</h2>
+      
+      <mat-dialog-content class="dialog-content">
+        <div class="confirmation-message">
+          <p>¿Está seguro que desea cambiar el valor de pago del folio?</p>
+          
+          <div class="info-row">
+            <strong>Cliente:</strong>
+            <span>{{getDialogData().folio.nombre_cliente}}</span>
+          </div>
+          
+          <div class="info-row">
+            <strong>Valor actual:</strong>
+            <span>{{formatCurrency(getDialogData().folio.valor_pago_trabajador)}}</span>
+          </div>
+          
+          <div class="info-row">
+            <strong>Nuevo valor:</strong>
+            <span>{{formatCurrency(getDialogData().nuevoValor)}}</span>
+          </div>
+        </div>
+      </mat-dialog-content>
+      
+      <mat-dialog-actions align="end" class="dialog-actions">
+        <button mat-button mat-dialog-close>Cancelar</button>
+        <button mat-raised-button color="primary" [mat-dialog-close]="true">Confirmar</button>
+      </mat-dialog-actions>
+    </div>
+  </ng-template>

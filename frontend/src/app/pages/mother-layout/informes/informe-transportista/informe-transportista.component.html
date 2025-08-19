@@ -1,0 +1,125 @@
+<div class="informe-container">
+    <div class="card">
+      <h2 class="card-title">
+        <i class="fas fa-file-download"></i> Informe de Transportista
+      </h2>
+  
+      <div class="form-grid">
+        <!-- Date fields remain unchanged -->
+        <div class="form-group">
+          <label for="startDate">Fecha Inicio <span class="required">*</span></label>
+          <input 
+            type="date" 
+            id="startDate"
+            [(ngModel)]="startDate" 
+            class="form-control"
+            [max]="endDate || undefined"
+          >
+        </div>
+  
+        <div class="form-group">
+          <label for="endDate">Fecha Fin <span class="required">*</span></label>
+          <input 
+            type="date" 
+            id="endDate"
+            [(ngModel)]="endDate" 
+            class="form-control"
+            [min]="startDate || undefined"
+          >
+        </div>
+  
+        <!-- Client Selection with checkboxes -->
+        <div class="form-group full-width">
+          <label class="section-label">Clientes</label>
+          <div class="checkbox-container">
+            <label class="checkbox-item">
+              <input 
+                type="checkbox"
+                (change)="toggleAllClientes()"
+                [checked]="allClientesSelected"
+              > Seleccionar todos
+            </label>
+            
+            <div class="checkbox-list">
+              <label class="checkbox-item" *ngFor="let cliente of clientes">
+                <input 
+                  type="checkbox"
+                  [checked]="selectedClienteIds.includes(cliente.id)"
+                  (change)="toggleCliente(cliente)"
+                > {{cliente.nombre}}
+              </label>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Transporter Selection with checkboxes -->
+        <div class="form-group full-width">
+          <label class="section-label">Transportistas</label>
+          <div class="checkbox-container">
+            <label class="checkbox-item">
+              <input 
+                type="checkbox"
+                (change)="toggleAllTransportistas()"
+                [checked]="allTransportistasSelected"
+              > Seleccionar todos
+            </label>
+            
+            <div class="checkbox-list">
+              <label class="checkbox-item" *ngFor="let transportista of transportistas">
+                <input 
+                  type="checkbox"
+                  [checked]="selectedTransportistaIds.includes(transportista.id)"
+                  (change)="toggleTransportista(transportista)"
+                > {{transportista.nombre}}
+              </label>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Vehicle Selection with checkboxes -->
+        <div class="form-group full-width">
+          <label class="section-label">Vehículos</label>
+          <div class="checkbox-container" [class.disabled]="selectedTransportistaIds.length === 0">
+            <label class="checkbox-item">
+              <input 
+                type="checkbox"
+                (change)="toggleAllVehiculos()"
+                [checked]="allVehiculosSelected"
+                [disabled]="selectedTransportistaIds.length === 0"
+              > Seleccionar todos
+            </label>
+            
+            <div class="checkbox-list">
+              <label class="checkbox-item" *ngFor="let vehiculo of vehiculos">
+                <input 
+                  type="checkbox"
+                  [checked]="selectedVehiculoIds.includes(vehiculo.id)"
+                  (change)="toggleVehiculo(vehiculo)"
+                  [disabled]="selectedTransportistaIds.length === 0"
+                > {{vehiculo.ppu}} - {{vehiculo.modelo}}
+              </label>
+            </div>
+          </div>
+          <small class="help-text" *ngIf="selectedTransportistaIds.length === 0">
+            Seleccione uno o más transportistas para ver los vehículos disponibles
+          </small>
+        </div>
+      </div>
+  
+      <!-- Download button remains unchanged -->
+      <div class="button-container">
+        <button 
+          (click)="downloadInforme()" 
+          [disabled]="!startDate || !endDate || isLoading"
+          class="download-button"
+        >
+          <span *ngIf="!isLoading">
+            <i class="fas fa-download"></i> Descargar Informe CSV
+          </span>
+          <span *ngIf="isLoading">
+            <i class="fas fa-spinner fa-spin"></i> Descargando...
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>

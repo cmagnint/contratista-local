@@ -1,0 +1,838 @@
+<div class="superadmin-container">
+  
+  <div class="top-bar">
+      <div class="svg-container">
+
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="70px" viewBox="0 0 4 2" preserveAspectRatio="none">
+          <rect width="4" height="2" fill="#00806A" opacity="1"/>
+          <path d="M 0 0 Q 0 3.5 4 0" fill="#5ccda7" opacity="1"/>
+          <path d="M 0 2 Q 2 1.5 4 2" fill="#5ccda7" opacity="1"/>
+        </svg>
+      </div>
+      
+    </div>
+  
+  <!-- HEADER CON MENÚ HAMBURGUESA -->
+  <div class="header-bar">
+    <div class="hamburger-menu">
+      <button class="hamburger-btn" (click)="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+      </button>
+      
+    </div>
+  </div>
+  
+  <!-- OVERLAY PARA CERRAR SIDEBAR -->
+  <div class="sidebar-overlay" [class.show]="sidebarOpen" (click)="closeSidebar()"></div>
+
+  <!-- SIDEBAR DESPLEGABLE -->
+  <nav class="sidebar" [class.open]="sidebarOpen">
+    <div class="sidebar-header">
+      <h3>MENÚ PRINCIPAL</h3>
+      <button class="sidebar-close" (click)="closeSidebar()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li class="menu-item" [class.active]="activeSection === 'holdings'">
+        <a (click)="setActiveSection('holdings')" class="menu-link">
+          <i class="fas fa-building"></i>
+          <span>Holdings</span>
+        </a>
+      </li>
+      
+      <li class="menu-item" [class.active]="activeSection === 'sociedades'">
+        <a (click)="setActiveSection('sociedades')" class="menu-link">
+          <i class="fas fa-city"></i>
+          <span>Sociedades</span>
+        </a>
+      </li>
+      
+      <li class="menu-item" [class.active]="activeSection === 'administradores'">
+        <a (click)="setActiveSection('administradores')" class="menu-link">
+          <i class="fas fa-user-shield"></i>
+          <span>Administradores</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="confirmLogout()" title="Cerrar Sesión">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Cerrar Sesión</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    
+    <!-- LOADER -->
+    <div class="loading-overlay" *ngIf="isLoading">
+      <div class="spinner"></div>
+      <p>Cargando...</p>
+    </div>
+
+    <!-- SECCIÓN HOLDINGS -->
+    <div class="content-section" *ngIf="activeSection === 'holdings'">
+      <div class="section-header">
+        <h2><i class="fas fa-building"></i> Gestión de Holdings</h2>
+        <button class="btn btn-primary" (click)="openModal('createHolding')">
+          <i class="fas fa-plus"></i> Nuevo Holding
+        </button>
+      </div>
+
+      <div class="holdings-list" *ngIf="holdings.length > 0; else noHoldings">
+        <div class="holding-item" *ngFor="let holding of holdings" [class.expanded]="holding.expanded">
+          <div class="holding-header" (click)="toggleHoldingExpansion(holding)">
+            <div class="holding-info">
+              <h3>{{ holding.nombre }}</h3>
+              <span class="status" [class.active]="holding.estado" [class.inactive]="!holding.estado">
+                {{ holding.estado ? 'Activo' : 'Inactivo' }}
+              </span>
+            </div>
+            <div class="expand-icon">
+              <i class="fas" [class.fa-chevron-down]="!holding.expanded" [class.fa-chevron-up]="holding.expanded"></i>
+            </div>
+          </div>
+
+          <div class="holding-details" *ngIf="holding.expanded">
+            <div class="details-grid">
+              <div class="detail-item">
+                <label>ID:</label>
+                <span>{{ holding.id }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Estado:</label>
+                <span [class.status-active]="holding.estado" [class.status-inactive]="!holding.estado">
+                  {{ holding.estado ? 'Activo' : 'Inactivo' }}
+                </span>
+              </div>
+            </div>
+            
+            <div class="action-buttons">
+              <button class="btn btn-edit" (click)="editHolding(holding)" [disabled]="isLoading">
+                <i class="fas fa-edit"></i> Modificar
+              </button>
+              <button 
+                class="btn" 
+                [class.btn-activate]="!holding.estado"
+                [class.btn-deactivate]="holding.estado"
+                (click)="confirmToggleHolding(holding)" 
+                [disabled]="isLoading">
+                <i class="fas" [class.fa-check]="!holding.estado" [class.fa-ban]="holding.estado"></i>
+                {{ holding.estado ? 'Desactivar' : 'Activar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noHoldings>
+        <div class="empty-state">
+          <i class="fas fa-building"></i>
+          <h3>No hay holdings registrados</h3>
+          <p>Comience creando su primer holding</p>
+          <button class="btn btn-primary" (click)="openModal('createHolding')">
+            <i class="fas fa-plus"></i> Crear Holding
+          </button>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- SECCIÓN SOCIEDADES -->
+    <div class="content-section" *ngIf="activeSection === 'sociedades'">
+      <div class="section-header">
+        <h2><i class="fas fa-city"></i> Gestión de Sociedades</h2>
+        <button class="btn btn-primary" (click)="openModal('createSociedad')" [disabled]="!selectedHoldingId">
+          <i class="fas fa-plus"></i> Nueva Sociedad
+        </button>
+      </div>
+
+      <!-- Selector de Holding -->
+      <div class="holding-selector" *ngIf="holdings.length > 0">
+        <label>Seleccione un Holding:</label>
+        <select [(ngModel)]="selectedHoldingId" (ngModelChange)="selectHoldingForSociedades($event)" class="form-select">
+          <option value="">-- Seleccione un holding --</option>
+          <option *ngFor="let holding of activeHoldings" [value]="holding.id">
+            {{ holding.nombre }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Lista de Sociedades -->
+      <div class="sociedades-list" *ngIf="selectedHoldingId && sociedades.length > 0">
+        <div class="sociedad-item" *ngFor="let sociedad of sociedades" [class.expanded]="sociedad.expanded">
+          <div class="sociedad-header" (click)="toggleSociedadExpansion(sociedad)">
+            <div class="sociedad-info">
+              <h3>{{ sociedad.nombre }}</h3>
+              <span class="rut">{{ formatRUTString(sociedad.rol_sociedad) }}</span>
+              <span class="status" [class.active]="sociedad.estado" [class.inactive]="!sociedad.estado">
+                {{ sociedad.estado ? 'Activa' : 'Inactiva' }}
+              </span>
+            </div>
+            <div class="expand-icon">
+              <i class="fas" [class.fa-chevron-down]="!sociedad.expanded" [class.fa-chevron-up]="sociedad.expanded"></i>
+            </div>
+          </div>
+
+          <div class="sociedad-details" *ngIf="sociedad.expanded">
+            <div class="details-grid">
+              <div class="detail-item">
+                <label>Representante:</label>
+                <span>{{ sociedad.nombre_representante }}</span>
+              </div>
+              <div class="detail-item">
+                <label>RUT Representante:</label>
+                <span>{{ formatRUTString(sociedad.rut_representante) }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Comuna:</label>
+                <span>{{ sociedad.comuna }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Ciudad:</label>
+                <span>{{ sociedad.ciudad }}</span>
+              </div>
+              <div class="detail-item full-width">
+                <label>Dirección:</label>
+                <span>{{ sociedad.calle }}</span>
+              </div>
+            </div>
+            
+            <div class="action-buttons">
+              <button class="btn btn-edit" (click)="editSociedad(sociedad)" [disabled]="isLoading">
+                <i class="fas fa-edit"></i> Modificar
+              </button>
+              <button 
+                class="btn" 
+                [class.btn-activate]="!sociedad.estado"
+                [class.btn-deactivate]="sociedad.estado"
+                (click)="confirmToggleSociedad(sociedad)" 
+                [disabled]="isLoading">
+                <i class="fas" [class.fa-check]="!sociedad.estado" [class.fa-ban]="sociedad.estado"></i>
+                {{ sociedad.estado ? 'Desactivar' : 'Activar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estados vacíos -->
+      <div class="empty-state" *ngIf="!selectedHoldingId">
+        <i class="fas fa-city"></i>
+        <h3>Seleccione un Holding</h3>
+        <p>Para gestionar sociedades, primero debe seleccionar un holding</p>
+      </div>
+
+      <div class="empty-state" *ngIf="selectedHoldingId && sociedades.length === 0 && !isLoading">
+        <i class="fas fa-city"></i>
+        <h3>No hay sociedades registradas</h3>
+        <p>Este holding no tiene sociedades asociadas</p>
+        <button class="btn btn-primary" (click)="openModal('createSociedad')">
+          <i class="fas fa-plus"></i> Crear Sociedad
+        </button>
+      </div>
+    </div>
+
+    <!-- SECCIÓN ADMINISTRADORES -->
+    <div class="content-section" *ngIf="activeSection === 'administradores'">
+      <div class="section-header">
+        <h2><i class="fas fa-user-shield"></i> Administradores Principales</h2>
+        <button class="btn btn-primary" (click)="openModal('createAdmin')" [disabled]="!selectedHoldingId || hasAdminForSelectedHolding">
+          <i class="fas fa-plus"></i> Crear Administrador
+        </button>
+      </div>
+
+      <!-- Selector de Holding -->
+      <div class="holding-selector" *ngIf="holdings.length > 0">
+        <label>Seleccione un Holding:</label>
+        <select [(ngModel)]="selectedHoldingId" (ngModelChange)="selectHoldingForAdmins($event)" class="form-select">
+          <option value="">-- Seleccione un holding --</option>
+          <option *ngFor="let holding of activeHoldings" [value]="holding.id">
+            {{ holding.nombre }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Administrador Principal -->
+      <div class="admin-list" *ngIf="selectedHoldingId && administradores.length > 0">
+        <div class="admin-item" *ngFor="let admin of administradores">
+          <div class="admin-info">
+            <div class="admin-avatar">
+              <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="admin-details">
+              <h3>{{ admin.nombre }}</h3>
+              <p class="admin-rut">{{ formatRUTString(admin.rut) }}</p>
+              <p class="admin-email">{{ admin.email }}</p>
+              <span class="status" [class.active]="admin.estado" [class.inactive]="!admin.estado">
+                {{ admin.estado ? 'Activo' : 'Inactivo' }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="action-buttons">
+            <button class="btn btn-edit" (click)="editAdmin(admin)" [disabled]="isLoading">
+              <i class="fas fa-edit"></i> Modificar
+            </button>
+            <button 
+              class="btn" 
+              [class.btn-activate]="!admin.estado"
+              [class.btn-deactivate]="admin.estado"
+              (click)="confirmToggleAdmin(admin)" 
+              [disabled]="isLoading">
+              <i class="fas" [class.fa-check]="!admin.estado" [class.fa-ban]="admin.estado"></i>
+              {{ admin.estado ? 'Desactivar' : 'Activar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estados vacíos -->
+      <div class="empty-state" *ngIf="!selectedHoldingId">
+        <i class="fas fa-user-shield"></i>
+        <h3>Seleccione un Holding</h3>
+        <p>Para gestionar administradores, primero debe seleccionar un holding</p>
+      </div>
+
+      <div class="empty-state" *ngIf="selectedHoldingId && administradores.length === 0 && !isLoading">
+        <i class="fas fa-user-shield"></i>
+        <h3>No hay administrador asignado</h3>
+        <p>Este holding no tiene un administrador principal</p>
+        <button class="btn btn-primary" (click)="openModal('createAdmin')">
+          <i class="fas fa-plus"></i> Crear Administrador
+        </button>
+      </div>
+    </div>
+
+    <!-- Estado inicial -->
+    <div class="welcome-state" *ngIf="!activeSection">
+      <div class="welcome-content">
+        <i class="fas fa-user-cog"></i>
+        <h2>Bienvenido al Panel de Superadmin</h2>
+        <p>Seleccione una opción del menú lateral para comenzar</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- =============== MODALES =============== -->
+
+  <!-- MODAL: Crear Holding -->
+  <div class="modal-overlay" *ngIf="modals.createHolding" (click)="closeModal('createHolding')">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-building"></i> Crear Nuevo Holding</h3>
+        <button class="modal-close" (click)="closeModal('createHolding')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form (ngSubmit)="onCreateHolding()" #createHoldingForm="ngForm" class="modal-form">
+        <div class="form-group">
+          <label for="holdingNombre">Nombre del Holding:</label>
+          <input 
+            type="text" 
+            id="holdingNombre" 
+            name="holdingNombre" 
+            class="form-input"
+            [(ngModel)]="holdingForm.nombre" 
+            (ngModelChange)="holdingForm.nombre = $event.toUpperCase()"
+            placeholder="Ingrese el nombre del holding"
+            required>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal('createHolding')">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || !createHoldingForm.valid">
+            <i class="fas fa-save"></i> Crear Holding
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Editar Holding -->
+  <div class="modal-overlay" *ngIf="modals.editHolding" (click)="closeModal('editHolding')">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-edit"></i> Editar Holding</h3>
+        <button class="modal-close" (click)="closeModal('editHolding')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form (ngSubmit)="onUpdateHolding()" #editHoldingForm="ngForm" class="modal-form">
+        <div class="form-group">
+          <label for="editHoldingNombre">Nombre del Holding:</label>
+          <input 
+            type="text" 
+            id="editHoldingNombre" 
+            name="editHoldingNombre" 
+            class="form-input"
+            [(ngModel)]="holdingForm.nombre" 
+            (ngModelChange)="holdingForm.nombre = $event.toUpperCase()"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="holdingForm.estado" name="estadoHolding">
+            <span class="checkmark"></span>
+            Activo
+          </label>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal('editHolding')">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || !editHoldingForm.valid">
+            <i class="fas fa-save"></i> Actualizar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Crear Sociedad -->
+  <div class="modal-overlay" *ngIf="modals.createSociedad" (click)="closeModal('createSociedad')">
+    <div class="modal modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-city"></i> Crear Nueva Sociedad</h3>
+        <button class="modal-close" (click)="closeModal('createSociedad')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form (ngSubmit)="onCreateSociedad()" #createSociedadForm="ngForm" class="modal-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sociedadNombre">Nombre de la Sociedad:</label>
+            <input 
+              type="text" 
+              id="sociedadNombre" 
+              name="sociedadNombre" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.nombre" 
+              (ngModelChange)="sociedadForm.nombre = $event.toUpperCase()"
+              placeholder="Nombre de la sociedad"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label for="sociedadRol">RUT de la Sociedad:</label>
+            <input 
+              type="text" 
+              id="sociedadRol" 
+              name="sociedadRol" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.rol_sociedad"
+              (input)="formatRUT($event)"
+              placeholder="12.345.678-9"
+              required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="representanteNombre">Nombre Representante Legal:</label>
+            <input 
+              type="text" 
+              id="representanteNombre" 
+              name="representanteNombre" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.nombre_representante" 
+              (ngModelChange)="sociedadForm.nombre_representante = $event.toUpperCase()"
+              placeholder="Nombre completo"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label for="representanteRut">RUT Representante Legal:</label>
+            <input 
+              type="text" 
+              id="representanteRut" 
+              name="representanteRut" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.rut_representante"
+              (input)="formatRUT($event)"
+              placeholder="12.345.678-9"
+              required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sociedadComuna">Comuna:</label>
+            <input 
+              type="text" 
+              id="sociedadComuna" 
+              name="sociedadComuna" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.comuna" 
+              (ngModelChange)="sociedadForm.comuna = $event.toUpperCase()"
+              placeholder="Comuna"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label for="sociedadCiudad">Ciudad:</label>
+            <input 
+              type="text" 
+              id="sociedadCiudad" 
+              name="sociedadCiudad" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.ciudad" 
+              (ngModelChange)="sociedadForm.ciudad = $event.toUpperCase()"
+              placeholder="Ciudad"
+              required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="sociedadCalle">Dirección:</label>
+          <input 
+            type="text" 
+            id="sociedadCalle" 
+            name="sociedadCalle" 
+            class="form-input"
+            [(ngModel)]="sociedadForm.calle" 
+            (ngModelChange)="sociedadForm.calle = $event.toUpperCase()"
+            placeholder="Dirección completa"
+            required>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal('createSociedad')">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || !createSociedadForm.valid">
+            <i class="fas fa-save"></i> Crear Sociedad
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Editar Sociedad -->
+  <div class="modal-overlay" *ngIf="modals.editSociedad" (click)="closeModal('editSociedad')">
+    <div class="modal modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-edit"></i> Editar Sociedad</h3>
+        <button class="modal-close" (click)="closeModal('editSociedad')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form (ngSubmit)="onUpdateSociedad()" #editSociedadForm="ngForm" class="modal-form">
+        <!-- Mismo contenido que crear sociedad pero con botón actualizar -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editSociedadNombre">Nombre de la Sociedad:</label>
+            <input 
+              type="text" 
+              id="editSociedadNombre" 
+              name="editSociedadNombre" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.nombre" 
+              (ngModelChange)="sociedadForm.nombre = $event.toUpperCase()"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label for="editSociedadRol">RUT de la Sociedad:</label>
+            <input 
+              type="text" 
+              id="editSociedadRol" 
+              name="editSociedadRol" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.rol_sociedad"
+              (input)="formatRUT($event)"
+              required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editRepresentanteNombre">Nombre Representante Legal:</label>
+            <input 
+              type="text" 
+              id="editRepresentanteNombre" 
+              name="editRepresentanteNombre" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.nombre_representante" 
+              (ngModelChange)="sociedadForm.nombre_representante = $event.toUpperCase()"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label for="editRepresentanteRut">RUT Representante Legal:</label>
+            <input 
+              type="text" 
+              id="editRepresentanteRut" 
+              name="editRepresentanteRut" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.rut_representante"
+              (input)="formatRUT($event)"
+              required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editSociedadComuna">Comuna:</label>
+            <input 
+              type="text" 
+              id="editSociedadComuna" 
+              name="editSociedadComuna" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.comuna" 
+              (ngModelChange)="sociedadForm.comuna = $event.toUpperCase()"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label for="editSociedadCiudad">Ciudad:</label>
+            <input 
+              type="text" 
+              id="editSociedadCiudad" 
+              name="editSociedadCiudad" 
+              class="form-input"
+              [(ngModel)]="sociedadForm.ciudad" 
+              (ngModelChange)="sociedadForm.ciudad = $event.toUpperCase()"
+              required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editSociedadCalle">Dirección:</label>
+          <input 
+            type="text" 
+            id="editSociedadCalle" 
+            name="editSociedadCalle" 
+            class="form-input"
+            [(ngModel)]="sociedadForm.calle" 
+            (ngModelChange)="sociedadForm.calle = $event.toUpperCase()"
+            required>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="sociedadForm.estado" name="estadoSociedad">
+            <span class="checkmark"></span>
+            Activa
+          </label>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal('editSociedad')">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || !editSociedadForm.valid">
+            <i class="fas fa-save"></i> Actualizar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Crear Administrador -->
+  <div class="modal-overlay" *ngIf="modals.createAdmin" (click)="closeModal('createAdmin')">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-user-shield"></i> Crear Administrador Principal</h3>
+        <button class="modal-close" (click)="closeModal('createAdmin')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form (ngSubmit)="onCreateAdmin()" #createAdminForm="ngForm" class="modal-form">
+        <div class="form-group">
+          <label for="adminNombre">Nombre Completo:</label>
+          <input 
+            type="text" 
+            id="adminNombre" 
+            name="adminNombre" 
+            class="form-input"
+            [(ngModel)]="adminForm.nombre"
+            placeholder="Nombre completo"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="adminRut">RUT:</label>
+          <input 
+            type="text" 
+            id="adminRut" 
+            name="adminRut" 
+            class="form-input"
+            [(ngModel)]="adminForm.rut"
+            (input)="formatRUT($event)"
+            placeholder="12.345.678-9"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="adminEmail">Email:</label>
+          <input 
+            type="email" 
+            id="adminEmail" 
+            name="adminEmail" 
+            class="form-input"
+            [(ngModel)]="adminForm.email"
+            placeholder="admin@empresa.com"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="adminPassword">Contraseña Temporal:</label>
+          <input 
+            type="password" 
+            id="adminPassword" 
+            name="adminPassword" 
+            class="form-input"
+            [(ngModel)]="adminForm.password"
+            placeholder="Contraseña temporal"
+            required>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal('createAdmin')">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || !createAdminForm.valid">
+            <i class="fas fa-save"></i> Crear Administrador
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Editar Administrador -->
+  <div class="modal-overlay" *ngIf="modals.editAdmin" (click)="closeModal('editAdmin')">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-edit"></i> Editar Administrador</h3>
+        <button class="modal-close" (click)="closeModal('editAdmin')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form (ngSubmit)="onUpdateAdmin()" #editAdminForm="ngForm" class="modal-form">
+        <div class="form-group">
+          <label for="editAdminNombre">Nombre Completo:</label>
+          <input 
+            type="text" 
+            id="editAdminNombre" 
+            name="editAdminNombre" 
+            class="form-input"
+            [(ngModel)]="adminForm.nombre"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editAdminEmail">Email:</label>
+          <input 
+            type="email" 
+            id="editAdminEmail" 
+            name="editAdminEmail" 
+            class="form-input"
+            [(ngModel)]="adminForm.email"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editAdminPassword">Nueva Contraseña (opcional):</label>
+          <input 
+            type="password" 
+            id="editAdminPassword" 
+            name="editAdminPassword" 
+            class="form-input"
+            [(ngModel)]="adminForm.password"
+            placeholder="Dejar vacío para mantener la actual">
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="adminForm.estado" name="estadoAdmin">
+            <span class="checkmark"></span>
+            Activo
+          </label>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal('editAdmin')">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || !editAdminForm.valid">
+            <i class="fas fa-save"></i> Actualizar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirmación -->
+  <div class="modal-overlay" *ngIf="modals.confirmAction" (click)="closeModal('confirmAction')">
+    <div class="modal modal-confirm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Acción</h3>
+      </div>
+      
+      <div class="modal-body">
+        <p>{{ confirmAction?.message }}</p>
+      </div>
+      
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal('confirmAction')">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" (click)="executeConfirmedAction()">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Éxito -->
+  <div class="modal-overlay" *ngIf="modals.success" (click)="closeModal('success')">
+    <div class="modal modal-success" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-check-circle"></i> ¡Éxito!</h3>
+      </div>
+      
+      <div class="modal-body">
+        <p>{{ successMessage }}</p>
+      </div>
+      
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeModal('success')">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Error -->
+  <div class="modal-overlay" *ngIf="modals.error" (click)="closeModal('error')">
+    <div class="modal modal-error" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-exclamation-circle"></i> Error</h3>
+      </div>
+      
+      <div class="modal-body">
+        <p>{{ errorMessage }}</p>
+      </div>
+      
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeModal('error')">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

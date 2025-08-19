@@ -1,0 +1,526 @@
+<!-- pagos-ingresos.component.html - VERSIÓN FLEXIBLE PARA DISTRIBUCIÓN MÚLTIPLE -->
+<div class="pagos-ingresos-container">
+  <!-- Header -->
+  <div class="header-section">
+    <h2 class="titulo-principal">
+      <i class="fas fa-coins"></i>
+      Pago de Ingresos
+    </h2>
+    
+    <!-- Stepper -->
+    <div class="stepper">
+      <div class="step" [class.active]="pasoActual >= 1" [class.completed]="pasoActual > 1">
+        <div class="step-number">1</div>
+        <div class="step-label">Selección Banco</div>
+      </div>
+      <div class="step-line" [class.completed]="pasoActual > 1"></div>
+      
+      <div class="step" [class.active]="pasoActual >= 2" [class.completed]="pasoActual > 2">
+        <div class="step-number">2</div>
+        <div class="step-label">Cargar Cartola</div>
+      </div>
+      <div class="step-line" [class.completed]="pasoActual > 2"></div>
+      
+      <div class="step" [class.active]="pasoActual >= 3" [class.completed]="pasoActual > 3">
+        <div class="step-number">3</div>
+        <div class="step-label">Revisar Movimientos</div>
+      </div>
+      <div class="step-line" [class.completed]="pasoActual > 3"></div>
+      
+      <div class="step" [class.active]="pasoActual >= 4">
+        <div class="step-number">4</div>
+        <div class="step-label">Distribuir Montos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="error" class="alert alert-error">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error }}
+  </div>
+
+  <div *ngIf="exito" class="alert alert-success">
+    <i class="fas fa-check-circle"></i>
+    {{ exito }}
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="cargando" class="loading-overlay">
+    <div class="spinner">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Procesando...</p>
+    </div>
+  </div>
+
+  <!-- Contenido Principal -->
+  <div class="contenido-principal" [class.loading]="cargando">
+    
+    <!-- PASO 1: Selección de Banco -->
+    <div *ngIf="pasoActual === 1" class="paso-container">
+      <div class="paso-header">
+        <h3><i class="fas fa-university"></i> Paso 1: Selección de Banco</h3>
+        <p>Seleccione el banco para procesar los ingresos</p>
+      </div>
+      
+      <form [formGroup]="seleccionForm" class="formulario-paso">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="banco">Banco *</label>
+            <select 
+              id="banco" 
+              formControlName="banco" 
+              (change)="onBancoSeleccionado($event)"
+              class="form-control">
+              <option value="">Seleccione un banco...</option>
+              <option *ngFor="let banco of bancos; trackBy: trackByBancoId" [value]="banco.codigo_sbif">
+                {{ banco.codigo_sbif }} - {{ banco.nombre }}
+              </option>
+            </select>
+            <small class="form-help">Total bancos disponibles: {{ bancos.length }}</small>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- PASO 2: Cargar Cartola PDF -->
+    <div *ngIf="pasoActual === 2" class="paso-container">
+      <div class="paso-header">
+        <h3><i class="fas fa-file-pdf"></i> Paso 2: Cargar Cartola Bancaria</h3>
+        <p>Seleccione la cuenta bancaria y suba el archivo PDF de la cartola</p>
+      </div>
+      
+      <div class="formulario-paso">
+        <div class="form-group">
+          <label for="cuentaOrigen">Cuenta Bancaria *</label>
+          <select 
+            id="cuentaOrigen" 
+            (change)="onCuentaSeleccionada($event)"
+            class="form-control">
+            <option value="">Seleccione una cuenta...</option>
+            <option *ngFor="let cuenta of cuentasOrigen; trackBy: trackByCuentaId" [value]="cuenta.id">
+              {{ cuenta.banco_info.nombre }} - {{ cuenta.numero_cuenta }} ({{ cuenta.tipo_cuenta }})
+            </option>
+          </select>
+          <small class="form-help">Cuentas disponibles para {{ bancoSeleccionado?.nombre }}: {{ cuentasOrigen.length }}</small>
+        </div>
+        
+        <div class="upload-section">
+          <label class="upload-label">
+            <i class="fas fa-cloud-upload-alt"></i>
+            Archivo PDF de Cartola *
+          </label>
+          <div class="upload-area" [class.has-file]="archivoPdfSeleccionado">
+            <input 
+              type="file" 
+              accept=".pdf" 
+              (change)="onArchivoSeleccionado($event)"
+              class="file-input">
+            
+            <div *ngIf="!archivoPdfSeleccionado" class="upload-placeholder">
+              <i class="fas fa-file-pdf fa-3x"></i>
+              <p>Arrastre aquí su archivo PDF o haga clic para seleccionar</p>
+              <small>Máximo 10MB - Solo archivos PDF</small>
+            </div>
+            
+            <div *ngIf="archivoPdfSeleccionado" class="file-selected">
+              <i class="fas fa-file-pdf fa-2x"></i>
+              <div class="file-info">
+                <p class="file-name">{{ archivoPdfSeleccionado.name }}</p>
+                <p class="file-size">{{ (archivoPdfSeleccionado.size / 1024 / 1024).toFixed(2) }} MB</p>
+              </div>
+              <button type="button" class="btn-remove" (click)="archivoPdfSeleccionado = null">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 3: Revisar Movimientos con Saldos -->
+    <div *ngIf="pasoActual === 3" class="paso-container">
+      <div class="paso-header">
+        <h3><i class="fas fa-chart-line"></i> Paso 3: Revisar Movimientos Disponibles</h3>
+        <p>Revise los movimientos de ingreso y sus saldos disponibles para distribución</p>
+      </div>
+      
+      <!-- Información del período de la cartola -->
+      <div *ngIf="periodoCartola" class="info-cartola">
+        <h4><i class="fas fa-calendar-alt"></i> Información de la Cartola</h4>
+        <div class="cartola-info-grid">
+          <div class="info-item">
+            <label>Período:</label>
+            <span>{{ periodoCartola.inicio | date:'dd/MM/yyyy' }} - {{ periodoCartola.fin | date:'dd/MM/yyyy' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Movimientos con Saldo:</label>
+            <span>{{ movimientosConSaldo.length }} ingresos disponibles</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Tabla de Movimientos con Saldos -->
+      <div class="movimientos-section">
+        <div *ngIf="cargando" class="loading-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Cargando movimientos...</p>
+        </div>
+        
+        <div *ngIf="!cargando && movimientosConSaldo.length === 0" class="no-data">
+          <i class="fas fa-inbox fa-3x"></i>
+          <p>No se encontraron movimientos con saldo disponible</p>
+        </div>
+        
+        <div *ngIf="!cargando && movimientosConSaldo.length > 0" class="tabla-movimientos">
+          <h5>Movimientos Disponibles para Distribución</h5>
+          
+          <div class="tabla-responsive">
+            <table class="tabla-saldos">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Operación</th>
+                  <th>Descripción</th>
+                  <th>Monto Original</th>
+                  <th>Distribuido</th>
+                  <th>Saldo Disponible</th>
+                  <th>% Usado</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let movimiento of movimientosConSaldo; trackBy: trackByMovimientoId"
+                    class="fila-movimiento"
+                    [class.saldo-bajo]="movimiento.saldo_disponible < movimiento.monto_original * 0.2"
+                    [class.saldo-alto]="movimiento.saldo_disponible > movimiento.monto_original * 0.8">
+                  <td class="fecha">{{ movimiento.fecha | date:'dd/MM/yyyy' }}</td>
+                  <td class="operacion">{{ movimiento.numero_operacion }}</td>
+                  <td class="descripcion" [title]="movimiento.descripcion">
+                    {{ movimiento.descripcion.length > 40 ? (movimiento.descripcion | slice:0:40) + '...' : movimiento.descripcion }}
+                  </td>
+                  <td class="monto-original">{{ formatearMonto(movimiento.monto_original) }}</td>
+                  <td class="monto-distribuido">{{ formatearMonto(movimiento.monto_distribuido) }}</td>
+                  <td class="saldo-disponible destacado">{{ formatearMonto(movimiento.saldo_disponible) }}</td>
+                  <td class="porcentaje-usado">
+                    <div class="progress-bar">
+                      <div class="progress-fill" [style.width.%]="movimiento.porcentaje_usado"></div>
+                      <span class="progress-text">{{ movimiento.porcentaje_usado.toFixed(1) }}%</span>
+                    </div>
+                  </td>
+                  <td class="estado">
+                    <span class="badge" 
+                          [class.badge-disponible]="movimiento.saldo_disponible > 0"
+                          [class.badge-agotado]="movimiento.saldo_disponible <= 0">
+                      {{ movimiento.saldo_disponible > 0 ? 'Disponible' : 'Agotado' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Resumen de movimientos -->
+          <div class="resumen-movimientos">
+            <div class="resumen-item">
+              <label>Total Movimientos:</label>
+              <span>{{ movimientosConSaldo.length }}</span>
+            </div>
+            <div class="resumen-item">
+              <label>Saldo Total Disponible:</label>
+              <span class="monto-destacado">
+                {{ formatearMonto(calcularTotalSaldoDisponible()) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 4: Distribuir Montos - VERSIÓN FLEXIBLE -->
+    <div *ngIf="pasoActual === 4" class="paso-container">
+      <div class="paso-header">
+        <h3><i class="fas fa-calculator"></i> Paso 4: Distribuir Montos</h3>
+        <p>{{ modoDistribucionMultiple ? 'Realizar otra distribución' : 'Distribuya el monto del ingreso a la factura seleccionada' }}</p>
+      </div>
+      
+      <div class="distribucion-flexible">
+        <!-- Resumen de Movimientos Disponibles -->
+        <div class="seccion-movimientos-disponibles">
+          <h4><i class="fas fa-wallet"></i> Movimientos Disponibles</h4>
+          <div class="movimientos-grid-compacto">
+            <div *ngFor="let movimiento of movimientosConSaldo" 
+                 class="movimiento-card-compacto"
+                 [class.selected]="movimientoSeleccionado?.id === movimiento.id"
+                 [class.sin-saldo]="movimiento.saldo_disponible <= 0"
+                 (click)="onMovimientoSeleccionado(movimiento)">
+              <div class="card-header-compacto">
+                <span class="fecha">{{ movimiento.fecha | date:'dd/MM' }}</span>
+                <span class="saldo-disponible">{{ formatearMonto(movimiento.saldo_disponible) }}</span>
+              </div>
+              <div class="card-body-compacto">
+                <p class="descripcion-compacta">{{ movimiento.descripcion | slice:0:30 }}...</p>
+                <div class="progress-compacto">
+                  <div class="progress-fill" [style.width.%]="100 - movimiento.porcentaje_usado"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <form [formGroup]="distribucionForm" class="formulario-paso">
+          <!-- Selección de Factura -->
+          <div class="form-group">
+            <label for="factura">Factura a Aplicar Pago *</label>
+            <select 
+              id="factura" 
+              formControlName="factura" 
+              (change)="onFacturaSeleccionada($event)"
+              class="form-control">
+              <option value="">Seleccione una factura...</option>
+              <option *ngFor="let factura of facturasDisponibles; trackBy: trackByFacturaId" [value]="factura.id">
+                {{ factura.numero }} - {{ factura.fecha_emision | date:'dd/MM/yyyy' }} 
+                - Total: {{ formatearMonto(factura.total) }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Estado Detallado de la Factura -->
+          <div *ngIf="estadoFacturaActual" class="estado-factura-detallado">
+            <h4><i class="fas fa-file-invoice"></i> Estado de la Factura {{ estadoFacturaActual.factura.folio }}</h4>
+            
+            <div class="factura-estado-grid">
+              <div class="estado-item">
+                <label>Cliente:</label>
+                <span>{{ estadoFacturaActual.factura.cliente_nombre }}</span>
+              </div>
+              <div class="estado-item">
+                <label>Fecha Emisión:</label>
+                <span>{{ estadoFacturaActual.factura.fecha_emision | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="estado-item">
+                <label>Total Factura:</label>
+                <span class="monto-total">{{ formatearMonto(estadoFacturaActual.factura.monto_total) }}</span>
+              </div>
+              <div class="estado-item">
+                <label>Total Cubierto:</label>
+                <span class="monto-cubierto">{{ formatearMonto(estadoFacturaActual.cobertura.total_cubierto) }}</span>
+              </div>
+              <div class="estado-item">
+                <label>Saldo Pendiente:</label>
+                <span class="saldo-pendiente">{{ formatearMonto(estadoFacturaActual.cobertura.total_pendiente) }}</span>
+              </div>
+              <div class="estado-item">
+                <label>% Pagado:</label>
+                <span class="porcentaje-pagado">{{ estadoFacturaActual.cobertura.porcentaje_cubierto.toFixed(1) }}%</span>
+              </div>
+            </div>
+
+            <!-- Barra de Progreso de la Factura -->
+            <div class="progreso-factura">
+              <label>Progreso de Pago:</label>
+              <div class="progress-bar-factura">
+                <div class="progress-fill" [style.width.%]="estadoFacturaActual.cobertura.porcentaje_cubierto">
+                  <span class="progress-text">{{ estadoFacturaActual.cobertura.porcentaje_cubierto.toFixed(1) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Desglose Neto e IVA -->
+            <div class="desglose-factura">
+              <div class="desglose-item">
+                <div class="desglose-header">Neto</div>
+                <div class="desglose-amounts">
+                  <span class="original">{{ formatearMonto(estadoFacturaActual.factura.monto_neto) }}</span>
+                  <span class="cubierto">-{{ formatearMonto(estadoFacturaActual.cobertura.neto_cubierto) }}</span>
+                  <span class="pendiente">= {{ formatearMonto(estadoFacturaActual.cobertura.neto_pendiente) }}</span>
+                </div>
+              </div>
+              <div class="desglose-item">
+                <div class="desglose-header">IVA</div>
+                <div class="desglose-amounts">
+                  <span class="original">{{ formatearMonto(estadoFacturaActual.factura.monto_iva) }}</span>
+                  <span class="cubierto">-{{ formatearMonto(estadoFacturaActual.cobertura.iva_cubierto) }}</span>
+                  <span class="pendiente">= {{ formatearMonto(estadoFacturaActual.cobertura.iva_pendiente) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuración de la Distribución -->
+          <div *ngIf="movimientoSeleccionado" class="configuracion-distribucion">
+            <h4><i class="fas fa-cogs"></i> Configurar Distribución</h4>
+            
+            <!-- Información del Movimiento Seleccionado -->
+            <div class="info-movimiento-seleccionado">
+              <h5>Movimiento Seleccionado</h5>
+              <div class="movimiento-info-grid">
+                <div class="info-item">
+                  <label>Fecha:</label>
+                  <span>{{ movimientoSeleccionado.fecha | date:'dd/MM/yyyy' }}</span>
+                </div>
+                <div class="info-item">
+                  <label>Saldo Disponible:</label>
+                  <span class="saldo-destacado">{{ formatearMonto(movimientoSeleccionado.saldo_disponible) }}</span>
+                </div>
+                <div class="info-item">
+                  <label>Descripción:</label>
+                  <span>{{ movimientoSeleccionado.descripcion | slice:0:50 }}{{ movimientoSeleccionado.descripcion.length > 50 ? '...' : '' }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Montos de Distribución -->
+            <div class="montos-distribucion">
+              <h5>Montos a Distribuir</h5>
+              <p class="instruccion">Especifique cuánto del saldo disponible quiere asignar al neto y al IVA de la factura:</p>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="montoNeto">Monto para Neto *</label>
+                  <input 
+                    type="number" 
+                    id="montoNeto" 
+                    formControlName="montoNeto" 
+                    class="form-control"
+                    [class.error]="obtenerErrorMontoNeto()"
+                    min="0"
+                    step="1000"
+                    (input)="validarMontosDistribucion()">
+                  <small *ngIf="obtenerErrorMontoNeto()" class="error-message">
+                    {{ obtenerErrorMontoNeto() }}
+                  </small>
+                  <small *ngIf="!obtenerErrorMontoNeto() && estadoFacturaActual" class="form-help">
+                    Neto pendiente en factura: {{ formatearMonto(estadoFacturaActual.cobertura.neto_pendiente) }}
+                  </small>
+                </div>
+                
+                <div class="form-group">
+                  <label for="montoIva">Monto para IVA *</label>
+                  <input 
+                    type="number" 
+                    id="montoIva" 
+                    formControlName="montoIva" 
+                    class="form-control"
+                    [class.error]="obtenerErrorMontoIva()"
+                    min="0"
+                    step="1000"
+                    (input)="validarMontosDistribucion()">
+                  <small *ngIf="obtenerErrorMontoIva()" class="error-message">
+                    {{ obtenerErrorMontoIva() }}
+                  </small>
+                  <small *ngIf="!obtenerErrorMontoIva() && estadoFacturaActual" class="form-help">
+                    IVA pendiente en factura: {{ formatearMonto(estadoFacturaActual.cobertura.iva_pendiente) }}
+                  </small>
+                </div>
+              </div>
+              
+              <!-- Botón de sugerencia proporcional -->
+              <div *ngIf="estadoFacturaActual" class="sugerencia-row">
+                <button 
+                  type="button" 
+                  class="btn btn-outline-info btn-sm"
+                  (click)="sugerirDistribucionProporcional()">
+                  <i class="fas fa-magic"></i>
+                  Distribuir Proporcionalmente
+                </button>
+                <small class="form-help">
+                  Distribuye el saldo según la proporción original neto/IVA de la factura
+                </small>
+              </div>
+            </div>
+            
+            <!-- Total a Distribuir (calculado automáticamente) -->
+            <div class="total-distribucion-calculado">
+              <div class="total-item">
+                <label>Total a Usar del Movimiento:</label>
+                <span class="total-destacado">{{ formatearMonto(calcularMontos().total) }}</span>
+              </div>
+              <div class="total-item">
+                <label>Saldo Restante del Movimiento:</label>
+                <span class="saldo-restante">{{ formatearMonto(movimientoSeleccionado.saldo_disponible - calcularMontos().total) }}</span>
+              </div>
+            </div>
+            
+            <!-- Vista Previa de Distribución -->
+            <div class="resumen-distribucion-preview">
+              <h5>Vista Previa de Distribución</h5>
+              <div class="distribucion-preview-grid">
+                <div class="preview-item">
+                  <label>Para Neto:</label>
+                  <span class="monto-neto">{{ formatearMonto(calcularMontos().neto) }}</span>
+                </div>
+                <div class="preview-item">
+                  <label>Para IVA:</label>
+                  <span class="monto-iva">{{ formatearMonto(calcularMontos().iva) }}</span>
+                </div>
+                <div class="preview-item total">
+                  <label>Total a Distribuir:</label>
+                  <span>{{ formatearMonto(calcularMontos().total) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de navegación - VERSIÓN FLEXIBLE -->
+  <div class="botones-navegacion">
+    <button 
+      *ngIf="pasoActual > 1 && !modoDistribucionMultiple" 
+      type="button" 
+      class="btn btn-secondary"
+      (click)="pasoAnterior()"
+      [disabled]="cargando">
+      <i class="fas fa-arrow-left"></i>
+      Anterior
+    </button>
+    
+    <div class="spacer"></div>
+    
+    <!-- Botones para Paso 1, 2, 3 -->
+    <button 
+      *ngIf="pasoActual < 4" 
+      type="button" 
+      class="btn btn-primary"
+      (click)="siguientePaso()"
+      [disabled]="cargando">
+      Siguiente
+      <i class="fas fa-arrow-right"></i>
+    </button>
+    
+    <!-- Botones para Paso 4 - Distribución -->
+    <div *ngIf="pasoActual === 4" class="botones-distribucion">
+      <button 
+        type="button" 
+        class="btn btn-success"
+        (click)="procesarDistribucionActual()"
+        [disabled]="cargando || !movimientoSeleccionado || !facturaSeleccionada || calcularMontos().total <= 0">
+        <i class="fas fa-check"></i>
+        {{ modoDistribucionMultiple ? 'Agregar Pago' : 'Registrar Pago' }}
+      </button>
+      
+      <button 
+        *ngIf="modoDistribucionMultiple"
+        type="button" 
+        class="btn btn-info"
+        (click)="agregarOtraDistribucion()"
+        [disabled]="cargando">
+        <i class="fas fa-plus"></i>
+        Otro Pago
+      </button>
+      
+      <button 
+        *ngIf="modoDistribucionMultiple"
+        type="button" 
+        class="btn btn-secondary"
+        (click)="finalizarDistribuciones()"
+        [disabled]="cargando">
+        <i class="fas fa-check-double"></i>
+        Finalizar
+      </button>
+    </div>
+  </div>
+</div>

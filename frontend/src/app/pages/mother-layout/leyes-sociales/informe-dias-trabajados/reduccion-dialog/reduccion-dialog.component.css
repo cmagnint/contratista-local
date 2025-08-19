@@ -1,0 +1,36 @@
+.clientes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding: 8px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.cliente-checkbox {
+  margin-bottom: 8px;
+}
+
+.porcentaje-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.porcentaje-container label {
+  margin-bottom: 8px;
+  display: block;
+}
+
+mat-slider {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+mat-form-field {
+  width: 100%;
+}

@@ -1,0 +1,211 @@
+<div class="container">
+  <div class="form-card">
+    <img src="assets/images/terrasoft.png" alt="Terrasoft" class="ms-logo">
+    
+    <!-- Estado de carga -->
+    <div *ngIf="validacionEnProceso" class="loading-state">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Validando enlace...</p>
+    </div>
+
+    <!-- Estado de error -->
+    <div *ngIf="!validacionEnProceso && !enlaceValido" class="error-state">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <h2>Link inválido</h2>
+      <p class="error-message">{{ error }}</p>
+    </div>
+
+    <!-- Formulario Paso 1: Datos personales -->
+    <div *ngIf="!validacionEnProceso && enlaceValido && currentStep === 1">
+      <div *ngIf="error" class="error-message">
+        {{ error }}
+      </div>
+
+      <form [formGroup]="registroForm" class="sign-in-form">
+        <div class="form-field">
+          <input type="text" formControlName="nombres" required>
+          <label [class.filled]="registroForm.get('nombres')?.value">Nombres</label>
+          <div class="error-text" *ngIf="registroForm.get('nombres')?.touched && registroForm.get('nombres')?.errors">
+            Nombre debe tener al menos 3 caracteres
+          </div>
+        </div>
+
+        <div class="form-field">
+          <input type="text" formControlName="apellidos" required>
+          <label [class.filled]="registroForm.get('apellidos')?.value">Apellidos</label>
+          <div class="error-text" *ngIf="registroForm.get('apellidos')?.touched && registroForm.get('apellidos')?.errors">
+            Apellidos debe tener al menos 3 caracteres
+          </div>
+        </div>
+
+        <div class="form-field">
+          <input type="text" formControlName="rut" required>
+          <label [class.filled]="registroForm.get('rut')?.value">RUT</label>
+          <div class="error-text" *ngIf="registroForm.get('rut')?.touched && registroForm.get('rut')?.errors">
+            RUT inválido
+          </div>
+        </div>
+        
+        <div class="form-field">
+          <input type="email" formControlName="correo" required>
+          <label [class.filled]="registroForm.get('correo')?.value">Correo electrónico</label>
+          <div class="error-text" *ngIf="registroForm.get('correo')?.touched && registroForm.get('correo')?.errors">
+            Correo inválido
+          </div>
+        </div>
+
+        <div class="form-field">
+          <select formControlName="estadoCivil" required>
+            <option value="">Seleccione estado civil</option>
+            <option *ngFor="let estado of estadosCiviles" [value]="estado.value">
+              {{estado.label}}
+            </option>
+          </select>
+          <div class="error-text" *ngIf="registroForm.get('estadoCivil')?.touched && registroForm.get('estadoCivil')?.errors">
+            Seleccione un estado civil
+          </div>
+        </div>
+
+        <div class="form-field">
+          <input type="tel" formControlName="telefono" required>
+          <label [class.filled]="registroForm.get('telefono')?.value">Teléfono</label>
+          <div class="error-text" *ngIf="registroForm.get('telefono')?.touched && registroForm.get('telefono')?.errors">
+            Teléfono inválido
+          </div>
+        </div>
+
+        <div class="form-field">
+          <select formControlName="nacionalidad" required class="input-nacionalidad">
+            <!-- Nacionalidades más comunes -->
+            <option value="CHILENA">CHILENA</option>
+            <option value="BOLIVIANA">BOLIVIANA</option>
+            <option value="ARGENTINA">ARGENTINA</option>
+            <option value="PERUANA">PERUANA</option>
+            <option value="ECUATORIANA">ECUATORIANA</option>
+            <!-- Separador -->
+            <option disabled>──────────────────</option>
+            <!-- Lista filtrada de todas las nacionalidades -->
+            <option *ngFor="let nacionalidad of nacionalidadesFiltradas" 
+                    [value]="nacionalidad">
+                {{nacionalidad}}
+            </option>
+          </select>
+          <div class="error-text" *ngIf="registroForm.get('nacionalidad')?.touched && registroForm.get('nacionalidad')?.errors">
+            Nacionalidad es requerida
+          </div>
+        </div>
+
+        <!-- Nuevo campo para fecha de nacimiento -->
+        <div class="form-field">
+          <input type="date" formControlName="fecha_nacimiento" required>
+          <label [class.filled]="registroForm.get('fecha_nacimiento')?.value">Fecha de Nacimiento</label>
+          <div class="error-text" *ngIf="registroForm.get('fecha_nacimiento')?.touched && registroForm.get('fecha_nacimiento')?.errors">
+            Fecha de nacimiento es requerida
+          </div>
+        </div>
+
+        <!-- Nuevo campo para dirección -->
+        <div class="form-field">
+          <input type="text" formControlName="direccion" required>
+          <label [class.filled]="registroForm.get('direccion')?.value">Dirección</label>
+          <div class="error-text" *ngIf="registroForm.get('direccion')?.touched && registroForm.get('direccion')?.errors">
+            Dirección es requerida
+          </div>
+        </div>
+
+        <div class="form-field">
+          <select formControlName="sexo" required>
+            <option value="">Seleccione sexo</option>
+            <option *ngFor="let sexo of sexos" [value]="sexo.value">
+              {{sexo.label}}
+            </option>
+          </select>
+          <div class="error-text" *ngIf="registroForm.get('sexo')?.touched && registroForm.get('sexo')?.errors">
+            Seleccione un sexo
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button type="button" 
+                  class="btn-next" 
+                  [disabled]="!registroForm.valid || loading"
+                  (click)="nextStep()">
+            {{ loading ? 'Cargando...' : 'Siguiente' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Paso 2: Documentos y Firma -->
+    <div *ngIf="!validacionEnProceso && enlaceValido && currentStep === 2" class="document-step">
+      <h2>Documentación Requerida</h2>
+      
+      <div class="document-upload-section">
+        <div class="upload-container">
+          <h3>Carnet Frontal</h3>
+          <div class="custom-file-input">
+            <input type="file" 
+                   accept="image/*" 
+                   (change)="onFileChange($event, 'frontal')"
+                   id="carnetFrontal"
+                   #fileInputFrontal>
+            <label for="carnetFrontal" class="custom-file-button">
+              Elegir imagen frontal
+            </label>
+            <span class="file-name" *ngIf="carnetFrontal">
+              {{carnetFrontal.name}}
+            </span>
+          </div>
+          <div class="preview-container" *ngIf="carnetFrontalPreview">
+            <img [src]="carnetFrontalPreview" alt="Vista previa carnet frontal" class="preview-image">
+            <div class="preview-check">✓ Imagen cargada</div>
+          </div>
+        </div>
+
+        <div class="upload-container">
+          <h3>Carnet Trasero</h3>
+          <div class="custom-file-input">
+            <input type="file" 
+                   accept="image/*" 
+                   (change)="onFileChange($event, 'trasero')"
+                   id="carnetTrasero"
+                   #fileInputTrasero>
+            <label for="carnetTrasero" class="custom-file-button">
+              Elegir imagen trasera
+            </label>
+            <span class="file-name" *ngIf="carnetTrasero">
+              {{carnetTrasero.name}}
+            </span>
+          </div>
+          <div class="preview-container" *ngIf="carnetTraseroPreview">
+            <img [src]="carnetTraseroPreview" alt="Vista previa carnet trasero" class="preview-image">
+            <div class="preview-check">✓ Imagen cargada</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-container signature-form">
+        <h3>Firma Digital</h3>
+        <p>Por favor, dibuje su firma a continuación:</p>
+        <div class="signature-container">
+          <canvas #signaturePad width="400" height="200"></canvas>
+        </div>
+        <div class="button-container">
+          <button class="btn-red" (click)="clearSignature()">Borrar Firma</button>
+          <button class="btn-green" 
+            [disabled]="!canSubmit()"
+            (click)="saveSignature()">
+            {{ loading ? 'Procesando...' : 'Finalizar Registro' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paso 3: Registro Exitoso -->
+    <div *ngIf="currentStep === 3" class="success-state">
+      <div class="success-icon">✓</div>
+      <h2>¡Registro Exitoso!</h2>
+      <p>Su registro ha sido completado correctamente.</p>
+    </div>
+  </div>
+</div>

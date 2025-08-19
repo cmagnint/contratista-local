@@ -1,0 +1,976 @@
+/*posicionar-variable-contrato.component.css*/
+/* Estructura principal */
+.main-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  gap: 20px;
+  padding: 25px;
+  font-family: Arial, sans-serif;
+}
+
+/* Panel de variables */
+.variables-panel {
+  flex: 0 0 300px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 20px;
+  height: calc(100vh - 90px); /* Altura fija basada en el viewport */
+  overflow-y: auto; /* Habilita scroll vertical independiente */
+  overflow-x: hidden; /* Previene scroll horizontal */
+}
+
+.variables-panel h3, .variables-panel h4 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.3rem;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+}
+
+.variables-panel h4 {
+  font-size: 1.1rem;
+  margin-top: 20px;
+  color: #444;
+}
+
+.panel-instruction {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.variable-item {
+  background-color: white;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eee;
+}
+
+.variable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.variable-header label {
+  font-weight: 500;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.variable-status {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: #f2f2f2;
+  color: #777;
+}
+
+.variable-status.placed {
+  background-color: #e6f7e6;
+  color: #2c7a2c;
+}
+
+/* Ajustes para el diseño sin campos de valor */
+.variable-input-group {
+  display: flex;
+  justify-content: space-between; /* Alinea botones en extremos */
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.place-btn, .calibrate-btn {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.place-btn {
+  background-color: #4a80f5;
+  color: white;
+}
+
+.place-btn:hover:not(:disabled) {
+  background-color: #3a6ad4;
+}
+
+.place-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.calibrate-btn {
+  background-color: #f59f00;
+  color: white;
+}
+
+.calibrate-btn:hover:not(:disabled) {
+  background-color: #e09200;
+}
+
+.variable-position {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 5px;
+}
+
+.panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-btn {
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.reset-btn {
+  background-color: #f8f8f8;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.reset-btn:hover {
+  background-color: #eee;
+}
+
+.export-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.export-btn:hover {
+  background-color: #419544;
+}
+
+/* Styles for the new save button */
+.save-btn {
+  background-color: #007bff;
+  color: white;
+  margin-top: 10px;
+}
+
+.save-btn:hover {
+  background-color: #0069d9;
+}
+
+/* Nuevos estilos para la sección de PDF de prueba */
+.test-pdf-section, .calibration-actions {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+}
+
+.preview-btn {
+  background-color: #6f42c1;
+  color: white;
+  width: 100%;
+}
+
+.preview-btn:hover {
+  background-color: #5a32a3;
+}
+
+.pdf-preview-link {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f0f0f0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.pdf-preview-link a {
+  color: #4a80f5;
+  text-decoration: none;
+}
+
+.pdf-preview-link a:hover {
+  text-decoration: underline;
+}
+
+.download-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.download-btn:hover {
+  background-color: #218838;
+}
+
+.calibration-btn {
+  background-color: #f59f00;
+  color: white;
+  margin-bottom: 5px;
+}
+
+.calibration-btn:hover {
+  background-color: #e09200;
+}
+
+/* Container del PDF modificado para ajustarse al layout */
+.pdf-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.placement-mode-indicator {
+  margin-top: 15px;
+  padding: 10px 15px;
+  background-color: #e6f7ff;
+  border-left: 4px solid #1890ff;
+  border-radius: 4px;
+}
+
+.placement-mode-indicator p {
+  margin: 0;
+  color: #0050b3;
+  font-size: 0.9rem;
+}
+
+/* File upload section */
+.file-upload-section {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.file-input-label {
+  display: inline-block;
+  background-color: #4a80f5;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-input-label:hover {
+  background-color: #3a6ad4;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-selected-text {
+  color: #4a80f5;
+  font-weight: 500;
+}
+
+.pdf-viewer-wrapper {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+
+.spinner {
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #4a80f5;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.no-pdf-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  height: 200px;
+  width: 100%;
+  text-align: center;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+}
+
+.ssr-message {
+  padding: 20px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 8px;
+  color: #856404;
+  text-align: center;
+}
+
+.error-message {
+  padding: 20px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  color: #721c24;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* PDF Viewer styles */
+.pdf-viewer {
+  width: 100%;
+  min-height: 500px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #e5e5e5; /* Darker background to contrast with pages */
+  padding: 0;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* PDF Controls */
+.pdf-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 15px;
+  background-color: #f8f8f8;
+  border-bottom: 1px solid #ddd;
+  width: 100%;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.pdf-control-btn {
+  background-color: #4a80f5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.pdf-control-btn:hover:not(:disabled) {
+  background-color: #3a6ad4;
+}
+
+.pdf-control-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* PDF Pages Container */
+.pdf-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  padding: 30px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #e5e5e5;
+}
+
+/* Page Container with Header and Footer */
+.pdf-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90%;
+  max-width: 900px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+
+/* Page Header */
+.pdf-page-header {
+  width: 100%;
+  background-color: #4a80f5;
+  color: white;
+  padding: 10px 0;
+  font-weight: bold;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+/* PDF Page */
+.pdf-page {
+  position: relative;
+  background-color: white;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  border-top: 2px solid #ddd;
+  border-bottom: 2px solid #ddd;
+}
+
+/* Page Footer */
+.pdf-page-footer {
+  width: 100%;
+  background-color: #f2f2f2;
+  color: #333;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 12px;
+  border-top: 1px solid #ddd;
+}
+
+.pdf-canvas {
+  display: block;
+  margin: 0 auto;
+  background-color: white;
+}
+
+/* Variable on PDF */
+.pdf-variable {
+  position: absolute;
+  background-color: rgba(74, 128, 245, 0.1);
+  border: 2px dashed #4a80f5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  z-index: 100;
+  color: #333;
+  backdrop-filter: blur(1px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  pointer-events: all;
+  cursor: move;
+  user-select: none;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.pdf-variable:hover {
+  background-color: rgba(74, 128, 245, 0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.pdf-variable.dragging {
+  background-color: rgba(74, 128, 245, 0.3);
+  border: 2px solid #4a80f5;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0.9;
+  z-index: 200;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+  }
+  
+  .variables-panel {
+    flex: none;
+    width: 100%;
+    position: static;
+  }
+  
+  .pdf-page-container {
+    width: 100%;
+  }
+}
+
+.variable-positions {
+  margin-top: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+}
+
+.variable-position {
+  font-size: 0.8rem;
+  color: #555;
+  padding: 3px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.variable-position:last-child {
+  border-bottom: none;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 25px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-description {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.form-group {
+  margin-bottom: 15px;  
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Estilos para modal de datos de prueba */
+.variables-test-data {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* Estilos para la depuración/info de coordenadas */
+.debug-info {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-family: monospace;
+  font-size: 9px !important;
+  line-height: 1.2;
+  color: #ff0000 !important;
+  pointer-events: none; /* Para que no interfiera con los clicks */
+  white-space: nowrap;
+  z-index: 110 !important; /* Asegurar que siempre esté por encima */
+  transform: translateY(0); /* Ayuda a mantener la posición correcta */
+}
+
+/* Estilo específico para cuando está en modo edición */
+.edit-mode + .debug-info {
+  bottom: -18px !important;
+  left: 0 !important;
+  top: auto !important; /* Asegura que 'top' no anule la propiedad 'bottom' */
+  position: absolute !important;
+}
+
+/* Styles for the document actions section */
+.documento-actions {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 15px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.new-doc-btn, .open-doc-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  background-color: #f8f8f8;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.new-doc-btn.active, .open-doc-btn.active {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.new-doc-btn:hover, .open-doc-btn:hover {
+  background-color: #e6f7ff;
+}
+
+.documentos-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.documento-item {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.documento-item:last-child {
+  border-bottom: none;
+}
+
+.documento-item:hover {
+  background-color: #f5f5f5;
+}
+
+.documento-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.documento-nombre {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 3px;
+}
+
+.documento-tipo {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.documento-fecha {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.no-documentos {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.calibrate-direct-btn {
+  background-color: #722ed1;
+  color: white;
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.calibrate-direct-btn:hover {
+  background-color: #5b21ae;
+}
+
+/* Styles for document info card */
+.documento-info-card {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 10px;
+}
+
+.documento-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.documento-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.tipo-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.tipo-badge.chileno {
+  background-color: #e6f7ff;
+  color: #0050b3;
+}
+
+.tipo-badge.extranjero {
+  background-color: #fff7e6;
+  color: #d48806;
+}
+
+.documento-details {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.documento-details p {
+  margin: 5px 0;
+}
+
+.documento-details strong {
+  color: #333;
+}
+
+.documento-actions-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modify-direct-btn {
+  background-color: #28a745;
+  color: white;
+  width: 100%;
+  padding: 12px;
+  transition: background-color 0.2s;
+}
+
+.modify-direct-btn:hover {
+  background-color: #218838;
+}
+
+
+/* Modo modificación */
+.document-info {
+  background-color: #f0f8ff;
+  border-left: 4px solid #4a80f5;
+  padding: 10px 15px;
+  margin-top: 15px;
+  border-radius: 4px;
+}
+
+.document-info ul {
+  padding-left: 20px;
+  margin: 5px 0;
+}
+
+.document-info li {
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  margin-top: 10px;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
+}
+
+/* Estilo para contador de variables */
+.variables-counter {
+  background-color: #f8f9fa;
+  padding: 10px;
+  margin-top: 15px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.variables-counter strong {
+  color: #4a80f5;
+  font-size: 1.1rem;
+}
+
+/* Tooltip para instrucciones de uso */
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background-color: #6c757d;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  margin-left: 5px;
+  cursor: help;
+}
+
+.tooltip-content {
+  display: none;
+  position: absolute;
+  background-color: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  width: 220px;
+  font-size: 0.8rem;
+  z-index: 1000;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+.tooltip-icon:hover + .tooltip-content {
+  display: block;
+}
+
+/* Animación para variables en el modo edición */
+@keyframes pulse-edit {
+  0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(40, 167, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+
+.edit-mode-active .pdf-variable.edit-mode {
+  animation: pulse-edit 2s infinite;
+}
+
+/* Contenedor de botones para documentos seleccionados */
+.documento-actions-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modify-direct-btn {
+  background-color: #28a745;
+  color: white;
+  width: 100%;
+  padding: 12px;
+  transition: background-color 0.2s;
+}
+
+.modify-direct-btn:hover {
+  background-color: #218838;
+}
+
+
+/* Modo modificación */
+.document-info {
+  background-color: #f0f8ff;
+  border-left: 4px solid #4a80f5;
+  padding: 10px 15px;
+  margin-top: 15px;
+  border-radius: 4px;
+}
+
+.document-info ul {
+  padding-left: 20px;
+  margin: 5px 0;
+}
+
+.document-info li {
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  margin-top: 10px;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
+}

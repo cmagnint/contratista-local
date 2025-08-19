@@ -1,0 +1,129 @@
+<mat-card class="filtros-card">
+    <mat-card-header>
+      <mat-card-title>Generación de Liquidaciones</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form [formGroup]="filtroForm" (ngSubmit)="generarLiquidaciones()">
+        <div class="filtros-container">
+          <!-- Primera fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Sociedad (Obligatorio) -->
+            <mat-form-field appearance="outline">
+              <mat-label>Sociedad</mat-label>
+              <mat-select formControlName="sociedad_id" required>
+                <mat-option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+                  {{ sociedad.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="filtroForm.get('sociedad_id')?.invalid && filtroForm.get('sociedad_id')?.touched">
+                La sociedad es obligatoria
+              </mat-error>
+            </mat-form-field>
+          </div>
+          
+          <!-- Segunda fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Período (Mes y Año) -->
+            <mat-form-field appearance="outline">
+              <mat-label>Mes</mat-label>
+              <mat-select formControlName="mes">
+                <mat-option *ngFor="let mes of meses" [value]="mes.valor">
+                  {{ mes.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="filtroForm.get('mes')?.invalid">El mes es requerido</mat-error>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Año</mat-label>
+              <mat-select formControlName="year">
+                <mat-option *ngFor="let year of years" [value]="year">
+                  {{ year }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="filtroForm.get('year')?.invalid">El año es requerido</mat-error>
+            </mat-form-field>
+          </div>
+          
+          <!-- Tercera fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Filtros adicionales -->
+            <mat-form-field appearance="outline">
+              <mat-label>Cliente</mat-label>
+              <mat-select formControlName="cliente_id">
+                <mat-option value="">Todos</mat-option>
+                <mat-option *ngFor="let cliente of clientes" [value]="cliente.id">
+                  {{ cliente.nombre }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Fundo</mat-label>
+              <mat-select formControlName="fundo_id">
+                <mat-option value="">Todos</mat-option>
+                <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">
+                  {{ fundo.nombre_campo }}
+                </mat-option>
+              </mat-select>
+              <mat-hint *ngIf="cargandoFundos">Cargando fundos...</mat-hint>
+              <mat-hint *ngIf="!filtroForm.get('cliente_id')?.value && !cargandoFundos">
+                Seleccione un cliente primero
+              </mat-hint>
+            </mat-form-field>
+          </div>
+          
+          <!-- Cuarta fila de filtros -->
+          <div class="filtros-fila">
+            <mat-form-field appearance="outline">
+              <mat-label>Casa</mat-label>
+              <mat-select formControlName="casa_id">
+                <mat-option value="">Todas</mat-option>
+                <mat-option *ngFor="let casa of casas" [value]="casa.id">
+                  {{ casa.nombre }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+        
+        <div class="botones-container">
+          <button mat-raised-button color="primary" type="submit" [disabled]="filtroForm.invalid || cargando">
+            <mat-icon>receipt</mat-icon> Generar Liquidaciones
+          </button>
+          
+          <button mat-raised-button type="button" (click)="limpiarFiltros()">
+            <mat-icon>clear</mat-icon> Limpiar Filtros
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Mensaje de error si existe -->
+  <div *ngIf="mensajeError" class="mensaje-error">
+    <mat-icon>error</mat-icon> {{ mensajeError }}
+  </div>
+  
+  <!-- Spinner de carga -->
+  <div *ngIf="cargando" class="cargando-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Generando liquidaciones...</p>
+  </div>
+  
+  <!-- Área para mostrar las liquidaciones (se implementará más adelante) -->
+  <div *ngIf="liquidacionesGeneradas && !cargando" class="liquidaciones-resultados">
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>
+          Liquidaciones - {{ getNombreMes() }} {{ filtroForm.get('year')?.value }}
+        </mat-card-title>
+      </mat-card-header>
+      
+      <mat-card-content>
+        <!-- Aquí se mostrará la lista de liquidaciones generadas -->
+        <p>Liquidaciones generadas correctamente. La implementación de la visualización se completará en la siguiente fase.</p>
+      </mat-card-content>
+    </mat-card>
+  </div>

@@ -1,0 +1,246 @@
+<!-- pagos-transportista.component.html -->
+<div class="container">
+    <h2>Pago a Transportistas</h2>
+    
+    <!-- Sección de selección de cuenta -->
+    <div class="seleccion-cuenta">
+        <div class="form-group">
+            <label for="sociedad">Sociedad:</label>
+            <select id="sociedad" (change)="onSociedadChange($event)">
+                <option value="">Seleccione una sociedad</option>
+                <option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+                    {{ sociedad.nombre }}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group" *ngIf="sociedadSeleccionada">
+            <label for="cuenta">Cuenta de origen:</label>
+            <select id="cuenta" (change)="onCuentaChange($event)">
+                <option value="">Seleccione una cuenta</option>
+                <option *ngFor="let cuenta of cuentas" [value]="cuenta.id">
+                    {{ cuenta.banco_nombre }} - {{ cuenta.numero_cuenta }}
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Sección de selección de empresas de transporte -->
+    <div class="seleccion-empresas">
+        <h3>Seleccione Empresas de Transporte</h3>
+        <div class="empresas-grid">
+            <div *ngFor="let empresa of empresasTransporte" 
+                 class="empresa-card"
+                 [class.selected]="empresa.selected"
+                 [style.border-left]="'5px solid ' + getColorEmpresa(empresa.id)"
+                 (click)="toggleEmpresaTransporte(empresa)">
+                <div class="empresa-info">
+                    <h4>{{ empresa.nombre }}</h4>
+                    <p>RUT: {{ empresa.rut }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de fechas -->
+    <div class="seleccion-fechas">
+        <div class="form-group">
+            <label for="fechaInicio">Fecha inicio:</label>
+            <input id="fechaInicio" type="date" [(ngModel)]="fechaInicio">
+        </div>
+        <div class="form-group">
+            <label for="fechaFin">Fecha fin:</label>
+            <input id="fechaFin" type="date" [(ngModel)]="fechaFin">
+        </div>
+    </div>
+
+   
+
+    <!-- Acciones globales de selección -->
+    <div class="seleccion-global" *ngIf="registrosAgrupados && registrosAgrupados.length > 0">
+        <button (click)="selectAllRegistros()" class="btn-select-all">
+            Seleccionar Todos los Registros
+        </button>
+        <button (click)="deselectAllRegistros()" class="btn-deselect-all">
+            Deseleccionar Todos los Registros
+        </button>
+    </div>
+
+    <div class="acciones">
+        <button (click)="buscarRegistros()" 
+                [disabled]="!hayEmpresasSeleccionadas()"
+                class="search-button">
+            Buscar registros
+        </button>
+        <button (click)="abrirModalPago()"
+                [disabled]="!hayRegistrosSeleccionados()"
+                class="process-payment-button">
+            Procesar pago
+        </button>
+        
+        <!-- Nueva sección para reconfirmación de pago -->
+        <div *ngIf="mostrarReconfirmacion" class="reconfirmacion-pago">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Se ha generado la planilla de efectivo. Por favor revise el documento antes de confirmar el pago.</span>
+            </div>
+            <div class="botones-confirmacion">
+                <button (click)="confirmarPago()" 
+                        [disabled]="pagoProcesandose"
+                        class="confirm-payment-button">
+                    <i class="fas fa-check"></i>
+                    {{ pagoProcesandose ? 'Procesando...' : 'RECONFIRMAR PAGO' }}
+                </button>
+                <button (click)="cancelarPago()" 
+                        [disabled]="pagoProcesandose"
+                        class="cancel-payment-button">
+                    <i class="fas fa-times"></i>
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de método de pago -->
+    <div class="modal-overlay" *ngIf="mostrarModalPago">
+        <div class="modal-pago">
+            <h3>Seleccione el método de pago</h3>
+            <p class="info-text">Se generará automáticamente la documentación correspondiente:</p>
+            
+            <div class="metodo-pago-buttons">
+                <button (click)="onMetodoPagoSeleccionado('EFECTIVO')" 
+                        class="metodo-pago-button efectivo-button">
+                    <i class="fas fa-money-bill-wave"></i>
+                    Efectivo
+                    <small>Genera planilla PDF</small>
+                </button>
+                
+                <button (click)="onMetodoPagoSeleccionado('TRANSFERENCIA')" 
+                        class="metodo-pago-button transferencia-button">
+                    <i class="fas fa-exchange-alt"></i>
+                    Transferencia
+                    <small>Genera archivo CSV para banco</small>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Registros agrupados por fecha -->
+    <div class="registros-container" *ngIf="registrosAgrupados && registrosAgrupados.length > 0">
+        <div *ngFor="let grupo of registrosAgrupados" class="grupo-fecha">
+            <div class="fecha-header">
+                <h4>{{ formatearFecha(grupo.fecha) }}</h4>
+                <div class="fecha-actions">
+                    <button (click)="toggleSeleccionFecha(grupo.fecha, true)" 
+                            class="btn-select">
+                        Seleccionar todos
+                    </button>
+                    <button (click)="toggleSeleccionFecha(grupo.fecha, false)" 
+                            class="btn-deselect">
+                        Deseleccionar todos
+                    </button>
+                </div>
+            </div>
+
+            <div *ngFor="let transportista of grupo.transportistas" 
+                 class="transportista-grupo"
+                 [style.border-left]="'5px solid ' + getColorEmpresa(transportista.id)">
+                <div class="transportista-header">
+                    <h5>{{ transportista.nombre }}</h5>
+                    <span class="transportista-total">
+                        Total del día: {{ formatearMonto(calcularTotalTransportistaDia(transportista.registros)) }}
+                    </span>
+                    <div class="transportista-actions">
+                        <button (click)="toggleSeleccionTransportista(grupo.fecha, transportista.id, true)" 
+                                class="btn-select">
+                            Seleccionar
+                        </button>
+                        <button (click)="toggleSeleccionTransportista(grupo.fecha, transportista.id, false)" 
+                                class="btn-deselect">
+                            Deseleccionar
+                        </button>
+                    </div>
+                </div>
+
+                <table class="registros-table">
+                    <thead>
+                        <tr>
+                            <th>Seleccionar</th>
+                            <th>Tipo Pago</th>
+                            <th>Personas</th>
+                            <th>Valor por Unidad</th>
+                            <th>Tramo</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let registro of transportista.registros">
+                            <td class="checkbox-cell">
+                                <input type="checkbox"
+                                       [(ngModel)]="registro.selected"
+                                       (change)="calcularTotal()">
+                            </td>
+                            <td>
+                                <span class="badge" 
+                                      [class.badge-pasajero]="registro.tipo_pago === 'PASAJERO'"
+                                      [class.badge-viaje]="registro.tipo_pago === 'VIAJE'">
+                                    {{ registro.tipo_pago === 'PASAJERO' ? 'Por Pasajero' : 'Por Viaje' }}
+                                </span>
+                            </td>
+                            <td>{{ registro.cantidad_personas }}</td>
+                            <td>{{ formatearMonto(registro.valor_unidad) }}</td>
+                            <td>
+                                <span class="tramo-info">
+                                    {{ registro.tramo.origen }} → {{ registro.tramo.destino }}
+                                </span>
+                            </td>
+                            <td>{{ formatearMonto(registro.monto_calculado) }}</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5" class="text-right"><strong>Total por Transportista:</strong></td>
+                            <td><strong>{{ formatearMonto(calcularTotalTransportistaDia(transportista.registros)) }}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Total general -->
+        <div class="total-general">
+            <span class="total-label">Total General:</span>
+            <span class="total-amount">{{ formatearMonto(totalGeneral) }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Add this at the end of your component template -->
+<div *ngIf="mostrarModalConfirmacion" class="modal-overlay">
+    <div class="modal-pago">
+        <h3>{{ tituloConfirmacion }}</h3>
+        <p class="info-text">{{ mensajeConfirmacion }}</p>
+        
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Esta acción no se puede deshacer</span>
+        </div>
+        
+        <div class="botones-confirmacion">
+            <button 
+                class="confirm-payment-button"
+                [disabled]="pagoProcesandose"
+                (click)="confirmarPago()">
+                <i class="fas fa-check"></i>
+                Confirmar Pago
+            </button>
+            <button 
+                class="cancel-payment-button"
+                [disabled]="pagoProcesandose"
+                (click)="cancelarPago()">
+                <i class="fas fa-times"></i>
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>

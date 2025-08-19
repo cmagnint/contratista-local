@@ -1,0 +1,120 @@
+<div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+
+    <button mat-raised-button color="primary" (click)=" openModal('crearUnidadControl')">Crear Unidad Control</button>
+
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)"  (click)="openModal('modificarUnidadControl')" >Modificar Unidad Control</button>
+      
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')" >Eliminar Unidad(es) Control</button>
+    
+    <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearUnidadControl']" (click)="closeModal('crearUnidadControl')">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+              <div class="modal-header">
+                  <div class="header-bar"></div>
+                  <div class="title-container">
+                      <h2>Crear Unidad Control</h2>
+                  </div>
+              </div>
+              
+              <h3>Nombre Unidad Control:</h3>
+              
+              <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="nombreUnidadControl" (ngModelChange)="nombreUnidadControl = $event.toUpperCase()"><br><br>
+            
+              <h3>Peso del Contenido [Kg]</h3>
+              
+              <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="cantidadUnidadControl" (input)="formatNumber($event)"><br><br>
+
+              <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="crearUnidadControl()">Crear Unidad Control</button>
+          </div>
+    </div>
+
+    <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarUnidadControl']" (click)="closeModal('modificarUnidadControl')">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <div class="header-bar"></div>
+                <div class="title-container">
+                    <h2>Modificar Unidad Control </h2>
+                </div>
+            </div>
+            <h3>Modificar Nombre Unidad Control:</h3>
+            
+            <input type="text" class="input-perfil" id="nombreUsuarioNew" name="nombreUsuarioNew" [(ngModel)]="nombreUnidadControlNew" (ngModelChange)="nombreUnidadControlNew = $event.toUpperCase()"><br><br>
+                
+            <h3>Modificar Peso del Contenido [Kg]</h3>
+                
+            <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="cantidadUnidadControlNew" (input)="formatNumber($event)"><br><br>
+
+            <!-- Toggle de Estado -->
+            <h3>ESTADO : {{ estadoUnidadControl ? 'ACTIVO' : 'INACTIVO' }}</h3>
+            <mat-icon (click)="toggleEstadoUnidadControl()" [ngClass]="{'activo': estadoUnidadControl, 'inactivo': !estadoUnidadControl}">
+                {{estadoUnidadControl ? 'toggle_on' : 'toggle_off'}}
+            </mat-icon>
+            <br><br>
+
+            <button class="custom-button-ingreso"  (click)=" modificarAfps()" id="ingresarHoldingBtn">Modificar Unidad Control</button>
+        </div>
+    </div>
+        
+     
+    <table mat-table [dataSource]="unidadControlCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+        
+        <ng-container matColumnDef="codigo">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Codigo </th>
+            <td mat-cell *matCellDef="let unidadcontrol" class="mat-cell"> {{ unidadcontrol.id }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="nombre">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
+            <td mat-cell *matCellDef="let unidadcontrol" class="mat-cell"> {{ unidadcontrol.nombre }} </td>
+         </ng-container>
+        
+         <ng-container matColumnDef="peso">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Peso del Contenido [Kg]</th>
+            <td mat-cell *matCellDef="let unidadcontrol" class="mat-cell"> {{ unidadcontrol.cantidad }}kg</td>
+        </ng-container>
+
+        <ng-container matColumnDef="estado">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Estado </th>
+            <td mat-cell *matCellDef="let unidadcontrol" class="mat-cell">
+              <span *ngIf="unidadcontrol.estado; else inactivo">ACTIVO</span>
+              <ng-template #inactivo>INNACTIVO</ng-template>
+            </td>
+          </ng-container>
+        
+        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    
+        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
+    </table>
+    
+</div>
+    
+<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Éxito!</h2>
+            <div class="exito-message" id="exitoText"></div>
+            <button class="custom-button" (click)="closeModal('exitoModal')" >Cerrar</button>
+        </div>
+</div>
+      
+<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Error!</h2>
+            <div class="error-icon-container">
+                <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+            </div>
+            <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+            <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+        </div>
+</div>
+      
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+      <div class="modal-content">
+          <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
+          <div class="exito-message" id="exitoText"></div>
+          <!-- Botones para confirmar o cancelar la acción -->
+          <div class="modal-actions">
+              <button class="custom-button yes-button" (click)="eliminarAfpSeleccionadas()" >Sí</button>
+              <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+          </div>
+      </div>
+</div>
+    

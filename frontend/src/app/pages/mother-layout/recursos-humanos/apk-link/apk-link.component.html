@@ -1,0 +1,48 @@
+<div class="container">
+  <mat-card class="download-card">
+    <mat-card-header>
+      <mat-card-title>Descarga de Aplicación</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Estado de validación -->
+      <div *ngIf="estado === 'validando'" class="status-container">
+        <mat-spinner diameter="48"></mat-spinner>
+        <p class="status-text">Verificando enlace de descarga...</p>
+      </div>
+
+      <!-- Estado de error -->
+      <div *ngIf="estado === 'error'" class="status-container">
+        <mat-icon class="error-icon">error</mat-icon>
+        <p class="error-text">{{ mensajeError }}</p>
+        <button mat-raised-button color="primary" routerLink="/">
+          Volver al inicio
+        </button>
+      </div>
+
+      <!-- Listo para descargar -->
+      <div *ngIf="estado === 'listo'" class="status-container">
+        <mat-icon class="download-icon">get_app</mat-icon>
+        <p class="ready-text">El archivo está listo para ser descargado</p>
+        <p class="time-remaining">Tiempo restante: {{ tiempoRestante | number:'1.1-1' }} horas</p>
+        
+        <button mat-raised-button 
+                color="primary" 
+                (click)="iniciarDescarga()"
+                [disabled]="descargando"
+                class="download-button">
+          {{ descargando ? 'Descargando...' : 'Descargar APK' }}
+        </button>
+
+        <!-- Barra de progreso -->
+        <div *ngIf="descargando" class="progress-container">
+          <mat-progress-bar 
+            mode="determinate"
+            [value]="progreso">
+          </mat-progress-bar>
+          <p class="progress-text">{{ progreso }}% completado</p>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

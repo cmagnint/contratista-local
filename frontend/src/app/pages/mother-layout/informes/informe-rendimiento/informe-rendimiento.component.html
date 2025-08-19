@@ -1,0 +1,73 @@
+<div class="container-fluid">
+    <div class="layout-container">
+      <div class="sidebar">
+        <form [formGroup]="filtroForm" (ngSubmit)="buscarDatos()">
+          <h3>Filtros</h3>
+          
+          <mat-form-field>
+            <mat-label>Fecha Inicio</mat-label>
+            <input matInput [matDatepicker]="pickerInicio" formControlName="fecha_inicio">
+            <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
+            <mat-datepicker #pickerInicio></mat-datepicker>
+          </mat-form-field>
+  
+          <mat-form-field>
+            <mat-label>Fecha Fin</mat-label>
+            <input matInput [matDatepicker]="pickerFin" formControlName="fecha_fin">
+            <mat-datepicker-toggle matSuffix [for]="pickerFin"></mat-datepicker-toggle>
+            <mat-datepicker #pickerFin></mat-datepicker>
+          </mat-form-field>
+  
+          <mat-form-field>
+            <mat-label>Cliente</mat-label>
+            <mat-select formControlName="cliente_id">
+              <mat-option [value]="">Todos</mat-option>
+              <mat-option *ngFor="let cliente of clientes" [value]="cliente.id">
+                {{cliente.nombre}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+  
+          <mat-form-field>
+            <mat-label>Supervisor</mat-label>
+            <mat-select formControlName="supervisor_id">
+              <mat-option [value]="">Todos</mat-option>
+              <mat-option *ngFor="let supervisor of supervisores" [value]="supervisor.id">
+                {{supervisor.nombre}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+  
+          <mat-form-field>
+            <mat-label>Jefe de Cuadrilla</mat-label>
+            <mat-select formControlName="jefe_cuadrilla_id">
+              <mat-option [value]="">Todos</mat-option>
+              <mat-option *ngFor="let jefe of jefesCuadrilla" [value]="jefe.id">
+                {{jefe.nombre}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+  
+          <mat-form-field>
+            <mat-label>Labor</mat-label>
+            <mat-select formControlName="labor_id">
+              <mat-option [value]="">Todas</mat-option>
+              <mat-option *ngFor="let labor of labores" [value]="labor.id">
+                {{labor.nombre}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+  
+          <button mat-raised-button color="primary" type="submit">
+            Buscar
+          </button>
+        </form>
+      </div>
+  
+      <div class="main-content">
+        <div class="chart-container">
+          <canvas #rendimientoChart></canvas>
+        </div>
+      </div>
+    </div>
+  </div>

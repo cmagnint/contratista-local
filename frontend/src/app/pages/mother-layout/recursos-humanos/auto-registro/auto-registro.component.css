@@ -1,0 +1,158 @@
+/* auto-registro.component.css */
+:host {
+  display: block;
+  margin: 20px;
+}
+
+/* Snackbar styles */
+.success-snackbar {
+  background: #4caf50;
+  color: white;
+}
+
+.error-snackbar {
+  background: #f44336;
+  color: white;
+}
+
+/* Card styles */
+.mat-mdc-card {
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Form layout styles */
+.input-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Link display styles */
+.enlace-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.enlace-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: white;
+  color: #333;
+  font-family: monospace;
+  min-height: 48px;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.copy-button {
+  background-color: #1976d2;
+  color: white;
+}
+
+.copy-button:hover {
+  background-color: #1565c0;
+}
+
+/* Information display styles */
+.enlace-info {
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+  background-color: white;
+  border-radius: 4px;
+}
+
+.enlace-info p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.enlace-info strong {
+  font-weight: 500;
+  color: #666;
+}
+
+/* Status colors */
+.text-red-500 {
+  color: #ef4444;
+}
+
+.text-green-500 {
+  color: #10b981;
+}
+
+/* Loading state */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  :host {
+    margin: 10px;
+  }
+
+  .enlace-container {
+    margin: 8px 0;
+    padding: 12px;
+  }
+
+  .enlace-input {
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  .button-group {
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .copy-button,
+  .button-group button {
+    width: calc(50% - 4px);
+  }
+
+  .enlace-info {
+    padding: 12px;
+  }
+
+  .enlace-info p {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

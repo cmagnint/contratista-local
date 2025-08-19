@@ -1,0 +1,1026 @@
+/* ==================== ESTILOS GENERALES ==================== */
+
+.header-container {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 8px 0;
+  font-size: 2rem;
+  font-weight: 500;
+  color: #1976d2;
+}
+
+.page-title mat-icon {
+  font-size: 2rem;
+  width: 32px;
+  height: 32px;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.loading-bar {
+  margin: 16px 0;
+  border-radius: 4px;
+}
+
+.subtitle-info {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* ==================== FILTROS ==================== */
+
+.filtros-card {
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filtros-card mat-card-header {
+  margin-bottom: 16px;
+}
+
+.filtros-card mat-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+}
+
+.filtros-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filtros-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  align-items: center;
+}
+
+.filtro-field {
+  width: 100%;
+}
+
+.filtros-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 0 8px 0;
+  border-top: 1px solid #eee;
+  margin-top: 16px;
+}
+
+/* ==================== ERROR ==================== */
+
+.error-card {
+  margin-bottom: 24px;
+  border-left: 4px solid #f44336;
+  background-color: #ffebee;
+}
+
+.error-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #d32f2f;
+}
+
+.error-content mat-icon {
+  color: #f44336;
+}
+
+/* ==================== RESUMEN ==================== */
+
+.resumen-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.resumen-card {
+  background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+  border: 1px solid #e0e0e0;
+}
+
+.resumen-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: #757575;
+  transition: color 0.3s ease;
+}
+
+.stat-icon.selected {
+  color: #4caf50;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  transition: color 0.3s ease;
+}
+
+.stat-value.selected {
+  color: #4caf50;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 400;
+}
+
+.acciones-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.acciones-container button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+  height: 48px;
+}
+
+/* ==================== TABLA DE FACTURAS - ESTRUCTURA UNIFORME FORZADA ==================== */
+
+.table-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-card mat-card-header {
+  border-bottom: 1px solid #eee;
+  margin-bottom: 0;
+  padding-bottom: 16px;
+}
+
+.table-card mat-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+}
+
+.table-container {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* TABLA PRINCIPAL - CONFIGURACIÓN CRÍTICA */
+.facturas-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 1400px !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: white !important;
+}
+
+/* ESTRUCTURA DE FILAS Y CELDAS - FORZADA */
+.facturas-table .mat-header-row,
+.facturas-table .mat-row {
+  display: table-row !important;
+  height: 60px !important;
+  min-height: 60px !important;
+  max-height: 60px !important;
+}
+
+.facturas-table .mat-header-cell,
+.facturas-table .mat-cell {
+  display: table-cell !important;
+  vertical-align: middle !important;
+  padding: 12px 8px !important;
+  box-sizing: border-box !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.facturas-table .mat-header-cell {
+  background-color: #f5f5f5 !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+  border-bottom: 2px solid #e0e0e0 !important;
+  text-align: center !important;
+}
+
+/* ANCHOS FIJOS POR POSICIÓN - CRÍTICO */
+.facturas-table th:nth-child(1),
+.facturas-table td:nth-child(1) {
+  width: 50px !important;
+  min-width: 50px !important;
+  max-width: 50px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(2),
+.facturas-table td:nth-child(2) {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(3),
+.facturas-table td:nth-child(3) {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(4),
+.facturas-table td:nth-child(4) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(5),
+.facturas-table td:nth-child(5) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(6),
+.facturas-table td:nth-child(6) {
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+  text-align: left !important;
+  padding-left: 12px !important;
+}
+
+.facturas-table th:nth-child(7),
+.facturas-table td:nth-child(7) {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  text-align: right !important;
+}
+
+.facturas-table th:nth-child(8),
+.facturas-table td:nth-child(8) {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  text-align: right !important;
+}
+
+.facturas-table th:nth-child(9),
+.facturas-table td:nth-child(9) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(10),
+.facturas-table td:nth-child(10) {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  text-align: center !important;
+}
+
+.facturas-table th:nth-child(11),
+.facturas-table td:nth-child(11) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  text-align: center !important;
+}
+
+/* CONTENIDO ESPECÍFICO POR COLUMNA */
+
+/* Columna 1: Checkbox */
+.facturas-table td:nth-child(1) mat-checkbox,
+.facturas-table th:nth-child(1) mat-checkbox {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 auto !important;
+}
+
+/* Columna 2: Botón de expansión - SIEMPRE centrado */
+.facturas-table td:nth-child(2) button {
+  display: block !important;
+  margin: 0 auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+.facturas-table td:nth-child(2) button mat-icon {
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.facturas-table td:nth-child(2) button[disabled] {
+  opacity: 0.3 !important;
+}
+
+.facturas-table td:nth-child(2) button[disabled] mat-icon {
+  color: #ccc !important;
+}
+
+.facturas-table td:nth-child(2) button:not([disabled]) mat-icon {
+  color: #ff9800 !important;
+}
+
+/* Columna 3: Folio - SIEMPRE centrado */
+.facturas-table td:nth-child(3) {
+  white-space: normal !important;
+}
+
+.facturas-table td:nth-child(3) .folio-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  height: 100% !important;
+}
+
+.facturas-table td:nth-child(3) .folio-badge {
+  background: #e3f2fd !important;
+  color: #1976d2 !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  white-space: nowrap !important;
+}
+
+.facturas-table td:nth-child(3) .distribuciones-badge {
+  background: #fff3e0 !important;
+  color: #f57c00 !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  animation: pulse 2s infinite;
+}
+
+/* Columna 4: Tipo Doc */
+.facturas-table td:nth-child(4) mat-chip {
+  background: #f3e5f5 !important;
+  color: #7b1fa2 !important;
+  font-size: 0.8rem !important;
+  height: 24px !important;
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+/* Columna 5: Fecha */
+.facturas-table td:nth-child(5) .fecha {
+  font-size: 0.9rem !important;
+  color: #333 !important;
+}
+
+/* Columna 6: Proveedor */
+.facturas-table td:nth-child(6) {
+  white-space: normal !important;
+}
+
+.facturas-table td:nth-child(6) .proveedor-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.facturas-table td:nth-child(6) .proveedor-nombre {
+  font-weight: 500 !important;
+  color: #333 !important;
+  font-size: 0.9rem !important;
+  word-break: break-word !important;
+  line-height: 1.3 !important;
+}
+
+.facturas-table td:nth-child(6) .proveedor-rut {
+  font-size: 0.8rem !important;
+  color: #666 !important;
+  font-family: monospace !important;
+}
+
+/* Columnas 7 y 8: Montos */
+.facturas-table td:nth-child(7) .monto-value,
+.facturas-table td:nth-child(8) .monto-value {
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+}
+
+.facturas-table td:nth-child(7) .monto-value {
+  color: #2e7d32 !important;
+}
+
+.facturas-table td:nth-child(8) .monto-value {
+  color: #1976d2 !important;
+}
+
+/* Columna 9: Distribuciones */
+.facturas-table td:nth-child(9) .distribuciones-count {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
+.facturas-table td:nth-child(9) .distribuciones-icon {
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: #ff9800 !important;
+}
+
+.facturas-table td:nth-child(9) .count {
+  font-weight: 600 !important;
+  font-size: 1.1rem !important;
+  color: #333 !important;
+}
+
+.facturas-table td:nth-child(9) .count-label {
+  font-size: 0.75rem !important;
+  color: #666 !important;
+}
+
+/* Columna 10: Fecha */
+.facturas-table td:nth-child(10) .fecha {
+  font-size: 0.9rem !important;
+  color: #333 !important;
+}
+
+/* Columna 11: Acciones */
+.facturas-table td:nth-child(11) button {
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+/* FILAS - ESTADOS Y COMPORTAMIENTO */
+.facturas-table tbody tr {
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.facturas-table tbody tr:hover {
+  background-color: #f8f9fa !important;
+  transform: translateX(1px) !important;
+}
+
+.facturas-table tbody tr.has-distributions {
+  border-left: 4px solid #ff9800 !important;
+}
+
+.facturas-table tbody tr.expanded {
+  background-color: #fff3e0 !important;
+  border-left: 4px solid #f57c00 !important;
+}
+
+.facturas-table tbody tr.selected {
+  background-color: rgba(0, 166, 147, 0.1) !important;
+  border-left: 4px solid #00A693 !important;
+}
+
+/* ==================== FILAS EXPANDIBLES - DISTRIBUCIONES ==================== */
+
+.expanded-detail-container {
+  overflow: hidden;
+  padding: 0 24px;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  border-top: 1px solid #e0e0e0;
+}
+
+/* Header de distribuciones */
+.distribuciones-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 12px 0;
+  border-bottom: 2px solid #e0e0e0;
+  background: white;
+  margin: 16px -24px 16px -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.distribuciones-header mat-icon {
+  color: #ff9800;
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.distribuciones-header h4 {
+  margin: 0;
+  color: #333;
+  flex: 1;
+}
+
+.distribuciones-count-header {
+  background: #ff9800;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Tabla de distribuciones */
+.distribuciones-table-container {
+  margin-bottom: 16px;
+}
+
+.distribuciones-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.distribuciones-table .mat-header-cell {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.distribuciones-table .mat-cell {
+  font-size: 0.85rem;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.distribuciones-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+  border-bottom: 2px solid #e9ecef;
+  padding: 12px 16px;
+}
+
+.distribuciones-table td {
+  font-size: 0.85rem;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.distribucion-row {
+  transition: background-color 0.2s ease;
+}
+
+.distribucion-row:hover {
+  background-color: #f8f9fa;
+}
+
+.distribucion-row:nth-child(even) {
+  background-color: #fdfdfd;
+}
+
+/* Celdas específicas de distribuciones */
+.cliente-cell .cliente-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cliente-nombre {
+  font-weight: 500;
+  color: #333;
+}
+
+.cliente-rut {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.cuenta-cell .cuenta-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cuenta-nombre {
+  font-weight: 500;
+  color: #333;
+}
+
+.cuenta-codigo {
+  font-size: 0.75rem;
+  color: #666;
+  font-family: 'Courier New', monospace;
+}
+
+.fundo-name,
+.labor-name {
+  color: #333;
+}
+
+.usuario {
+  color: #666;
+  font-style: italic;
+}
+
+.no-data {
+  color: #bbb;
+  font-style: italic;
+}
+
+.monto-value.distribucion {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+/* ==================== ANIMACIONES ==================== */
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.facturas-table tbody tr {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.stat-item {
+  animation: slideInUp 0.4s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== SIN DATOS ==================== */
+
+.no-data-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.no-data-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: #bbb;
+  margin-bottom: 16px;
+}
+
+.no-data-message {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0 0 24px 0;
+  max-width: 400px;
+}
+
+/* ==================== PAGINADOR ==================== */
+
+.table-paginator {
+  border-top: 1px solid #eee;
+  background-color: #fafafa;
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 1400px) {
+  .resumen-stats {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  
+  .facturas-table {
+    min-width: 1200px !important;
+  }
+  
+  .facturas-table th:nth-child(3),
+  .facturas-table td:nth-child(3) {
+    width: 130px !important;
+    min-width: 130px !important;
+    max-width: 130px !important;
+  }
+  
+  .facturas-table th:nth-child(6),
+  .facturas-table td:nth-child(6) {
+    width: 180px !important;
+    min-width: 180px !important;
+    max-width: 180px !important;
+  }
+  
+  .acciones-container {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1200px) {
+  .resumen-stats {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  
+  .facturas-table {
+    min-width: 1000px !important;
+  }
+  
+  .facturas-table th:nth-child(3),
+  .facturas-table td:nth-child(3) {
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+  }
+  
+  .facturas-table th:nth-child(6),
+  .facturas-table td:nth-child(6) {
+    width: 160px !important;
+    min-width: 160px !important;
+    max-width: 160px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .filtros-row {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  
+  .resumen-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .acciones-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .acciones-container button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .page-title mat-icon {
+    font-size: 1.5rem;
+    width: 24px;
+    height: 24px;
+  }
+  
+  .filtros-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .filtros-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .filtros-actions button {
+    width: 100%;
+  }
+  
+  .resumen-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-item {
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .stat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+  
+  .stat-value {
+    font-size: 1.2rem;
+  }
+  
+  .distribuciones-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .distribuciones-header h4 {
+    font-size: 1rem;
+  }
+  
+  .distribuciones-table .mat-cell,
+  .distribuciones-table .mat-header-cell {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .distribuciones-table th,
+  .distribuciones-table td {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* ==================== ESTADOS DE CARGA ==================== */
+
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+mat-progress-spinner {
+  margin-left: 8px;
+}
+
+/* ==================== PERSONALIZACIÓN DE MATERIAL ==================== */
+
+.mat-raised-button {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.2s ease;
+}
+
+.mat-raised-button:not([disabled]):hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.16);
+}
+
+.mat-card {
+  border-radius: 8px;
+}
+
+.mat-form-field {
+  font-size: 14px;
+}
+
+.mat-table {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mat-header-cell[mat-sort-header] {
+  cursor: pointer !important;
+}
+
+.mat-header-cell[mat-sort-header]:hover {
+  background-color: #eeeeee !important;
+}
+
+/* ==================== MEJORAS ESPECÍFICAS PARA AGRUPACIÓN ==================== */
+
+/* Indicador visual para facturas con múltiples distribuciones */
+.has-distributions::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #ff9800, #f57c00);
+}
+
+/* Efecto hover mejorado */
+.factura-row.has-distributions:hover {
+  background: linear-gradient(to right, #fff3e0, #ffffff);
+  transform: translateX(2px);
+}
+
+/* Estados de expansión */
+.expand-button[disabled] mat-icon {
+  color: #ccc;
+}
+
+.expand-button:not([disabled]) mat-icon {
+  color: #ff9800;
+}
+
+.expand-button:not([disabled]):hover mat-icon {
+  color: #f57c00;
+  transform: scale(1.1);
+  max-width: 80px !important;
+}
+
+/* Separador visual entre tabla principal y distribuciones */
+.expanded-detail-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  background: linear-gradient(to right, #ff9800, #f57c00, #ff9800);
+}
+
+/* ==================== UTILIDADES ==================== */
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.gap-16 {
+  gap: 16px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}

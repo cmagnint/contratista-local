@@ -1,0 +1,144 @@
+<!-- pago-efectivo.component.html -->
+
+<div class="container">
+    <h2>Pago en Efectivo</h2>
+    
+    <!-- Sección de selección de cuenta -->
+    <div class="seleccion-cuenta">
+        <div class="form-group">
+            <label for="sociedad">Sociedad:</label>
+            <select id="sociedad" (change)="onSociedadChange($event)">
+                <option value="">Seleccione una sociedad</option>
+                <option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+                    {{sociedad.nombre}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group" *ngIf="sociedadSeleccionada">
+            <label for="cuenta">Cuenta de origen:</label>
+            <select id="cuenta" (change)="onCuentaChange($event)">
+                <option value="">Seleccione una cuenta</option>
+                <option *ngFor="let cuenta of cuentas" [value]="cuenta.id">
+                    {{cuenta.banco_nombre}} - {{cuenta.numero_cuenta}}
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Sección de fechas -->
+    <div class="seleccion-fechas">
+        <div class="form-group">
+            <label for="fechaInicio">Fecha inicio:</label>
+            <input id="fechaInicio" type="date" [(ngModel)]="fechaInicio">
+        </div>
+        <div class="form-group">
+            <label for="fechaFin">Fecha fin:</label>
+            <input id="fechaFin" type="date" [(ngModel)]="fechaFin">
+        </div>
+    </div>
+
+    <!-- Sección de múltiplo de pago -->
+    <div class="multiplo-seccion">
+        <div class="form-group">
+            <label for="multiplo">Múltiplo de pago:</label>
+            <select id="multiplo" [(ngModel)]="multiploSeleccionado" class="form-control">
+                <option [ngValue]="null">Seleccione un múltiplo</option>
+                <option *ngFor="let multiplo of multiplosDisponibles" [value]="multiplo.valor">
+                    {{multiplo.etiqueta}}
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Sección de filtros adicionales -->
+    <div class="filtros-seccion">
+        <div class="form-group">
+            <label for="cliente">Cliente:</label>
+            <select id="cliente" (change)="onClienteChange($event)">
+                <option value="">Seleccione un cliente</option>
+                <option *ngFor="let cliente of clientes" [value]="cliente.id">
+                    {{cliente.nombre}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group" *ngIf="clienteSeleccionado">
+            <label for="fundo">Fundo:</label>
+            <select id="fundo" [(ngModel)]="fundoSeleccionado">
+                <option [ngValue]="null">Seleccione un fundo</option>
+                <option *ngFor="let fundo of fundos" [ngValue]="fundo.id">
+                    {{fundo.nombre_campo}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="cargo">Cargo:</label>
+            <select id="cargo" [(ngModel)]="cargoSeleccionado">
+                <option [ngValue]="null">Seleccione un cargo</option>
+                <option *ngFor="let cargo of cargos" [ngValue]="cargo.id">
+                    {{cargo.nombre}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="casa">Casa:</label>
+            <select id="casa" [(ngModel)]="casaSeleccionada">
+                <option [ngValue]="null">Seleccione una casa</option>
+                <option *ngFor="let casa of casas" [ngValue]="casa.id">
+                    {{casa.nombre}}
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="acciones">
+        <button (click)="buscarProducciones()" 
+                [disabled]="!cuentaSeleccionada" 
+                class="search-button">
+            Buscar producciones
+        </button>
+        <button (click)="generarPlanillaPDF()"
+                [disabled]="!produccionesPendientes.length || !multiploSeleccionado"
+                class="generate-pdf-button">
+            Generar Planilla PDF
+        </button>
+        <button (click)="procesarPago()"
+                [disabled]="!produccionesPendientes.length"
+                class="process-payment-button">
+            Cierre Pago
+        </button>
+    </div>
+
+    <!-- Tabla de resultados con total -->
+    <div class="tabla-producciones" *ngIf="produccionesPendientes.length > 0">
+        <table>
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>RUT</th>
+                    <th>Monto Total</th>
+                    <th>Monto a Pagar</th>
+                    <th>Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let prod of produccionesPendientes">
+                    <td>{{prod.trabajador_nombre}}</td>
+                    <td>{{prod.trabajador_rut}}</td>
+                    <td>{{prod.monto_total | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td>{{prod.monto_redondeado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td>{{prod.saldo | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="3" class="total-label">Total General</td>
+                    <td class="total-amount">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

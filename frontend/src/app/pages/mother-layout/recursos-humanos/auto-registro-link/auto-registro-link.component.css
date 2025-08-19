@@ -1,0 +1,463 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px 0;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.8);
+  background: linear-gradient(135deg, 
+      #76d5aa 0%, 
+      #68c1b5 25%, 
+      #5aadbe 50%,
+      #4c99c8 100%
+  );
+}
+
+.form-card {
+  background: white;
+  padding: 30px;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.ms-logo {
+  width: 108px;
+  margin-bottom: 24px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+}
+
+.error-state {
+  text-align: center;
+  padding: 24px;
+}
+
+.error-state .error-icon {
+  font-size: 48px;
+  height: 48px;
+  width: 48px;
+  color: #e81123;
+  margin-bottom: 16px;
+}
+
+.error-state h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.sign-in-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-field {
+  position: relative;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.form-field input,
+.form-field select {
+  width: 80%;
+  padding: 12px 16px;
+  height: 45px;
+  border: 2px solid #8a8a8a;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background-color: white;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  border-color: #0067b8;
+  box-shadow: 0 4px 8px rgba(0,103,184,0.2);
+}
+
+.form-field label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  transition: all 0.2s;
+  background: white;
+  padding: 0 5px;
+  pointer-events: none;
+}
+
+.form-field input:focus + label,
+.form-field label.filled {
+  top: 0;
+  font-size: 12px;
+  color: #0067b8;
+}
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-next {
+  padding: 12px 24px;
+  height: 45px;
+  min-width: 120px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #0067b8;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.btn-next:hover {
+  background: #005399;
+}
+
+.btn-next:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #e81123;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.error-text {
+  color: #e81123;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Estilos para el paso de documentos */
+.document-step {
+  width: 100%;
+  padding: 20px;
+}
+
+.document-step h2 {
+  color: #333;
+  margin-bottom: 24px;
+  font-size: 24px;
+  text-align: center;
+}
+
+.document-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.upload-container {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  transition: border-color 0.3s ease;
+}
+
+.upload-container:hover {
+  border-color: #0067b8;
+}
+
+.upload-container h3 {
+  color: #333;
+  margin-bottom: 12px;
+  font-size: 18px;
+}
+
+/* Estilos para input file personalizado */
+.custom-file-input {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.custom-file-input input[type="file"] {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.custom-file-button {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #0067b8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  width: auto;
+  min-width: 200px;
+  text-align: center;
+}
+
+.custom-file-button:hover {
+  background-color: #005399;
+}
+
+.file-name {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.preview-container {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.preview-image {
+  max-width: 200px;
+  max-height: 150px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.preview-image:hover {
+  transform: scale(1.05);
+}
+.preview-check {
+  color: #4CAF50;
+  margin-top: 10px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.preview-check::before {
+  content: '✓';
+  font-size: 16px;
+}
+
+.signature-form {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.signature-form h3 {
+  color: #333;
+  margin-bottom: 12px;
+  font-size: 18px;
+}
+
+.signature-form p {
+  color: #666;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.signature-container {
+  width: 100%;
+  max-width: 400px;
+  margin: 20px auto;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+canvas {
+  width: 100%;
+  height: 200px;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.button-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn-red {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.btn-red:hover {
+  background-color: #c82333;
+}
+
+.btn-green {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.btn-green:hover {
+  background-color: #218838;
+}
+
+.btn-green:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.success-state {
+  text-align: center;
+  padding: 30px;
+}
+
+.success-state .success-icon {
+  font-size: 64px;
+  color: #4CAF50;
+  margin-bottom: 20px;
+}
+
+.success-state h2 {
+  color: #333;
+  margin-bottom: 16px;
+  font-size: 24px;
+}
+
+.success-state p {
+  color: #666;
+  font-size: 16px;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border-left-color: #4CAF50;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .form-card {
+    width: 90%;
+    padding: 20px;
+  }
+
+  .custom-file-button {
+    width: 100%;
+    min-width: unset;
+    padding: 10px 16px;
+  }
+
+  .btn-red,
+  .btn-green {
+    padding: 10px 20px;
+    font-size: 14px;
+    min-width: 100px;
+  }
+
+  .preview-image {
+    max-width: 150px;
+  }
+
+  .signature-container {
+    max-width: 300px;
+  }
+
+  .file-name {
+    font-size: 12px;
+  }
+
+  .button-container {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .button-container button {
+    width: 100%;
+  }
+}
+
+/* Accessibility improvements */
+.custom-file-button:focus-visible,
+.btn-red:focus-visible,
+.btn-green:focus-visible {
+  outline: 2px solid #0067b8;
+  outline-offset: 2px;
+}
+
+/* Estilos para cuando se está arrastrando un archivo */
+.upload-container.dragging {
+  border-color: #0067b8;
+  background-color: rgba(0, 103, 184, 0.05);
+}
+
+/* Mejoras de contraste para accesibilidad */
+.error-text,
+.error-message {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.preview-check {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+/* Mejoras para el modo oscuro del sistema */
+@media (prefers-color-scheme: dark) {
+  .custom-file-button {
+    background-color: #0078d4;
+  }
+
+  .custom-file-button:hover {
+    background-color: #106ebe;
+  }
+
+  .preview-image {
+    border-color: #666;
+  }
+}

@@ -1,0 +1,147 @@
+<h2 mat-dialog-title>
+  {{ data.modoVisualizacion ? 'Detalles de Asignación de Haberes' : 'Asignar Haberes' }}
+  <span class="trabajadores-count" *ngIf="data.trabajadores.length > 1">
+    ({{ data.trabajadores.length }} trabajadores)
+  </span>
+</h2>
+
+<div mat-dialog-content>
+  <form [formGroup]="asignacionForm" *ngIf="!data.modoVisualizacion">
+    <!-- Sección de trabajadores seleccionados -->
+    <div class="seccion">
+      <h3>Trabajadores seleccionados:</h3>
+      <div class="trabajadores-lista">
+        <mat-chip-set>
+          <mat-chip *ngFor="let trabajador of data.trabajadores">
+            {{ trabajador.nombre_completo || trabajadoresMap[trabajador.id] }}
+          </mat-chip>
+        </mat-chip-set>
+      </div>
+    </div>
+    
+    <mat-divider></mat-divider>
+    
+    <!-- Sección de selección de haberes -->
+    <div class="seccion">
+      <h3>Seleccionar Haber</h3>
+      
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Seleccione un haber para asignar</mat-label>
+        <mat-select (selectionChange)="seleccionarHaber($event.value)">
+          <mat-option *ngFor="let haber of haberesDisponibles" [value]="haber">
+            {{ haber.nombre }}
+            <span class="haber-tipo">
+              {{ haber.tipo_valor === 'CANTIDAD' ? '(Por Cantidad)' : '(Monto Fijo)' }}
+            </span>
+            <span class="haber-imponible" *ngIf="haber.imponible"> - Imponible</span>
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+    
+    <mat-divider *ngIf="haberSeleccionado"></mat-divider>
+    
+    <!-- Sección de asignación de valores (solo visible cuando se ha seleccionado un haber) -->
+    <div class="seccion" *ngIf="haberSeleccionado" formArrayName="haberes_asignaciones">
+      <h3>Asignar Valor para: {{ haberSeleccionado.nombre }}</h3>
+      
+      <!-- Información del haber seleccionado -->
+      <div class="haber-info">
+        <span class="haber-tipo" [ngClass]="{'cantidad': haberSeleccionado.tipo_valor === 'CANTIDAD', 'monto': haberSeleccionado.tipo_valor === 'MONTO'}">
+          {{ haberSeleccionado.tipo_valor === 'CANTIDAD' ? 'Por Cantidad' : 'Monto Fijo' }}
+        </span>
+        <span class="haber-imponible" *ngIf="haberSeleccionado.imponible">Imponible</span>
+      </div>
+      
+      <!-- Selector de modo de asignación (solo si hay múltiples trabajadores) -->
+      <div *ngIf="data.trabajadores.length > 1" class="modo-asignacion">
+        <mat-checkbox [(ngModel)]="usarMismoValor" [ngModelOptions]="{standalone: true}" (change)="toggleModoAsignacion()">
+          Usar el mismo valor para todos los trabajadores
+        </mat-checkbox>
+      </div>
+      
+      <!-- Asignación de valores -->
+      <ng-container *ngIf="haberesAsignaciones.length > 0" [formGroupName]="0">
+        <ng-container *ngIf="usarMismoValor">
+          <!-- Modo valor común (mismo valor para todos) -->
+          <div class="haber-item">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Valor</mat-label>
+              <input matInput type="number" formControlName="valor_comun" placeholder="Valor">
+              <mat-hint>Este valor se aplicará a todos los trabajadores seleccionados</mat-hint>
+            </mat-form-field>
+          </div>
+        </ng-container>
+        
+        <ng-container *ngIf="!usarMismoValor">
+          <!-- Modo valor individual (diferente por trabajador) -->
+          <div formArrayName="valores_por_trabajador" class="trabajadores-valores">
+            <div *ngFor="let valorControl of getValoresPorTrabajador(); let j = index" 
+                [formGroupName]="j" class="trabajador-valor-item">
+              <div class="trabajador-name">
+                {{ trabajadoresMap[valorControl.get('trabajador_id')?.value] }}
+              </div>
+              
+              <mat-form-field appearance="outline">
+                <mat-label>Valor</mat-label>
+                <input matInput type="number" formControlName="valor" placeholder="Valor">
+              </mat-form-field>
+            </div>
+          </div>
+        </ng-container>
+      </ng-container>
+    </div>
+  </form>
+  
+  <!-- Vista de modo visualización -->
+  <div *ngIf="data.modoVisualizacion">
+    <!-- Sección de trabajador -->
+    <div class="seccion">
+      <h3>Trabajador:</h3>
+      <div class="info-container">
+        <p class="valor-actual">{{ data.trabajadores[0].nombre_completo || trabajadoresMap[data.trabajadores[0].id] }}</p>
+        <p class="rut">{{ data.trabajadores[0].rut }}</p>
+      </div>
+    </div>
+    
+    <mat-divider></mat-divider>
+    
+    <!-- Sección de haberes asignados -->
+    <div class="seccion">
+      <h3>Haberes Asignados</h3>
+      
+      <div *ngIf="haberesAsignados.length === 0" class="sin-datos">
+        No hay haberes asignados
+      </div>
+      
+      <mat-expansion-panel *ngFor="let haber of haberesAsignados" class="panel-detalle">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            {{ haber.nombre }}
+            <span class="haber-tipo-pill" 
+                [ngClass]="{'tipo-cantidad': haber.tipo_valor === 'CANTIDAD', 'tipo-monto': haber.tipo_valor === 'MONTO'}">
+              {{ getTipoValorText(haber.tipo_valor) }}
+            </span>
+          </mat-panel-title>
+          <mat-panel-description>{{ formatearValor(haber.valor) }}</mat-panel-description>
+        </mat-expansion-panel-header>
+        
+        <div class="panel-contenido">
+          <p><strong>Imponible:</strong> {{ haber.imponible ? 'Sí' : 'No' }}</p>
+          <p *ngIf="haber.tipo_valor === 'CANTIDAD'"><strong>Cálculo:</strong> Se multiplica por días trabajados</p>
+          <p *ngIf="haber.tipo_valor === 'MONTO'"><strong>Cálculo:</strong> Monto fijo mensual</p>
+        </div>
+      </mat-expansion-panel>
+    </div>
+  </div>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">
+    {{ data.modoVisualizacion ? 'Cerrar' : 'Cancelar' }}
+  </button>
+  <button mat-raised-button color="primary" (click)="onSubmit()" 
+          *ngIf="!data.modoVisualizacion" [disabled]="!tieneAsignaciones()">
+    Guardar
+  </button>
+</div>

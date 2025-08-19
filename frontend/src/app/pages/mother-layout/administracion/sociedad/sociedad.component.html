@@ -1,0 +1,238 @@
+<!-- sociedad.component.html -->
+
+<div class="container">
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="errorMessage" class="alert alert-error">
+    {{ errorMessage }}
+  </div>
+  <div *ngIf="successMessage" class="alert alert-success">
+    {{ successMessage }}
+  </div>
+
+  <div class="content-grid">
+    <!-- Sociedades List -->
+    <div class="sociedades-list">
+      <h2>Sociedades</h2>
+      <div class="list-container">
+        <div *ngFor="let sociedad of sociedades" 
+             (click)="selectSociedad(sociedad)"
+             class="sociedad-item"
+             [class.selected]="selectedSociedad?.id === sociedad.id">
+          <span class="sociedad-nombre">{{ sociedad.nombre }}</span>
+          <span class="sociedad-rol">{{ sociedad.rol_sociedad }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sociedad Details -->
+    <div *ngIf="selectedSociedad" class="sociedad-details">
+      <h2>Detalles de Sociedad</h2>
+      
+      <form [formGroup]="sociedadForm" (ngSubmit)="updateSociedad()" class="form-container">
+        <!-- Nombre (Read Only) -->
+        <div class="form-group">
+          <label>Nombre:</label>
+          <input type="text" [value]="selectedSociedad.nombre" disabled class="form-control readonly">
+        </div>
+
+        <!-- RUT Representante -->
+        <div class="form-group">
+          <label>RUT Representante:</label>
+          <input type="text" 
+                 formControlName="rut_representante" 
+                 class="form-control"
+                 (input)="onRutInput($event)"
+                 maxlength="12"
+                 placeholder="Ej: 12.345.678-9">
+          <div *ngIf="sociedadForm.get('rut_representante')?.errors?.['pattern'] && 
+                      sociedadForm.get('rut_representante')?.touched" 
+               class="error-message">
+            Formato de RUT inválido (ej: 12.345.678-9)
+          </div>
+        </div>
+
+        <!-- Nombre Representante -->
+        <div class="form-group">
+          <label>Nombre Representante:</label>
+          <input type="text" 
+                 formControlName="nombre_representante" 
+                 class="form-control"
+                 (input)="$any($event.target).value = $any($event.target).value.toUpperCase()">
+          <div *ngIf="sociedadForm.get('nombre_representante')?.errors?.['required'] && 
+                      sociedadForm.get('nombre_representante')?.touched" 
+               class="error-message">
+            El nombre del representante es requerido
+          </div>
+        </div>
+
+        <!-- Comuna -->
+        <div class="form-group">
+          <label>Comuna:</label>
+          <input type="text" 
+                 formControlName="comuna" 
+                 class="form-control"
+                 (input)="$any($event.target).value = $any($event.target).value.toUpperCase()">
+        </div>
+
+        <!-- Ciudad -->
+        <div class="form-group">
+          <label>Ciudad:</label>
+          <input type="text" 
+                 formControlName="ciudad" 
+                 class="form-control"
+                 (input)="$any($event.target).value = $any($event.target).value.toUpperCase()">
+        </div>
+
+        <!-- Calle -->
+        <div class="form-group">
+          <label>Calle:</label>
+          <input type="text" 
+                 formControlName="calle" 
+                 class="form-control"
+                 (input)="$any($event.target).value = $any($event.target).value.toUpperCase()">
+        </div>
+
+        <button type="submit" 
+                [disabled]="!sociedadForm.valid || isLoading" 
+                class="btn btn-primary">
+          Actualizar Sociedad
+        </button>
+      </form>
+
+      <!-- Cuentas Bancarias Section -->
+      <div class="cuentas-section">
+        <div class="section-header">
+          <h3>Cuentas Bancarias</h3>
+          <button (click)="toggleCuentaForm()" 
+                  class="btn btn-secondary">
+            {{ showCuentaForm ? 'Cancelar' : 'Nueva Cuenta' }}
+          </button>
+        </div>
+
+        <!-- Cuenta Form para creación -->
+        <div *ngIf="showCuentaForm" class="cuenta-form">
+          <h4>Nueva Cuenta Bancaria</h4>
+          <form [formGroup]="cuentaForm" (ngSubmit)="addCuenta()">
+            <div class="form-group">
+              <label>Banco:</label>
+              <select formControlName="banco" class="form-control">
+                <option value="">Seleccione un banco</option>
+                <option *ngFor="let banco of bancos" [value]="banco.codigo_sbif">
+                  {{ banco.nombre }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Tipo de Cuenta:</label>
+              <select formControlName="tipo_cuenta" class="form-control">
+                <option value="">Seleccione tipo de cuenta</option>
+                <option *ngFor="let tipo of tiposCuentaActuales" 
+                        [value]="tipo.valor">
+                  {{ tipo.etiqueta }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Número de Cuenta:</label>
+              <input type="text" 
+                     formControlName="numero_cuenta" 
+                     class="form-control"
+                     placeholder="Ingrese solo números">
+              <div *ngIf="cuentaForm.get('numero_cuenta')?.errors?.['pattern']" 
+                   class="error-message">
+                Solo se permiten números
+              </div>
+            </div>
+
+            <button type="submit" 
+                    [disabled]="!cuentaForm.valid || isLoading" 
+                    class="btn btn-primary">
+              Agregar Cuenta
+            </button>
+          </form>
+        </div>
+
+        <!-- Cuenta Form para edición -->
+        <div *ngIf="showEditCuentaForm" class="cuenta-form">
+          <h4>Editar Cuenta Bancaria</h4>
+          <form [formGroup]="cuentaForm" (ngSubmit)="updateCuenta()">
+            <div class="form-group">
+              <label>Banco:</label>
+              <select formControlName="banco" class="form-control">
+                <option value="">Seleccione un banco</option>
+                <option *ngFor="let banco of bancos" [value]="banco.codigo_sbif">
+                  {{ banco.nombre }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Tipo de Cuenta:</label>
+              <select formControlName="tipo_cuenta" class="form-control">
+                <option value="">Seleccione tipo de cuenta</option>
+                <option *ngFor="let tipo of tiposCuentaActuales" 
+                        [value]="tipo.valor">
+                  {{ tipo.etiqueta }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Número de Cuenta:</label>
+              <input type="text" 
+                     formControlName="numero_cuenta" 
+                     class="form-control"
+                     placeholder="Ingrese solo números">
+              <div *ngIf="cuentaForm.get('numero_cuenta')?.errors?.['pattern']" 
+                   class="error-message">
+                Solo se permiten números
+              </div>
+            </div>
+
+            <div class="button-group">
+              <button type="submit" 
+                      [disabled]="!cuentaForm.valid || isLoading" 
+                      class="btn btn-primary">
+                Actualizar Cuenta
+              </button>
+              <button type="button" 
+                      class="btn btn-secondary"
+                      (click)="toggleCuentaForm()">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Cuentas List -->
+        <div class="cuentas-list">
+          <div *ngFor="let cuenta of selectedSociedad.cuentas_origen" 
+               class="cuenta-item">
+            <div class="cuenta-header">
+              <div class="cuenta-info">
+                <strong>Banco:</strong> {{ cuenta.banco_nombre }}
+              </div>
+              <button class="btn-icon" (click)="editCuenta(cuenta)">
+                <i class="fas fa-pencil-alt"></i>
+                <span class="edit-text">Editar</span>
+              </button>
+            </div>
+            <div class="cuenta-info">
+              <strong>Tipo:</strong> {{ getTipoCuentaDisplay(cuenta.tipo_cuenta) }}
+            </div>
+            <div class="cuenta-info">
+              <strong>Número:</strong> {{ cuenta.numero_cuenta }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

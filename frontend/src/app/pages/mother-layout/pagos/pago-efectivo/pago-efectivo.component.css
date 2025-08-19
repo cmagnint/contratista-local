@@ -1,0 +1,260 @@
+/* pago-efectivo.component.css */
+
+/* Estilos del contenedor principal */
+.container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  /* Estilos del título */
+  h2 {
+    color: #333;
+    margin-bottom: 25px;
+    font-weight: bold;
+  }
+  
+  /* Estilos para los grupos de formulario */
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+  }
+  
+  /* Estilos para inputs y selects */
+  select, input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+  }
+  
+  select:focus, input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,.25);
+  }
+  
+  /* Estilos para las secciones principales */
+  .seleccion-cuenta, 
+  .seleccion-fechas,
+  .filtros-seccion {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  /* Grid layout para los filtros */
+  .filtros-seccion {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+  }
+  
+  /* Estilos para la sección de acciones y botones */
+  .acciones {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin: 20px 0;
+  }
+  
+  button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    min-width: 150px;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  .search-button {
+    background-color: #007bff;
+  }
+  
+  .search-button:hover:not(:disabled) {
+    background-color: #0056b3;
+  }
+  
+  .process-payment-button {
+    background-color: #28a745;
+  }
+  
+  .process-payment-button:hover:not(:disabled) {
+    background-color: #218838;
+  }
+  
+  .process-payment-button:disabled {
+    background-color: #cccccc;
+  }
+  
+  /* Estilos para la tabla de resultados */
+  .tabla-producciones {
+    margin-top: 20px;
+    overflow-x: auto;
+    margin-bottom: 60px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+  }
+  
+  th {
+    background-color: #f8f9fa;
+    padding: 15px;
+    font-weight: bold;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    text-align: left;
+  }
+  
+  td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  tr:hover:not(.total-row) {
+    background-color: #f5f5f5;
+  }
+  
+  /* Estilos específicos para la fila del total */
+  .total-row {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    border-top: 2px solid #dee2e6;
+  }
+  
+  .total-label {
+    text-align: right;
+    padding-right: 20px;
+    color: #495057;
+    font-size: 1.1em;
+  }
+  
+  .total-amount {
+    color: #28a745;
+    font-size: 1.1em;
+    font-weight: bold;
+  }
+  
+  /* Scroll suave para la tabla */
+  .tabla-producciones::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .tabla-producciones::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  .tabla-producciones::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  
+  .tabla-producciones::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+  
+  /* Diseño responsivo */
+  @media (max-width: 768px) {
+    .filtros-seccion {
+      grid-template-columns: 1fr;
+    }
+    
+    .acciones {
+      flex-direction: column;
+      text-align: center;
+    }
+    
+    button {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  
+    .tabla-producciones {
+      margin: 20px -15px;
+      border-radius: 0;
+    }
+  
+    table {
+      font-size: 14px;
+    }
+  
+    th, td {
+      padding: 10px;
+    }
+  
+    .total-amount {
+      font-size: 1em;
+    }
+  
+    .total-label {
+      font-size: 1em;
+    }
+  
+    .container {
+      padding: 10px;
+    }
+  }
+  
+  /* Estilos para pantallas muy pequeñas */
+  @media (max-width: 480px) {
+    table {
+      font-size: 12px;
+    }
+  
+    th, td {
+      padding: 8px;
+    }
+  
+    .total-amount, .total-label {
+      font-size: 0.9em;
+    }
+  
+    .container {
+      padding: 8px;
+    }
+  }
+
+  .multiplo-seccion {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.generate-pdf-button {
+    background-color: #6c757d;
+}
+
+.generate-pdf-button:hover:not(:disabled) {
+    background-color: #5a6268;
+}

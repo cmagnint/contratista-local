@@ -1,0 +1,582 @@
+/*perfiles.component.css*/
+.admin-perfiles-container {
+  margin: 20px;
+  margin-bottom: 100px;
+}
+.admin-perfiles-container table {
+  width: 100%;
+  border-collapse: collapse; /* Asegurar que las líneas se colapsen en una sola */
+  
+}
+  
+.mat-header{
+  background-color: #166a82 !important;
+  color: white !important;
+  border-right: 1px solid black !important;
+}
+  
+.mat-header-row th:last-child {
+  border-right: none; /* Eliminar la línea del último encabezado para que no se desborde */
+}
+  
+.mat-cell {
+  border-right: 1px solid black; 
+  background-color: white; 
+  font-size: 13px !important;
+  font-weight: 500;
+}
+  
+.mat-row td:last-child {
+  border-right: none; /* Eliminar la línea de la última celda para que no se desborde */
+}
+  
+.mat-cell:not(.selected) {
+  animation: none; /* Desactivar la animación cuando la fila no está seleccionada */
+}
+  
+.selected .mat-cell {
+  background-color: #6dbeb5 !important;
+}
+  
+button:disabled {
+  color: gray;
+  background-color: #ccc;
+}
+ 
+button:not(:disabled):hover {
+  background-color: #00A693;
+  color: white;
+}
+
+.modal-content .crearholding-button-modal {
+  width: 70%; /* Menor ancho respecto al original */
+  padding: 20px 30px; /* Mayor altura gracias al padding superior e inferior */
+  margin: 20px auto; /* Margen superior e inferior para espaciado, y auto en los lados para centrarlo */
+  display: block; /* Hace que el botón se trate como un bloque, permitiendo el centrado con margin auto */
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="button"],
+.modal-content button {
+    margin: 10px 0; /* Adjxust the margin as necessary */
+    width: 80%; /* Make input fields and buttons wider */
+    padding: 8px; /* Adjust padding for better aesthetics */
+}
+
+.checklist-container {
+  display: flex;
+  justify-content: space-around;
+  width: 100%; /* Usa todo el ancho disponible del contenedor modal */
+  margin: 10px 0; /* Reduce el espacio vertical entre elementos */
+}
+
+input[type="checkbox"] {
+  transform: scale(1.5); /* Aumenta el tamaño de los checkboxes */
+  margin-right: 5px; /* Espacio entre el checkbox y el texto */
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+  padding: 20px;
+  margin: auto;
+  border: 1px solid #888;
+  width: 50%;
+  max-height: 90vh; /* 80% de la altura de la ventana gráfica */
+  overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+  overflow-x: hidden;
+  background-color: #fefefe;
+  border: 3px solid black;
+}
+
+.modal-header {
+  width: 100%;
+  position: relative;
+  margin-bottom: 20px; /* Espacio entre el encabezado y el contenido */
+}
+
+.header-bar {
+  position: absolute;
+  height: 30px;
+  background-color: #00A693;
+  width: 105.2%;
+  top: -25%;
+  left: -2.9%;
+  border: 3px solid black;
+}
+
+.title-container {
+  background-color: rgb(14, 77, 42);
+  border: 3px solid black;
+  padding: 0px 0; /* Reducir el espacio vertical */
+  width: 50%; /* Reducir el ancho */
+  text-align: center;
+  color: white;
+  margin: auto; /* Centrar horizontalmente */
+  margin-top: 20px;
+
+}
+
+.close {
+  position: absolute;
+  top: -35%;
+  right: -2%;
+  color: #aaa;
+  font-size: 40px;
+  font-weight: bold;
+  z-index: 1;
+}
+
+.close:hover,
+.close:focus {
+  color: red;
+  cursor: pointer;
+}
+
+.checklist-box {
+  border: 1px solid black;
+  padding: 10px;
+  width: 90%;
+}
+
+.checklist-container {
+  display: flex;
+  flex-wrap: wrap; /* Permitir que los elementos se ajusten según el ancho */
+  justify-content: space-between;
+}
+
+.checkbox-label {
+  flex: 1 1 30%; /* Flexibilidad y base de 30% */
+  text-align: center;
+  margin: 10px;
+}
+
+input[type="checkbox"] {
+  transform: scale(1.5);
+  margin-right: 5px;
+}
+
+.custom-button {
+  padding: 12px 24px;
+  margin-right: 20px;
+  background-color: #117a14;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  margin-top: 20px;
+  width: auto;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#errorModal .modal-content {
+  position: absolute;
+  flex-direction: column; /* Stack items vertically */
+  align-items: center; /* Center items horizontally */
+  justify-content: space-around; /* Distribute spacing evenly */
+  padding: 20px;
+  margin: 5% auto;
+  border: 1px solid #000000;
+  width: 20%; /* Adjust the width as necessary */
+  background-color: #ff5050; /* Un tono de rojo para el fondo */
+  z-index: 1005;
+  left: 38%;
+  top: 25%;
+}
+
+#exitoModal .modal-content {
+  background-color: #4CAF50;
+  width: 20%; /* Un tono de verde para el fondo */
+  z-index: 1005;
+}
+
+.exito-message {
+  text-align: center;
+  color: white;
+}
+
+.mini-modal {
+  display: flex;
+  position: absolute;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+  padding: 20px;
+  margin: auto;
+  border: 1px solid #888;
+  width: 40%;
+  height: 30%;
+  max-height: 90vh; /* 80% de la altura de la ventana gráfica */
+  overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+  overflow-x: hidden;
+  background-color: #fefefe;
+  border: 3px solid black;
+  z-index: 5;
+  left: 28%;
+  top: 30%;
+  
+}
+
+/* Estilo para el botón que activa el dropdown */
+.dropdown-button {
+  position: relative;
+  padding: 10px !important;
+  width: 100% !important; /* Establecer el ancho al 100% del contenedor para aumentarlo */
+  margin-bottom: 10px !important;
+  background-color: #4CAF50 !important;
+  color: white !important;
+  border: none !important;
+  cursor: pointer !important;
+  text-align: center !important;
+  bottom: 50% !important; /* Alinea el texto a la izquierda */
+  z-index: auto;
+}
+
+/* Contenedor del dropdown */
+.dropdown {
+  position: absolute;
+  display: inline-block;
+  width: 400px;
+}
+
+/* Contenido del dropdown */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  padding: 10px;
+  z-index: 1;
+  max-height: 400px; /* Limita la altura y agrega scroll */
+  overflow-y: auto;
+  width: 100%;
+}
+
+/* Mostrar dropdown-content cuando dropdown está activo */
+.dropdown-content.show {
+  display: block;
+}
+
+/* Estilo para las etiquetas de las checkboxes */
+.dropdown-content label {
+  display: block;
+  cursor: pointer;
+}
+
+.modal-perfiles {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  top: -10%; /* Ajustado para que comience desde la parte superior */
+  width: 100%;
+  height: 110%; /* Ajustado para cubrir toda la altura de la ventana */
+  overflow: hidden; /* Asegurar que el fondo no se desplace */
+  background-color: rgba(0,0,0,0.4); /* Color de fondo semitransparente */
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Alinear el contenido del modal verticalmente al centro */
+}
+
+.custom-button-yes-button{
+  padding: 12px 24px;
+  margin-right: 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  margin-top: 20px;
+  width: auto;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.custom-button-no-button{
+  padding: 12px 24px;
+  margin-right: 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  margin-top: 20px;
+  width: auto;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 50px;
+}
+
+.modal-actions button {
+  width: 120px; /* Ancho fijo para ambos botones */
+  height: 40px; /* Alto fijo para ambos botones */
+  padding: 0; /* Elimina el padding interno */
+  font-size: 16px; /* Tamaño de fuente uniforme */
+  line-height: 40px; /* Centra el texto verticalmente */
+  text-align: center; /* Centra el texto horizontalmente */
+}
+
+.custom-button-sociedades {
+  position: absolute;
+  padding: 8px 16px !important; /* Padding más pequeño para reducir el tamaño */
+  background-color: #4CAF50 !important;
+  color: white !important;
+  border: none !important;
+  cursor: pointer !important;
+  border-radius: 5px !important;
+  margin-top: 10px !important;
+  width: auto !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
+  font-size: 16px !important; /* Puedes ajustar el tamaño de la fuente si es necesario */
+  display: inline-block !important;
+  bottom: 0 !important; /* Para permitir el ajuste de ancho */
+  z-index: auto;
+}
+
+.table-button {
+  position: relative;
+  z-index: 2;
+}
+
+.custom-button-ingreso {
+  position: relative;
+  padding: 8px 16px !important; /* Padding más pequeño para reducir el tamaño */
+  background-color: #4CAF50 !important;
+  color: white !important;
+  border: none !important;
+  cursor: pointer !important;
+  border-radius: 5px !important;
+  margin-top: 10px !important;
+  width: 50% !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
+  font-size: 16px !important; /* Puedes ajustar el tamaño de la fuente si es necesario */
+  display: inline-block !important;
+  bottom: 0 !important; /* Para permitir el ajuste de ancho */
+  z-index: auto;
+}
+
+/* Estilos para la tabla de permisos */
+.table-permisos th,
+.table-permisos td {
+  padding: 8px; /* Espaciado interno */
+  text-align: left; /* Alineación del texto a la izquierda */
+  border-right: 1px solid black;
+  border-bottom: 1px solid black;
+  border-left: 1px solid black;
+  border-top: 1px solid black;
+  border-collapse: collapse; 
+  width: 100px;   /* Agregar borde derecho a todas las celdas */
+}
+
+/* Eliminar borde derecho de las últimas celdas */
+.table-permisos th:last-child,
+.table-permisos td:last-child {
+  border-right: 1px solid black;;
+}
+
+
+.mini-modal-permisos {
+  display: flex;
+  position: absolute;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+  padding: 20px;
+  margin: auto;
+  border: 1px solid #888;
+  width: 50%;
+  height: 60%;
+  max-height: 90vh; /* 80% de la altura de la ventana gráfica */
+  overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+  overflow-x: hidden;
+  background-color: #fefefe;
+  border: 3px solid black;
+  z-index: 5;
+  left: 28%;
+  top: 20%;
+  
+}
+
+custom-button:hover{
+  background-color: green;
+  color: white;
+}
+
+.mat-icon.activo {
+  color: green;
+  font-size: 80px;
+  height: 80px;
+  width: 80px;
+}
+
+.mat-icon.inactivo {
+  color: red;
+  font-size: 80px;
+  height: 80px;
+  width: 80px;
+}
+
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5); /* Fondo semi-transparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: #fefefe;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.wide-modal {
+  width: 80%;
+  max-width: 800px;
+}
+
+.modulos-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.modulo-dropdown {
+  margin-bottom: 10px;
+}
+
+.modulo-header {
+  cursor: pointer;
+  padding: 5px;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+}
+
+.submodulos-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  padding-left: 20px;
+}
+
+.submodulos-list.show {
+  max-height: 500px; /* Ajusta este valor según sea necesario */
+  transition: max-height 0.5s ease-in;
+}
+
+select, input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  font-size: 16px;
+  align-items: center !important;
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  width: 80%;
+  max-width: 600px;
+  background-color: #fefefe;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.modal-section {
+  width: 100%;
+  margin-bottom: 20px;
+  border: 2px solid #4CAF50;
+  padding: 15px;
+  border-radius: 5px;
+}
+
+.modal-section h3 {
+  margin-top: 0;
+  color: #4CAF50;
+}
+
+.input-perfil, select, .modulos-container {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.modulo-dropdown {
+  margin-bottom: 10px;
+}
+
+.modulo-header {
+  cursor: pointer;
+  padding: 10px;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+}
+
+.submodulos-list {
+  padding-left: 20px;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.button-container button {
+  width: 45%;
+}
+
+.modulos-column {
+  max-width: 1000px; /* Ajusta este valor según tus necesidades */
+  width: 1000px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modulos-column pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-principal {
+  background-color: #f0f0f0;
+  color: #888;
+  pointer-events: none;
+}
+
+.admin-principal .mat-slide-toggle {
+  opacity: 0.5;
+}
+
+::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__shadow {
+  background-color: rgb(255, 255, 255);
+  /*replace with your color*/
+}
+
+::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__track::after {
+  background-color: #166a82 !important;
+  /*replace with your color*/
+}

@@ -1,0 +1,228 @@
+<mat-card class="filtros-card">
+    <mat-card-header>
+      <mat-card-title>Generación de Contratos</mat-card-title>
+      <mat-card-subtitle>Seleccione los filtros para buscar trabajadores</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form [formGroup]="filtroForm">
+        <div class="filtros-container">
+          <!-- Primera fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Sociedad (Obligatorio) -->
+            <mat-form-field appearance="outline">
+              <mat-label>Sociedad</mat-label>
+              <mat-select formControlName="sociedad_id" required>
+                <mat-option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+                  {{ sociedad.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="filtroForm.get('sociedad_id')?.invalid && filtroForm.get('sociedad_id')?.touched">
+                La sociedad es obligatoria
+              </mat-error>
+            </mat-form-field>
+          </div>
+          
+          <!-- Segunda fila de filtros -->
+          <div class="filtros-fila">
+            <!-- Filtros adicionales -->
+            <mat-form-field appearance="outline">
+              <mat-label>Cliente</mat-label>
+              <mat-select formControlName="cliente_id">
+                <mat-option value="">Todos</mat-option>
+                <mat-option *ngFor="let cliente of clientes" [value]="cliente.id">
+                  {{ cliente.nombre }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Fundo</mat-label>
+              <mat-select formControlName="fundo_id">
+                <mat-option value="">Todos</mat-option>
+                <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">
+                  {{ fundo.nombre_campo }}
+                </mat-option>
+              </mat-select>
+              <mat-hint *ngIf="cargandoFundos">Cargando fundos...</mat-hint>
+              <mat-hint *ngIf="!filtroForm.get('cliente_id')?.value && !cargandoFundos">
+                Seleccione un cliente primero
+              </mat-hint>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Casa</mat-label>
+              <mat-select formControlName="casa_id">
+                <mat-option value="">Todas</mat-option>
+                <mat-option *ngFor="let casa of casas" [value]="casa.id">
+                  {{ casa.nombre }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+        
+        <div class="botones-container">
+          <button mat-raised-button color="primary" type="button" 
+                  [disabled]="filtroForm.invalid || cargando"
+                  (click)="buscarTrabajadores()">
+            <mat-icon>search</mat-icon> Buscar Trabajadores
+          </button>
+          
+          <button mat-raised-button type="button" (click)="limpiarFiltros()">
+            <mat-icon>clear</mat-icon> Limpiar Filtros
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Mensaje de error si existe -->
+  <div *ngIf="mensajeError" class="mensaje-error">
+    <mat-icon>error</mat-icon> {{ mensajeError }}
+  </div>
+  
+  <!-- Spinner de carga para trabajadores -->
+  <div *ngIf="cargandoTrabajadores" class="cargando-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Buscando trabajadores...</p>
+  </div>
+  
+  <!-- Lista de trabajadores -->
+  <mat-card *ngIf="trabajadores.length > 0 && !cargandoTrabajadores" class="trabajadores-card">
+    <mat-card-header>
+      <mat-card-title>Trabajadores Disponibles</mat-card-title>
+      <mat-card-subtitle>Seleccione los trabajadores para generar contratos</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="hint-nacionalidad" *ngIf="trabajadoresSeleccionados.length > 0">
+        <mat-icon>info</mat-icon>
+        <span>Solo se pueden seleccionar trabajadores de nacionalidad 
+          <strong>{{ trabajadoresSeleccionados[0].nacionalidad }}</strong>
+        </span>
+      </div>
+      
+      <table mat-table [dataSource]="trabajadores" class="trabajadores-table">
+        <!-- Columna de selección -->
+        <ng-container matColumnDef="seleccionar">
+          <th mat-header-cell *matHeaderCellDef>Seleccionar</th>
+          <td mat-cell *matCellDef="let trabajador">
+            <mat-checkbox 
+              [checked]="estaSeleccionado(trabajador)"
+              (change)="seleccionarTrabajador(trabajador, $event)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+        
+        <!-- Columna de nombre -->
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef>Nombre</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ getNombreTrabajador(trabajador) }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de RUT/DNI -->
+        <ng-container matColumnDef="rut">
+          <th mat-header-cell *matHeaderCellDef>RUT/DNI</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ trabajador.rut || trabajador.dni || 'No disponible' }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de nacionalidad -->
+        <ng-container matColumnDef="nacionalidad">
+          <th mat-header-cell *matHeaderCellDef>Nacionalidad</th>
+          <td mat-cell *matCellDef="let trabajador">
+            {{ trabajador.nacionalidad || 'No especificada' }}
+          </td>
+        </ng-container>
+        
+        <!-- Columna de acciones -->
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let trabajador">
+            <button mat-icon-button color="primary" 
+                    matTooltip="Ver detalles del trabajador"
+                    (click)="$event.stopPropagation()">
+              <mat-icon>visibility</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+        
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+            [class.selected-row]="estaSeleccionado(row)"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Selección de formato de contrato -->
+  <mat-card *ngIf="trabajadoresSeleccionados.length > 0 && formatosDisponibles.length > 0" class="formato-card">
+    <mat-card-header>
+      <mat-card-title>Selección de Formato de Contrato</mat-card-title>
+      <mat-card-subtitle>
+        Seleccione el formato para {{ trabajadoresSeleccionados.length }} trabajador(es)
+      </mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="formatos-container">
+        <mat-form-field appearance="outline" class="formato-select">
+          <mat-label>Formato de Contrato</mat-label>
+          <mat-select [(value)]="formatoSeleccionado">
+            <mat-option *ngFor="let formato of formatosDisponibles" [value]="formato">
+              {{ formato.nombre }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        
+        <button mat-raised-button color="accent" 
+                [disabled]="!formatoSeleccionado || cargando"
+                (click)="generarContratos()">
+          <mat-icon>description</mat-icon> Generar Contratos
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Spinner de carga para generación de contratos -->
+  <div *ngIf="cargando" class="cargando-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Generando contratos...</p>
+  </div>
+  
+  <!-- Resultado de contratos generados -->
+  <mat-card *ngIf="contratosGenerados && urlsContratos.length > 0" class="contratos-card">
+    <mat-card-header>
+      <mat-card-title>Contratos Generados</mat-card-title>
+      <mat-card-subtitle>{{ urlsContratos.length }} contrato(s) generado(s) exitosamente</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="contratos-actions">
+        <button mat-raised-button color="primary" (click)="descargarTodos()">
+          <mat-icon>cloud_download</mat-icon> Descargar Todos
+        </button>
+      </div>
+      
+      <div class="contratos-list">
+        <div *ngFor="let url of urlsContratos; let i = index" class="contrato-item">
+          <span class="contrato-nombre">
+            Contrato para {{ getNombreTrabajador(trabajadoresSeleccionados[i]) }}
+          </span>
+          <div class="contrato-actions">
+            <a mat-icon-button [href]="url" target="_blank" matTooltip="Ver contrato">
+              <mat-icon>visibility</mat-icon>
+            </a>
+            <button mat-icon-button color="primary" 
+                    matTooltip="Descargar contrato"
+                    (click)="descargarContrato(url, i)">
+              <mat-icon>download</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>

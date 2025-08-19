@@ -26,3 +26,8 @@ apk/
 .env
 venv/
 env/
+
+#Angular
+node_modules/
+dist/
+package-lock.json

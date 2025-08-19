@@ -1,0 +1,191 @@
+<div class="container mx-auto p-4">
+  <!-- Sección de Generación de Enlaces de Auto Registro -->
+  <mat-card class="mb-4">
+    <mat-card-header>
+      <mat-card-title>Generar Enlace de Auto Registro</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form [formGroup]="enlaceForm" (ngSubmit)="generarEnlace()" class="flex flex-col gap-4">
+        <mat-form-field appearance="fill" class="w-full">
+          <mat-label>Perfil</mat-label>
+          <mat-select formControlName="perfil" required>
+            <mat-option *ngFor="let perfil of perfiles" [value]="perfil.id">
+              {{perfil.nombre_perfil}}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="enlaceForm.get('perfil')?.hasError('required')">
+            El perfil es requerido
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="w-full">
+          <mat-label>Duración (horas)</mat-label>
+          <input matInput type="number" formControlName="duracion_horas" required min="1">
+          <mat-error *ngIf="enlaceForm.get('duracion_horas')?.hasError('required')">
+            La duración es requerida
+          </mat-error>
+          <mat-error *ngIf="enlaceForm.get('duracion_horas')?.hasError('min')">
+            La duración mínima es 1 hora
+          </mat-error>
+        </mat-form-field>
+
+        <mat-checkbox formControlName="restringirRuts" class="mb-2">
+          Restringir por RUT
+        </mat-checkbox>
+
+        <mat-checkbox formControlName="generarContrato" class="mb-2">
+          Generar Contrato
+        </mat-checkbox>
+
+        <div *ngIf="enlaceForm.get('restringirRuts')?.value" class="mb-4">
+          <div formArrayName="ruts" class="flex flex-col gap-2">
+            <div *ngFor="let rut of rutsArray.controls; let i=index" class="flex gap-2">
+              <mat-form-field appearance="fill" class="flex-grow">
+                <mat-label>RUT {{i + 1}}</mat-label>
+                <input matInput [formControlName]="i" placeholder="Ingrese RUT">
+              </mat-form-field>
+              <button type="button" mat-icon-button color="warn" (click)="eliminarRut(i)"
+                      matTooltip="Eliminar RUT">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+          <button type="button" mat-stroked-button color="primary" (click)="agregarRut()">
+            <mat-icon>add</mat-icon> Agregar RUT
+          </button>
+        </div>
+
+        <div class="flex justify-end">
+          <button mat-raised-button color="primary" type="submit" 
+                  [disabled]="!enlaceForm.valid">
+            Generar Enlace
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Sección de Enlace de Descarga APK -->
+  <mat-card class="mb-4">
+    <mat-card-header>
+      <mat-card-title>Enlace de Descarga APK</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <!-- Formulario para generar enlace APK -->
+      <form *ngIf="!apkLink" [formGroup]="apkForm" (ngSubmit)="generarEnlaceApk()" class="flex flex-col gap-4">
+        <mat-form-field appearance="fill" class="w-full">
+          <mat-label>Duración (horas)</mat-label>
+          <input matInput 
+                 type="number" 
+                 formControlName="duracion_horas" 
+                 required 
+                 min="1"
+                 max="168">
+          <mat-hint>Máximo 168 horas (7 días)</mat-hint>
+          <mat-error *ngIf="apkForm.get('duracion_horas')?.hasError('required')">
+            La duración es requerida
+          </mat-error>
+          <mat-error *ngIf="apkForm.get('duracion_horas')?.hasError('min')">
+            La duración mínima es 1 hora
+          </mat-error>
+          <mat-error *ngIf="apkForm.get('duracion_horas')?.hasError('max')">
+            La duración máxima es 168 horas
+          </mat-error>
+        </mat-form-field>
+
+        <div class="flex justify-end">
+          <button mat-raised-button 
+                  color="primary" 
+                  type="submit" 
+                  [disabled]="!apkForm.valid">
+            Generar Enlace APK
+          </button>
+        </div>
+      </form>
+
+      <!-- Mostrar enlace APK activo -->
+      <div *ngIf="apkLink" class="enlace-container">
+        <input readonly [value]="apkLink.url" class="enlace-input">
+        <div class="button-group">
+          <button mat-icon-button 
+                  color="primary" 
+                  class="copy-button"
+                  (click)="copiarEnlace(apkLink.url)"
+                  matTooltip="Copiar al portapapeles">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+          <button mat-icon-button 
+                  color="warn" 
+                  (click)="eliminarEnlaceApk()"
+                  matTooltip="Eliminar enlace">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+
+        <div class="enlace-info">
+          <p><strong>Tiempo restante:</strong> {{apkLink.tiempo_restante | number:'1.1-1'}} horas</p>
+          <p><strong>Expira:</strong> {{apkLink.fecha_expiracion | date:'medium'}}</p>
+          <p><strong>Estado:</strong> 
+            <span [class.text-red-500]="isEnlaceExpirado(apkLink.fecha_expiracion)"
+                  [class.text-green-500]="!isEnlaceExpirado(apkLink.fecha_expiracion)">
+              {{isEnlaceExpirado(apkLink.fecha_expiracion) ? 'Expirado' : 'Activo'}}
+            </span>
+          </p>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Enlaces Activos -->
+  <mat-card class="mt-4">
+    <mat-card-header>
+      <mat-card-title>Enlaces Activos</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div *ngIf="enlaces.length === 0" class="p-4 text-center text-gray-500">
+        No hay enlaces activos
+      </div>
+      
+      <div *ngFor="let enlace of enlaces" class="enlace-item" 
+           [class.enlace-expirado]="isEnlaceExpirado(enlace.fecha_expiracion)">
+        <div class="enlace-container">
+          <input readonly [value]="enlace.url" class="enlace-input">
+          <div class="button-group">
+            <button mat-icon-button 
+                    color="primary" 
+                    class="copy-button"
+                    (click)="copiarEnlace(enlace.url)"
+                    matTooltip="Copiar al portapapeles">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+            <button mat-icon-button 
+                    color="warn" 
+                    (click)="desactivarEnlace(enlace.id)"
+                    matTooltip="Desactivar enlace">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+        <div class="enlace-info">
+          <p><strong>Perfil:</strong> {{enlace.perfil_nombre}}</p>
+          <p><strong>Expira:</strong> {{enlace.fecha_expiracion | date:'medium'}}</p>
+          <p><strong>Estado:</strong> 
+            <span [class.text-red-500]="isEnlaceExpirado(enlace.fecha_expiracion)"
+                  [class.text-green-500]="!isEnlaceExpirado(enlace.fecha_expiracion)">
+              {{isEnlaceExpirado(enlace.fecha_expiracion) ? 'Expirado' : 'Activo'}}
+            </span>
+          </p>
+          <p><strong>Generar Contrato:</strong> {{enlace.generar_contrato ? 'Sí' : 'No'}}</p>
+          <div *ngIf="enlace.ruts_permitidos?.length" class="ruts-list">
+            <p><strong>RUTs permitidos:</strong></p>
+            <ul>
+              <li *ngFor="let rut of enlace.ruts_permitidos">{{rut}}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

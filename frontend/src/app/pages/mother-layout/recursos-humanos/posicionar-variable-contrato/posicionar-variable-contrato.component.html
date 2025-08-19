@@ -1,0 +1,355 @@
+<!--posicionar-variable-contrato.component.html-->
+<div class="main-container" *ngIf="!modoCalibration && !modoModificacion">
+  <!-- Panel de variables a la izquierda -->
+  <div class="variables-panel">
+    <!-- Sección para trabajar con documentos existentes -->
+    <div class="documento-actions">
+      <h3>Opciones de Documento</h3>
+      <div class="action-buttons">
+        <button class="action-btn new-doc-btn" [class.active]="!modoDocumentoExistente" (click)="modoDocumentoExistente = false">
+          Crear Documento
+        </button>
+        <button class="action-btn open-doc-btn" [class.active]="modoDocumentoExistente" (click)="cargarDocumentosExistentes()">
+          Abrir Existente
+        </button>
+      </div>
+
+      <!-- Lista de documentos existentes -->
+      <div *ngIf="modoDocumentoExistente && documentosCargados.length > 0" class="documentos-list">
+        <div *ngFor="let doc of documentosCargados" class="documento-item" (click)="seleccionarDocumentoExistente(doc)">
+          <div class="documento-info">
+            <span class="documento-nombre">{{ doc.nombre }}</span>
+            <span class="documento-tipo">{{ doc.tipo }}</span>
+          </div>
+          <div class="documento-fecha">{{ doc.fecha_creacion | date:'dd/MM/yyyy' }}</div>
+        </div>
+      </div>
+
+      <!-- Mensaje cuando no hay documentos -->
+      <div *ngIf="modoDocumentoExistente && documentosCargados.length === 0 && !isLoading" class="no-documentos">
+        <p>No hay documentos guardados disponibles</p>
+      </div>
+
+      <!-- Botones de acción para documento seleccionado -->
+      <div *ngIf="modoDocumentoExistente && documentoSeleccionado" class="documento-actions-buttons">
+        <button 
+          class="action-btn calibrate-direct-btn"
+          (click)="calibrarDocumentoSeleccionado()">
+          Calibrar "{{ documentoSeleccionado?.nombre }}"
+        </button>
+        <button 
+          class="action-btn modify-direct-btn"
+          (click)="modificarDocumentoSeleccionado()">
+          Modificar "{{ documentoSeleccionado?.nombre }}"
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="!modoDocumentoExistente">
+      <h3>Variables del Documento</h3>
+      <p class="panel-instruction">Haz clic en las variables para posicionarlas en el PDF</p>
+      
+      <div class="variables-list">
+        <div class="variable-item" *ngFor="let variable of variables">
+          <div class="variable-header">
+            <label>{{ variable.nombre | titlecase }}</label>
+            <span class="variable-status" [class.placed]="variable.colocada">
+              {{ variable.colocada ? 'Colocada' : 'No colocada' }}
+            </span>
+          </div>
+          <div class="variable-input-group">
+            <button 
+              class="place-btn" 
+              (click)="seleccionarVariable(variable)"
+              [disabled]="modoColocacion">
+              Colocar
+            </button>
+            
+            <button 
+              *ngIf="variable.colocada"
+              class="calibrate-btn" 
+              (click)="calibrarVariable(variable)"
+              [disabled]="modoColocacion">
+              Calibrar
+            </button>
+          </div>
+          
+          <!-- Mostramos todas las ubicaciones de la variable -->
+          <div *ngIf="variable.ubicaciones.length > 0" class="variable-positions">
+            <div *ngFor="let ubicacion of variable.ubicaciones" class="variable-position">
+              Página: {{ ubicacion.pagina }}, X: {{ ubicacion.posX | number:'1.0-0' }}, Y: {{ ubicacion.posY | number:'1.0-0' }}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel-actions">
+        <button class="action-btn reset-btn" (click)="resetearVariables()">
+          Resetear Variables
+        </button>
+        <button class="action-btn export-btn" (click)="exportarPosiciones()">
+          Exportar Posiciones
+        </button>
+        <button class="action-btn save-btn" (click)="guardarFormato()">
+          Guardar Formato
+        </button>
+
+        <!-- Nueva sección para generar PDF de prueba -->
+        <div class="test-pdf-section" *ngIf="documentoGuardadoId">
+          <h4>Generar PDF con Datos de Prueba</h4>
+          <button class="action-btn preview-btn" (click)="generarPDFPrueba()">
+            Generar PDF de Prueba
+          </button>
+          <div *ngIf="pdfPreviewUrl" class="pdf-preview-link">
+            <a [href]="pdfPreviewUrl" target="_blank">Ver PDF Generado</a>
+            <button class="download-btn" (click)="descargarPDF()">Descargar</button>
+          </div>
+        </div>
+
+        <div class="calibration-actions" *ngIf="documentoGuardadoId">
+          <h4>Herramientas de Calibración</h4>
+          <button class="action-btn calibration-btn" (click)="generarPDFCalibracion()">
+            Generar PDF de Calibración
+          </button>
+          <button class="action-btn calibration-btn" (click)="iniciarCalibracion()">
+            Modo Calibración Avanzado
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Viewer a la derecha - Solo mostrar si no estamos en modo documento existente -->
+  <div class="pdf-container" *ngIf="!modoDocumentoExistente">
+    <div class="file-upload-section" *ngIf="!modoDocumentoExistente">
+      <h2>Visualizador de PDF</h2>
+      <div class="file-input-wrapper">
+        <label for="pdf-upload" class="file-input-label">
+          <span class="btn-text">Seleccionar PDF</span>
+          <input 
+            type="file" 
+            id="pdf-upload" 
+            accept="application/pdf" 
+            (change)="onFileSelected($event)"
+            class="file-input"
+          >
+        </label>
+        <span *ngIf="pdfSrc" class="file-selected-text">Archivo PDF seleccionado</span>
+      </div>
+      
+      <!-- Mensaje para modo de colocación activo -->
+      <div *ngIf="modoColocacion" class="placement-mode-indicator">
+        <p>Haz clic en el PDF para colocar: <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong></p>
+      </div>
+    </div>
+    
+    <!-- Solo renderizamos el visor en entorno de navegador -->
+    <div class="pdf-viewer-wrapper" *ngIf="isBrowser">
+      <div *ngIf="isLoading" class="loading-indicator">
+        <div class="spinner"></div>
+        <p>Cargando PDF...</p>
+      </div>
+      
+      <!-- Mensaje de error si hay alguno -->
+      <div *ngIf="errorMessage" class="error-message">
+        <p>{{ errorMessage }}</p>
+        <p>Por favor, inténtelo de nuevo o pruebe con otro archivo PDF.</p>
+      </div>
+      
+      <!-- Contenedor para el visor de PDF - SIEMPRE presente en el DOM -->
+      <div id="pdf-container" class="pdf-viewer" [style.display]="(pdfSrc && !isLoading && !errorMessage) ? 'block' : 'none'"></div>
+      
+      <div *ngIf="!pdfSrc && !isLoading && !errorMessage" class="no-pdf-selected">
+        <p>Seleccione un archivo PDF para visualizarlo</p>
+      </div>
+    </div>
+    
+    <!-- Mensaje durante renderizado del servidor -->
+    <div *ngIf="!isBrowser" class="ssr-message">
+      <p>El visor de PDF se cargará cuando la aplicación se ejecute en el navegador.</p>
+    </div>
+  </div>
+
+  <!-- Nueva sección para documento existente -->
+  <div class="pdf-container documento-existente-info" *ngIf="modoDocumentoExistente && documentoSeleccionado">
+    <div class="file-upload-section">
+      <h2>Documento Cargado</h2>
+      <div class="documento-info-card">
+        <div class="documento-header">
+          <h3>{{ documentoSeleccionado?.nombre }}</h3>
+          <span class="tipo-badge" [ngClass]="documentoSeleccionado?.tipo?.toLowerCase()">
+            {{ documentoSeleccionado?.tipo }}
+          </span>
+        </div>
+        <div class="documento-details">
+          <p><strong>ID:</strong> {{ documentoSeleccionado?.id }}</p>
+          <p><strong>Creado:</strong> {{ documentoSeleccionado?.fecha_creacion | date:'dd/MM/yyyy HH:mm' }}</p>
+          <p><strong>Variables:</strong> {{ getNumeroVariables() }} colocadas</p>
+        </div>
+
+        <div class="documento-mensaje">
+          <i class="info-icon">ℹ️</i> 
+          Documento cargado correctamente. Utilice los botones de calibrar o modificar para trabajar con este documento.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Componente de calibración -->
+<app-calibrar-variable 
+  *ngIf="modoCalibration"
+  [documentoId]="documentoGuardadoId"
+  [variables]="variables"
+  (calibracionCompletada)="onCalibracionCompletada($event)"
+  (cerrarCalibracion)="cerrarCalibracion()">
+</app-calibrar-variable>
+
+<!-- Modal para guardar formato -->
+<div class="modal-overlay" *ngIf="mostrarModal">
+  <div class="modal-content">
+    <h3>Guardar Formato de Contrato</h3>
+    
+    <div class="form-group">
+      <label for="nombre-formato">Nombre del Formato:</label>
+      <input 
+        type="text" 
+        id="nombre-formato" 
+        class="form-control" 
+        [(ngModel)]="nombreFormato" 
+        placeholder="Ej: Contrato Plazo Fijo"
+      >
+    </div>
+    
+    <div class="form-group">
+      <label for="tipo-contrato">Tipo de Contrato:</label>
+      <select 
+        id="tipo-contrato" 
+        class="form-control" 
+        [(ngModel)]="tipoContrato"
+      >
+        <option value="CHILENO">Contrato Chileno</option>
+        <option value="EXTRANJERO">Contrato Extranjero</option>
+      </select>
+    </div>
+    
+    <div class="modal-actions">
+      <button class="action-btn reset-btn" (click)="cerrarModal()">Cancelar</button>
+      <button class="action-btn export-btn" (click)="confirmarGuardado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para datos de prueba -->
+<div class="modal-overlay" *ngIf="mostrarModalDatosPrueba">
+  <div class="modal-content">
+    <h3>Generar PDF con Datos de Prueba</h3>
+    
+    <p class="modal-description">
+      Ingrese datos de prueba para las variables colocadas o use los valores predeterminados.
+    </p>
+    
+    <div class="variables-test-data">
+      <div *ngFor="let variable of variablesConDatos" class="form-group">
+        <label [for]="'var-' + variable.nombre">{{ variable.nombre | titlecase }}:</label>
+        <input 
+          [type]="variable.tipo === 'fecha' ? 'date' : 'text'" 
+          [id]="'var-' + variable.nombre" 
+          class="form-control" 
+          [(ngModel)]="variable.valorPrueba"
+          [placeholder]="variable.valorPredeterminado"
+        >
+      </div>
+    </div>
+    
+    <div class="modal-actions">
+      <button class="action-btn reset-btn" (click)="cerrarModalDatosPrueba()">Cancelar</button>
+      <button class="action-btn preview-btn" (click)="confirmarGenerarPDF()">Generar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sección para el modo modificación -->
+<div class="main-container" *ngIf="modoModificacion && documentoSeleccionado">
+  <!-- Panel de variables a la izquierda -->
+  <div class="variables-panel">
+    <h3>Modificar Documento: "{{ documentoSeleccionado?.nombre }}"</h3>
+    <p class="panel-instruction">Puedes añadir nuevas variables, mover o eliminar las existentes.</p>
+    
+    <div class="variables-list">
+      <div class="variable-item" *ngFor="let variable of variables">
+        <div class="variable-header">
+          <label>{{ variable.nombre | titlecase }}</label>
+          <span class="variable-status" [class.placed]="variable.colocada">
+            {{ variable.colocada ? 'Colocada' : 'No colocada' }}
+          </span>
+        </div>
+        <div class="variable-input-group">
+          <button 
+            class="place-btn" 
+            (click)="seleccionarVariable(variable)"
+            [disabled]="modoColocacion">
+            Colocar
+          </button>
+        </div>
+        
+        <!-- Mostrar ubicaciones existentes de la variable -->
+        <div *ngIf="variable.ubicaciones.length > 0" class="variable-positions">
+          <div *ngFor="let ubicacion of variable.ubicaciones" class="variable-position">
+            Página: {{ ubicacion.pagina }}, X: {{ ubicacion.posX | number:'1.0-0' }}, Y: {{ ubicacion.posY | number:'1.0-0' }}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="panel-actions">
+      <button class="action-btn save-btn" (click)="guardarCambiosDocumento()">
+        Guardar Cambios
+      </button>
+      <button class="action-btn cancel-btn" (click)="cerrarModificacion()">
+        Cancelar Modificación
+      </button>
+    </div>
+  </div>
+
+  <!-- PDF Viewer a la derecha -->
+  <div class="pdf-container">
+    <div class="file-upload-section">
+      <h2>Modificar Variables del Documento</h2>
+      
+      <!-- Mensaje para modo de colocación activo -->
+      <div *ngIf="modoColocacion" class="placement-mode-indicator">
+        <p>Haz clic en el PDF para colocar: <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong></p>
+      </div>
+      
+      <div class="document-info">
+        <p><strong>Instrucciones:</strong></p>
+        <ul>
+          <li>Arrastra las variables para moverlas a nuevas posiciones</li>
+          <li>Haz clic en el botón ✕ para eliminar una variable</li>
+          <li>Selecciona una variable del panel izquierdo para añadir una nueva ubicación</li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- Contenedor para el visor de PDF en modo modificación -->
+    <div class="pdf-viewer-wrapper" *ngIf="isBrowser">
+      <div *ngIf="isLoading" class="loading-indicator">
+        <div class="spinner"></div>
+        <p>Cargando PDF...</p>
+      </div>
+      
+      <!-- Mensaje de error si hay alguno -->
+      <div *ngIf="errorMessage" class="error-message">
+        <p>{{ errorMessage }}</p>
+        <p>Por favor, inténtelo de nuevo o pruebe con otro archivo PDF.</p>
+      </div>
+      
+      <!-- Contenedor para el visor de PDF - IMPORTANTE: Es necesario mostrar el contenedor -->
+      <div id="pdf-container" class="pdf-viewer" 
+          [style.display]="(pdfSrc && !isLoading && !errorMessage) ? 'block' : 'none'"
+          [style.min-height]="'600px'">
+      </div>
+    </div>
+  </div>
+</div>

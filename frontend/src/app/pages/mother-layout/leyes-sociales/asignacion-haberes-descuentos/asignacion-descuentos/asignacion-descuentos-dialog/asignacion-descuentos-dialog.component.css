@@ -1,0 +1,237 @@
+/* Estilos para el título del diálogo */
+h2.mat-dialog-title {
+    color: #3f51b5;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Contador de trabajadores */
+  .trabajadores-count {
+    font-size: 14px;
+    font-weight: normal;
+    color: #666;
+    margin-left: 8px;
+  }
+  
+  /* Estilos para las secciones */
+  .seccion {
+    margin: 24px 0;
+  }
+  
+  /* Estilos para subtítulos */
+  h3 {
+    color: #3f51b5;
+    font-size: 16px;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  
+  /* Estilos para la lista de trabajadores */
+  .trabajadores-lista {
+    margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  /* Estilos para los campos de entrada */
+  .full-width {
+    width: 100%;
+  }
+  
+  /* Contenedor de información */
+  .info-container {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+  }
+  
+  /* Valor actual */
+  .valor-actual {
+    font-size: 16px;
+    margin: 0;
+    color: #333;
+  }
+  
+  /* Mensaje cuando no hay datos */
+  .sin-datos {
+    color: #888;
+    font-style: italic;
+    padding: 16px;
+    text-align: center;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+  
+  /* Paneles de detalle */
+  .panel-detalle {
+    margin-bottom: 8px;
+  }
+  
+  /* Contenido de los paneles */
+  .panel-contenido {
+    padding: 8px 16px;
+    background-color: #f9f9f9;
+    border-radius: 0 0 4px 4px;
+  }
+  
+  .panel-contenido p {
+    margin: 8px 0;
+  }
+  
+  /* Dividers */
+  mat-divider {
+    margin: 24px 0;
+  }
+  
+  /* Acciones del diálogo */
+  div[mat-dialog-actions] {
+    padding: 16px 0 0;
+    margin-bottom: 0;
+  }
+  
+  /* Estilos para chips */
+  mat-chip {
+    background-color: #e0e0e0 !important;
+    color: rgba(0, 0, 0, 0.87) !important;
+  }
+  
+  /* Personalización de paneles de expansión */
+  mat-expansion-panel-header {
+    height: auto !important;
+    padding: 12px 16px !important;
+  }
+  
+  mat-panel-title, mat-panel-description {
+    margin: 0 !important;
+    line-height: 1.5 !important;
+  }
+  
+  mat-panel-description {
+    justify-content: flex-end;
+  }
+  
+  /* Estilos responsive */
+  @media (max-width: 768px) {
+    .mat-dialog-content {
+      max-height: 60vh;
+    }
+    
+    mat-panel-title, mat-panel-description {
+      font-size: 14px;
+    }
+    
+    .panel-contenido {
+      padding: 8px;
+    }
+    
+    .trabajadores-lista {
+      max-height: 100px;
+      overflow-y: auto;
+    }
+  }
+
+  .seccion {
+    margin: 16px 0;
+  }
+  
+  .trabajadores-lista {
+    margin: 10px 0;
+  }
+  
+  .full-width {
+    width: 100%;
+  }
+  
+  h3 {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 16px;
+  }
+  
+  .trabajadores-count {
+    font-size: 14px;
+    color: #777;
+    margin-left: 10px;
+  }
+  
+  .sin-datos {
+    color: #777;
+    font-style: italic;
+    padding: 10px 0;
+  }
+  
+  .info-container {
+    padding: 8px 0;
+  }
+  
+  .valor-actual {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .panel-detalle {
+    margin-bottom: 8px;
+  }
+  
+  .panel-contenido {
+    padding: 8px;
+  }
+  
+  .panel-contenido p {
+    margin: 8px 0;
+  }
+  
+  .cuotas-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  
+  .numero-cuotas {
+    width: 150px;
+  }
+  
+  .agregar-btn {
+    margin: 16px 0;
+  }
+  
+  .separador {
+    margin: 24px 0;
+  }
+  
+  .descuentos-asignados {
+    margin-top: 16px;
+  }
+  
+  .descuento-asignado {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .descuento-info {
+    flex: 1;
+  }
+  
+  .descuento-detalles {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .descuento-form {
+    display: flex;
+    flex-direction: column;
+  }

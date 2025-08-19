@@ -1,0 +1,150 @@
+<div class="report-container">
+  <!-- Error Message Display -->
+  <div *ngIf="hasError" class="error-message">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <form [formGroup]="filterForm">
+      <!-- Date Range Filters -->
+      <div class="date-filters">
+        <div class="form-group">
+          <label for="fechaDesde">Desde:</label>
+          <input 
+            type="date" 
+            id="fechaDesde"
+            formControlName="fechaDesde"
+            class="form-control"
+            required>
+          <div *ngIf="filterForm.get('fechaDesde')?.touched && filterForm.get('fechaDesde')?.invalid" class="error-text">
+            La fecha inicial es requerida
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="fechaHasta">Hasta:</label>
+          <input 
+            type="date" 
+            id="fechaHasta"
+            formControlName="fechaHasta"
+            class="form-control"
+            required>
+          <div *ngIf="filterForm.get('fechaHasta')?.touched && filterForm.get('fechaHasta')?.invalid" class="error-text">
+            La fecha final es requerida
+          </div>
+        </div>
+      </div>
+
+      <!-- Dropdown Filters -->
+      <div class="dropdown-filters">
+        <div class="form-group">
+          <label for="fundo">Fundo:</label>
+          <select 
+            id="fundo" 
+            formControlName="fundoId"
+            class="form-control">
+            <option value="">Todos los fundos</option>
+            <option *ngFor="let fundo of fundos" [value]="fundo.id">
+              {{fundo.nombre_campo}}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="supervisor">Supervisor:</label>
+          <select 
+            id="supervisor" 
+            formControlName="supervisorId"
+            class="form-control">
+            <option value="">Todos los supervisores</option>
+            <option *ngFor="let supervisor of supervisores" [value]="supervisor.id">
+              {{supervisor.nombre}}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="casa">Casa:</label>
+          <select 
+            id="casa" 
+            formControlName="casaId"
+            class="form-control">
+            <option value="">Todas las casas</option>
+            <option *ngFor="let casa of casas" [value]="casa.id">
+              {{casa.nombre}}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="button-container">
+        <button 
+          type="button" 
+          class="btn-generate"
+          [disabled]="!filterForm.get('fechaDesde')?.valid || !filterForm.get('fechaHasta')?.valid"
+          (click)="generateReport()">
+          Generar Informe
+        </button>
+        <button 
+          type="button" 
+          class="btn-download"
+          [disabled]="!showResults"
+          (click)="downloadCSV()">
+          Descargar CSV
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Results Section -->
+  <div class="results-section" *ngIf="showResults && producciones.length > 0">
+    <h2>Resultados del Informe</h2>
+    
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="summary-card">
+        <h3>Total a Pagar</h3>
+        <p>{{ resumen?.total_pago | currency:'CLP':'symbol-narrow':'1.0-0' }}</p>
+      </div>
+      <div class="summary-card">
+        <h3>Total Registros</h3>
+        <p>{{ resumen?.total_registros }}</p>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Labor</th>
+            <th>Cantidad</th>
+            <th>Unidad</th>
+            <th>Total Pago</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let produccion of producciones">
+            <td>{{produccion.nombre_labor}}</td>
+            <td>{{produccion.cantidad | number:'1.2-2'}}</td>
+            <td>{{produccion.unidad_medida}}</td>
+            <td>{{produccion.valor_total | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- No Results Message -->
+  <div *ngIf="showResults && producciones.length === 0" class="no-results">
+    <p>No se encontraron resultados para los filtros seleccionados.</p>
+  </div>
+</div>

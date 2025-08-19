@@ -1,0 +1,360 @@
+.admin-usuarios-container table {
+    width: 100%;
+    border-collapse: collapse; /* Asegurar que las líneas se colapsen en una sola */
+  }
+    
+  .mat-header{
+    background-color: rgb(20, 179, 92) !important;
+    color: white !important;
+    border-right: 1px solid black !important;
+  }
+    
+  .mat-header-row th:last-child {
+    border-right: none; /* Eliminar la línea del último encabezado para que no se desborde */
+  }
+    
+  .mat-cell {
+    border-right: 1px solid black; 
+    background-color: white; 
+  }
+    
+  .mat-row td:last-child {
+    border-right: none; /* Eliminar la línea de la última celda para que no se desborde */
+  }
+    
+  .mat-cell:not(.selected) {
+    animation: none; /* Desactivar la animación cuando la fila no está seleccionada */
+  }
+    
+  .selected .mat-cell {
+    background-color: #00A693 !important;
+  }
+    
+  button:disabled {
+    color: gray;
+    background-color: #ccc;
+  }
+   
+  button:not(:disabled):hover {
+    background-color: green;
+    color: white;
+  }
+  
+  h3 {
+    margin-top: 0px; /* Reducción del margen superior */
+    margin-bottom: 5px; /* Reducción del margen inferior */
+  }
+  
+  .modal-content .crearholding-button-modal {
+    width: 70%; /* Menor ancho respecto al original */
+    padding: 20px 30px; /* Mayor altura gracias al padding superior e inferior */
+    margin: 20px auto; /* Margen superior e inferior para espaciado, y auto en los lados para centrarlo */
+    display: block; /* Hace que el botón se trate como un bloque, permitiendo el centrado con margin auto */
+  }
+  
+  .modal-content input[type="text"],
+  .modal-content input[type="button"],
+  .modal-content input[type="usuario"],
+  .modal-content button {
+    margin-top: 0px; /* Reduce el margen superior */
+    margin-bottom: 5px; /* Reduce el margen inferior */
+    width: 80%; /* Mantén el ancho de los campos de entrada */
+    padding: 8px; /* Mantén el padding para mejor estética */
+  }
+  
+  
+  .checklist-container {
+    display: flex;
+    justify-content: space-around;
+    width: 100%; /* Usa todo el ancho disponible del contenedor modal */
+    margin: 10px 0; /* Reduce el espacio vertical entre elementos */
+  }
+  
+  input[type="checkbox"] {
+    transform: scale(1.5); /* Aumenta el tamaño de los checkboxes */
+    margin-right: 5px; /* Espacio entre el checkbox y el texto */
+  }
+  
+  .modal-perfiles {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: -10%; /* Ajustado para que comience desde la parte superior */
+    width: 100%;
+    height: 110%; /* Ajustado para cubrir toda la altura de la ventana */
+    overflow: hidden; /* Asegurar que el fondo no se desplace */
+    background-color: rgba(0,0,0,0.4); /* Color de fondo semitransparente */
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Alinear el contenido del modal verticalmente al centro */
+  }
+  
+  .modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+    padding: 10px;
+    margin: auto;
+    border: 1px solid #888;
+    width: 50%;
+    max-height: 100vh; /* 80% de la altura de la ventana gráfica */
+    overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+    overflow-x: hidden;
+    background-color: #fefefe;
+    border: 3px solid black;
+  }
+  
+  .modal-header {
+    width: 100%;
+    position: relative;
+    margin-bottom: 20px; /* Espacio entre el encabezado y el contenido */
+  }
+  
+  .header-bar {
+    position: absolute;
+    height: 35px;
+    background-color: #00A693;
+    width: 105.2%;
+    top: -25%;
+    left: -2.9%;
+    border: 3px solid black;
+  }
+  
+  .title-container {
+    background-color: rgb(20, 179, 92);
+    border: 3px solid black;
+    padding: 0px 0; /* Reducir el espacio vertical */
+    width: 50%; /* Reducir el ancho */
+    text-align: center;
+    color: white;
+    margin: auto; /* Centrar horizontalmente */
+    margin-top: 20px;
+  
+  }
+  
+  .close {
+    position: absolute;
+    top: -25%;
+    right: 0%;
+    color: #aaa;
+    font-size: 40px;
+    font-weight: bold;
+    z-index: 1;
+  }
+  
+  .close:hover,
+  .close:focus {
+    color: red;
+    cursor: pointer;
+  }
+  
+  .checklist-box {
+    border: 1px solid black;
+    padding: 10px;
+    width: 90%;
+  }
+  
+  .checklist-container {
+    display: flex;
+    flex-wrap: wrap; /* Permitir que los elementos se ajusten según el ancho */
+    justify-content: space-between;
+  }
+  
+  .checkbox-label {
+    flex: 1 1 30%; /* Flexibilidad y base de 30% */
+    text-align: center;
+    margin: 10px;
+  }
+  
+  input[type="checkbox"] {
+    transform: scale(1.5);
+    margin-right: 5px;
+  }
+  
+  .custom-button {
+    padding: 12px 24px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-top: 20px;
+    width: auto;
+    font-size: 18px;
+  }
+  
+  
+  
+  .yes-button {
+    
+    background-color: #4ca5af; /* Verde */
+    ;
+  }
+  
+  .no-button {
+    background-color: #f44336; /* Rojo */
+  }
+  
+  .modal-actions {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+  #errorModal .modal-content {
+    position: absolute;
+    flex-direction: column; /* Stack items vertically */
+    align-items: center; /* Center items horizontally */
+    justify-content: space-around; /* Distribute spacing evenly */
+    padding: 20px;
+    margin: 5% auto;
+    border: 1px solid #000000;
+    width: 20%; /* Adjust the width as necessary */
+    background-color: #ff5050; /* Un tono de rojo para el fondo */
+    z-index: 1005;
+    left: 38%;
+    top: 25%;
+  }
+  
+  #exitoModal .modal-content {
+    background-color: #4CAF50;
+    width: 20%; /* Un tono de verde para el fondo */
+    z-index: 1005;
+  }
+  
+  #confirmacionModal .modal-content {
+    background-color: #4CAF50;
+    width: 30%; /* Un tono de verde para el fondo */
+    z-index: 1005;
+    text-align: center;
+  }
+  
+  .exito-message {
+    text-align: center;
+    color: white;
+  }
+  
+  .mini-modal {
+    display: flex;
+    position: absolute;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
+    padding: 20px;
+    margin: auto;
+    border: 1px solid #888;
+    width: 40%;
+    height: 30%;
+    max-height: 90vh; /* 80% de la altura de la ventana gráfica */
+    overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
+    overflow-x: hidden;
+    background-color: #fefefe;
+    border: 3px solid black;
+    z-index: 5;
+    left: 28%;
+    top: 30%;
+    
+  }
+  
+  /* Estilo para el botón que activa el dropdown */
+  .dropdown-button {
+    position: relative;
+    padding: 10px !important;
+    width: 100% !important; /* Establecer el ancho al 100% del contenedor para aumentarlo */
+    margin-bottom: 10px !important;
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    text-align: center !important;
+    bottom: 50% !important; /* Alinea el texto a la izquierda */
+    z-index: auto;
+  }
+  
+  /* Contenedor del dropdown */
+  .dropdown {
+    position: absolute;
+    display: inline-block;
+    width: 400px;
+  }
+  
+  /* Contenido del dropdown */
+  .dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    padding: 10px;
+    z-index: 1;
+    max-height: 200px; /* Limita la altura y agrega scroll */
+    overflow-y: auto;
+    width: 100%;
+  }
+  
+  /* Mostrar dropdown-content cuando dropdown está activo */
+  .dropdown-content.show {
+    display: block;
+  }
+  
+  /* Estilo para las etiquetas de las checkboxes */
+  .dropdown-content label {
+    display: block;
+    cursor: pointer;
+  }
+  
+  .custom-button-sociedades {
+    position: absolute;
+    padding: 8px 16px !important; /* Padding más pequeño para reducir el tamaño */
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    border-radius: 5px !important;
+    margin-top: 10px !important;
+    width: auto !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
+    font-size: 16px !important; /* Puedes ajustar el tamaño de la fuente si es necesario */
+    display: inline-block !important;
+    bottom: 0 !important; /* Para permitir el ajuste de ancho */
+    z-index: auto;
+  }
+  
+  .table-button {
+    position: relative;
+    z-index: 2;
+  }
+  
+  .custom-button-ingreso {
+    position: relative;
+    padding: 8px 16px !important; /* Padding más pequeño para reducir el tamaño */
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    border-radius: 5px !important;
+    margin-top: 10px !important;
+    width: 50% !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
+    font-size: 16px !important; /* Puedes ajustar el tamaño de la fuente si es necesario */
+    display: inline-block !important;
+    bottom: 0 !important; /* Para permitir el ajuste de ancho */
+    z-index: auto;
+  }
+  
+  .disabled {
+    color: #ccc; 
+    pointer-events: none;  
+  }
+
+  .mat-icon.activo {
+    color: green;
+    font-size: 80px;
+    height: 80px;
+    width: 80px;
+  }
+  
+  .mat-icon.inactivo {
+    color: red;
+    font-size: 80px;
+    height: 80px;
+    width: 80px;
+  }

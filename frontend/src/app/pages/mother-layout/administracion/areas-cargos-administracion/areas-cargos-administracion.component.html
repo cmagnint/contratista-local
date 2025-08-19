@@ -1,0 +1,176 @@
+<div class="admin-container">
+
+    <div class="admin-areas">
+        <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+            <button mat-raised-button color="primary" (click)="openModal('crearArea')">Crear Area</button>
+  
+            <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearArea']" (click)="closeModal('crearArea')">
+                <div class="modal-content" (click)="$event.stopPropagation()">
+                    <div class="modal-header">
+                        <div class="header-bar"></div>
+                        <div class="title-container">
+                            <h2>Crear Area</h2>
+                        </div>
+                    </div>
+                    <h3>Nombre Area:</h3>
+                    
+                    <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="nombreArea" (ngModelChange)="nombreArea = $event.toUpperCase()"><br><br>
+                    
+                    <button class="custom-button-ingreso" id="ingresarHoldingBtn" (click)="crearAreas()">Crear Area</button>
+                </div>
+            </div>
+  
+            <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarArea']">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span class="close" (click)="closeModal('modificarArea')">&times;</span>
+                        <div class="header-bar"></div>
+                        <div class="title-container">
+                            <h2>Modificar Area</h2>
+                        </div>
+                    </div>
+                    <h3>Modificar Nombre Area:</h3>
+                    <input type="text" class="input-perfil" id="nombreUsuarioNew" name="nombreUsuarioNew" [(ngModel)]="nombreAreaNew" (ngModelChange)="nombreAreaNew = $event.toUpperCase()"><br><br>
+                    <button class="custom-button-ingreso" (click)="modificarAreas()" id="ingresarHoldingBtn">Modificar Area</button>
+                </div>
+            </div>
+  
+            <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" (click)="openModal('modificarArea')">Modificar Area</button>
+            <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')">Eliminar Area(s)</button>
+  
+            <table mat-table [dataSource]="areasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+                <ng-container matColumnDef="nombre">
+                    <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
+                    <td mat-cell *matCellDef="let area" class="mat-cell"> {{ area.nombre }} </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+                <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
+            </table>
+        </div>
+    </div>
+  
+    <div class="admin-cargos">
+        <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+            <button mat-raised-button color="primary" (click)="openModal('crearCargo')">Crear Cargo</button>
+  
+            <div id="modalCrearCargo" class="modal-perfiles" *ngIf="modals['crearCargo']">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span class="close" (click)="closeModal('crearCargo')">&times;</span>
+                        <div class="header-bar"></div>
+                        <div class="title-container">
+                            <h2>Crear Cargo</h2>
+                        </div>
+                    </div>
+                    <h3>Nombre Cargo:</h3>
+                    <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="nombreCargo" (ngModelChange)="nombreCargo = $event.toUpperCase()"><br><br>
+                    <button mat-raised-button class="table-button" (click)="openModal('areasModal')">Seleccionar Areas</button>
+  
+                    <!-- Modal para selección de Areas -->
+                    <div id="AreasModales" class="modal-perfiles" *ngIf="modals['areasModal']">
+                        <div class="mini-modal">
+                            <div class="dropdown">
+                                <button class="dropdown-button" (click)="toggleDropdown()">SELECCIONAR AREA</button>
+                                <div id="area-dropdown" class="dropdown-content" [class.show]="dropdownOpen">
+                                    <ng-container *ngFor="let area of areasCargadas">
+                                        <!-- ✅ CORREGIDO: Usar selectedAreaIdForCargo en lugar de selectedAreaId -->
+                                        <label [class.disabled]="selectedAreaIdForCargo !== null && selectedAreaIdForCargo !== area.id">
+                                            <input type="checkbox" [checked]="selectedAreaIdForCargo === area.id" (change)="toggleSelection(area.id)" [disabled]="selectedAreaIdForCargo !== null && selectedAreaIdForCargo !== area.id">
+                                            {{ area.nombre }}
+                                        </label>
+                                    </ng-container>
+                                </div>
+                            </div>
+                            <button class="custom-button-sociedades" (click)="closeModal('areasModal')">OK</button>
+                        </div>
+                    </div>
+                    <button class="custom-button-ingreso" id="ingresarHoldingBtn" (click)="crearCargos()">Crear Cargo</button>
+                </div>
+            </div>
+  
+            <div id="modalmodificarCargo" class="modal-perfiles" *ngIf="modals['modificarCargo']">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span class="close" (click)="closeModal('modificarCargo')">&times;</span>
+                        <div class="header-bar"></div>
+                        <div class="title-container">
+                            <h2>Modificar Cargo</h2>
+                        </div>
+                    </div>
+                    <h3>Modificar Nombre Cargo:</h3>
+                    <input type="text" class="input-perfil" id="nombreUsuarioNew" name="nombreUsuarioNew" [(ngModel)]="nombreCargoNew" (ngModelChange)="nombreCargoNew = $event.toUpperCase()"><br><br>
+                    <button mat-raised-button class="table-button" (click)="openModal('areasModal')">Seleccionar Areas</button>
+                    
+                    <div id="AreasModales" class="modal-perfiles" *ngIf="modals['areasModal']">
+                        <div class="mini-modal">
+                            <div class="dropdown">
+                                <button class="dropdown-button" (click)="toggleDropdown()">SELECCIONAR AREA</button>
+                                <div id="area-dropdown" class="dropdown-content" [class.show]="dropdownOpen">
+                                    <ng-container *ngFor="let area of areasCargadas">
+                                        <!-- ✅ CORREGIDO: Usar selectedAreaIdForCargo en lugar de selectedAreaId -->
+                                        <label [class.disabled]="selectedAreaIdForCargo !== null && selectedAreaIdForCargo !== area.id">
+                                            <input type="checkbox" [checked]="selectedAreaIdForCargo === area.id" (change)="toggleSelection(area.id)" [disabled]="selectedAreaIdForCargo !== null && selectedAreaIdForCargo !== area.id">
+                                            {{ area.nombre }}
+                                        </label>
+                                    </ng-container>
+                                </div>
+                            </div>
+                            <button class="custom-button-sociedades" (click)="closeModal('areasModal')">OK</button>
+                        </div>
+                    </div>
+
+                    <button class="custom-button-ingreso" (click)="modificarCargos()" id="ingresarHoldingBtn">Modificar Cargo</button>
+                </div>
+            </div>
+  
+            <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" (click)="openModal('modificarCargo')">Modificar Cargo</button>
+            <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')">Eliminar Cargo(s)</button>
+  
+            <table mat-table [dataSource]="cargosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+                <ng-container matColumnDef="nombre">
+                    <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
+                    <td mat-cell *matCellDef="let cargo" class="mat-cell"> {{ cargo.nombre }} </td>
+                </ng-container>
+                <ng-container matColumnDef="area">
+                    <th mat-header-cell *matHeaderCellDef class="mat-header"> Area </th>
+                    <td mat-cell *matCellDef="let cargo" class="mat-cell"> {{ cargo.nombre_area }} </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columnasDesplegadasCargos"></tr>
+                
+                <tr mat-row *matRowDef="let row; columns: columnasDesplegadasCargos;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
+            </table>
+        </div>
+    </div>
+  </div>
+  
+  <!-- Otros modales comunes -->
+  <div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+    <div class="modal-content">
+        <h2 style="color:white;">¡Éxito!</h2>
+        <div class="exito-message" id="exitoText"></div>
+        <button class="custom-button" (click)="closeModal('exitoModal')">Cerrar</button>
+    </div>
+  </div>
+  
+  <div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+    <div class="modal-content">
+        <h2 style="color:white;">¡Error!</h2>
+        <div class="error-icon-container">
+            <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+        </div>
+        <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+        <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+    </div>
+  </div>
+  
+  <div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+    <div class="modal-content">
+        <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
+        <div class="exito-message" id="exitoText"></div>
+        <!-- Botones para confirmar o cancelar la acción -->
+        <div class="modal-actions">
+            <button class="custom-button yes-button" (click)="eliminarAreasSeleccionadas()">Sí</button>
+            <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+        </div>
+    </div>
+  </div>

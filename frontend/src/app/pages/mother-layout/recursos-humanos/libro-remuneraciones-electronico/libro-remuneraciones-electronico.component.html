@@ -1,0 +1,93 @@
+<div class="container">
+    <mat-card class="main-card">
+      <mat-card-header>
+        <div class="header-container">
+          <mat-card-title>Libro de Remuneraciones Electrónico</mat-card-title>
+          <mat-card-subtitle>Genere el archivo CSV para declaración del Libro de Remuneraciones Electrónico (LRE)</mat-card-subtitle>
+        </div>
+      </mat-card-header>
+  
+      <mat-card-content>
+        <form [formGroup]="remuneracionesForm" (ngSubmit)="generarLibroRemuneraciones()">
+          <div class="form-container">
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Sociedad</mat-label>
+                <mat-select formControlName="sociedad">
+                  <mat-option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+                    {{ sociedad.nombre }}
+                  </mat-option>
+                </mat-select>
+                <mat-error *ngIf="remuneracionesForm.get('sociedad')?.hasError('required')">
+                  La sociedad es requerida
+                </mat-error>
+              </mat-form-field>
+            </div>
+  
+            <div class="form-row two-columns">
+              <mat-form-field appearance="outline">
+                <mat-label>Mes</mat-label>
+                <mat-select formControlName="mes">
+                  <mat-option *ngFor="let mes of meses" [value]="mes.valor">
+                    {{ mes.nombre }}
+                  </mat-option>
+                </mat-select>
+                <mat-error *ngIf="remuneracionesForm.get('mes')?.hasError('required')">
+                  El mes es requerido
+                </mat-error>
+              </mat-form-field>
+  
+              <mat-form-field appearance="outline">
+                <mat-label>Año</mat-label>
+                <mat-select formControlName="anio">
+                  <mat-option *ngFor="let anio of anios" [value]="anio">
+                    {{ anio }}
+                  </mat-option>
+                </mat-select>
+                <mat-error *ngIf="remuneracionesForm.get('anio')?.hasError('required')">
+                  El año es requerido
+                </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+  
+          <mat-divider class="divider"></mat-divider>
+  
+          <div class="info-section">
+            <div class="info-title">
+              <mat-icon>info</mat-icon> 
+              <span>Información sobre el Libro de Remuneraciones Electrónico</span>
+            </div>
+            <div class="info-content">
+              <p>El Libro de Remuneraciones Electrónico (LRE) es un registro obligatorio que contiene información detallada sobre las remuneraciones de los trabajadores de la empresa.</p>
+              <p>Este proceso generará un archivo CSV con todas las 147 columnas requeridas por el SII, incluyendo:</p>
+              <ul>
+                <li>Información básica del trabajador</li>
+                <li>Datos de contrato y previsión social</li>
+                <li>Haberes imponibles, no imponibles y tributables</li>
+                <li>Descuentos legales y voluntarios</li>
+                <li>Totales y cálculos finales</li>
+              </ul>
+            </div>
+          </div>
+  
+          <div class="actions-container">
+            <button 
+              mat-raised-button 
+              color="primary" 
+              type="submit" 
+              [disabled]="remuneracionesForm.invalid || isGenerating">
+              <mat-icon>description</mat-icon>
+              Generar Libro de Remuneraciones
+            </button>
+          </div>
+  
+          <div *ngIf="isGenerating" class="progress-container">
+            <p>Generando archivo CSV, por favor espere...</p>
+            <mat-progress-bar mode="determinate" [value]="progressValue"></mat-progress-bar>
+            <p class="progress-text">{{ progressValue }}%</p>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>

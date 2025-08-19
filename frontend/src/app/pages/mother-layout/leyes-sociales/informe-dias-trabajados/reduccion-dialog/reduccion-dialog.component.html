@@ -1,0 +1,31 @@
+<h2 mat-dialog-title>Reducción de Días por Cliente</h2>
+<mat-dialog-content>
+  <p>Seleccione los clientes y el porcentaje de reducción a aplicar:</p>
+  
+  <div class="clientes-container">
+    <div *ngFor="let cliente of data.clientes" class="cliente-checkbox">
+      <mat-checkbox [(ngModel)]="clientesSeleccionadosMap[cliente.id]">
+        {{ cliente.nombre }}
+      </mat-checkbox>
+    </div>
+  </div>
+  
+  <div class="porcentaje-container">
+    <label>Porcentaje de reducción: {{ data.porcentajeReduccion }}%</label>
+    <!-- Actualizado para usar mat-slider de la forma correcta -->
+    <mat-slider min="1" max="100" step="1" discrete>
+      <input matSliderThumb [(ngModel)]="data.porcentajeReduccion">
+    </mat-slider>
+    <mat-form-field appearance="outline">
+      <mat-label>Porcentaje</mat-label>
+      <input matInput type="number" min="1" max="100" [(ngModel)]="data.porcentajeReduccion">
+      <span matSuffix>%</span>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancelar</button>
+  <button mat-raised-button color="primary" [mat-dialog-close]="getResult()" [disabled]="!hayClientesSeleccionados()">
+    Aplicar Reducción
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,2457 @@
+/* facturas-compra-automatizada.component.css - COMPLETO CORREGIDO CON MATERIAL ICONS FIX */
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ==================== FIX CRÍTICO PARA MATERIAL ICONS ==================== */
+
+/* Asegurar que los iconos se rendericen correctamente */
+.mat-icon {
+  font-family: 'Material Icons' !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  word-wrap: normal !important;
+  direction: ltr !important;
+  -webkit-font-feature-settings: 'liga' !important;
+  -webkit-font-smoothing: antialiased !important;
+  text-rendering: optimizeLegibility !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  font-feature-settings: 'liga' !important;
+  vertical-align: middle !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Fix específico para iconos en botones */
+.mat-icon-button .mat-icon,
+.mat-button .mat-icon,
+.mat-raised-button .mat-icon,
+.mat-stroked-button .mat-icon {
+  font-family: 'Material Icons' !important;
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  overflow: hidden !important;
+  text-align: center !important;
+}
+
+/* Fix para iconos en la tabla */
+.facturas-table .mat-icon {
+  font-family: 'Material Icons' !important;
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+  text-align: center !important;
+}
+
+/* Fix específico para columna de acciones */
+.acciones-container .mat-icon-button .mat-icon {
+  font-family: 'Material Icons' !important;
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  text-align: center !important;
+}
+
+/* Fix para la columna de PDF */
+.pdf-controls-container .mat-icon {
+  font-family: 'Material Icons' !important;
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  text-align: center !important;
+}
+
+/* Prevenir que el texto se corte */
+.mat-icon-button {
+  overflow: visible !important;
+}
+
+/* ==================== CARDS PRINCIPALES ==================== */
+.form-card, .status-card {
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.form-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.status-card {
+  background: linear-gradient(135deg, #00A693 0%, #00D4AA 100%);
+  color: white;
+}
+
+.status-card .mat-card-title {
+  color: white;
+  font-weight: 500;
+  font-size: 1.3em;
+}
+
+/* ==================== CONFIGURACIÓN DE PERÍODO ==================== */
+
+.periodo-configuration-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.periodo-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px 0;
+  color: white;
+  font-size: 1.2em;
+  font-weight: 500;
+}
+
+.periodo-title mat-icon {
+  color: white;
+  font-size: 22px;
+}
+
+.periodo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.periodo-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 20px;
+  align-items: end;
+}
+
+.mes-field, .year-field {
+  min-width: 150px;
+}
+
+.mes-field ::ng-deep .mat-form-field-flex,
+.year-field ::ng-deep .mat-form-field-flex {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+}
+
+.mes-field ::ng-deep .mat-form-field-outline,
+.year-field ::ng-deep .mat-form-field-outline {
+  color: rgba(0, 166, 147, 0.5);
+}
+
+.actualizar-periodo-btn {
+  min-height: 56px;
+  padding: 0 28px;
+  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.actualizar-periodo-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.periodo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.periodo-actual {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.periodo-label {
+  color: white;
+  font-weight: 500;
+  font-size: 1em;
+}
+
+.periodo-actual .mat-chip {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 500;
+  padding: 8px 16px;
+}
+
+.pdf-periodo-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid rgba(255, 255, 255, 0.5);
+}
+
+.pdf-periodo-info .info-icon {
+  color: white;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pdf-periodo-info .info-text {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+/* ==================== TÍTULOS Y HEADERS ==================== */
+.title-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-icon {
+  color: #00A693;
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.status-card .title-icon {
+  color: white;
+}
+
+.facturas-count {
+  font-size: 0.8em;
+  font-weight: 400;
+  opacity: 0.8;
+  margin-left: 8px;
+}
+
+/* ==================== STATUS DEL PROCESO ==================== */
+.status-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-label {
+  font-weight: 500;
+  font-size: 0.9em;
+  opacity: 0.9;
+}
+
+.status-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* ==================== CONFIGURACIÓN PENDIENTE ==================== */
+.configuracion-pendiente-mensaje {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  color: #856404;
+  font-size: 0.95em;
+  border-left: 4px solid #ffc107;
+}
+
+.configuracion-pendiente-mensaje mat-icon {
+  color: #ffc107;
+  font-size: 22px;
+}
+
+/* ==================== ALERTAS ==================== */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert-error {
+  background-color: #ffebee;
+  color: #c62828;
+  border-left: 4px solid #f44336;
+}
+
+.alert-success {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  border-left: 4px solid #4caf50;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  color: #856404;
+  border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border-left: 4px solid #17a2b8;
+}
+
+/* ==================== ESTADÍSTICAS PDF MEJORADAS ==================== */
+
+.pdf-stats-card-enhanced {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  margin-bottom: 28px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.pdf-stats-card-enhanced:hover {
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+  transform: translateY(-3px);
+}
+
+.estado-general-badge {
+  margin-left: auto;
+}
+
+.pdf-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.pdf-stat-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.pdf-stat-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.stat-icon-container {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon-container mat-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: white;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-number {
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1;
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.9em;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.stat-percentage {
+  font-size: 0.8em;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Variaciones de color */
+.pdf-stat-card.pdf-success .stat-icon-container {
+  background: rgba(76, 175, 80, 0.3);
+}
+
+.pdf-stat-card.pdf-warning .stat-icon-container {
+  background: rgba(255, 152, 0, 0.3);
+}
+
+.pdf-stat-card.pdf-error .stat-icon-container {
+  background: rgba(244, 67, 54, 0.3);
+}
+
+/* Sección de progreso */
+.progress-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.progress-label {
+  font-weight: 500;
+  font-size: 1em;
+}
+
+.progress-percentage {
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+.enhanced-progress-bar {
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.progress-details {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.progress-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 16px;
+}
+
+.detail-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.detail-icon.success { color: #4caf50; }
+.detail-icon.pending { color: #ff9800; }
+.detail-icon.error { color: #f44336; }
+
+.pdf-actions-enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pdf-action-button {
+  min-height: 48px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.pdf-help-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 0.9em;
+}
+
+.help-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.help-text {
+  line-height: 1.5;
+}
+
+/* ==================== FILTROS ==================== */
+
+.filters-container {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-field {
+  min-width: 200px;
+}
+
+/* ==================== ESTADÍSTICAS DE DISTRIBUCIÓN ==================== */
+
+.distribucion-stats {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  border-left: 4px solid #00A693;
+}
+
+.stat-chip-container {
+  display: flex;
+  justify-content: center;
+}
+
+.stat-chip-container .mat-chip-set {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ==================== TABLA DE FACTURAS CORREGIDA ==================== */
+
+.table-container {
+  border-radius: 8px;
+  overflow: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  background: white;
+  width: 100%;
+}
+
+.facturas-table {
+  width: 100%;
+  min-width: 1000px;
+  background: white;
+  table-layout: auto; /* Cambiado de fixed a auto para mejor responsividad */
+}
+
+.mat-header-cell {
+  font-weight: 600 !important;
+  color: #333 !important;
+  background-color: #f5f5f5 !important;
+  border-bottom: 2px solid #00A693 !important;
+  padding: 12px 8px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+.mat-cell {
+  border-bottom: 1px solid #e0e0e0 !important;
+  padding: 12px 8px !important;
+  vertical-align: middle !important;
+  word-wrap: break-word !important;
+  overflow: visible !important;
+}
+
+.mat-row {
+  transition: all 0.3s ease;
+  height: auto;
+  min-height: 60px;
+}
+
+.mat-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.selected-row {
+  background-color: #e8f5e8 !important;
+}
+
+.completamente-distribuida {
+  background-color: #e3f2fd !important;
+}
+
+.parcialmente-distribuida {
+  background-color: #fff3e0 !important;
+}
+
+/* Anchos específicos de columnas CORREGIDOS */
+.mat-column-folio {
+  width: 120px !important;
+  min-width: 120px !important;
+  text-align: center !important;
+}
+
+.mat-column-proveedor {
+  width: 280px !important;
+  min-width: 250px !important;
+}
+
+.mat-column-montos {
+  width: 140px !important;
+  min-width: 140px !important;
+  text-align: center !important;
+}
+
+.mat-column-progreso {
+  width: 200px !important;
+  min-width: 180px !important;
+  text-align: center !important;
+}
+
+.mat-column-pdf {
+  width: 100px !important;
+  min-width: 80px !important;
+  text-align: center !important;
+}
+
+.mat-column-acciones {
+  width: 140px !important;
+  min-width: 120px !important;
+  text-align: center !important;
+}
+
+/* Columnas específicas */
+.folio-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.folio-number {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95em;
+  text-align: center;
+}
+
+.doc-type {
+  font-size: 0.75em;
+  color: #666;
+  background: #e0e0e0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.proveedor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.razon-social {
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9em;
+  line-height: 1.2;
+}
+
+.rut-proveedor {
+  font-size: 0.8em;
+  color: #666;
+  font-family: monospace;
+}
+
+.montos-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+  align-items: center;
+}
+
+.monto-total {
+  font-weight: 600;
+  color: #2e7d32;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.monto-fecha {
+  font-size: 0.75em;
+  color: #666;
+}
+
+/* ==================== PROGRESO DE DISTRIBUCIÓN ==================== */
+
+.distribucion-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 4px;
+}
+
+.progress-bar-small {
+  height: 6px;
+  border-radius: 3px;
+  width: 100%;
+}
+
+.distribucion-info-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75em;
+  gap: 4px;
+}
+
+.porcentaje {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.monto-distribuido {
+  color: #666;
+  font-size: 0.7em;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.distribuciones-indicator {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.mini-chip {
+  font-size: 0.65em !important;
+  height: 18px !important;
+  padding: 0 6px !important;
+  line-height: 18px !important;
+  border-radius: 9px !important;
+}
+
+/* ==================== CONTROLES PDF CORREGIDOS ==================== */
+
+.pdf-cell {
+  width: 100px !important;
+  text-align: center !important;
+  padding: 8px 4px !important;
+}
+
+.pdf-controls-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 4px !important;
+  position: relative !important;
+  min-height: 40px !important;
+  justify-content: center !important;
+}
+
+.pdf-available-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-direction: column;
+}
+
+.pdf-view-button {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  background-color: rgba(0, 166, 147, 0.1);
+  border: 1px solid rgba(0, 166, 147, 0.3);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  overflow: visible !important;
+}
+
+.pdf-view-button:hover {
+  background-color: rgba(0, 166, 147, 0.2);
+  transform: scale(1.05);
+}
+
+.pdf-menu-button {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+  overflow: visible !important;
+}
+
+.pdf-menu-button:hover {
+  opacity: 1;
+}
+
+.pdf-unavailable-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-error-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-error-icon {
+  font-size: 20px;
+  color: #f44336;
+  animation: pulse-error 2s ease-in-out infinite;
+}
+
+.pdf-pending-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdf-pending-icon {
+  font-size: 18px;
+  opacity: 0.5;
+  animation: pulse-pending 3s ease-in-out infinite;
+}
+
+/* Indicadores de estado */
+.pdf-status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: -2px;
+  right: -2px;
+}
+
+.pdf-status-indicator.pdf-success {
+  background-color: #4caf50;
+}
+
+.pdf-status-indicator.pdf-pending {
+  background-color: #ff9800;
+}
+
+.pdf-status-icon {
+  font-size: 8px;
+  color: white;
+}
+
+/* ==================== ACCIONES CORREGIDAS ==================== */
+
+.acciones-cell {
+  width: 140px !important;
+  text-align: center !important;
+  padding: 8px 4px !important;
+}
+
+.acciones-container {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: nowrap !important;
+  min-height: 40px !important;
+}
+
+.acciones-container .mat-icon-button {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  line-height: 32px !important;
+  overflow: visible !important;
+}
+
+.acciones-container .mat-icon-button mat-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  text-align: center !important;
+}
+
+/* ==================== DIÁLOGOS ==================== */
+
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+
+.dialog-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease-out;
+}
+
+.dialog-container.large-dialog {
+  max-width: 800px;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #00A693 0%, #00D4AA 100%);
+  color: white;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.3em;
+  font-weight: 500;
+}
+
+.dialog-header mat-icon {
+  font-size: 24px;
+}
+
+.dialog-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.dialog-actions {
+  padding: 16px 24px;
+  background-color: #f8f9fa;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* ==================== INFORMACIÓN DE FACTURA ==================== */
+
+.factura-info-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.factura-info-card h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-item .label {
+  font-weight: 500;
+  color: #495057;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.info-item .value {
+  color: #6c757d;
+  text-align: right;
+}
+
+.info-item .value.amount {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.info-item .value.amount-available {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.progress-visual {
+  margin-top: 16px;
+}
+
+.progress-text {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #666;
+  font-weight: 500;
+}
+
+/* ==================== FORMULARIO DE DISTRIBUCIÓN ==================== */
+
+.distribucion-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #fafafa;
+}
+
+.form-section h4 {
+  margin: 0 0 16px 0;
+  color: #00A693;
+  font-size: 1.1em;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.amount-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.amount-helpers {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.preview-amount {
+  margin-top: 16px;
+}
+
+.preview-card {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.preview-item:last-child {
+  margin-bottom: 0;
+}
+
+.preview-label {
+  font-weight: 500;
+  color: #1976d2;
+}
+
+.preview-value {
+  font-weight: 600;
+  color: #0d47a1;
+}
+
+/* ==================== LISTA DE DISTRIBUCIONES ==================== */
+
+.distribuciones-list {
+  margin-top: 24px;
+}
+
+.distribuciones-list h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 1.1em;
+}
+
+.no-distribuciones {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.no-distribuciones mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: #ccc;
+  margin-bottom: 12px;
+}
+
+.distribucion-item {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.distribucion-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.distribucion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.distribucion-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.distribucion-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.distribucion-content {
+  padding: 20px;
+}
+
+.distribucion-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.distribucion-observaciones {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #00A693;
+}
+
+.distribucion-observaciones .label {
+  font-weight: 500;
+  color: #495057;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.distribucion-observaciones p {
+  margin: 0;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+/* ==================== FORMULARIOS ==================== */
+
+.full-width {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+/* ==================== LOADING Y ESTADOS ==================== */
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  gap: 20px;
+}
+
+.loading-container p {
+  color: #666;
+  font-size: 1.1em;
+  margin: 0;
+}
+
+.progress-container {
+  margin: 20px 0;
+}
+
+.progress-text {
+  text-align: center;
+  margin-top: 12px;
+  color: #666;
+  font-size: 0.9em;
+}
+
+/* ==================== SIN FACTURAS ==================== */
+
+.no-facturas {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.no-facturas-icon {
+  font-size: 80px;
+  height: 80px;
+  width: 80px;
+  color: #ccc;
+  margin-bottom: 20px;
+}
+
+.no-facturas h3 {
+  margin: 20px 0;
+  color: #333;
+  font-size: 1.3em;
+}
+
+.no-facturas p {
+  margin: 12px 0;
+  line-height: 1.6;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ==================== CHIPS Y BADGES ==================== */
+
+.mat-chip {
+  font-weight: 500;
+  border-radius: 16px;
+  padding: 8px 12px;
+}
+
+.mat-chip mat-icon {
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+/* ==================== PAGINACIÓN ==================== */
+
+.mat-paginator {
+  background: transparent;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* ==================== ANIMACIONES ==================== */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse-error {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(1.1); 
+  }
+}
+
+@keyframes pulse-pending {
+  0%, 100% { 
+    opacity: 0.5; 
+  }
+  50% { 
+    opacity: 0.8; 
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 60%, 100% { 
+    transform: translateY(0); 
+  }
+  40% { 
+    transform: translateY(-10px); 
+  }
+  80% { 
+    transform: translateY(-5px); 
+  }
+}
+
+.pdf-success-animation {
+  animation: bounce 0.6s ease-in-out;
+}
+
+/* ==================== MENÚS CONTEXTUALES ==================== */
+
+.pdf-context-menu {
+  min-width: 240px;
+}
+
+.pdf-context-menu .mat-menu-item {
+  font-size: 0.9em;
+  height: 44px;
+  line-height: 44px;
+}
+
+.pdf-context-menu .mat-menu-item mat-icon {
+  margin-right: 16px;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+@media (max-width: 1200px) {
+  .container {
+    max-width: 100%;
+    padding: 16px;
+  }
+  
+  .pdf-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Tabla más compacta */
+  .facturas-table {
+    min-width: 900px;
+    font-size: 0.9em;
+  }
+  
+  .mat-header-cell, .mat-cell {
+    padding: 10px 6px !important;
+  }
+  
+  .mat-column-proveedor {
+    width: 220px !important;
+    min-width: 200px !important;
+  }
+  
+  .mat-column-progreso {
+    width: 160px !important;
+    min-width: 140px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+  
+  /* Configuración de período responsive */
+  .periodo-inputs {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .actualizar-periodo-btn {
+    width: 100%;
+  }
+  
+  .pdf-periodo-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .periodo-actual {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  /* Estadísticas responsive */
+  .pdf-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .status-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .filters-container {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .filter-field {
+    min-width: 100%;
+  }
+  
+  /* Tabla responsive */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .facturas-table {
+    min-width: 800px;
+    font-size: 0.85em;
+  }
+  
+  .mat-header-cell, .mat-cell {
+    padding: 8px 4px !important;
+  }
+  
+  .mat-column-folio {
+    width: 100px !important;
+    min-width: 80px !important;
+  }
+  
+  .mat-column-proveedor {
+    width: 200px !important;
+    min-width: 180px !important;
+  }
+  
+  .mat-column-montos {
+    width: 120px !important;
+    min-width: 100px !important;
+  }
+  
+  .mat-column-progreso {
+    width: 140px !important;
+    min-width: 120px !important;
+  }
+  
+  .mat-column-pdf {
+    width: 80px !important;
+    min-width: 60px !important;
+  }
+  
+  .mat-column-acciones {
+    width: 100px !important;
+    min-width: 80px !important;
+  }
+  
+  /* Elementos más pequeños en móvil */
+  .folio-number {
+    font-size: 0.85em;
+  }
+  
+  .doc-type {
+    font-size: 0.7em;
+    padding: 1px 4px;
+  }
+  
+  .razon-social {
+    font-size: 0.8em;
+  }
+  
+  .rut-proveedor {
+    font-size: 0.75em;
+  }
+  
+  .monto-total {
+    font-size: 0.8em;
+  }
+  
+  .pdf-view-button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+  }
+  
+  .acciones-container .mat-icon-button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+  }
+  
+  .acciones-container .mat-icon-button mat-icon {
+    font-size: 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+  }
+  
+  /* Diálogos responsive */
+  .dialog-container {
+    margin: 16px;
+    max-width: calc(100% - 32px);
+  }
+  
+  .dialog-header h2 {
+    font-size: 1.1em;
+  }
+  
+  .dialog-content {
+    padding: 20px;
+  }
+  
+  .dialog-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .dialog-actions button {
+    width: 100%;
+  }
+  
+  /* Formularios responsive */
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .distribucion-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .amount-helpers {
+    justify-content: center;
+  }
+  
+  .preview-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  /* Configuración pendiente responsive */
+  .configuracion-pendiente-mensaje {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+  }
+  
+  /* Acciones responsive */
+  .status-actions {
+    flex-direction: column;
+  }
+  
+  .pdf-actions-enhanced {
+    gap: 12px;
+  }
+  
+  .pdf-action-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 8px;
+  }
+  
+  /* Cards responsive */
+  .form-card, .status-card {
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
+  
+  .status-card .mat-card-content {
+    padding: 16px;
+  }
+  
+  /* Período responsive */
+  .periodo-configuration-section {
+    padding: 16px;
+    margin: 12px -8px 20px -8px;
+    border-radius: 0;
+  }
+  
+  .periodo-title {
+    font-size: 1.1em;
+  }
+  
+  /* Estadísticas responsive */
+  .pdf-stat-card {
+    padding: 16px;
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .stat-icon-container {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .stat-number {
+    font-size: 1.6em;
+  }
+  
+  /* Progreso responsive */
+  .progress-details {
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .progress-detail-item {
+    font-size: 0.8em;
+    padding: 4px 8px;
+  }
+  
+  /* Tabla mobile */
+  .facturas-table {
+    min-width: 600px;
+    font-size: 0.8em;
+  }
+  
+  .pdf-cell {
+    width: 80px !important;
+  }
+  
+  .acciones-cell {
+    width: 100px !important;
+  }
+  
+  .pdf-view-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+  
+  /* Distribuciones mobile */
+  .distribucion-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .distribucion-actions {
+    align-self: flex-end;
+  }
+  
+  /* Alertas mobile */
+  .alert {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .alert.pdf-warning button {
+    margin: 12px 0 0 0;
+    width: 100%;
+  }
+  
+  /* Cards mobile específicos */
+  .pdf-stats-card-enhanced {
+    margin: 12px -8px;
+    border-radius: 0;
+  }
+  
+  .progress-section {
+    padding: 16px;
+  }
+  
+  .factura-info-card {
+    margin: 16px -20px;
+    border-radius: 0;
+    padding: 16px 20px;
+  }
+}
+
+/* ==================== MEJORAS VISUALES ADICIONALES ==================== */
+
+/* Estados hover mejorados */
+.mat-button:hover, .mat-raised-button:hover, .mat-stroked-button:hover {
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.mat-icon-button:hover {
+  transform: scale(1.1);
+  transition: all 0.2s ease;
+}
+
+/* Formularios mejorados */
+.mat-form-field-appearance-outline .mat-form-field-flex {
+  background-color: rgba(0, 166, 147, 0.02);
+  transition: all 0.3s ease;
+}
+
+.mat-form-field-appearance-outline.mat-focused .mat-form-field-flex {
+  background-color: rgba(0, 166, 147, 0.05);
+}
+
+/* Radio buttons mejorados */
+.mat-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mat-radio-button {
+  margin-bottom: 8px;
+}
+
+/* Tooltips mejorados */
+.mat-tooltip {
+  font-size: 12px;
+  max-width: 250px;
+  word-wrap: break-word;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Scrollbars personalizados */
+.dialog-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Estados de focus mejorados */
+.mat-button:focus, .mat-raised-button:focus, .mat-stroked-button:focus {
+  outline: 2px solid rgba(0, 166, 147, 0.3);
+  outline-offset: 2px;
+}
+
+/* Mejoras de accesibilidad */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Estados de carga específicos */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+/* Transiciones suaves globales */
+* {
+  transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Print styles */
+@media print {
+  .status-actions,
+  .pdf-actions-enhanced,
+  .dialog-overlay,
+  .alert {
+    display: none !important;
+  }
+  
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  .facturas-table {
+    font-size: 0.8em;
+  }
+}
+
+/* ==================== MEJORAS COLUMNA PDF ==================== */
+
+.pdf-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
+.pdf-header-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.pdf-header-text {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.pdf-cell {
+  width: 80px !important;
+  text-align: center !important;
+  padding: 8px 4px !important;
+}
+
+.pdf-status-container {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  position: relative !important;
+  min-height: 48px !important;
+}
+
+/* Estados específicos del PDF */
+.pdf-available,
+.pdf-error,
+.pdf-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.pdf-button {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 50% !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+}
+
+.pdf-button.pdf-success {
+  background-color: rgba(76, 175, 80, 0.1) !important;
+  border: 2px solid rgba(76, 175, 80, 0.3) !important;
+}
+
+.pdf-button.pdf-success:hover {
+  background-color: rgba(76, 175, 80, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+.pdf-button.pdf-error {
+  background-color: rgba(244, 67, 54, 0.1) !important;
+  border: 2px solid rgba(244, 67, 54, 0.3) !important;
+}
+
+.pdf-button.pdf-pending {
+  background-color: rgba(158, 158, 158, 0.1) !important;
+  border: 2px solid rgba(158, 158, 158, 0.3) !important;
+}
+
+.pdf-icon {
+  font-size: 22px !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.pdf-button.pdf-success .pdf-icon {
+  color: #4caf50 !important;
+}
+
+.pdf-button.pdf-error .pdf-icon {
+  color: #f44336 !important;
+}
+
+.pdf-button.pdf-pending .pdf-icon {
+  color: #9e9e9e !important;
+}
+
+/* Badges de estado */
+.pdf-status-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.pdf-status-badge.success {
+  background-color: #4caf50;
+  color: white;
+}
+
+.pdf-status-badge.error {
+  background-color: #f44336;
+  color: white;
+}
+
+.pdf-status-badge.pending {
+  background-color: #ff9800;
+  color: white;
+}
+
+.pdf-status-badge mat-icon {
+  font-size: 10px !important;
+  width: 10px !important;
+  height: 10px !important;
+  line-height: 10px !important;
+}
+
+.error-count {
+  font-size: 9px;
+  font-weight: bold;
+  color: white;
+}
+
+/* Animaciones para PDF */
+@keyframes pulse-success {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
+  }
+}
+
+@keyframes pulse-error {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(244, 67, 54, 0);
+  }
+}
+
+.pdf-button.pdf-success:hover {
+  animation: pulse-success 1s infinite;
+}
+
+.pdf-button.pdf-error {
+  animation: pulse-error 2s infinite;
+}
+
+/* ==================== SELECCIÓN MÚLTIPLE ==================== */
+
+.selection-controls {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border-left: 4px solid #00A693;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.selection-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.selection-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  margin-left: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selection-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.selection-actions button {
+  min-height: 40px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+/* Información de distribución múltiple */
+.multiple-distribution-info {
+  margin-top: 16px;
+}
+
+.info-card {
+  background: rgba(0, 166, 147, 0.05);
+  border: 1px solid rgba(0, 166, 147, 0.2);
+  border-radius: 8px;
+}
+
+.multiple-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.multiple-info-grid .info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.multiple-info-grid .label {
+  font-weight: 500;
+  color: #495057;
+}
+
+.multiple-info-grid .value {
+  font-weight: 600;
+  color: #333;
+}
+
+.multiple-info-grid .value.amount {
+  color: #00A693;
+}
+
+/* Filas seleccionadas en la tabla */
+.mat-row.selected-row {
+  background-color: rgba(0, 166, 147, 0.1) !important;
+  border-left: 4px solid #00A693 !important;
+}
+
+.mat-row.selected-row:hover {
+  background-color: rgba(0, 166, 147, 0.15) !important;
+}
+
+/* Columna de selección */
+.mat-column-select {
+  width: 50px !important;
+  min-width: 50px !important;
+  text-align: center !important;
+}
+
+/* ==================== DIÁLOGO DE DISTRIBUCIÓN MÚLTIPLE ==================== */
+
+.facturas-multiples-info {
+  margin-bottom: 24px;
+}
+
+.multiple-info-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.multiple-info-card .mat-card-header {
+  padding-bottom: 8px;
+}
+
+.multiple-info-card .mat-card-title {
+  color: white;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.multiple-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.summary-item .label {
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.summary-item .value.amount {
+  font-weight: 700;
+  font-size: 1.1em;
+}
+
+/* Tipo de distribución múltiple */
+.multiple-type-section {
+  margin: 20px 0;
+}
+
+.multiple-type-section h4 {
+  color: white;
+  margin-bottom: 16px;
+  font-size: 1em;
+}
+
+.multiple-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.multiple-radio-group .mat-radio-button {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.multiple-radio-group .mat-radio-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.multiple-radio-group .mat-radio-button.mat-radio-checked {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.radio-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.radio-title {
+  font-weight: 600;
+  font-size: 1em;
+}
+
+.radio-description {
+  font-size: 0.85em;
+  opacity: 0.9;
+  line-height: 1.3;
+}
+
+/* Lista de facturas seleccionadas */
+.facturas-list-compact {
+  margin-top: 20px;
+}
+
+.facturas-list-compact h4 {
+  color: white;
+  margin-bottom: 12px;
+  font-size: 1em;
+}
+
+.facturas-chips {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.facturas-chips .mat-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.facturas-chips .mat-chip {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  font-size: 0.8em !important;
+  padding: 4px 8px !important;
+}
+
+.chip-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+/* Scrollbar personalizado para lista de facturas */
+.facturas-chips::-webkit-scrollbar {
+  width: 4px;
+}
+
+.facturas-chips::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.facturas-chips::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.facturas-chips::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ==================== RESPONSIVE PARA NUEVAS FUNCIONALIDADES ==================== */
+
+@media (max-width: 768px) {
+  .selection-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .selection-actions {
+    justify-content: center;
+  }
+  
+  .multiple-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .pdf-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+  
+  .pdf-icon {
+    font-size: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .pdf-status-badge {
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+  }
+  
+  .multiple-radio-group .mat-radio-button {
+    padding: 8px;
+  }
+  
+  .radio-title {
+    font-size: 0.9em;
+  }
+  
+  .radio-description {
+    font-size: 0.8em;
+  }
+}
+
+@media (max-width: 480px) {
+  .selection-controls {
+    padding: 16px;
+    margin: 12px -8px 20px -8px;
+    border-radius: 0;
+  }
+  
+  .selection-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .selection-actions button {
+    width: 100%;
+  }
+  
+  .pdf-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+  }
+  
+  .pdf-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+  
+  .pdf-status-badge {
+    width: 12px;
+    height: 12px;
+    font-size: 8px;
+    top: -2px;
+    right: -2px;
+  }
+  
+  .multiple-info-card {
+    margin: 12px -20px;
+    border-radius: 0;
+  }
+  
+  .facturas-chips .mat-chip {
+    font-size: 0.75em !important;
+    padding: 2px 6px !important;
+  }
+}
+
+/* ==================== MEJORAS VISUALES ADICIONALES ==================== */
+
+/* Efecto hover mejorado para botones PDF */
+.pdf-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Transiciones suaves */
+.pdf-status-container,
+.pdf-button,
+.pdf-status-badge {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estados de focus mejorados */
+.pdf-button:focus {
+  outline: 2px solid rgba(0, 166, 147, 0.5);
+  outline-offset: 2px;
+}
+
+/* Mejora visual para facturas completamente distribuidas */
+.mat-row.completamente-distribuida .pdf-button {
+  opacity: 0.7;
+}
+
+.mat-row.completamente-distribuida .pdf-button:hover {
+  opacity: 1;
+}
+
+/* Indicador visual para facturas con PDF en proceso */
+.pdf-pending .pdf-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.pdf-pending .pdf-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Mejora para tooltips */
+.mat-tooltip {
+  background-color: rgba(33, 37, 41, 0.95) !important;
+  color: white !important;
+  font-size: 12px !important;
+  max-width: 300px !important;
+  text-align: center !important;
+  line-height: 1.4 !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Estados especiales para columna PDF */
+.pdf-cell:hover {
+  background-color: rgba(0, 166, 147, 0.05);
+  border-radius: 8px;
+}
+
+.mat-row:hover .pdf-cell {
+  background-color: transparent;
+}
+
+.crear-boleta-btn {
+  background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.crear-boleta-btn:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4) !important;
+}

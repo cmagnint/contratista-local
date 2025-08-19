@@ -1,0 +1,160 @@
+<div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+
+    <!-- Botones principales -->
+    <button mat-raised-button color="primary" (click)="openModal('crearEmpresa')">Crear Empresa</button>
+      
+    <!-- Modal Crear Empresa -->
+    <div id="modalCrearCliente" class="modal-perfiles" *ngIf="modals['crearEmpresa']">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" (click)="closeModal('crearEmpresa')">&times;</span>
+                <div class="header-bar"></div>
+                <div class="title-container">
+                    <h2>Crear Empresa</h2>
+                </div>
+            </div>
+            
+            <h3>Nombre Empresa:</h3>
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" 
+                   [(ngModel)]="nombreEmpresa" (ngModelChange)="nombreEmpresa = $event.toUpperCase()">
+              
+            <h3>RUT Empresa:</h3>
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" 
+                   [(ngModel)]="rutEmpresa" (input)="formatRUT($event)">
+  
+            <h3>Direccion Empresa:</h3>
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" 
+                   [(ngModel)]="direccionEmpresa">
+
+            <h3>Folio Transportista:</h3>
+            <select class="input-usuario" [(ngModel)]="folioTransportistaId">
+                <option [ngValue]="null">Seleccione un folio</option>
+                <option *ngFor="let folio of foliosTransporte" [value]="folio.id">
+                    {{folio.nombre_tramo}} - Valor: ${{folio.valor_pago_transportista | number}}
+                </option>
+            </select>
+            
+            <button class="custom-button-ingreso" (click)="crearEmpresa()" id="ingresarHoldingBtn">
+                Crear Empresa
+            </button>
+        </div>
+    </div>
+      
+    <!-- Modal Modificar Empresa -->  
+    <div id="modalmodificarCliente" class="modal-perfiles" *ngIf="modals['modificarEmpresa']">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" (click)="closeModal('modificarEmpresa')">&times;</span>
+                <div class="header-bar"></div>
+                <div class="title-container">
+                    <h2>Modificar Empresa</h2>
+                </div>
+            </div>
+            
+            <h3>Modificar Nombre Empresa:</h3>
+            <input type="text" class="input-perfil" id="nombreUsuarioNew" name="nombreUsuarioNew" 
+                   [(ngModel)]="nombreEmpresaNew" (ngModelChange)="nombreEmpresaNew = $event.toUpperCase()">
+            
+            <h3>Modificar RUT Empresa:</h3>
+            <input type="text" class="input-usuario" id="rutUsuarioNew" name="rutUsuarioNew" 
+                   [(ngModel)]="rutEmpresaNew" (input)="formatRUT($event)">
+  
+            <h3>Modificar Direccion Empresa:</h3>
+            <input type="text" class="input-usuario" id="emailUsuarioNew" name="emailUsuarioNew" 
+                   [(ngModel)]="direccionEmpresaNew">
+
+            <h3>Modificar Folio Transportista:</h3>
+            <select class="input-usuario" [(ngModel)]="folioTransportistaId">
+                <option [ngValue]="null">Seleccione un folio</option>
+                <option *ngFor="let folio of foliosTransporte" [value]="folio.id">
+                    {{folio.nombre_tramo}} - Valor: ${{folio.valor_pago_transportista | number}}
+                </option>
+            </select>
+
+            <button class="custom-button-ingreso" (click)="modificarEmpresa()" id="ingresarHoldingBtn">
+                Modificar Empresa
+            </button>
+        </div>
+    </div>
+      
+    <!-- Botones de acción -->
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" 
+            (click)="openModal('modificarEmpresa')">
+        Modificar Cliente
+    </button>
+    
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" 
+            (click)="openModal('confirmacionModal')">
+        Eliminar Cliente(s)
+    </button>
+      
+    <!-- Tabla principal -->
+    <table mat-table [dataSource]="empresasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+        <ng-container matColumnDef="rut">
+            <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
+            <td mat-cell *matCellDef="let cliente" class="mat-cell">
+                {{ formatRUTString(cliente.rut) }}
+            </td>
+        </ng-container>
+            
+        <ng-container matColumnDef="nombre">
+            <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
+            <td mat-cell *matCellDef="let cliente" class="mat-cell">
+                {{ cliente.nombre }}
+            </td>
+        </ng-container>
+            
+        <ng-container matColumnDef="direccion">
+            <th mat-header-cell *matHeaderCellDef class="mat-header">Direccion</th>
+            <td mat-cell *matCellDef="let cliente" class="mat-cell">
+                {{ cliente.direccion }}
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="folio_transportista">
+            <th mat-header-cell *matHeaderCellDef class="mat-header">Folio Transportista</th>
+            <td mat-cell *matCellDef="let empresa" class="mat-cell">
+                {{ getFolioTransportistaInfo(empresa.folio_transportista) }}
+            </td>
+        </ng-container>
+      
+        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" 
+            [class.selected]="isSelected(row)" 
+            (click)="selectRow(row)">
+        </tr>
+    </table>
+</div>
+  
+<!-- Modal de Éxito -->
+<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+    <div class="modal-content">
+        <h2 style="color:white;">¡Éxito!</h2>
+        <div class="exito-message" id="exitoText"></div>
+        <button class="custom-button" (click)="closeModal('exitoModal')">Cerrar</button>
+    </div>
+</div>
+    
+<!-- Modal de Error -->
+<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+    <div class="modal-content">
+        <h2 style="color:white;">¡Error!</h2>
+        <div class="error-icon-container">
+            <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+        </div>
+        <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+        <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+    </div>
+</div>
+    
+<!-- Modal de Confirmación -->
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+    <div class="modal-content">
+        <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
+        <div class="exito-message" id="exitoText"></div>
+        <div class="modal-actions">
+            <button class="custom-button yes-button" (click)="eliminarEmpresasSeleccionados()">Sí</button>
+            <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,122 @@
+<h2 mat-dialog-title>
+  {{ data.modoVisualizacion ? 'Detalles de Descuentos Asignados' : 'Asignar Descuentos' }}
+  <span class="trabajadores-count" *ngIf="data.trabajadores.length > 1">
+    ({{ data.trabajadores.length }} trabajadores)
+  </span>
+</h2>
+
+<div mat-dialog-content>
+  <!-- Sección de trabajadores seleccionados -->
+  <div class="seccion">
+    <h3>Trabajadores seleccionados:</h3>
+    <div class="trabajadores-lista">
+      <mat-chip-set>
+        <mat-chip *ngFor="let trabajador of data.trabajadores">
+          {{ trabajador.nombre_completo }}
+        </mat-chip>
+      </mat-chip-set>
+    </div>
+  </div>
+  
+  <mat-divider></mat-divider>
+  
+  <!-- Vista de edición: Selección y configuración de descuentos -->
+  <div *ngIf="!data.modoVisualizacion" class="seccion">
+    <h3>Agregar Nuevo Descuento</h3>
+    
+    <form [formGroup]="asignacionForm" class="descuento-form">
+      <!-- Selección de descuento -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Seleccionar Descuento</mat-label>
+        <mat-select formControlName="descuento_id">
+          <mat-option *ngFor="let descuento of data.descuentos" [value]="descuento.id">
+            {{ descuento.nombre }} - {{ obtenerTipoDescuento(descuento.id) }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      
+      <!-- Valor del descuento -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Valor del Descuento</mat-label>
+        <input matInput type="number" formControlName="valor_descuento">
+        <mat-hint>Ingrese el valor del descuento (monto o porcentaje según corresponda)</mat-hint>
+      </mat-form-field>
+      
+      <!-- Opción de cuotas -->
+      <div class="cuotas-container">
+        <mat-slide-toggle formControlName="es_cuota">
+          Pagar en cuotas
+        </mat-slide-toggle>
+        
+        <mat-form-field appearance="outline" class="numero-cuotas">
+          <mat-label>Número de Cuotas</mat-label>
+          <input matInput type="number" min="1" formControlName="num_cuotas">
+        </mat-form-field>
+      </div>
+      
+      <button mat-raised-button color="primary" 
+              [disabled]="!asignacionForm.get('descuento_id')?.value || 
+                          asignacionForm.get('valor_descuento')?.value === null"
+              (click)="agregarDescuento()" class="agregar-btn">
+        <mat-icon>add</mat-icon> Agregar Descuento
+      </button>
+    </form>
+    
+    <mat-divider *ngIf="descuentosAsignados.length > 0" class="separador"></mat-divider>
+    
+    <!-- Lista de descuentos asignados -->
+    <div *ngIf="descuentosAsignados.length > 0" class="descuentos-asignados">
+      <h3>Descuentos a Asignar</h3>
+      
+      <div *ngFor="let descuento of descuentosAsignados; let i = index" class="descuento-asignado">
+        <div class="descuento-info">
+          <strong>{{ obtenerNombreDescuento(descuento.id) }}</strong>
+          <div class="descuento-detalles">
+            <span>Valor: {{ formatearValor(descuento.valor) }}</span>
+            <span *ngIf="descuento.es_cuota">Cuotas: {{ descuento.num_cuotas }}</span>
+          </div>
+        </div>
+        <button mat-icon-button color="warn" (click)="eliminarDescuento(i)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Vista de visualización para descuentos -->
+  <div *ngIf="data.modoVisualizacion" class="seccion">
+    <h3>Descuentos Asignados</h3>
+    
+    <div *ngIf="descuentosAsignados.length === 0" class="sin-datos">
+      No hay descuentos asignados
+    </div>
+    
+    <mat-expansion-panel *ngFor="let descuento of descuentosAsignados" class="panel-detalle">
+      <mat-expansion-panel-header>
+        <mat-panel-title>{{ obtenerNombreDescuento(descuento.id) }}</mat-panel-title>
+        <mat-panel-description>
+          {{ formatearValor(descuento.valor) }}
+          <span *ngIf="descuento.es_cuota"> ({{ descuento.num_cuotas }} cuotas)</span>
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      
+      <div class="panel-contenido">
+        <p><strong>Tipo:</strong> {{ obtenerTipoDescuento(descuento.id) }}</p>
+        <p><strong>Forma de cálculo:</strong> {{ obtenerTipoValorDescuento(descuento.id) }}</p>
+        <p *ngIf="descuento.es_cuota">
+          <strong>Cuotas:</strong> {{ descuento.num_cuotas }}
+        </p>
+      </div>
+    </mat-expansion-panel>
+  </div>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">
+    {{ data.modoVisualizacion ? 'Cerrar' : 'Cancelar' }}
+  </button>
+  <button mat-raised-button color="primary" (click)="onSubmit()" 
+          *ngIf="!data.modoVisualizacion" [disabled]="!tieneAsignaciones()">
+    Guardar
+  </button>
+</div>

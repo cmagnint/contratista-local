@@ -1,0 +1,296 @@
+<!-- parametros-facturas-compra.component.html -->
+<div class="parametros-container">
+  
+  <!-- Header -->
+  <div class="page-header">
+    <h2 class="page-title">
+      <mat-icon class="title-icon">settings</mat-icon>
+      Configuración de Parámetros SII
+    </h2>
+    <p class="page-subtitle">
+      Configure las credenciales y parámetros para la descarga automática de facturas desde el SII
+    </p>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Cargando configuración...</p>
+  </div>
+
+  <!-- Main content -->
+  <div *ngIf="!loading" class="content-wrapper">
+    
+    <!-- Status card -->
+    <mat-card *ngIf="configuracionExistente" class="status-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar [class]="configuracionExistente.activo ? 'status-active' : 'status-inactive'">
+          {{ configuracionExistente.activo ? 'check_circle' : 'pause_circle' }}
+        </mat-icon>
+        <mat-card-title>Estado de la Configuración</mat-card-title>
+        <mat-card-subtitle>
+          {{ configuracionExistente.activo ? 'Activo' : 'Inactivo' }} - 
+          Período: {{ configuracionExistenteInfo }} - 
+          Próxima ejecución: {{ configuracionExistente.hora_ejecucion }}
+        </mat-card-subtitle>
+      </mat-card-header>
+    </mat-card>
+
+    <!-- Empresa seleccionada card -->
+    <mat-card class="empresa-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="empresa-icon">business</mat-icon>
+        <mat-card-title>Empresa Seleccionada</mat-card-title>
+        <mat-card-subtitle>
+          {{ empresaActualInfo }}
+        </mat-card-subtitle>
+      </mat-card-header>
+      
+      <mat-card-content *ngIf="!sociedadTrabajoActual" class="empresa-warning">
+        <div class="warning-content">
+          <mat-icon color="warn">warning</mat-icon>
+          <p>No se ha seleccionado una empresa. Por favor, seleccione una empresa antes de continuar.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Configuration form -->
+    <mat-card class="config-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="config-icon">account_circle</mat-icon>
+        <mat-card-title>Credenciales del SII</mat-card-title>
+        <mat-card-subtitle>Ingrese sus credenciales para acceder al portal del SII</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="configuracionForm" (ngSubmit)="guardarConfiguracion()">
+          
+          <!-- Credenciales SII -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <mat-icon>vpn_key</mat-icon>
+              Credenciales de Acceso
+            </h3>
+            
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>RUT Usuario SII</mat-label>
+                <input matInput 
+                       formControlName="rut_sii" 
+                       placeholder="12.345.678-9"
+                       maxlength="14"
+                       (input)="onRutInput($event)"
+                       (blur)="onRutBlur()"
+                       (keypress)="onRutKeyPress($event)">
+                <mat-icon matSuffix>person</mat-icon>
+                <mat-error *ngIf="rutSiiInvalido">
+                  <span *ngIf="configuracionForm.get('rut_sii')?.errors?.['required']">El RUT es requerido</span>
+                  <span *ngIf="configuracionForm.get('rut_sii')?.errors?.['rutInvalido']">RUT inválido</span>
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Contraseña SII</mat-label>
+                <input matInput 
+                       [type]="mostrarPassword ? 'text' : 'password'"
+                       formControlName="password_sii"
+                       placeholder="Ingrese su contraseña">
+                <mat-icon matSuffix 
+                          (click)="toggleMostrarPassword()" 
+                          class="password-toggle">
+                  {{ mostrarPassword ? 'visibility_off' : 'visibility' }}
+                </mat-icon>
+                <mat-error *ngIf="passwordInvalido">
+                  <span *ngIf="configuracionForm.get('password_sii')?.errors?.['required']">La contraseña es requerida</span>
+                  <span *ngIf="configuracionForm.get('password_sii')?.errors?.['minlength']">Mínimo 6 caracteres</span>
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <!-- Botón de prueba -->
+            <div class="form-row">
+              <button type="button" 
+                      mat-stroked-button 
+                      color="accent"
+                      (click)="probarConexion()"
+                      [disabled]="probandoConexion || !configuracionForm.get('rut_sii')?.value || !configuracionForm.get('password_sii')?.value || !sociedadTrabajoActual"
+                      class="test-button">
+                <mat-icon *ngIf="!probandoConexion">wifi_protected_setup</mat-icon>
+                <mat-spinner *ngIf="probandoConexion" diameter="20"></mat-spinner>
+                {{ probandoConexion ? 'Probando...' : 'Probar Conexión' }}
+              </button>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <!-- Configuración de Período -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <mat-icon>calendar_today</mat-icon>
+              Período de Descarga
+            </h3>
+            
+            <div class="form-row periodo-selection">
+              <mat-form-field appearance="outline" class="periodo-field">
+                <mat-label>Mes</mat-label>
+                <mat-select formControlName="mes">
+                  <mat-option *ngFor="let mes of mesesDisponibles" [value]="mes.value">
+                    {{ mes.label }}
+                  </mat-option>
+                </mat-select>
+                <mat-icon matSuffix>date_range</mat-icon>
+                <mat-hint>Mes del cual descargar las facturas</mat-hint>
+                <mat-error *ngIf="mesInvalido">
+                  <span *ngIf="configuracionForm.get('mes')?.errors?.['required']">Seleccione un mes</span>
+                  <span *ngIf="configuracionForm.get('mes')?.errors?.['min'] || configuracionForm.get('mes')?.errors?.['max']">Mes inválido</span>
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="periodo-field">
+                <mat-label>Año</mat-label>
+                <mat-select formControlName="year">
+                  <mat-option *ngFor="let year of anosDisponibles" [value]="year">
+                    {{ year }}
+                  </mat-option>
+                </mat-select>
+                <mat-icon matSuffix>calendar_view_month</mat-icon>
+                <mat-hint>Año del cual descargar las facturas</mat-hint>
+                <mat-error *ngIf="yearInvalido">
+                  <span *ngIf="configuracionForm.get('year')?.errors?.['required']">Seleccione un año</span>
+                  <span *ngIf="configuracionForm.get('year')?.errors?.['min'] || configuracionForm.get('year')?.errors?.['max']">Año inválido</span>
+                </mat-error>
+              </mat-form-field>
+
+              <div class="periodo-preview">
+                <mat-icon class="periodo-icon">info</mat-icon>
+                <div class="periodo-info">
+                  <span class="periodo-label">Período seleccionado:</span>
+                  <span class="periodo-texto">{{ getPeriodoTexto() }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <!-- Configuración de Ejecución -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <mat-icon>schedule</mat-icon>
+              Configuración de Ejecución Automática
+            </h3>
+            
+            <div class="form-row config-execution">
+              <mat-form-field appearance="outline" class="hora-field">
+                <mat-label>Hora de Ejecución</mat-label>
+                <input matInput 
+                       type="time"
+                       formControlName="hora_ejecucion"
+                       step="60">
+                <mat-icon matSuffix>access_time</mat-icon>
+                <mat-hint>La descarga se ejecutará diariamente a esta hora (seleccione cualquier minuto)</mat-hint>
+                <mat-error *ngIf="horaInvalida">
+                  <span *ngIf="configuracionForm.get('hora_ejecucion')?.errors?.['required']">Seleccione una hora</span>
+                  <span *ngIf="configuracionForm.get('hora_ejecucion')?.errors?.['pattern']">Formato de hora inválido</span>
+                </mat-error>
+              </mat-form-field>
+
+              <div class="toggle-field">
+                <div class="toggle-container">
+                  <mat-slide-toggle 
+                    formControlName="activo"
+                    color="primary"
+                    class="estado-toggle">
+                    <span class="toggle-label">
+                      {{ configuracionForm.get('activo')?.value ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </mat-slide-toggle>
+                </div>
+                <p class="toggle-hint">
+                  {{ configuracionForm.get('activo')?.value ? 
+                     'La descarga automática está habilitada' : 
+                     'La descarga automática está deshabilitada' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <!-- Action buttons -->
+          <div class="form-actions">
+            <button type="button" 
+                    mat-button 
+                    color="warn"
+                    (click)="limpiarFormulario()"
+                    [disabled]="guardando">
+              <mat-icon>clear</mat-icon>
+              Limpiar
+            </button>
+
+            <div class="primary-actions">
+              <button type="submit" 
+                      mat-raised-button 
+                      color="primary"
+                      [disabled]="configuracionForm.invalid || guardando || !sociedadTrabajoActual"
+                      class="save-button">
+                <mat-icon *ngIf="!guardando">save</mat-icon>
+                <mat-spinner *ngIf="guardando" diameter="20"></mat-spinner>
+                {{ guardando ? 'Guardando...' : (configuracionExistente ? 'Actualizar' : 'Guardar') }}
+              </button>
+            </div>
+          </div>
+
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Info card -->
+    <mat-card class="info-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="info-icon">info</mat-icon>
+        <mat-card-title>Información Importante</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <ul class="info-list">
+          <li>
+            <mat-icon class="info-bullet">security</mat-icon>
+            Las credenciales se almacenan de forma segura y encriptada
+          </li>
+          <li>
+            <mat-icon class="info-bullet">schedule</mat-icon>
+            La descarga automática se ejecuta todos los días a la hora configurada (ahora con precisión de minutos)
+          </li>
+          <li>
+            <mat-icon class="info-bullet">calendar_today</mat-icon>
+            El sistema descargará facturas del período seleccionado (mes y año)
+          </li>
+          <li>
+            <mat-icon class="info-bullet">sync</mat-icon>
+            Solo se descargan facturas nuevas que no han sido distribuidas
+          </li>
+          <li>
+            <mat-icon class="info-bullet">business</mat-icon>
+            La empresa se toma automáticamente de la empresa seleccionada actualmente
+          </li>
+          <li>
+            <mat-icon class="info-bullet">edit</mat-icon>
+            El RUT se formatea automáticamente mientras escribe
+          </li>
+          <li>
+            <mat-icon class="info-bullet">test_tube</mat-icon>
+            Use "Probar Conexión" para verificar sus credenciales antes de guardar
+          </li>
+          <li>
+            <mat-icon class="info-bullet">access_time</mat-icon>
+            Ahora puede seleccionar la hora de ejecución con precisión de minutos
+          </li>
+        </ul>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>

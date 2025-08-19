@@ -1,0 +1,43 @@
+<!-- generar-qr.component.html -->
+<div class="container mx-auto p-4">
+    <div class="mb-4">
+      <h2 class="text-2xl font-bold mb-2">Códigos QR - Trabajadores de Cosecha</h2>
+      <button (click)="descargarQRs()" 
+              class="bg-blue-500 text-white px-4 py-2 rounded"
+              [disabled]="cargando || trabajadores.length === 0">
+        Descargar todos los QR
+      </button>
+    </div>
+  
+    <div *ngIf="cargando" class="text-center py-4">
+      Cargando trabajadores...
+    </div>
+  
+    <div *ngIf="error" class="bg-red-100 text-red-700 p-4 rounded mb-4">
+      {{ error }}
+    </div>
+  
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div *ngFor="let trabajador of trabajadores; let i = index" 
+           class="border p-4 rounded bg-white shadow"
+           [id]="'qr-container-' + i">
+        <qrcode 
+          [id]="'qr-' + i"
+          [qrdata]="generarContenidoQR(trabajador)"
+          [width]="200"
+          [errorCorrectionLevel]="'M'"
+          [elementType]="qrType"
+        ></qrcode>
+        <div class="text-center mt-2">
+          <p class="font-bold">{{ trabajador.nombres }}</p>
+          <p class="font-bold">{{ trabajador.apellidos }}</p>
+          <p>{{ formatRUT(trabajador.rut) }}</p>
+          
+        </div>
+      </div>
+    </div>
+  
+    <div *ngIf="!cargando && trabajadores.length === 0" class="text-center py-4">
+      No se encontraron trabajadores de cosecha.
+    </div>
+</div>

@@ -1,0 +1,498 @@
+<mat-drawer-container class="sidenav-container">
+    
+  <mat-drawer #leftSidenav mode="over" position="start" class="left-drawer">
+    <hr class="custom-divider">
+    <ul class="menu-list">
+      
+      <!-- ✅ ADMINISTRACIÓN: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('ADMINISTRACION')">
+        <h3 (click)="toggleGroup('group1')" class="group-title">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span class="icon-label">ADMINISTRACION</span>
+        </h3>
+
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group1')">
+
+          <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'PARAMETROS ADMINISTRACION')" (click)="navigateToAdministrarSociedad()">
+            <mat-icon>domain</mat-icon>
+            <span class="icon-label">SOCIEDAD</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'PERSONAL')" (click)="navigateToAdministrarPersonal()">
+            <mat-icon>person</mat-icon>
+            <span class="icon-label">PERSONAL</span>
+          </li>
+          
+          <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'PERFILES')" (click)="navigateToAdministrarPerfiles()">
+            <mat-icon>group_add</mat-icon>
+            <span class="icon-label">PERFILES</span>
+          </li>
+          
+          <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'USUARIOS')" (click)="navigateToAdministrarUsuarios()">
+            <mat-icon>person_add</mat-icon>
+            <span class="icon-label">USUARIOS</span>
+          </li>
+          
+          <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'AREAS/CARGOS ADMINISTRACION')" (click)="navigateToAdministrarAreaCargosAdmin()">
+            <mat-icon>supervised_user_circle</mat-icon>
+            <span class="icon-label">AREAS/CARGOS ADMINISTRACION</span>
+          </li>
+          
+          <li (click)="toggleGroup('parametrosSubGroupAD')">
+            <mat-icon>settings</mat-icon>
+            <span class="icon-label">PARAMETROS</span>
+          </li>
+          
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupAD')">
+          </ul>
+        </ul>
+      </li>
+          
+      <!-- ✅ RECURSOS HUMANOS: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('RECURSOS HUMANOS')">
+        <h3 (click)="toggleGroup('group2')" class="group-title">
+          <mat-icon>group</mat-icon> 
+          <span class="icon-label">RECURSOS HUMANOS</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group2')">
+        
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'PRODUCCION TRABAJADOR')" (click)="navigateToProduccion()">
+            <mat-icon>receipt</mat-icon>
+            <span class="icon-label">PRODUCCION TRABAJADOR</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CONTRATACION PERSONAL')" (click)="navigateToAutoRegistro()">
+            <mat-icon>app_registration</mat-icon>
+            <span class="icon-label">AUTOREGISTRO</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'GENERAR CODIGOS QR')" (click)="navigateToGenerarQR()">
+            <mat-icon>qr_code_scanner</mat-icon>
+            <span class="icon-label">GENERAR CODIGOS QR</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CREAR CONTRATO')" (click)="navigateToGenerarContratos()">
+            <mat-icon>qr_code_scanner</mat-icon>
+            <span class="icon-label">GENERAR CONTRATOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'POSICIONAR VARIABLE CONTRATO')" (click)="navigateToPosVarContrato()">
+            <mat-icon>receipt</mat-icon>
+            <span class="icon-label">POSICIONAR VARIABLE CONTRATO</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'LIBRO DE REMUNERACIONES ELECTRONICO')" (click)="navigateToLRE()">
+            <mat-icon>receipt</mat-icon>
+            <span class="icon-label">LIBRO DE REMUNERACIONES ELECTRONICO</span>
+          </li>
+
+          <li (click)="toggleGroup('parametrosSubGroupRH')">
+            <mat-icon>settings</mat-icon>
+            <span class="icon-label">PARAMETROS</span>
+          </li>
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupRH')">
+            <li (click)="navigateToAFPS()">
+              <mat-icon>supervised_user_circle</mat-icon>
+              <span class="icon-label">AFP</span>
+            </li>
+            <li (click)="navigateToSaluds()">
+              <mat-icon>health_and_safety</mat-icon>
+              <span class="icon-label">SALUD</span>
+            </li>
+            <li (click)="navigateToCasas()">
+              <mat-icon>house</mat-icon>
+              <span class="icon-label">Casas</span>
+            </li>
+            <li (click)="navigateToHorario()">
+              <mat-icon>schedule</mat-icon>
+              <span class="icon-label">Horarios</span>
+            </li>
+          </ul>
+        
+        </ul>
+      </li>
+      
+      <!-- ✅ CLIENTES: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('CLIENTES')">
+        <h3 (click)="toggleGroup('group3')" class="group-title">
+          <mat-icon>support_agent</mat-icon>
+          <span class="icon-label">CLIENTES</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group3')">
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'ADMINISTRAR CLIENTES')" (click)="navigateToAdministrarClientes()">
+            <mat-icon>business</mat-icon>
+            <span class="icon-label">ADMINISTRAR CLIENTES</span>
+          </li>
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'AREA/CARGOS CLIENTES')" (click)="navigateToAdministrarCargos()">
+            <mat-icon>work</mat-icon>
+            <span class="icon-label">AREA/CARGOS CLIENTES</span>
+          </li>
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'CONTACTOS')" (click)="navigateToAdministrarContactos()">
+            <mat-icon>contacts</mat-icon>
+            <span class="icon-label">CONTACTOS</span>
+          </li>
+        </ul>
+      </li>
+
+      <!-- ✅ COMERCIAL: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('COMERCIAL')">
+        <h3 (click)="toggleGroup('group4')" class="group-title">
+          <mat-icon>store</mat-icon>
+          <span class="icon-label">COMERCIAL</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group4')">
+          
+          <li *ngIf="puedeAccederSubmodulo('COMERCIAL', 'ACUERDO COMERCIAL')" (click)="navigateToFolioComercial()">
+            <mat-icon>description</mat-icon>
+            <span class="icon-label">ACUERDO COMERCIAL</span>
+          </li>
+
+          <li (click)="toggleGroup('parametrosSubGroupComercial')">
+            <mat-icon>settings</mat-icon>
+            <span class="icon-label">PARAMETROS</span>
+          </li>
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupComercial')">
+            <li (click)="navigateToUnidadControlComercial()">
+              <mat-icon>table_view</mat-icon>
+              <span class="icon-label">UNIDAD DE CONTROL</span>
+            </li>
+            <li (click)="navigateToLaboresComercial()">
+              <mat-icon>table_view</mat-icon>
+              <span class="icon-label">LABORES</span>
+            </li>
+          </ul>
+          
+        </ul>
+      </li>
+
+      <!-- ✅ TRANSPORTE: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('TRANSPORTE')">
+        <h3 (click)="toggleGroup('group5')" class="group-title">
+          <mat-icon>local_shipping</mat-icon>
+          <span class="icon-label">TRANSPORTE</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group5')">
+
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'TRANSPORTISTAS')" (click)="navigateToEmpresasTransporte()">
+            <mat-icon>business</mat-icon>
+            <span class="icon-label">TRANSPORTISTAS</span>
+          </li>
+          
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'VEHICULOS')" (click)="navigateToVehiculos()">
+            <mat-icon>local_shipping</mat-icon>
+            <span class="icon-label">VEHICULOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'CHOFERES')" (click)="navigateToChoferes()">
+            <mat-icon>directions_car</mat-icon>
+            <span class="icon-label">CHOFERES</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'TRAMOS')" (click)="navigateToTramos()">
+            <mat-icon>map</mat-icon>
+            <span class="icon-label">TRAMOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'ACUERDO TRANSPORTES')" (click)="navigateToFolioTransporte()">
+            <mat-icon>description</mat-icon>
+            <span class="icon-label">ACUERDO TRANSPORTES</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'PAGO TRANSPORTISTA')" (click)="navigateToPagoTransporte()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">PAGO TRANSPORTISTA</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TRANSPORTE', 'PROFORMA')" (click)="navigateToProformaTransporte()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">PROFORMA</span>
+          </li>
+          
+        </ul>
+      </li>
+
+      <!-- ✅ PAGOS: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('PAGOS')">
+        <h3 (click)="toggleGroup('group6')" class="group-title">
+          <mat-icon>attach_money</mat-icon>
+          <span class="icon-label">PAGOS</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group6')">
+
+          <li *ngIf="puedeAccederSubmodulo('PAGOS', 'TRANSFERENCIA')" (click)="navigateToPagoTransferencia()">
+            <mat-icon>credit_card</mat-icon>
+            <span class="icon-label">TRANSFERENCIA</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('PAGOS', 'EFECTIVO')" (click)="navigateToPagoEfectivo()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">EFECTIVO</span>
+          </li>
+        
+          <li *ngIf="puedeAccederSubmodulo('PAGOS', 'PAGOS REALIZADOS')" (click)="navigateToTransferenciaRealizada()">
+            <mat-icon>credit_card</mat-icon>
+            <span class="icon-label">PAGOS REALIZADOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('PAGOS', 'REPROCESAR PAGO')" (click)="navigateToReprocesar()">
+            <mat-icon>credit_card</mat-icon>
+            <span class="icon-label">REPROCESAR PAGO</span>
+          </li>
+
+        </ul>
+      </li>
+
+      <!-- ✅ INFORMES: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('INFORMES')">
+        <h3 (click)="toggleGroup('group7')" class="group-title">
+          <mat-icon>summarize</mat-icon>
+          <span class="icon-label">INFORMES</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group7')">
+
+          <li *ngIf="puedeAccederSubmodulo('INFORMES', 'INFORME RENDIMIENTO')" (click)="navigateToInformeRendimiento()">
+            <mat-icon>summarize</mat-icon>
+            <span class="icon-label">INFORME RENDIMIENTO</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('INFORMES', 'INFORME PAGO')" (click)="navigateToInformePago()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">INFORME PAGO</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('INFORMES', 'INFORME TRANSPORTISTA')" (click)="navigateToInformeTransportista()">
+            <mat-icon>local_shipping</mat-icon>
+            <span class="icon-label">INFORME TRANSPORTISTA</span>
+          </li>
+
+        </ul>
+      </li>
+
+      <!-- ✅ LEYES SOCIALES: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('LEYES SOCIALES')">
+        <h3 (click)="toggleGroup('group8')" class="group-title">
+          <mat-icon>gavel</mat-icon>
+          <span class="icon-label">LEYES SOCIALES</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group8')">
+          
+          <li *ngIf="puedeAccederSubmodulo('LEYES SOCIALES', 'INFORME DIAS TRABAJADOS')" (click)="navigateToInformeDiasTrabajados()">
+            <mat-icon>summarize</mat-icon>
+            <span class="icon-label">INFORME DIAS TRABAJADOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('LEYES SOCIALES', 'HABERES DESCUENTOS')" (click)="navigateToHaberesDescuentos()">
+            <mat-icon>summarize</mat-icon>
+            <span class="icon-label">HABERES / DESCUENTOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('LEYES SOCIALES', 'ARCHIVO PREVIRED')" (click)="navigateToArchivoPrevired()">
+            <mat-icon>summarize</mat-icon>
+            <span class="icon-label">ARCHIVO PREVIRED</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('LEYES SOCIALES', 'LIQUIDACIONES')" (click)="navigateToLiquidaciones()">
+            <mat-icon>summarize</mat-icon>
+            <span class="icon-label">LIQUIDACIONES</span>
+          </li>
+
+          <li (click)="toggleGroup('asignacionSubGroup')">
+            <mat-icon>settings</mat-icon>
+            <span class="icon-label">ASIGNACION HABERES Y DESCUENTOS</span>
+          </li>
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('asignacionSubGroup')">
+            <li *ngIf="puedeAccederSubmodulo('LEYES SOCIALES', 'ASIGNACION HABERES')" (click)="navigateToAsignacionHaberes()">
+              <mat-icon>supervised_user_circle</mat-icon>
+              <span class="icon-label">ASIGNACION HABERES</span>
+            </li>
+            <li *ngIf="puedeAccederSubmodulo('LEYES SOCIALES', 'ASIGNACION DESCUENTOS')" (click)="navigateToAsignacionDescuentos()">
+              <mat-icon>health_and_safety</mat-icon>
+              <span class="icon-label">ASIGNACION DESCUENTOS</span>
+            </li>
+          </ul>
+
+        </ul>
+      </li>
+
+      <!-- ✅ COSTOS: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('COSTOS')">
+        <h3 (click)="toggleGroup('group9')" class="group-title">
+          <mat-icon>support_agent</mat-icon>
+          <span class="icon-label">COSTOS</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group9')">
+          
+          <h3 (click)="toggleGroup('subgroup9')" class="group-title">
+            <mat-icon>receipt</mat-icon>
+            <span class="icon-label">FACTURAS COMPRA</span>    
+          </h3>
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('subgroup9')">
+          
+            <li *ngIf="puedeAccederSubmodulo('COSTOS', 'FACTURAS COMPRA AUTOMATICO')" (click)="navigateToFacturasCompraAutomatizado()">
+              <mat-icon>business</mat-icon>
+              <span class="icon-label">DISTRIBUCION AUTOMATICA Y MANUAL</span>
+            </li>
+
+            <li *ngIf="puedeAccederSubmodulo('COSTOS', 'FACTURAS COMPRA DISTRIBUIDAS')" (click)="navigateToFacturasCompraDistribuidas()">
+              <mat-icon>business</mat-icon>
+              <span class="icon-label">FACTURAS COMPRA DISTRIBUIDAS</span>
+            </li>
+            
+            <li *ngIf="puedeAccederSubmodulo('COSTOS', 'PARAMETROS FACTURA COMPRA')" (click)="navigateToParametrosFacturaCompra()">
+              <mat-icon>settings</mat-icon>
+              <span class="icon-label">PARAMETROS FACTURA COMPRA</span>
+            </li>
+
+          </ul>
+
+          <h3 (click)="toggleGroup('subgroup10')" class="group-title">
+            <mat-icon>request_quote</mat-icon>
+            <span class="icon-label">FACTURAS VENTA</span>    
+          </h3>
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('subgroup10')">
+          
+            <li *ngIf="puedeAccederSubmodulo('COSTOS', 'FACTURAS VENTA AUTOMATICO')" (click)="navigateToFacturasVentaAutomatizado()">
+              <mat-icon>business</mat-icon>
+              <span class="icon-label">DISTRIBUCION AUTOMATICA Y MANUAL</span>
+            </li>
+
+            <li *ngIf="puedeAccederSubmodulo('COSTOS', 'FACTURAS VENTA DISTRIBUIDAS')" (click)="navigateToFacturasVentaDistribuidas()">
+              <mat-icon>business</mat-icon>
+              <span class="icon-label">FACTURAS VENTA DISTRIBUIDAS</span>
+            </li>
+          
+            <li *ngIf="puedeAccederSubmodulo('COSTOS', 'PARAMETROS FACTURA VENTA')" (click)="navigateToParametrosFacturaVenta()">
+              <mat-icon>settings</mat-icon>
+              <span class="icon-label">PARAMETROS FACTURA VENTA</span>
+            </li>
+            
+          </ul>
+
+          <li *ngIf="puedeAccederSubmodulo('COSTOS', 'CUENTAS')" (click)="navigateToCuentas()">
+            <mat-icon>business</mat-icon>
+            <span class="icon-label">CUENTAS</span>
+          </li>
+
+        </ul>
+      </li>
+
+      <!-- ✅ TESORERIA: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('TESORERIA')">
+        <h3 (click)="toggleGroup('group10')" class="group-title"> 
+          <mat-icon>account_balance</mat-icon>
+          <span class="icon-label">TESORERIA</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group10')">
+          
+          <li *ngIf="puedeAccederSubmodulo('TESORERIA', 'PAGOS INGRESOS')" (click)="navigateToPagosIngresos()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">PAGOS INGRESOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TESORERIA', 'PAGOS EGRESOS')" (click)="navigateToPagosIngresosEgresos()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">PAGOS EGRESOS</span>
+          </li>
+
+          <li *ngIf="puedeAccederSubmodulo('TESORERIA', 'HISTORIAL PAGOS')" (click)="navigateToHistorialPagos()">
+            <mat-icon>payments</mat-icon>
+            <span class="icon-label">HISTORIAL PAGOS</span>
+          </li>
+        
+        </ul>
+      </li>
+
+    </ul>
+  </mat-drawer>
+  
+  <mat-drawer #rightSidenav mode="over" position="end" class="right-drawer">
+    <hr class="custom-divider">
+    <ul class="menu-list">
+
+      <li>
+        <h3 (click)="openModal('confirmacionModal')" class="group-title">
+          <mat-icon>power_settings_new</mat-icon>
+          <span style="font-weight: bold;">CERRAR SESION</span>
+        </h3>
+      </li>
+    
+    </ul>
+    <img src="assets/images/terra-white.png" class="terra-white-image" alt="Logo">
+  </mat-drawer>
+  
+  <mat-drawer-content>
+    <div class="top-bar">
+      <div class="svg-container">
+        <button mat-icon-button-left (click)="abrirMenuIzquierdo()" class="menu-button-left">
+          <mat-icon>menu</mat-icon>
+        </button>
+        <mat-icon class="icon-label-left">account_circle</mat-icon>
+        <label class="menu-label-left">{{nombre_user}}</label>
+        <mat-icon class="icon-domain-left">domain</mat-icon>
+        <label class="menu-label-left-2">{{nombre_holding}}</label>
+        
+        <!-- Dropdown de Sociedades de Trabajo -->
+        <div class="sociedad-trabajo-container" *ngIf="sociedadesUsuario.length > 0">
+          <mat-icon class="icon-business-trabajo">business</mat-icon>
+          <label class="menu-label-sociedad-trabajo">EMPRESA:</label>
+          
+          <!-- Si solo hay una sociedad, mostrarla directamente -->
+          <div class="sociedad-unica" *ngIf="sociedadesUsuario.length === 1">
+            <span class="sociedad-nombre">{{ sociedadTrabajoActual?.nombre }}</span>
+            <span class="sociedad-rut">({{ sociedadTrabajoActual?.rut }})</span>
+          </div>
+          
+          <!-- Si hay múltiples sociedades, mostrar dropdown -->
+          <div class="dropdown-sociedad-trabajo" *ngIf="sociedadesUsuario.length > 1">
+            <button class="dropdown-button-sociedad-trabajo" (click)="toggleDropdownSociedadTrabajo()">
+              <span *ngIf="sociedadTrabajoActual">
+                {{ sociedadTrabajoActual.nombre }} ({{ sociedadTrabajoActual.rut }})
+              </span>
+              <span *ngIf="!sociedadTrabajoActual">
+                Seleccionar Empresa
+              </span>
+              <mat-icon class="dropdown-icon">{{ dropdownOpenSociedadTrabajo ? 'arrow_drop_up' : 'arrow_drop_down' }}</mat-icon>
+            </button>
+            
+            <div class="dropdown-content-sociedad-trabajo" [class.show]="dropdownOpenSociedadTrabajo">
+              <div *ngFor="let sociedad of sociedadesUsuario" 
+                   class="dropdown-item-sociedad"
+                   (click)="seleccionarSociedadTrabajo(sociedad)"
+                   [class.selected]="sociedadTrabajoActual?.id === sociedad.id">
+                <span class="item-nombre">{{ sociedad.nombre }}</span>
+                <span class="item-rut">{{ sociedad.rut }}</span>
+                <mat-icon *ngIf="sociedadTrabajoActual?.id === sociedad.id" class="check-icon">check</mat-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="70px" viewBox="0 0 4 2" preserveAspectRatio="none">
+          <rect width="4" height="2" fill="#166a82" opacity="1"/>
+          <path d="M 0 0 Q 0 3.5 4 0" fill="#00A693" opacity="1"/>
+          <path d="M 0 2 Q 2 1.5 4 2" fill="#00A693" opacity="1"/>
+        </svg>
+        <button mat-icon-button-right (click)="abrirMenuDerecho()" class="menu-button-right">
+          <mat-icon>settings</mat-icon>
+        </button>
+      </div>
+    </div>
+    <div class="low-bar">
+      <div class="bar-text">By Terrasoft Ⓡ Todos los derechos reservados</div>
+    </div>
+    <router-outlet></router-outlet>
+  </mat-drawer-content>
+
+</mat-drawer-container>
+  
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+  <div class="modal-content">
+    <h2 style="color:rgb(0, 0, 0);">¿Desea cerrar sesión?</h2>
+    <div class="exito-message" id="exitoText"></div>
+    <!-- Botones para confirmar o cancelar la acción -->
+    <div class="modal-actions">
+      <button class="custom-button yes-button" (click)="confirmLogout()">Sí</button>
+      <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+    </div>
+  </div>
+</div>

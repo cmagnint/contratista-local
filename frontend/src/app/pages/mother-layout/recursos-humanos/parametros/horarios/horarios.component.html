@@ -1,0 +1,89 @@
+<div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+
+    <button mat-raised-button color="primary" (click)=" openModal('crearHorario')">Crear Horarios</button>
+    <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearHorario']" (click)="closeModal('crearHorario')">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <div class="header-bar"></div>
+                <div class="title-container">
+                    <h2>Crear Horario</h2>
+                </div>
+            </div>
+            
+            <h3>Jornada:</h3>
+            
+            <input type="number" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="jornadaHorario" step="0.5"><br><br>
+          
+            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="crearHorario()">Crear Horario</button>
+        </div>
+    </div>
+    
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)"  (click)="openModal('modificarUnidadControl')" >Modificar Horario</button>
+    <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarUnidadControl']" (click)="closeModal('modificarUnidadControl')">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <div class="header-bar"></div>
+                <div class="title-container">
+                    <h2>Modificar Unidad Control </h2>
+                </div>
+            </div>
+            <h3>Modificar Jornada:</h3>
+            
+            <input type="number" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="jornadaHorarioNew" step="0.5"><br><br>
+            
+            <button class="custom-button-ingreso"  (click)=" modificarHorario()" id="ingresarHoldingBtn">Modificar Horario</button>
+        </div>
+    </div> 
+    
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')" >Eliminar Horario(s)</button>
+    
+    <table mat-table [dataSource]="horariosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+        
+        <ng-container matColumnDef="codigo">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Codigo </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.id }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="jornada">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Jornada [Hrs] </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.jornada }} </td>
+         </ng-container>
+        
+        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    
+        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
+    </table>
+    
+</div>
+    
+<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Éxito!</h2>
+            <div class="exito-message" id="exitoText"></div>
+            <button class="custom-button" (click)="closeModal('exitoModal')" >Cerrar</button>
+        </div>
+</div>
+      
+<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Error!</h2>
+            <div class="error-icon-container">
+                <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+            </div>
+            <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+            <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+        </div>
+</div>
+      
+<div id="eliminarModal" class="modal-perfiles" *ngIf="modals['eliminarModal']">
+      <div class="modal-content">
+          <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
+          <div class="exito-message" id="exitoText"></div>
+          <!-- Botones para confirmar o cancelar la acción -->
+          <div class="modal-actions">
+              <button class="custom-button yes-button" (click)="eliminarHorariosSeleccionadas()" >Sí</button>
+              <button class="custom-button no-button" (click)="closeModal('eliminarModal')">No</button>
+          </div>
+      </div>
+</div>
+    

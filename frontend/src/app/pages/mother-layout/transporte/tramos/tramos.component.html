@@ -1,0 +1,135 @@
+<!-- Contenedor principal con manejo de deselección -->
+<div class="admin-perfiles-container" (click)="deseleccionarFila($event)">
+  
+    <!-- Botones de acción principales -->
+    <button mat-raised-button color="primary" class="custom-button" (click)="openModal('crearTramo')">
+      Crear Tramo
+    </button>
+    <button mat-raised-button color="primary" class="custom-button" 
+      [disabled]="!(selectedRows.length > 0 && selectedRows.length < 2)" 
+      (click)="openModal('modificarTramo'); $event.stopPropagation()">
+      Modificar Tramo
+    </button>
+    <button mat-raised-button color="primary" class="custom-button" 
+      [disabled]="!(selectedRows.length > 0)" 
+      (click)="eliminarTramosSeleccionados()">
+      Eliminar Tramo
+    </button>
+  
+    <!-- Modal de Crear Tramo -->
+    <div id="modalCrearTramo" class="modal-trabajadores" *ngIf="modals['crearTramo']" (click)="closeModal('crearTramo')">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="title-container">
+            <h2>Crear Tramo</h2>
+          </div>
+        </div>
+  
+        <h4 class="h4-subtitle">Origen:</h4>
+        <input type="text" class="input-perfil" [(ngModel)]="newTramo.origen" (ngModelChange)="newTramo.origen = $event.toUpperCase()">
+  
+        <h4 class="h4-subtitle">Destino:</h4>
+        <input type="text" class="input-perfil" [(ngModel)]="newTramo.destino" (ngModelChange)="newTramo.destino = $event.toUpperCase()">
+  
+        <h4 class="h4-subtitle">Comentario:</h4>
+        <textarea class="input-perfil" [(ngModel)]="newTramo.comentario" rows="3"></textarea>
+  
+        <h4 class="h4-subtitle">Tipo:</h4>
+        <div class="input-container">
+          <select class="input-perfil" [(ngModel)]="newTramo.unidad_pago">
+            <option value="PASAJERO">Pasajero</option>
+            <option value="VIAJE">Viaje</option>
+          </select>
+        </div>
+  
+        <button class="custom-button-ingreso" (click)="createTramo()">Ingresar Tramo</button>
+      </div>
+    </div>
+  
+    <!-- Modal de Modificar Tramo -->
+    <div id="modalModificarTramo" class="modal-perfiles" *ngIf="modals['modificarTramo']" (click)="closeModal('modificarTramo')">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <span class="close" (click)="closeModal('modificarTramo')">&times;</span>
+          <div class="header-bar"></div>
+          <div class="title-container">
+            <h2>Modificar Tramo</h2>
+          </div>
+        </div>
+  
+        <h4 class="h4-subtitle">Origen:</h4>
+        <input type="text" class="input-perfil" [(ngModel)]="selectedTramo.origen" (ngModelChange)="selectedTramo.origen = $event.toUpperCase()">
+  
+        <h4 class="h4-subtitle">Destino:</h4>
+        <input type="text" class="input-perfil" [(ngModel)]="selectedTramo.destino" (ngModelChange)="selectedTramo.destino = $event.toUpperCase()">
+  
+        <h4 class="h4-subtitle">Comentario:</h4>
+        <textarea class="input-perfil" [(ngModel)]="selectedTramo.comentario" rows="3"></textarea>
+  
+        <h4 class="h4-subtitle">Tipo:</h4>
+        <div class="input-container">
+          <select class="input-perfil" [(ngModel)]="selectedTramo.unidad_pago">
+            <option value="PASAJERO">Pasajero</option>
+            <option value="VIAJE">Viaje</option>
+          </select>
+        </div>
+  
+        <button class="custom-button-ingreso" (click)="updateTramo()">Guardar Cambios</button>
+      </div>
+    </div>
+  
+    <!-- Tabla de Tramos -->
+    <table mat-table [dataSource]="tramos" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+      <ng-container matColumnDef="id">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">ID</th>
+        <td mat-cell *matCellDef="let tramo" class="mat-cell">{{tramo.id}}</td>
+      </ng-container>
+  
+      <ng-container matColumnDef="origen">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Origen</th>
+        <td mat-cell *matCellDef="let tramo" class="mat-cell">{{tramo.origen}}</td>
+      </ng-container>
+  
+      <ng-container matColumnDef="destino">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Destino</th>
+        <td mat-cell *matCellDef="let tramo" class="mat-cell">{{tramo.destino}}</td>
+      </ng-container>
+  
+      <ng-container matColumnDef="comentario">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Comentario</th>
+        <td mat-cell *matCellDef="let tramo" class="mat-cell">{{tramo.comentario}}</td>
+      </ng-container>
+  
+      <ng-container matColumnDef="unidad_pago">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Tipo</th>
+        <td mat-cell *matCellDef="let tramo" class="mat-cell">{{tramo.unidad_pago}}</td>
+      </ng-container>
+  
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+          [class.selected]="isSelected(row)"
+          (click)="selectRow(row); $event.stopPropagation()">
+      </tr>
+    </table>
+  </div>
+  
+  <!-- Modal de Éxito -->
+  <div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+    <div class="modal-content">
+      <h2>¡Éxito!</h2>
+      <div class="exito-message">Operación completada exitosamente</div>
+      <button class="custom-button" (click)="closeModal('exitoModal')">Cerrar</button>
+    </div>
+  </div>
+  
+  <!-- Modal de Error -->
+  <div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+    <div class="modal-content">
+      <h2>¡Error!</h2>
+      <div class="error-icon-container">
+        <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+      </div>
+      <div class="error-message">{{errorMessage}}</div>
+      <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+    </div>
+  </div>

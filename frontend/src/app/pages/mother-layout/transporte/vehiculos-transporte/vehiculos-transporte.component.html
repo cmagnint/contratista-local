@@ -1,0 +1,208 @@
+<div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+
+    <button mat-raised-button color="primary" (click)=" openModal('crearVehiculo')">Crear Vehiculo</button>
+      
+    <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearVehiculo']">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" (click)="closeModal('crearVehiculo')">&times;</span>
+                <div class="header-bar"></div>
+                <div class="title-container">
+                    <h2>Crear Vehiculo</h2>
+                </div>
+            </div>
+              
+            <h3>PPU Vehiculo:</h3>
+             
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="ppuVehiculo" (ngModelChange)="ppuVehiculo = $event.toUpperCase()"><br><br>
+            
+            <h3>Modelo Vehiculo:</h3>
+             
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="modeloVehiculo" (ngModelChange)="modeloVehiculo = $event.toUpperCase()"><br><br>
+
+            <h3>Año Vehiculo:</h3>
+             
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="yearVehiculo"><br><br>
+
+            <h3>Color Vehiculo:</h3>
+             
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="colorVehiculo" (ngModelChange)="colorVehiculo = $event.toUpperCase()"><br><br>
+
+            <h3>Numero Pasajeros Vehiculo:</h3>
+             
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="numeroPasajerosVehiculo" ><br><br>
+
+            <h3>Marca Vehiculo:</h3>
+             
+            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="marcaVehiculo" (ngModelChange)="marcaVehiculo = $event.toUpperCase()"><br><br>
+
+            <button mat-raised-button class="table-button" (click)="openModal('empresasModal')">Seleccionar Empresa</button>
+
+            <!-- Modal para selección de Areas -->
+            <div id="AreasModales" class="modal-perfiles" *ngIf="modals['empresasModal']">
+                <div class="mini-modal">
+                    <div class="dropdown">
+                        <button class="dropdown-button" (click)="toggleDropdown()">SELECCIONAR AREA</button>
+                        <div id="area-dropdown" class="dropdown-content" [class.show]="dropdownOpen"> 
+                        
+                        <ng-container *ngFor="let empresa of empresasCargadas">
+                            <label [class.disabled]="selectedEmpresaId !== null && selectedEmpresaId !== empresa.id">
+                                <input type="checkbox"
+                                    [checked]="selectedEmpresaId === empresa.id"
+                                    (change)="toggleSelection(empresa.id)"
+                                    [disabled]="selectedEmpresaId !== null && selectedEmpresaId !== empresa.id">
+                                {{ empresa.nombre }}
+                            </label>
+                        </ng-container>
+                    </div>
+                </div>
+                <button class="custom-button-sociedades" (click)="closeModal('empresasModal')">OK</button>
+                </div>
+            </div>
+
+              <button class="custom-button-ingreso" id="ingresarHoldingBtn" (click)="crearVehiculos()">Crear Empresa</button>
+          </div>
+    </div>
+
+    <div id="modalmodificarCargo" class="modal-perfiles" *ngIf="modals['modificarVehiculo']">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <span class="close" (click)="closeModal('modificarVehiculo')">&times;</span>
+                  <div class="header-bar"></div>
+                  <div class="title-container">
+                    <h2>Modificar Cargo </h2>
+                </div>
+              </div>
+              
+              <h3>PPU Vehiculo:</h3>
+             
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="ppuVehiculoNew" (ngModelChange)="ppuVehiculoNew = $event.toUpperCase()"><br><br>
+              
+              <h3>Modelo Vehiculo:</h3>
+               
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="modeloVehiculoNew" (ngModelChange)="modeloVehiculoNew = $event.toUpperCase()"><br><br>
+  
+              <h3>Año Vehiculo:</h3>
+               
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="yearVehiculoNew" ><br><br>
+  
+              <h3>Color Vehiculo:</h3>
+               
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="colorVehiculoNew" (ngModelChange)="colorVehiculoNew = $event.toUpperCase()"><br><br>
+  
+              <h3>Numero Pasajeros Vehiculo:</h3>
+               
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="numeroPasajerosVehiculoNew" ><br><br>
+  
+              <h3>Marca Vehiculo:</h3>
+               
+              <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" [(ngModel)]="marcaVehiculoNew" (ngModelChange)="marcaVehiculoNew = $event.toUpperCase()"><br><br>
+                
+              <button mat-raised-button class="table-button" (click)="openModal('empresasModal')">Seleccionar Areas</button>
+
+                <!-- Modal para selección de Areas -->
+                <div id="AreasModales" class="modal-perfiles" *ngIf="modals['empresasModal']">
+                    <div class="mini-modal">
+                        <div class="dropdown">
+                            <button class="dropdown-button" (click)="toggleDropdown()">SELECCIONAR EMPRESA</button>
+                            <div id="area-dropdown" class="dropdown-content" [class.show]="dropdownOpen"> 
+                            
+                            <ng-container *ngFor="let empresa of empresasCargadas">
+                                <label [class.disabled]="selectedEmpresaId !== null && selectedEmpresaId !== empresa.id">
+                                    <input type="checkbox"
+                                        [checked]="selectedEmpresaId === empresa.id"
+                                        (change)="toggleSelection(empresa.id)"
+                                        [disabled]="selectedEmpresaId !== null && selectedEmpresaId !== empresa.id">
+                                    {{ empresa.nombre }}
+                                </label>
+                            </ng-container>
+                        </div>
+                    </div>
+                    <button class="custom-button-sociedades" (click)="closeModal('empresasModal')">OK</button>
+                    </div>
+                </div>
+
+              <button class="custom-button-ingreso"  (click)=" modificarVehiculos()" id="ingresarHoldingBtn">Modificar Vehiculo</button>
+   
+          </div>
+    </div>
+        
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)"  (click)="openModal('modificarVehiculo')" >Modificar Area</button>
+      
+    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')" >Eliminar Area(s)</button>
+        
+    <table mat-table [dataSource]="vehiculosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+    
+        <ng-container matColumnDef="empresa">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Empresa </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.nombre_empresa }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="ppu">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> PPU </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.ppu }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="modelo">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Modelo </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.modelo }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="year">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Año </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.year }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="color">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Color </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.color }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="numero_pasajeros">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Numero Pasajeros </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.num_pasajeros }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="marca">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Marca </th>
+            <td mat-cell *matCellDef="let vehiculo" class="mat-cell"> {{ vehiculo.marca }} </td>
+        </ng-container>
+              
+        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    
+        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
+    </table>
+    
+</div>
+    
+<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Éxito!</h2>
+            <div class="exito-message" id="exitoText"></div>
+            <button class="custom-button" (click)="closeModal('exitoModal')" >Cerrar</button>
+        </div>
+</div>
+      
+<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
+        <div class="modal-content">
+            <h2 style="color:white;">¡Error!</h2>
+            <div class="error-icon-container">
+                <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+            </div>
+            <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+            <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+        </div>
+</div>
+      
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
+      <div class="modal-content">
+          <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
+          <div class="exito-message" id="exitoText"></div>
+          <!-- Botones para confirmar o cancelar la acción -->
+          <div class="modal-actions">
+              <button class="custom-button yes-button" (click)="eliminarVehiculosSeleccionados()" >Sí</button>
+              <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+          </div>
+      </div>
+</div>
+    

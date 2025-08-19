@@ -1,0 +1,297 @@
+@keyframes bounceAndSlide {
+  
+    0% { 
+        transform: translate(-50%, -300%); /* Comienza desde arriba, fuera de la vista */
+        opacity: 0;
+    }
+    5% {
+        opacity: 1; /* Rápidamente se hace visible para que el cambio no sea brusco */
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.7); /* Aterriza y rebota hacia arriba un poco */
+    }
+    65% {
+        transform: translate(-50%, -50%) scale(0.85); /* Baja un poco */
+    }
+
+    75% {
+        transform: translate(-50%, -50%) scale(1.3); /* Aterriza y rebota hacia arriba un poco */
+    }
+    80% {
+        transform: translate(-50%, -50%) scale(0.95); /* Sube un poco */
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1); /* Se asienta en su posición final */
+    }
+}
+
+ 
+@keyframes slideDown {
+    from {
+        transform: translate(0, 150%);/* Comienza fuera de la vista, arriba */
+    }
+    to {
+        transform: translateY(0); /* Termina en su posición original */
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translate(0, -300%);/* Comienza fuera de la vista, arriba */
+    }
+    to {
+        transform: translateY(0); /* Termina en su posición original */
+    }
+}
+
+@keyframes slideRight {
+    from {
+        transform: translate(-250%, 0);/* Comienza fuera de la vista, arriba */
+    }
+    to {
+        transform: translateX(0); /* Termina en su posición original */
+    }
+}
+
+
+/* Asegurándonos de que el html y el body abarquen toda la altura y el ancho de la ventana */
+
+.img-responsive {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+
+
+.login-background {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100vw;
+    background-image: url('/assets/images/back-city.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+    overflow: hidden;
+}
+
+.terrasoft-white-image {
+    position: absolute;
+    top: 8%; /* Ajusta este valor para mover la imagen hacia arriba o hacia abajo */
+    left: 7%; /* Centra la imagen horizontalmente */
+    transform: translate(-50%, -50%);
+    z-index: 1; /* Asegúrate de que la imagen se muestre sobre otros elementos */
+    width: 5%;
+    animation: bounceAndSlide 1.5s ease-out  forwards;
+} 
+
+/*CONTAINER:    */
+
+.login-container {
+    position: absolute;
+    top: 20%;
+    left: 35%;
+    transform: translate(-50%, -50%);
+    width: 250px; /* Ajusta a la medida que necesites */
+    padding: 40px; /* Aumenta el relleno para crear espacio */
+    background: #00a693cc;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centra los elementos en el eje vertical */
+    width: 20%;
+    height: 50%;
+    animation: slideDown 1s ease-out forwards;
+    justify-content: flex-end;
+    padding-bottom: 30px;
+}
+.login-field {
+    width: calc(100% - 20px); /* Ajusta el ancho para considerar el padding */
+    padding: 10px;
+    margin-bottom: 10px; /* Espacio entre los campos de texto */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin: 10px 0; /* Añade un margen arriba y abajo */
+    font-weight: bold;
+    padding-left: 40px;
+}
+
+.input-icon-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 10px;
+    height: 20px; /* o el tamaño que se ajuste a tu diseño */
+    width: 20px; /* o el tamaño que se ajuste a tu diseño */
+}
+
+.login-field:hover{
+    color: rgb(13, 141, 83);
+    cursor: pointer;
+}
+
+.login-button {
+    width: 100%;
+    padding: 10px;
+    background-color:#081072;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 10px 0; /* Añade un margen arriba y abajo */
+    font-weight: bold;
+}
+
+.login-button:hover{
+    color: #00ff00;
+    cursor: pointer;
+}
+
+.change-password {
+    display: block; /* Hace que el enlace se muestre como un bloque, lo que permite mejor control sobre el ancho */
+    text-align: left; /* Centra el texto */
+    color: white; /* Color inicial del texto */
+    margin-top: 15px; /* Espaciado superior */
+    text-decoration: none; /* Elimina el subrayado por defecto de los enlaces */
+    transition: color 0.3s; /* Transición suave del color */
+    font-weight: bold;
+}
+
+.change-password:hover {
+    color: #081072;/* Cambia el color al pasar el mouse por encima */
+    cursor: pointer; /* Cambia el cursor a un puntero */
+}
+
+.terra-white-image {
+    position: absolute;
+    top: 0%; /* Ajusta este valor para mover la imagen hacia arriba o hacia abajo */
+    left: 4%; /* Centra la imagen horizontalmente */
+    z-index: 1; /* Asegúrate de que la imagen se muestre sobre otros elementos */
+    animation: slideRight 1s ease-out forwards;
+    width: 5.8%;
+}
+
+/*LOWBAR: */
+
+.bar-text {
+    position: absolute;
+    right: 0; /* Alineado a la izquierda */
+    bottom: 20; /* Alineado a la parte inferior de la barra */
+    padding: 10px; /* Espacio interior para el texto */
+    font-family: 'Times New Roman', serif; /* Fuente Times New Roman */
+    font-size: 14px; /* Tamaño del texto */
+    color: white;
+    font-weight: bolder;
+}
+
+.curved-bar {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 60px; /* Ajusta esto según cuán grande quieras que sea la barra */
+}
+.curved-bar-text {
+    position: absolute;
+    bottom: 0; /* Ajusta según sea necesario para alinear el texto con la barra curva */
+    width: 100%; /* Esto asegura que el texto se extienda a lo largo de la barra curva */
+    text-align: center; /* Centra el texto horizontalmente */
+    font-family: 'Arial', sans-serif; /* Cambia la fuente según tus preferencias */
+    color: white; /* El color del texto, escoge uno que contraste bien con tu barra curva */
+    z-index: 2; /* Asegúrate de que es mayor que el SVG para que se muestre encima */
+    margin: 0; /* Elimina el margen por defecto del párrafo */
+    padding: 10px 0; /* Ajusta el padding para alinear verticalmente el texto como desees */
+    font-size: large;
+    top: 20%;
+    left: 25%
+}
+.low-bar {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 30px; /* Ajusta según el alto que desees para la barra */
+    background-image: linear-gradient(to bottom right, #084D6E, #3feb42); /* Gradiente de azul a verde */
+    z-index: 1;
+    
+}
+
+.close-correo-modal {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-correo-modal:hover,
+.close-correo-modal:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.correo-modal {
+    position: fixed;
+    z-index: 10;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.correo-modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+}
+
+.correo-modal-input {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.floating-rectangle {
+    position: absolute;
+    top: 24%;
+    left: 36.7%;
+    transform: translateX(-50%);
+    width: 300px;
+    padding: 15px;
+    background-color: rgba(8, 16, 114, 1);
+    color: white;
+    text-align: center;
+    border-radius: 10px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    animation: slideUp 1s ease-out forwards;
+}
+
+::ng-deep .toast-container {
+  position: fixed;
+  top: 11%;
+  left: 38%;
+  z-index: 9999;
+}
+
+::ng-deep .toast-error {
+  background-color: #BD362F;
+  color: white;
+}

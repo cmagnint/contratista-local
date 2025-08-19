@@ -1,0 +1,201 @@
+<div class="historial-container">
+  
+  <!-- Encabezado principal -->
+  <div class="header-section">
+    <h2 class="page-title">
+      <i class="fas fa-history"></i>
+      Historial de Pagos
+    </h2>
+    
+    <!-- Breadcrumb dinámico -->
+    <nav class="breadcrumb-nav" *ngIf="tipoSeleccionado || estadoSeleccionado">
+      <span class="breadcrumb-item">Historial</span>
+      <span class="breadcrumb-separator" *ngIf="tipoSeleccionado">></span>
+      <span class="breadcrumb-item active" *ngIf="tipoSeleccionado">
+        {{ tipoSeleccionado === 'ingresos' ? 'Ingresos' : 'Egresos' }}
+      </span>
+      <span class="breadcrumb-separator" *ngIf="estadoSeleccionado">></span>
+      <span class="breadcrumb-item active" *ngIf="estadoSeleccionado">
+        {{ estadoSeleccionado === 'completados' ? 'Completados' : 'Pendientes' }}
+      </span>
+    </nav>
+  </div>
+
+  <!-- PASO 1: Selección de tipo de pago -->
+  <div class="selection-container" *ngIf="!tipoSeleccionado">
+    <h3 class="selection-title">Seleccione el tipo de pago a consultar</h3>
+    
+    <div class="tipo-buttons">
+      <button 
+        class="tipo-btn ingreso-btn"
+        (click)="seleccionarTipo('ingresos')">
+        <div class="btn-icon">
+          <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="btn-content">
+          <h4>Pago de Ingresos</h4>
+          <p>Consultar facturas de venta y cobros realizados</p>
+        </div>
+      </button>
+
+      <button 
+        class="tipo-btn egreso-btn"
+        (click)="seleccionarTipo('egresos')">
+        <div class="btn-icon">
+          <i class="fas fa-arrow-up"></i>
+        </div>
+        <div class="btn-content">
+          <h4>Pago de Egresos</h4>
+          <p>Consultar facturas de compra y pagos realizados</p>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- PASO 2: Selección de estado -->
+  <div class="selection-container" *ngIf="tipoSeleccionado && !estadoSeleccionado">
+    <button class="btn-volver" (click)="volver()">
+      <i class="fas fa-arrow-left"></i> Volver
+    </button>
+    
+    <h3 class="selection-title">
+      Seleccione el estado de {{ tipoSeleccionado }} a consultar
+    </h3>
+    
+    <div class="estado-buttons">
+      <button 
+        class="estado-btn completado-btn"
+        (click)="seleccionarEstado('completados')">
+        <div class="btn-icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="btn-content">
+          <h4>Pagos Completados</h4>
+          <p>Ver {{ tipoSeleccionado }} que ya han sido procesados</p>
+        </div>
+      </button>
+
+      <button 
+        class="estado-btn pendiente-btn"
+        (click)="seleccionarEstado('pendientes')">
+        <div class="btn-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="btn-content">
+          <h4>Pagos Pendientes</h4>
+          <p>Ver {{ tipoSeleccionado }} que están pendientes de pago</p>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- PASO 3: Mostrar datos del historial -->
+  <div class="historial-data" *ngIf="tipoSeleccionado && estadoSeleccionado">
+    
+    <!-- Header con acciones -->
+    <div class="data-header">
+      <button class="btn-volver" (click)="volver()">
+        <i class="fas fa-arrow-left"></i> Volver
+      </button>
+      
+      <div class="data-title">
+        <h3>
+          <i [class]="getIconoTipo()"></i>
+          {{ tipoSeleccionado === 'ingresos' ? 'Ingresos' : 'Egresos' }} 
+          {{ estadoSeleccionado === 'completados' ? 'Completados' : 'Pendientes' }}
+        </h3>
+      </div>
+
+      <button class="btn-actualizar" (click)="cargarHistorial()" [disabled]="cargando">
+        <i class="fas fa-sync-alt" [class.fa-spin]="cargando"></i>
+        Actualizar
+      </button>
+
+      <button class="btn-descargar-csv" (click)="descargarCsv()" [disabled]="descargandoCsv || cargando">
+        <i class="fas fa-download" [class.fa-spin]="descargandoCsv"></i>
+        {{ descargandoCsv ? 'Descargando...' : 'Descargar CSV' }}
+      </button>
+    </div>
+
+    <!-- Estado de carga -->
+    <div class="loading-state" *ngIf="cargando">
+      <div class="spinner"></div>
+      <p>Cargando historial...</p>
+    </div>
+
+    <!-- Error -->
+    <div class="error-state" *ngIf="error && !cargando">
+      <div class="error-card">
+        <i class="fas fa-exclamation-triangle"></i>
+        <p>{{ error }}</p>
+        <button class="btn-retry" (click)="cargarHistorial()">
+          <i class="fas fa-redo"></i> Reintentar
+        </button>
+      </div>
+    </div>
+
+    <!-- Datos -->
+    <div class="historial-content" *ngIf="!cargando && !error && historialData.length > 0">
+      
+      <!-- Resumen -->
+      <div class="resumen-card">
+        <div class="resumen-item">
+          <span class="resumen-label">Total registros:</span>
+          <span class="resumen-value">{{ historialData.length }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-label">Monto total:</span>
+          <span class="resumen-value">{{ formatearMonto(getTotalMonto()) }}</span>
+        </div>
+      </div>
+
+      <!-- Lista de historial -->
+      <div class="historial-list">
+        <div class="historial-item" *ngFor="let item of historialData; trackBy: trackByFn">
+          <div class="item-header">
+            <div class="item-fecha">
+              <i class="fas fa-calendar"></i>
+              {{ formatearFecha(item.fecha) }}
+            </div>
+            <div class="item-estado">
+              <i [class]="getIconoEstado(item.estado)"></i>
+              {{ item.estado }}
+            </div>
+          </div>
+          
+          <div class="item-content">
+            <div class="item-descripcion">
+              {{ item.descripcion }}
+            </div>
+            
+            <div class="item-detalles">
+              <div class="detalle" *ngIf="item.numero_operacion">
+                <strong>N° Operación:</strong> {{ item.numero_operacion }}
+              </div>
+              <div class="detalle" *ngIf="item.factura_numero">
+                <strong>Factura:</strong> {{ item.factura_numero }}
+              </div>
+              <div class="detalle" *ngIf="item.factura_razon_social">
+                <strong>Cliente/Proveedor:</strong> {{ item.factura_razon_social }}
+              </div>
+            </div>
+            
+            <div class="item-monto">
+              {{ formatearMonto(item.monto) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sin datos -->
+    <div class="empty-state" *ngIf="!cargando && !error && historialData.length === 0">
+      <div class="empty-card">
+        <i class="fas fa-inbox"></i>
+        <h4>No hay registros</h4>
+        <p>No se encontraron {{ tipoSeleccionado }} {{ estadoSeleccionado }} para mostrar.</p>
+      </div>
+    </div>
+  </div>
+  
+</div>
