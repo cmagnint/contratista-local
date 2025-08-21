@@ -16,7 +16,7 @@ from pathlib import Path
 from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,12 +28,10 @@ SECRET_KEY = os.getenv(
     'django-insecure-a35pnl!cwd0#w5g+$@!11wj^js7iyr*&-96^_)=*xrhebh(cy3'  # Fallback para desarrollo
 )
 
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-
 
 # Application definition
 
@@ -50,6 +48,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'corsheaders',
     'django_spaghetti',
+    'django_celery_beat',
    
 ]
 
@@ -69,7 +68,7 @@ ROOT_URLCONF = 'contratista_test.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'contratista_test_app' / 'templates' / 'contratista_test_app'],
+        'DIRS': [os.path.join(BASE_DIR, 'contratista_test_app', 'templates', 'contratista_test_app')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -84,7 +83,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'contratista_test.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
@@ -98,7 +96,6 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -118,7 +115,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -130,11 +126,14 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = '/static/'
+#⭐ STATIC Y MEDIA FILES 
+STATIC_URL='/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -146,7 +145,6 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -155,37 +153,13 @@ EMAIL_HOST_USER = 'contacto.terrasoft.23@gmail.com'
 EMAIL_HOST_PASSWORD = 'pxsepkoawlsjvylz'
 DEFAULT_FROM_EMAIL = 'contacto.terrasoft.23@gmail.com'
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:4200',
-    'http://192.168.1.13:4200',
-    'https://contratista-piloto.terramobile.cl',
-    'http://34.176.183.88:8001',
-    'http://192.168.214.120:4200'
-]
+CSRF_TRUSTED_ORIGINS = ['http://localhost:4200']
 
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:4200',
-    'http://192.168.1.13:4200',
-    'https://contratista-piloto.terramobile.cl',
-    'http://34.176.183.88:8001',
-    'http://192.168.214.120:4200'
-]
+CORS_ALLOWED_ORIGINS = ['http://localhost:4200']
 FRONTEND_URL = 'http://localhost:4200'
 
 # Make sure you have the following settings as well:
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
-CORS_ALLOW_HEADERS = [
-        'accept',
-        'accept-encoding',
-        'authorization',
-        'content-type',
-        'dnt',
-        'origin',
-        'user-agent',
-        'x-csrftoken',
-        'x-requested-with',
-    ]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -198,23 +172,6 @@ REST_FRAMEWORK = {
 }
 
 
-#OAUTH2_PROVIDER = {
-#    'SCOPES': {
-#        'read': 'Access to read data',
-#        'write': 'Access to write data',
-#        'admin': 'Access to admin data',
-#        'superadmin_access': 'Access exclusively for superadmins'
-#    },
-#    'OAUTH2_VALIDATOR_CLASS': 'contratista_test.validators.CustomOAuth2Validator',
-#    'ACCESS_TOKEN_EXPIRE_SECONDS': 10**9,  # 31+ años
-#    'REFRESH_TOKEN_EXPIRE_SECONDS': 10**9,  # 31+ años
-#    'ROTATE_REFRESH_TOKENS': False,  # No rotar tokens de refresco
-#    'REUSE_REFRESH_TOKENS': True,  # Permitir reutilización de tokens de refresco
-#}
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ==================== CONFIGURACIÓN CELERY ====================
 

@@ -9,6 +9,9 @@ __pycache__/
 db.sqlite3
 db.sqlite3-journal
 static/
+contratista_venv/
+migrations/
+bin/
 
 # Celery
 celerybeat-schedule
@@ -31,3 +34,4 @@ env/
 node_modules/
 dist/
 package-lock.json
+.angular/

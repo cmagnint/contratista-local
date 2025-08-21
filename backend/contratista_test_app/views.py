@@ -228,6 +228,13 @@ from .tasks import (
     procesar_configuracion_automatica,
 )
 
+class CheckHealthAPIView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        return Response({'status': 'healthy'}, status=status.HTTP_200_OK)
+
 class VerifyJWTAPIView(APIView):
     """
     Verifica la validez de un JWT token y retorna información del usuario
@@ -626,7 +633,6 @@ class AdminAPIView(APIView):
                 # Verificar si ya existe una persona con ese RUT
                 existing_persona = PersonalTrabajadores.objects.filter(rut=rut_limpio).first()
                 if existing_persona:
-                    print("Ya existe una persona con RUT {data.get('rut')}")
                     return Response(
                         {"message": f"Ya existe una persona con RUT {data.get('rut')}"}, 
                         status=status.HTTP_400_BAD_REQUEST
@@ -654,7 +660,6 @@ class AdminAPIView(APIView):
                 if existing_admin:
                     # Eliminar la persona creada si ya hay un admin
                     persona.delete()
-                    print('Ya existe un administrador principal para este holding')
                     return Response(
                         {"message": f"Ya existe un administrador principal para este holding"}, 
                         status=status.HTTP_400_BAD_REQUEST
@@ -2800,7 +2805,7 @@ class PersonalTrabajadoresAPIView(APIView):
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
         if holding_id:
-            trabajadores = PersonalTrabajadores.objects.filter(holding_id=holding_id).exclude(cargo_id = 1)
+            trabajadores = PersonalTrabajadores.objects.filter(holding_id=holding_id)
             serializer = PersonalTrabajadoresSerializer(trabajadores, many=True)
             return Response(serializer.data)
         return Response({'error': 'El parámetro holding es necesario'}, status=status.HTTP_400_BAD_REQUEST)

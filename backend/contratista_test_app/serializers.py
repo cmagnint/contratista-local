@@ -506,6 +506,7 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
     nombre_sociedad = serializers.SerializerMethodField()
     nombre_casa = serializers.SerializerMethodField()
     nombre_fundo = serializers.SerializerMethodField()
+    nombre_banco = serializers.SerializerMethodField()
     rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     nic = serializers.CharField(allow_null=True, allow_blank=True, required=False)
@@ -519,7 +520,7 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'holding', 'sociedad', 'nombre_sociedad', 'area', 'nombre_area', 'cargo', 'nombre_cargo', 'nombres', 'apellidos',
             'rut', 'dni', 'nic', 'direccion', 'afp', 'nombre_afp', 'salud','nombre_salud', 'fecha_ingreso',
-            'fecha_finiquito', 'metodo_pago', 'banco', 'tipo_cuenta_bancaria',
+            'fecha_finiquito', 'metodo_pago', 'banco','nombre_banco', 'tipo_cuenta_bancaria',
             'numero_cuenta', 'nacionalidad', 'sexo', 'telefono', 'correo', 'estado', 'carnet_front_image','carnet_back_image',
             'firma', 'estado_civil', 'fecha_nacimiento', 'casa', 'nombre_casa', 'fundo', 'nombre_fundo', 'sueldo_base'
         ]
@@ -527,6 +528,11 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
             'holding': {'write_only': True},
             'id': {'read_only': True},
         }
+
+    def get_nombre_banco(self, obj):
+        if obj.banco:
+            return obj.banco.nombre
+        return None
 
     def get_nombre_fundo(self, obj):
         if obj.fundo:
@@ -1318,7 +1324,7 @@ class ProduccionCSVSerializer(serializers.ModelSerializer):
 class BancoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Banco
-        fields = ['codigo_sbif', 'nombre']
+        fields = ['id','codigo_sbif', 'nombre']
 
 class CuentaOrigenSerializer(serializers.ModelSerializer):
     banco_nombre = serializers.CharField(source='banco.nombre', read_only=True)
