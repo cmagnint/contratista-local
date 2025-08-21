@@ -8,7 +8,7 @@ import { JwtService } from './jwt.service';  // Importar nuestro JWT service
   providedIn: 'root'
 })
 export class ContratistaApiService {
-  public baseUrl = '/contratista_test_api';
+  public baseUrl = 'http://localhost:8182/contratista_test_api';
 
   constructor(
     private http: HttpClient,
