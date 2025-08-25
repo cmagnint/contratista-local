@@ -3,6 +3,11 @@ from rest_framework import serializers
 from datetime import date
 from datetime import datetime
 from django.utils import timezone
+import random
+import string
+from django.core.mail import send_mail
+from django.conf import settings
+
 from .models import (
     Holding, 
     Sociedad, 
@@ -155,6 +160,7 @@ class PerfilesSerializer(serializers.ModelSerializer):
 #------------------------------------------------------------------------------------------------------------------------------------------------------    
 #-------------------------------USUARIOS SERIALIZADORES------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
+from django.conf import settings
 
 class PersonalForUserSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.SerializerMethodField()
@@ -173,10 +179,13 @@ class UserSerializer(serializers.ModelSerializer):
     nombre_empresas_asignadas = serializers.SerializerMethodField(read_only=True)
     empresas_asignadas = serializers.PrimaryKeyRelatedField(queryset=Sociedad.objects.all(), many=True, required=False)
     
+    # ✅ CAMPO OPCIONAL PARA CONTROLAR ENVÍO DE EMAIL
+    enviar_credenciales = serializers.BooleanField(write_only=True, required=False, default=True)
+    
     class Meta:
         model = Usuarios
-        fields = ['id', 'holding', 'empresas_asignadas','nombre_persona','persona', 'rut', 'email', 
-                  'perfil', 'nombre_perfil', 'nombre_empresas_asignadas', 'estado']
+        fields = ['id', 'holding', 'empresas_asignadas', 'nombre_persona', 'persona', 'rut', 'email', 
+                  'perfil', 'nombre_perfil', 'nombre_empresas_asignadas', 'estado', 'enviar_credenciales']
         extra_kwargs = {
             'holding': {'write_only': True},
             'is_admin': {'default': False},
@@ -196,18 +205,187 @@ class UserSerializer(serializers.ModelSerializer):
     def get_nombre_empresas_asignadas(self, obj):
         return [empresa.nombre for empresa in obj.empresas_asignadas.all()]
 
+    def generate_random_password(self, length=10):
+        """
+        ✅ Genera una contraseña random segura
+        Formato: Al menos 1 mayúscula, 1 minúscula, 1 número, 1 símbolo
+        """
+        print(f"🔐 Generando contraseña de {length} caracteres...")
+        
+        # Caracteres seguros
+        uppercase = string.ascii_uppercase
+        lowercase = string.ascii_lowercase  
+        digits = string.digits
+        symbols = "!@#$%&*"
+        all_chars = uppercase + lowercase + digits + symbols
+        
+        # Garantizar al menos uno de cada tipo
+        password = [
+            random.choice(uppercase),   # Al menos 1 mayúscula
+            random.choice(lowercase),   # Al menos 1 minúscula
+            random.choice(digits),      # Al menos 1 número
+            random.choice(symbols)      # Al menos 1 símbolo
+        ]
+        
+        # Completar con caracteres aleatorios
+        for _ in range(length - 4):
+            password.append(random.choice(all_chars))
+        
+        # Mezclar para que no sea predecible
+        random.shuffle(password)
+        
+        password_str = ''.join(password)
+        print(f"✅ Contraseña generada exitosamente: {password_str}")
+        
+        return password_str
+
+    def send_credentials_email(self, usuario, password):
+        """
+        ✅ Envía credenciales por email con formato profesional
+        """
+        print(f"📧 Intentando enviar credenciales a: {usuario.email}")
+        
+        try:
+            # Obtener datos del usuario
+            nombre_usuario = "Usuario"
+            if usuario.persona and usuario.persona.nombres:
+                nombre_completo = f"{usuario.persona.nombres}"
+                if usuario.persona.apellidos:
+                    nombre_completo += f" {usuario.persona.apellidos}"
+                nombre_usuario = nombre_completo
+            
+            perfil_nombre = "Sin perfil asignado"
+            if usuario.perfil:
+                perfil_nombre = usuario.perfil.nombre_perfil
+            
+            holding_nombre = "Sistema"
+            if usuario.holding:
+                holding_nombre = usuario.holding.nombre
+            
+            # Configurar email
+            subject = f'🔐 Credenciales de acceso - {holding_nombre}'
+            
+            message = f"""
+¡Hola {nombre_usuario}!
+
+Se ha creado tu cuenta de usuario en el sistema {holding_nombre}. 
+
+📋 DETALLES DE TU CUENTA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 Nombre: {nombre_usuario}
+🆔 RUT: {usuario.rut}
+📧 Email: {usuario.email}
+🎭 Perfil: {perfil_nombre}
+
+🔐 CREDENCIALES DE ACCESO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Usuario: {usuario.rut}
+Contraseña: {password}
+
+⚠️ IMPORTANTE - SEGURIDAD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Esta es una contraseña TEMPORAL
+• Te recomendamos cambiarla en tu primer inicio de sesión
+• Puedes cambiarla usando la opción "¿Olvidaste tu contraseña?" 
+• No compartas estas credenciales con nadie
+• Guarda esta información en un lugar seguro
+
+🌐 CÓMO ACCEDER:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Ve http://contratista.
+2. Ingresa tu RUT: {usuario.rut}
+3. Ingresa tu contraseña temporal
+4. Cambia tu contraseña por una personal
+
+Si tienes problemas para acceder, contacta al administrador del sistema.
+
+¡Bienvenido/a al equipo!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Este es un mensaje automático del sistema.
+Terrasoft © 2025
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            """
+            
+            # Enviar email
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[usuario.email],
+                fail_silently=False,
+            )
+            
+            print(f"✅ Email enviado exitosamente a {usuario.email}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error enviando email a {usuario.email}: {str(e)}")
+            print(f"   Detalles del error: {type(e).__name__}")
+            return False
+
     def create(self, validated_data):
+        """
+        ✅ Crea usuario con contraseña random y envío automático de credenciales
+        """
+        print(f"🚀 Iniciando creación de usuario...")
+        
+        # Extraer datos
         empresas_asignadas_data = validated_data.pop('empresas_asignadas', [])
+        enviar_credenciales = validated_data.pop('enviar_credenciales', True)
+        
+        # Generar contraseña temporal
+        password_temporal = self.generate_random_password()
+        
+        # Crear usuario
+        print(f"👤 Creando usuario con RUT: {validated_data.get('rut')}")
         usuario = Usuarios.objects.create(**validated_data)
-        usuario.empresas_asignadas.set(empresas_asignadas_data)
+        
+        # Establecer contraseña hasheada
+        usuario.set_password(password_temporal)
+        usuario.save()
+        print(f"✅ Usuario creado con ID: {usuario.id}")
+        
+        # Asignar empresas
+        if empresas_asignadas_data:
+            usuario.empresas_asignadas.set(empresas_asignadas_data)
+            print(f"🏢 Empresas asignadas: {len(empresas_asignadas_data)}")
+        
+        # Enviar credenciales por email
+        if enviar_credenciales and usuario.email:
+            email_enviado = self.send_credentials_email(usuario, password_temporal)
+            if email_enviado:
+                print(f"📧 Credenciales enviadas exitosamente")
+            else:
+                print(f"⚠️ No se pudieron enviar las credenciales por email")
+        elif not enviar_credenciales:
+            print(f"📧 Envío de credenciales deshabilitado por configuración")
+        else:
+            print(f"⚠️ Usuario sin email, no se pueden enviar credenciales")
+        
+        print(f"🎉 Usuario creado completamente: {usuario.rut}")
         return usuario
 
     def update(self, instance, validated_data):
+        """
+        ✅ Actualizar usuario (sin modificar contraseña)
+        """
+        print(f"✏️ Actualizando usuario ID: {instance.id}")
+        
         empresas_asignadas_data = validated_data.pop('empresas_asignadas', [])
+        validated_data.pop('enviar_credenciales', None)  # No aplicable en update
+        
+        # Actualizar campos
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        instance.empresas_asignadas.set(empresas_asignadas_data)
+        
+        # Actualizar empresas
+        if 'empresas_asignadas' in validated_data or empresas_asignadas_data:
+            instance.empresas_asignadas.set(empresas_asignadas_data)
+        
+        print(f"✅ Usuario actualizado: {instance.rut}")
         return instance
 
 class SupervisorSerializer(serializers.ModelSerializer):
@@ -2456,35 +2634,6 @@ class ValidarDistribucionSerializer(serializers.Serializer):
     
 #NUEVOS SERIALIZERS PARA FACTURAS DE VENTA AUTOMATIZADAS
 
-class ConfiguracionSIIAutomaticaVentaSerializer(serializers.ModelSerializer):
-    """
-    Serializer para el modelo ConfiguracionSIIAutomaticaVenta
-    """
-    empresa_info = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = ConfiguracionSIIAutomaticaVenta
-        fields = [
-            'id', 'holding', 'rut_sii', 'password_sii', 'empresa_rut', 
-            'empresa_nombre', 'hora_ejecucion', 'mes', 'year', 'activo',
-            'created_at', 'updated_at', 'empresa_info'
-        ]
-        extra_kwargs = {
-            'password_sii': {'write_only': True},
-            'holding': {'write_only': True},
-            'id': {'read_only': True},
-            'created_at': {'read_only': True},
-            'updated_at': {'read_only': True},
-        }
-    
-    def get_empresa_info(self, obj):
-        """Información resumida de la empresa configurada"""
-        return {
-            'rut': obj.empresa_rut,
-            'nombre': obj.empresa_nombre,
-            'periodo': f"{obj.mes:02d}/{obj.year}"
-        }
-
 class FacturaVentaSIIDistribuidaSerializer(serializers.ModelSerializer):
     """
     Serializer para el modelo FacturaVentaSIIDistribuida con información de distribución múltiple
@@ -2772,112 +2921,3 @@ class CartolaMovimientoSerializer(serializers.ModelSerializer):
             'banco_nombre': obj.cuenta_origen.banco.nombre,
             'tipo_cuenta': obj.cuenta_origen.tipo_cuenta
         }
-
-class RegistroIngresoSerializer(serializers.ModelSerializer):
-    movimiento_info = serializers.SerializerMethodField()
-    factura_info = serializers.SerializerMethodField()
-    usuario_nombre = serializers.CharField(source='usuario_registro.nombres', read_only=True)
-    
-    class Meta:
-        model = RegistroIngreso
-        fields = [
-            'id', 'monto_distribuido', 'porcentaje_neto', 'porcentaje_iva',
-            'monto_neto_cubierto', 'monto_iva_cubierto', 'fecha_registro',
-            'movimiento_info', 'factura_info', 'usuario_nombre'
-        ]
-        read_only_fields = ['monto_neto_cubierto', 'monto_iva_cubierto']
-    
-    def get_movimiento_info(self, obj):
-        return {
-            'fecha': obj.movimiento_cartola.fecha,
-            'descripcion': obj.movimiento_cartola.descripcion,
-            'monto_total': obj.movimiento_cartola.monto
-        }
-    
-    def get_factura_info(self, obj):
-        return {
-            'numero': obj.factura_venta.numero,
-            'fecha_emision': obj.factura_venta.fecha_emision,
-            'total': obj.factura_venta.total,
-            'neto': obj.factura_venta.neto,
-            'iva': obj.factura_venta.iva
-        }
-
-class FacturaVentaSimpleSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listar facturas en el frontend"""
-    saldo_pendiente = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FacturaVentaSIIDistribuida
-        fields = [
-            'id', 'numero', 'fecha_emision', 'neto', 'iva', 'total',
-            'estado', 'saldo_pendiente'
-        ]
-    
-    def get_saldo_pendiente(self, obj):
-        # Calcular cuánto falta por cobrar de esta factura
-        registros = RegistroIngreso.objects.filter(factura_venta=obj)
-        total_cobrado = sum(r.monto_distribuido for r in registros)
-        return obj.total - total_cobrado
-
-class CuentaOrigenDetalleSerializer(serializers.ModelSerializer):
-    banco_info = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = CuentaOrigen
-        fields = ['id', 'numero_cuenta', 'tipo_cuenta', 'banco_info']
-    
-    def get_banco_info(self, obj):
-        return {
-            'id': obj.banco.id,
-            'nombre': obj.banco.nombre,
-            'codigo_sbif': obj.banco.codigo_sbif
-        }
-    
-class RegistroEgresoSerializer(serializers.ModelSerializer):
-    movimiento_info = serializers.SerializerMethodField()
-    factura_info = serializers.SerializerMethodField()
-    usuario_nombre = serializers.CharField(source='usuario_registro.nombres', read_only=True)
-    
-    class Meta:
-        model = RegistroEgreso
-        fields = [
-            'id', 'monto_distribuido', 'porcentaje_neto', 'porcentaje_iva',
-            'monto_neto_cubierto', 'monto_iva_cubierto', 'fecha_registro',
-            'movimiento_info', 'factura_info', 'usuario_nombre'
-        ]
-        read_only_fields = ['monto_neto_cubierto', 'monto_iva_cubierto']
-    
-    def get_movimiento_info(self, obj):
-        return {
-            'fecha': obj.movimiento_cartola.fecha,
-            'descripcion': obj.movimiento_cartola.descripcion,
-            'monto_total': obj.movimiento_cartola.monto
-        }
-    
-    def get_factura_info(self, obj):
-        return {
-            'folio': obj.factura_compra.folio,
-            'fecha_docto': obj.factura_compra.fecha_docto,
-            'total': obj.factura_compra.monto_total,
-            'neto': obj.factura_compra.monto_neto,
-            'iva': obj.factura_compra.monto_iva_recuperable,
-            'proveedor': obj.factura_compra.razon_social
-        }
-
-class FacturaCompraSimpleSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listar facturas de compra en el frontend"""
-    saldo_pendiente = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FacturaCompraSIIDistribuida
-        fields = [
-            'id', 'folio', 'fecha_docto', 'monto_neto', 'monto_iva_recuperable', 
-            'monto_total', 'razon_social', 'saldo_pendiente'
-        ]
-    
-    def get_saldo_pendiente(self, obj):
-        # Calcular cuánto falta por pagar de esta factura
-        registros = RegistroEgreso.objects.filter(factura_compra=obj)
-        total_pagado = sum(r.monto_distribuido for r in registros)
-        return obj.monto_total - total_pagado

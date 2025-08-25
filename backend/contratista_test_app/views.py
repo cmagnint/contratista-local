@@ -29,6 +29,8 @@ from .serializers import LoginSerializer
 from reportlab.lib.enums import TA_RIGHT
 from django.db.models import Q, Max, Sum, Value, F, DecimalField
 from django.db.models.functions import Coalesce
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import send_mail
 from reportlab.lib.units import inch
 from django.http import HttpResponse
 from django.http import FileResponse
@@ -211,17 +213,11 @@ from .serializers import (
     ValidarDistribucionSerializer,
     FacturaPorDistribuirMultipleSerializer,
     FacturaCompraSIIDistribuidaMultipleSerializer,
-    ConfiguracionSIIAutomaticaVentaSerializer,
     DistribucionFacturasVentaSIISerializer,
     FacturaVentaPorDistribuirMultipleSerializer,
     FacturaVentaSIIDistribuidaMultipleSerializer,
     DistribucionMultipleFacturaVentaSIISerializer,
     CartolaMovimientoSerializer,
-    FacturaVentaSimpleSerializer,
-    RegistroIngresoSerializer,
-    CuentaOrigenDetalleSerializer,
-    RegistroEgresoSerializer,
-    FacturaCompraSimpleSerializer,
 )
 
 from .tasks import (
@@ -234,6 +230,178 @@ class CheckHealthAPIView(APIView):
     
     def get(self, request):
         return Response({'status': 'healthy'}, status=status.HTTP_200_OK)
+
+class PasswordResetAPIView(APIView):
+    """
+    Vista unificada para todo el proceso de cambio de contraseña
+    
+    Actions:
+    - check_user: Verificar si el RUT existe
+    - generate_code: Generar y enviar código de verificación
+    - verify_code: Verificar código de verificación
+    - change_password: Cambiar la contraseña
+    """
+    
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        action = request.data.get('action')
+        
+        if action == 'check_user':
+            return self._check_user(request)
+        elif action == 'generate_code':
+            return self._generate_code(request)
+        elif action == 'verify_code':
+            return self._verify_code(request)
+        elif action == 'change_password':
+            return self._change_password(request)
+        else:
+            return Response(
+                {'status': 'error', 'message': 'Acción no válida.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def _check_user(self, request):
+        """Verificar si el RUT existe"""
+        rut = request.data.get('rut_user')
+        
+        if not rut:
+            return Response({'status': 'error', 'message': 'RUT es requerido.'})
+        
+        try:
+            user = Usuarios.objects.get(rut=rut)
+            return Response({'valid': True, 'status': 'success'})
+        except ObjectDoesNotExist:
+            return Response({'valid': False, 'status': 'error'})
+    
+    def _generate_code(self, request):
+        """Generar y enviar código de verificación"""
+        email = request.data.get('email')
+        rut = request.data.get('rut')
+        
+        if not email or not rut:
+            return Response({
+                'status': 'error', 
+                'message': 'Email y RUT son requeridos.'
+            })
+        
+        try:
+            usuario = Usuarios.objects.get(email=email, rut=rut)
+            
+            # Generar código de 6 dígitos
+            codigo = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+            
+            # Guardar código y expiración
+            usuario.codigo = codigo
+            usuario.codigo_expiracion = timezone.now() + timedelta(days=1)
+            usuario.save()
+            
+            # Enviar email
+            try:
+                send_mail(
+                    'Tu código de verificación',
+                    f'Tu código es: {codigo}',
+                    'contacto.terrasoft.23@gmail.com',
+                    [usuario.email],
+                    fail_silently=False,
+                )
+                return Response({
+                    'status': 'success', 
+                    'message': 'Código enviado exitosamente.'
+                })
+            except Exception as e:
+                print(f"Error al enviar el correo: {str(e)}")
+                return Response({
+                    'status': 'error', 
+                    'message': 'Error al enviar el correo. Por favor, intente más tarde.'
+                })
+                
+        except ObjectDoesNotExist:
+            return Response({
+                'status': 'error', 
+                'message': 'Correo o RUT no encontrado o no coinciden.'
+            })
+    
+    def _verify_code(self, request):
+        """Verificar código de verificación"""
+        rut = request.data.get('rut')
+        codigo = request.data.get('codigo')
+        
+        if not rut or not codigo:
+            return Response({
+                'status': 'error', 
+                'message': 'RUT y código son requeridos.'
+            })
+        
+        try:
+            usuario = Usuarios.objects.get(rut=rut, codigo=codigo)
+            
+            if usuario.codigo_expiracion and usuario.codigo_expiracion > timezone.now():
+                return Response({
+                    'status': 'success', 
+                    'message': 'Código verificado exitosamente.'
+                })
+            else:
+                return Response({
+                    'status': 'error', 
+                    'message': 'El código ha expirado.'
+                })
+                
+        except ObjectDoesNotExist:
+            return Response({
+                'status': 'error', 
+                'message': 'RUT o código incorrectos.'
+            })
+    
+    def _change_password(self, request):
+        """Cambiar la contraseña"""
+        print('Cambiando contraseña...')
+        rut = request.data.get('rut')
+        nueva_contrasena = request.data.get('nuevaContrasena')
+        codigo = request.data.get('codigo')  # Verificación adicional de seguridad
+        
+        if not rut or not nueva_contrasena:
+            return Response({
+                'status': 'error', 
+                'message': 'RUT y nueva contraseña son requeridos.'
+            })
+        
+        try:
+            usuario = Usuarios.objects.get(rut=rut)
+            
+            # Verificación adicional: el código debe existir y ser válido
+            if codigo and usuario.codigo == codigo:
+                if usuario.codigo_expiracion and usuario.codigo_expiracion > timezone.now():
+                    # Cambiar contraseña
+                    print(f'La nueva contraseña es: {nueva_contrasena}')
+                    usuario.set_password(nueva_contrasena)
+                    
+                    # Limpiar código usado
+                    usuario.codigo = None
+                    usuario.codigo_expiracion = None
+                    usuario.save()
+                    
+                    return Response({
+                        'status': 'success', 
+                        'message': 'Contraseña actualizada con éxito.'
+                    })
+                else:
+                    return Response({
+                        'status': 'error', 
+                        'message': 'El código ha expirado.'
+                    })
+            else:
+                return Response({
+                    'status': 'error', 
+                    'message': 'Código de verificación inválido.'
+                })
+                
+        except ObjectDoesNotExist:
+            return Response({
+                'status': 'error', 
+                'message': 'Usuario no encontrado.'
+            })
 
 class VerifyJWTAPIView(APIView):
     """
@@ -1022,11 +1190,23 @@ class PersonalForUserAPIView(APIView):
 
     def get(self, request, holding_id, format=None):
         try:
-            # Obtener personal activo del holding que no tenga usuario asociado
+            # ✅ Obtener IDs de personal que tienen usuarios admin/superadmin
+            admin_persona_ids = Usuarios.objects.filter(
+                Q(is_admin=True) | Q(is_superuser=True),
+                persona__isnull=False  # Solo si tienen persona asociada
+            ).values_list('persona_id', flat=True)
+            
+            print(f"🚫 Personal excluido (admins): {list(admin_persona_ids)}")
+            
+            # ✅ Filtrar personal excluyendo admins y que no tenga usuario asociado
             personal = PersonalTrabajadores.objects.filter(
                 holding_id=holding_id,
                 estado=True,
-            ).exclude(cargo_id = 1)
+            ).exclude(
+                id__in=admin_persona_ids  # Excluir personal admin
+            ).exclude(
+                usuarios__isnull=False    # Excluir personal que YA tiene usuario
+            )
 
             if not personal.exists():
                 return Response(
@@ -1035,10 +1215,12 @@ class PersonalForUserAPIView(APIView):
                 )
 
             serializer = PersonalForUserSerializer(personal, many=True)
+            print(f"✅ Personal disponible: {personal.count()} registros")
             print(serializer.data)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
+            print(f"❌ Error: {str(e)}")
             return Response(
                 {"message": f"Error al obtener personal: {str(e)}"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -1068,42 +1250,84 @@ class UsuarioAPIViews(APIView):
             return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, format=None):
+        """
+        ✅ Crear usuario con logging completo
+        """
+        print(f"\n🚀 === INICIANDO CREACIÓN DE USUARIO ===")
+        print(f"📥 Datos recibidos: {request.data}")
+        
         with transaction.atomic():
             serializer = UserSerializer(data=request.data)
+            
             if serializer.is_valid():
-                usuario = serializer.save()
+                print(f"✅ Datos válidos, procediendo con la creación...")
                 
-                if usuario.perfil:
-                    # Handle Supervisor creation
-                    if usuario.perfil.nombre_perfil == 'SUPERVISOR':
-                        Supervisores.objects.create(
-                            holding_id=usuario.holding_id,
-                            usuario=usuario
-                        )
-                    # Handle Jefe de Cuadrilla creation
-                    elif usuario.perfil.nombre_perfil == 'JEFE DE CUADRILLA':
-                        supervisor_id = request.data.get('supervisor')
-                        if supervisor_id:
-                            try:
-                                supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
-                                JefesDeCuadrilla.objects.create(
-                                    holding_id=usuario.holding_id,
-                                    supervisor=supervisor,
-                                    usuario=usuario
-                                )
-                            except Supervisores.DoesNotExist:
+                try:
+                    # Crear usuario
+                    usuario = serializer.save()
+                    
+                    print(f"\n👤 === USUARIO CREADO EXITOSAMENTE ===")
+                    print(f"   🆔 ID: {usuario.id}")
+                    print(f"   📋 RUT: {usuario.rut}")
+                    print(f"   📧 Email: {usuario.email}")
+                    print(f"   🏢 Holding: {usuario.holding.nombre if usuario.holding else 'N/A'}")
+                    print(f"   👥 Perfil: {usuario.perfil.nombre_perfil if usuario.perfil else 'Sin perfil'}")
+                    print(f"   👨‍💼 Persona: {usuario.persona.nombres if usuario.persona else 'N/A'}")
+                    print(f"   ✅ Estado: {'Activo' if usuario.estado else 'Inactivo'}")
+                    
+                    # Manejar creación de roles especiales
+                    if usuario.perfil:
+                        perfil_nombre = usuario.perfil.nombre_perfil
+                        
+                        # Crear Supervisor
+                        if perfil_nombre == 'SUPERVISOR':
+                            supervisor = Supervisores.objects.create(
+                                holding_id=usuario.holding_id,
+                                usuario=usuario
+                            )
+                            print(f"   🎯 Supervisor creado con ID: {supervisor.id}")
+                            
+                        # Crear Jefe de Cuadrilla
+                        elif perfil_nombre == 'JEFE DE CUADRILLA':
+                            supervisor_id = request.data.get('supervisor')
+                            
+                            if supervisor_id:
+                                try:
+                                    supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
+                                    jefe = JefesDeCuadrilla.objects.create(
+                                        holding_id=usuario.holding_id,
+                                        supervisor=supervisor,
+                                        usuario=usuario
+                                    )
+                                    print(f"   👨‍🏭 Jefe de Cuadrilla creado con ID: {jefe.id}")
+                                    print(f"   👨‍💼 Asignado al supervisor: {supervisor.usuario.persona.nombres if supervisor.usuario.persona else supervisor.usuario.rut}")
+                                    
+                                except Supervisores.DoesNotExist:
+                                    print(f"   ❌ Supervisor con ID {supervisor_id} no encontrado")
+                                    return Response(
+                                        {"error": "Supervisor no encontrado"}, 
+                                        status=status.HTTP_400_BAD_REQUEST
+                                    )
+                            else:
+                                print(f"   ❌ Falta supervisor requerido para Jefe de Cuadrilla")
                                 return Response(
-                                    {"error": "Supervisor no encontrado"}, 
+                                    {"error": "Se requiere un supervisor para el Jefe de Cuadrilla"}, 
                                     status=status.HTTP_400_BAD_REQUEST
                                 )
-                        else:
-                            return Response(
-                                {"error": "Se requiere un supervisor para el Jefe de Cuadrilla"}, 
-                                status=status.HTTP_400_BAD_REQUEST
-                            )
-                
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    print(f"🎉 === CREACIÓN COMPLETADA EXITOSAMENTE ===\n")
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                    
+                except Exception as e:
+                    print(f"❌ Error durante la creación: {str(e)}")
+                    print(f"   Tipo de error: {type(e).__name__}")
+                    raise e  # Re-lanzar para que se revierta la transacción
+                    
+            else:
+                print(f"❌ Datos inválidos:")
+                for field, errors in serializer.errors.items():
+                    print(f"   - {field}: {errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, format=None):
         with transaction.atomic():
@@ -2804,11 +3028,28 @@ class PersonalTrabajadoresAPIView(APIView):
 
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
-        if holding_id:
-            trabajadores = PersonalTrabajadores.objects.filter(holding_id=holding_id)
-            serializer = PersonalTrabajadoresSerializer(trabajadores, many=True)
-            return Response(serializer.data)
-        return Response({'error': 'El parámetro holding es necesario'}, status=status.HTTP_400_BAD_REQUEST)
+        if not holding_id:
+            return Response(
+                {'error': 'El parámetro holding es necesario'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # ✅ FILTRAR PERSONAL EXCLUYENDO ADMINS Y SUPERADMINS
+        # Obtener IDs de usuarios que son admin o superadmin
+        admin_persona_ids = Usuarios.objects.filter(
+            Q(is_admin=True) | Q(is_superuser=True),
+            persona__isnull=False  # Solo si tienen persona asociada
+        ).values_list('persona_id', flat=True)
+        
+        # Filtrar personal excluyendo a los admins
+        trabajadores = PersonalTrabajadores.objects.filter(
+            holding_id=holding_id
+        ).exclude(
+            id__in=admin_persona_ids  # Excluir personal que es admin/superadmin
+        )
+        
+        serializer = PersonalTrabajadoresSerializer(trabajadores, many=True)
+        return Response(serializer.data)
 
     def post(self, request, format=None):
         data = request.data

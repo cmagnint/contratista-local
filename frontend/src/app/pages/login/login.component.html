@@ -27,8 +27,43 @@
             
             <input type="submit" value="Ingresar" class="login-button">
         </form>
-        <a href="#" id="change-password-link" class="change-password">¿Olvidó su contraseña?</a>
+        <a href="javascript:void(0);" (click)="onForgotPassword()" class="change-password">¿Olvidó su contraseña?/Cambiar Contraseña</a>
+    </div>
+
+    <!-- Modal para ingresar RUT -->
+    <div *ngIf="showRutModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-content">
+                <span class="close" (click)="closeModal()">&times;</span>
+                <h2>Ingrese su RUT</h2>
+                <input type="text" [(ngModel)]="rutForRecovery" (input)="formatRUT($event)" placeholder="INGRESE SU RUT">
+                <button class="modal-button" (click)="checkRut()">Continuar</button>
+            </div>
+        </div>
+    </div>
     
+    <!-- Modal para ingresar correo -->
+    <div *ngIf="showEmailModal" class="modal-overlay">
+        <div class="modal-container">
+        <div class="modal-content">
+            <span class="close" (click)="closeModal()">&times;</span>
+            <h2>Ingrese su correo electrónico</h2>
+            <input type="email" [(ngModel)]="emailForRecovery" placeholder="Ingrese su correo electrónico">
+            <button class="modal-button" (click)="sendCode()">Enviar código</button>
+        </div>
+        </div>
+    </div>
+    
+    <!-- Modal para ingresar código -->
+    <div *ngIf="showCodeModal" class="modal-overlay">
+        <div class="modal-container">
+        <div class="modal-content">
+            <span class="close" (click)="closeModal()">&times;</span>
+            <h2>Ingrese el código de verificación</h2>
+            <input type="text" [(ngModel)]="codeForRecovery" placeholder="Ingrese el código">
+            <button class="modal-button" (click)="verifyCode()">Verificar código</button>
+        </div>
+        </div>
     </div>
 
     <div class="low-bar">

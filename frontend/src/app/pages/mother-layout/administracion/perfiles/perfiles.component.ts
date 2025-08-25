@@ -50,9 +50,16 @@ export class PerfilesComponent implements OnInit {
   public selectedSubmodulosWeb: number[] = [];
   public selectedSubmodulosMovil: number[] = [];
   public openDropdowns: { [key: string]: boolean } = {};
-  
-  private readonly RESTRICTED_NAME_PROFILES = ['SUPERVISOR', 'JEFE DE CUADRILLA', 'ADMINISTRADOR PRINCIPAL'];
-  private readonly RESTRICTED_DELETE_PROFILES = ['SUPERVISOR', 'JEFE DE CUADRILLA', 'ADMINISTRADOR PRINCIPAL'];
+  public openTipos: { [key: string]: boolean } = {
+    WEB: false,
+    MOVIL: false
+  };
+  public tableExpansionState: { [key: string]: boolean } = {};
+  public openModulos: { [key: string]: boolean } = {};
+
+  public contadores: { [key: string]: number } = {};
+  private readonly RESTRICTED_NAME_PROFILES = ['SUPERVISOR', 'JEFE DE CUADRILLA'];
+  private readonly RESTRICTED_DELETE_PROFILES = ['SUPERVISOR', 'JEFE DE CUADRILLA'];
 
   public modals: { [key: string]: boolean } = {
     crearPerfil: false,
@@ -424,7 +431,10 @@ export class PerfilesComponent implements OnInit {
 
       // Actualizar el estado de los dropdowns
       this.updateDropdownStates();
+
     }
+    this.updateAllCounters();
+
   }
 
   /**
@@ -483,12 +493,14 @@ export class PerfilesComponent implements OnInit {
         this.openErrorModal('Error al cargar perfiles: ' + error.error.message);
       }
     });
+    this.clearTableExpansionState();
   }
 
   cargarModulosWeb(): void {
     this.apiService.get(`api_modulos_web/${this.holding}/`).subscribe({
       next: (response) => {
         this.modulos_web = response;
+        this.initializeCounters();
       },
       error: (error) => {
         console.error('Error al cargar módulos web:', error);
@@ -659,6 +671,7 @@ export class PerfilesComponent implements OnInit {
     
     // Actualizar el estado del dropdown
     this.openDropdowns[`${tipo}_${moduloId}` as string] = selectedSubmodulos.length > 0;
+    this.updateContadorModulo(tipo, moduloId);
   }
   
   toggleSubmoduloSelection(submoduloId: number, moduloId: number, tipo: 'WEB' | 'MOVIL'): void {
@@ -697,6 +710,7 @@ export class PerfilesComponent implements OnInit {
     
     // Actualizar el estado del dropdown
     this.openDropdowns[`${tipo}_${moduloId}` as string] = selectedSubmodulos.length > 0;
+    this.updateContadorModulo(tipo, moduloId);
   }
 
   updateDropdownStates(): void {
@@ -717,31 +731,112 @@ export class PerfilesComponent implements OnInit {
     console.log('Estado de los dropdowns:', this.openDropdowns);
   }
 
-  getModulosDisplay(perfil: any): string {
-    let display = '';
-
-    const processModulos = (modulos: string[], submodulos: string[], tipo: 'WEB' | 'MOVIL') => {
-      if (modulos.length === 0 && submodulos.length === 0) return;
-
-      display += `${tipo}: [\n`;
-      modulos.forEach(modulo => {
-        const moduloSubmodulos = this.getSubmodulosForModulo(modulo, submodulos, tipo);
-        display += `  ${modulo}: [${moduloSubmodulos.join(', ')}],\n`;
-      });
-      display += ']\n';
+  getModulosDisplay(perfil: any): any {
+    // En lugar de retornar string, retornamos un objeto estructurado
+    return {
+      web: this.processModulosForTable(perfil.modulos_web, perfil.submodulos_web, 'WEB'),
+      movil: this.processModulosForTable(perfil.modulos_movil, perfil.submodulos_movil, 'MOVIL'),
+      tipo: perfil.tipo
     };
-
-    if (perfil.tipo === 'WEB' || perfil.tipo === 'AMBOS') {
-      processModulos(perfil.modulos_web, perfil.submodulos_web, 'WEB');
-    }
-    
-    if (perfil.tipo === 'MOVIL' || perfil.tipo === 'AMBOS') {
-      if (perfil.tipo === 'AMBOS' && perfil.modulos_web.length > 0) display += '\n';
-      processModulos(perfil.modulos_movil, perfil.submodulos_movil, 'MOVIL');
-    }
-
-    return display || 'No hay módulos disponibles';
   }
+
+  /**
+   * ✅ PROCESAR MÓDULOS PARA TABLA INTERACTIVA
+   */
+  processModulosForTable(modulos: string[], submodulos: string[], tipo: 'WEB' | 'MOVIL'): any[] {
+    const result: any[] = [];
+    
+    modulos.forEach(moduloNombre => {
+      const moduloSubmodulos = this.getSubmodulosForModulo(moduloNombre, submodulos, tipo);
+      result.push({
+        nombre: moduloNombre,
+        submodulos: moduloSubmodulos.map(sub => ({ nombre: sub }))
+      });
+    });
+    
+    return result;
+  }
+
+  /**
+   * ✅ VERIFICAR SI UN TIPO ESTÁ EXPANDIDO EN TABLA
+   */
+  isTipoExpandedInTable(perfilId: number, tipo: 'WEB' | 'MOVIL'): boolean {
+    const key = `perfil_${perfilId}_tipo_${tipo}`;
+    return this.tableExpansionState[key] || false;
+  }
+
+  /**
+   * ✅ VERIFICAR SI UN MÓDULO ESTÁ EXPANDIDO EN TABLA
+   */
+  isModuloExpandedInTable(perfilId: number, tipo: 'WEB' | 'MOVIL', moduloNombre: string): boolean {
+    const key = `perfil_${perfilId}_tipo_${tipo}_modulo_${moduloNombre}`;
+    return this.tableExpansionState[key] || false;
+  }
+
+  /**
+   * ✅ TOGGLE EXPANSIÓN DE TIPO EN TABLA
+   */
+  toggleTipoInTable(perfilId: number, tipo: 'WEB' | 'MOVIL', event: Event): void {
+    event.stopPropagation(); // Evitar que se seleccione la fila
+    const key = `perfil_${perfilId}_tipo_${tipo}`;
+    this.tableExpansionState[key] = !this.tableExpansionState[key];
+    
+    // Si se cierra el tipo, cerrar todos sus módulos
+    if (!this.tableExpansionState[key]) {
+      this.closeAllModulosForTipo(perfilId, tipo);
+    }
+  }
+
+  /**
+   * ✅ TOGGLE EXPANSIÓN DE MÓDULO EN TABLA
+   */
+  toggleModuloInTable(perfilId: number, tipo: 'WEB' | 'MOVIL', moduloNombre: string, event: Event): void {
+    event.stopPropagation(); // Evitar que se seleccione la fila
+    const key = `perfil_${perfilId}_tipo_${tipo}_modulo_${moduloNombre}`;
+    this.tableExpansionState[key] = !this.tableExpansionState[key];
+  }
+
+  /**
+   * ✅ CERRAR TODOS LOS MÓDULOS DE UN TIPO
+   */
+  private closeAllModulosForTipo(perfilId: number, tipo: 'WEB' | 'MOVIL'): void {
+    // Buscar y cerrar todos los módulos de este tipo para este perfil
+    Object.keys(this.tableExpansionState).forEach(key => {
+      if (key.startsWith(`perfil_${perfilId}_tipo_${tipo}_modulo_`)) {
+        this.tableExpansionState[key] = false;
+      }
+    });
+  }
+
+  /**
+   * ✅ OBTENER ICONO PARA EXPANSIÓN
+   */
+  getExpansionIcon(isExpanded: boolean): string {
+    return isExpanded ? '▼' : '▶';
+  }
+
+  /**
+   * ✅ OBTENER CONTADOR DE MÓDULOS
+   */
+  getModulosCount(modulos: any[]): number {
+    return modulos ? modulos.length : 0;
+  }
+
+  /**
+   * ✅ OBTENER CONTADOR DE SUBMÓDULOS
+   */
+  getSubmodulosCount(modulos: any[]): number {
+    if (!modulos) return 0;
+    return modulos.reduce((total, modulo) => total + (modulo.submodulos ? modulo.submodulos.length : 0), 0);
+  }
+
+  /**
+   * ✅ LIMPIAR ESTADO DE EXPANSIÓN AL RECARGAR PERFILES
+   */
+  private clearTableExpansionState(): void {
+    this.tableExpansionState = {};
+  }
+
   
   getSubmodulosForModulo(modulo: string, submodulos: string[], tipo: 'WEB' | 'MOVIL'): string[] {
     const allSubmodulos = tipo === 'WEB' ? this.submodulos_web : this.submodulos_movil;
@@ -779,5 +874,109 @@ export class PerfilesComponent implements OnInit {
     const submodulos = tipo === 'WEB' ? this.submodulos_web : this.submodulos_movil;
     const submodulo = submodulos.find(sm => sm.nombre === nombre);
     return submodulo ? submodulo.id : undefined;
+  }
+
+
+  /**
+   * ✅ MÉTODO PARA TOGGLE DE TIPOS (WEB/MOVIL)
+   */
+  toggleTipo(tipo: 'WEB' | 'MOVIL'): void {
+    this.openTipos[tipo] = !this.openTipos[tipo];
+    this.updateContadorTipo(tipo);
+  }
+
+  /**
+   * ✅ MÉTODO PARA TOGGLE DE MÓDULOS
+   */
+  toggleModuloDropdown(tipo: 'WEB' | 'MOVIL', moduloId: number): void {
+    const key = `${tipo}_${moduloId}`;
+    this.openModulos[key] = !this.openModulos[key];
+  }
+
+  /**
+   * ✅ VERIFICAR SI UN TIPO ESTÁ ABIERTO
+   */
+  isTipoOpen(tipo: 'WEB' | 'MOVIL'): boolean {
+    return this.openTipos[tipo] || false;
+  }
+
+  /**
+   * ✅ VERIFICAR SI UN MÓDULO ESTÁ ABIERTO
+   */
+  isModuloDropdownOpen(tipo: 'WEB' | 'MOVIL', moduloId: number): boolean {
+    const key = `${tipo}_${moduloId}`;
+    return this.openModulos[key] || false;
+  }
+
+  /**
+   * ✅ ACTUALIZAR CONTADOR DE TIPO
+   */
+  updateContadorTipo(tipo: 'WEB' | 'MOVIL'): void {
+    let contador = 0;
+    
+    if (tipo === 'WEB') {
+      contador = this.selectedModulosWeb.length + this.selectedSubmodulosWeb.length;
+    } else {
+      contador = this.selectedModulosMovil.length + this.selectedSubmodulosMovil.length;
+    }
+    
+    this.contadores[tipo] = contador;
+  }
+
+  /**
+   * ✅ ACTUALIZAR CONTADOR DE MÓDULO
+   */
+  updateContadorModulo(tipo: 'WEB' | 'MOVIL', moduloId: number): void {
+    const submodulos = this.getSubmodulos(moduloId, tipo);
+    const selectedSubmodulos = tipo === 'WEB' ? this.selectedSubmodulosWeb : this.selectedSubmodulosMovil;
+    
+    const contador = submodulos.filter(sm => selectedSubmodulos.includes(sm.id)).length;
+    this.contadores[`${tipo}_${moduloId}`] = contador;
+    
+    // Actualizar también el contador del tipo
+    this.updateContadorTipo(tipo);
+  }
+
+  /**
+   * ✅ OBTENER CONTADOR
+   */
+  getContador(key: string): number {
+    return this.contadores[key] || 0;
+  }
+
+  /**
+   * ✅ INICIALIZAR CONTADORES
+   */
+  private initializeCounters(): void {
+    this.contadores = {
+      WEB: 0,
+      MOVIL: 0
+    };
+    
+    // Inicializar contadores de módulos web
+    this.modulos_web.forEach(modulo => {
+      this.contadores[`WEB_${modulo.id}`] = 0;
+    });
+    
+    // Inicializar contadores de módulos móvil
+    this.modulos_movil.forEach(modulo => {
+      this.contadores[`MOVIL_${modulo.id}`] = 0;
+    });
+  }
+
+    /**
+   * ✅ NUEVO MÉTODO PARA ACTUALIZAR TODOS LOS CONTADORES
+   */
+  private updateAllCounters(): void {
+    this.updateContadorTipo('WEB');
+    this.updateContadorTipo('MOVIL');
+    
+    this.modulos_web.forEach(modulo => {
+      this.updateContadorModulo('WEB', modulo.id);
+    });
+    
+    this.modulos_movil.forEach(modulo => {
+      this.updateContadorModulo('MOVIL', modulo.id);
+    });
   }
 }

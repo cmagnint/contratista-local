@@ -1,4 +1,4 @@
-// login.component.ts - VERSIÓN SIMPLIFICADA ESTÁNDAR
+// login.component.ts - VERSIÓN ACTUALIZADA CON API UNIFICADA
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -29,6 +29,14 @@ export class LoginComponent implements OnInit {
     loop: true
   };
 
+  // Estados para los modales de recuperación
+  public showRutModal: boolean = false;
+  public showEmailModal: boolean = false;
+  public showCodeModal: boolean = false;
+  public rutForRecovery: string = '';
+  public emailForRecovery: string = '';
+  public codeForRecovery: string = '';
+  
   constructor(
     private contratistaApiService: ContratistaApiService,
     private jwtService: JwtService,
@@ -126,7 +134,6 @@ export class LoginComponent implements OnInit {
               }
             }
 
-            this.toastr.success('¡Bienvenido!', 'Login exitoso');
           } else {
             this.showErrorMessage(data.mensaje || 'Error de autenticación');
           }
@@ -148,6 +155,149 @@ export class LoginComponent implements OnInit {
         }
       });
   }
+
+  onForgotPassword() {
+    this.showRutModal = true;
+  }
+
+  // ============================================
+  // 🎯 MÉTODOS ACTUALIZADOS PARA API UNIFICADA
+  // ============================================
+
+  /**
+   * ✅ ACTUALIZADO: Verifica si el RUT existe usando API unificada
+   */
+  checkRut() {
+    console.log('🔍 Verificando RUT:', this.rutForRecovery);
+    
+    if (!this.rutForRecovery.trim()) {
+      this.toastr.error('Por favor ingrese un RUT', 'Error');
+      return;
+    }
+
+    const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
+
+    // ✅ NUEVA API UNIFICADA con action
+    this.contratistaApiService.post('password-reset/', { 
+      action: 'check_user',
+      rut_user: rutWithoutFormat 
+    }).subscribe({
+      next: (response: any) => {
+        console.log('✅ Respuesta verificación RUT:', response);
+        
+        if (response.valid && response.status === 'success') {
+          this.showRutModal = false;
+          this.showEmailModal = true;
+          this.toastr.success('RUT encontrado', 'Éxito');
+          
+        } else {
+          console.log("RUt no encontrado")
+          this.toastr.error('RUT no encontrado', 'Error');
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error al verificar RUT:', error);
+        this.toastr.error('Error al verificar RUT', 'Error');
+      }
+    });
+  }
+
+  /**
+   * ✅ ACTUALIZADO: Envía código de verificación usando API unificada
+   */
+  sendCode() {
+    console.log('📧 Enviando código para:', this.emailForRecovery);
+    
+    if (!this.emailForRecovery.trim()) {
+      this.toastr.error('Por favor ingrese un email', 'Error');
+      return;
+    }
+
+    const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
+
+    // ✅ NUEVA API UNIFICADA con action
+    this.contratistaApiService.post('password-reset/', { 
+      action: 'generate_code',
+      email: this.emailForRecovery, 
+      rut: rutWithoutFormat 
+    }).subscribe({
+      next: (response: any) => {
+        console.log('✅ Respuesta envío código:', response);
+        
+        if (response.status === 'success') {
+          this.showEmailModal = false;
+          this.showCodeModal = true;
+          this.toastr.success('Código enviado exitosamente', 'Éxito');
+        } else {
+          this.toastr.error(response.message || 'Error al enviar código', 'Error');
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error al enviar código:', error);
+        const errorMsg = error.error?.message || 'Error al enviar código';
+        this.toastr.error(errorMsg, 'Error');
+      }
+    });
+  }
+
+  /**
+   * ✅ ACTUALIZADO: Verifica código usando API unificada
+   */
+  verifyCode() {
+    console.log('🔐 Verificando código:', this.codeForRecovery);
+    
+    if (!this.codeForRecovery.trim()) {
+      this.toastr.error('Por favor ingrese el código', 'Error');
+      return;
+    }
+
+    const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
+
+    // ✅ NUEVA API UNIFICADA con action
+    this.contratistaApiService.post('password-reset/', { 
+      action: 'verify_code',
+      rut: rutWithoutFormat, 
+      codigo: this.codeForRecovery 
+    }).subscribe({
+      next: (response: any) => {
+        console.log('✅ Respuesta verificación código:', response);
+        
+        if (response.status === 'success') {
+          this.toastr.success('Código verificado exitosamente', 'Éxito');
+          // Redirigir al componente de cambio de contraseña
+          this.router.navigate(['/change-password'], { 
+            queryParams: { 
+              rut: rutWithoutFormat, 
+              code: this.codeForRecovery 
+            }
+          });
+        } else {
+          this.toastr.error(response.message || 'Código inválido', 'Error');
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error al verificar código:', error);
+        const errorMsg = error.error?.message || 'Error al verificar código';
+        this.toastr.error(errorMsg, 'Error');
+      }
+    });
+  }
+
+  /**
+   * ✅ CERRAR MODALES - Sin cambios
+   */
+  closeModal() {
+    this.showRutModal = false;
+    this.showEmailModal = false;
+    this.showCodeModal = false;
+    this.rutForRecovery = '';
+    this.emailForRecovery = '';
+    this.codeForRecovery = '';
+  }
+
+  // ============================================
+  // 🎯 MÉTODOS AUXILIARES - Sin cambios
+  // ============================================
 
   /**
    * Muestra un mensaje de error y actualiza el estado
@@ -222,28 +372,6 @@ export class LoginComponent implements OnInit {
     
     if (target.value === '-') {
       target.value = '';
-    }
-  }
-
-  /**
-   * DEBUG: Muestra información del JWT para desarrollo
-   */
-  debugJWT(): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-
-    const debugInfo = this.contratistaApiService.getDebugInfo();
-    console.log('=== DEBUG JWT INFO ===');
-    console.log('Debug Info:', debugInfo);
-    
-    const payload = this.jwtService.decodeToken();
-    console.log('JWT Payload:', payload);
-    
-    if (payload) {
-      console.log('User Info:', this.jwtService.getUserInfo());
-      console.log('Available Modules (web):', this.jwtService.getAvailableModules('web'));
-      console.log('Can access /fs/perfiles:', this.jwtService.canAccessRoute('/fs/perfiles'));
-      console.log('Can access ADMINISTRACION module:', this.jwtService.canAccessModule('ADMINISTRACION'));
-      console.log('Navigation Structure:', this.jwtService.generateNavigationStructure());
     }
   }
 }

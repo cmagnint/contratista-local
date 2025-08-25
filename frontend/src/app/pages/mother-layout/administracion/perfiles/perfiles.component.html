@@ -22,8 +22,127 @@
 
     <ng-container matColumnDef="modulos">
       <th mat-header-cell *matHeaderCellDef class="mat-header modulos-column"> Módulos </th>
-      <td mat-cell *matCellDef="let perfil" class="mat-cell modulos-column"> 
-        <pre>{{ getModulosDisplay(perfil) }}</pre>
+      <td mat-cell *matCellDef="let perfil" class="mat-cell modulos-column modulos-cell-interactive"> 
+        <div class="modulos-interactive-container">
+          
+          <!-- TIPO WEB -->
+          <div *ngIf="(perfil.tipo === 'WEB' || perfil.tipo === 'AMBOS') && getModulosDisplay(perfil).web.length > 0" 
+              class="tipo-item-interactive">
+            
+            <!-- Header del tipo WEB -->
+            <div class="tipo-header-interactive web-header" 
+                (click)="toggleTipoInTable(perfil.id, 'WEB', $event)"
+                [class.expanded]="isTipoExpandedInTable(perfil.id, 'WEB')">
+              <div class="tipo-info">
+                <span class="expand-icon-table">{{ getExpansionIcon(isTipoExpandedInTable(perfil.id, 'WEB')) }}</span>
+                <span class="tipo-icon">🌐</span>
+                <span class="tipo-label">WEB</span>
+              </div>
+              <div class="tipo-counters">
+                <span class="counter-badge modules">{{ getModulosCount(getModulosDisplay(perfil).web) }}M</span>
+                <span class="counter-badge submodules">{{ getSubmodulosCount(getModulosDisplay(perfil).web) }}S</span>
+              </div>
+            </div>
+            
+            <!-- Lista de módulos WEB -->
+            <div class="modulos-list-table" 
+                [class.expanded]="isTipoExpandedInTable(perfil.id, 'WEB')">
+              
+              <div *ngFor="let modulo of getModulosDisplay(perfil).web" 
+                  class="modulo-item-interactive">
+                
+                <!-- Header del módulo -->
+                <div class="modulo-header-interactive"
+                    (click)="toggleModuloInTable(perfil.id, 'WEB', modulo.nombre, $event)"
+                    [class.expanded]="isModuloExpandedInTable(perfil.id, 'WEB', modulo.nombre)">
+                  <div class="modulo-info">
+                    <span class="expand-icon-table small" 
+                          *ngIf="modulo.submodulos.length > 0">{{ getExpansionIcon(isModuloExpandedInTable(perfil.id, 'WEB', modulo.nombre)) }}</span>
+                    <span class="modulo-icon">▸</span>
+                    <span class="modulo-name">{{ modulo.nombre }}</span>
+                  </div>
+                  <span class="counter-badge small" 
+                        *ngIf="modulo.submodulos.length > 0">{{ modulo.submodulos.length }}</span>
+                </div>
+                
+                <!-- Lista de submódulos -->
+                <div class="submodulos-list-table"
+                    [class.expanded]="isModuloExpandedInTable(perfil.id, 'WEB', modulo.nombre)"
+                    *ngIf="modulo.submodulos.length > 0">
+                  
+                  <div *ngFor="let submodulo of modulo.submodulos" 
+                      class="submodulo-item-interactive">
+                    <span class="submodulo-icon">•</span>
+                    <span class="submodulo-name">{{ submodulo.nombre }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- TIPO MÓVIL -->
+          <div *ngIf="(perfil.tipo === 'MOVIL' || perfil.tipo === 'AMBOS') && getModulosDisplay(perfil).movil.length > 0" 
+              class="tipo-item-interactive">
+            
+            <!-- Header del tipo MÓVIL -->
+            <div class="tipo-header-interactive movil-header" 
+                (click)="toggleTipoInTable(perfil.id, 'MOVIL', $event)"
+                [class.expanded]="isTipoExpandedInTable(perfil.id, 'MOVIL')">
+              <div class="tipo-info">
+                <span class="expand-icon-table">{{ getExpansionIcon(isTipoExpandedInTable(perfil.id, 'MOVIL')) }}</span>
+                <span class="tipo-icon">📱</span>
+                <span class="tipo-label">MÓVIL</span>
+              </div>
+              <div class="tipo-counters">
+                <span class="counter-badge modules">{{ getModulosCount(getModulosDisplay(perfil).movil) }}M</span>
+                <span class="counter-badge submodules">{{ getSubmodulosCount(getModulosDisplay(perfil).movil) }}S</span>
+              </div>
+            </div>
+            
+            <!-- Lista de módulos MÓVIL -->
+            <div class="modulos-list-table" 
+                [class.expanded]="isTipoExpandedInTable(perfil.id, 'MOVIL')">
+              
+              <div *ngFor="let modulo of getModulosDisplay(perfil).movil" 
+                  class="modulo-item-interactive">
+                
+                <!-- Header del módulo -->
+                <div class="modulo-header-interactive"
+                    (click)="toggleModuloInTable(perfil.id, 'MOVIL', modulo.nombre, $event)"
+                    [class.expanded]="isModuloExpandedInTable(perfil.id, 'MOVIL', modulo.nombre)">
+                  <div class="modulo-info">
+                    <span class="expand-icon-table small" 
+                          *ngIf="modulo.submodulos.length > 0">{{ getExpansionIcon(isModuloExpandedInTable(perfil.id, 'MOVIL', modulo.nombre)) }}</span>
+                    <span class="modulo-icon">▸</span>
+                    <span class="modulo-name">{{ modulo.nombre }}</span>
+                  </div>
+                  <span class="counter-badge small" 
+                        *ngIf="modulo.submodulos.length > 0">{{ modulo.submodulos.length }}</span>
+                </div>
+                
+                <!-- Lista de submódulos -->
+                <div class="submodulos-list-table"
+                    [class.expanded]="isModuloExpandedInTable(perfil.id, 'MOVIL', modulo.nombre)"
+                    *ngIf="modulo.submodulos.length > 0">
+                  
+                  <div *ngFor="let submodulo of modulo.submodulos" 
+                      class="submodulo-item-interactive">
+                    <span class="submodulo-icon">•</span>
+                    <span class="submodulo-name">{{ submodulo.nombre }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Mensaje cuando no hay módulos -->
+          <div *ngIf="getModulosDisplay(perfil).web.length === 0 && getModulosDisplay(perfil).movil.length === 0" 
+              class="no-modules-interactive">
+            <span class="no-modules-icon">⚠️</span>
+            <span>No hay módulos disponibles</span>
+          </div>
+          
+        </div>
       </td>
     </ng-container>
     
@@ -66,20 +185,51 @@
     
     <div class="modal-section" *ngIf="tipoPerfil !== 'MOVIL'">
       <h3>MÓDULOS WEB</h3>
-      <div class="modulos-container">
-        <div *ngFor="let modulo of modulos_web" class="modulo-dropdown">
-          <div class="modulo-header" (click)="toggleDropdown(modulo.id, 'WEB')">
-            <input type="checkbox" 
-                   [checked]="selectedModulosWeb.includes(modulo.id)"
-                   (change)="toggleModuloSelection(modulo.id, 'WEB'); $event.stopPropagation()">
-            <span>{{modulo.nombre}}</span>
+      <div class="modulos-container-jerarquico">
+        
+        <!-- Tipo WEB -->
+        <div class="tipo-section">
+          <div class="tipo-header" [class.active]="isTipoOpen('WEB')" (click)="toggleTipo('WEB')">
+            <div class="tipo-header-content">
+              <span class="expand-icon" [class.expanded]="isTipoOpen('WEB')">▶</span>
+              <span class="tipo-label">WEB</span>
+              <span class="tipo-badge">Plataforma Web</span>
+            </div>
+            <span class="selection-counter">{{ getContador('WEB') }}</span>
           </div>
-          <div class="submodulos-list" [class.show]="isDropdownOpen(modulo.id, 'WEB')">
-            <div *ngFor="let submodulo of getSubmodulos(modulo.id, 'WEB')">
-              <input type="checkbox" 
-                     [checked]="selectedSubmodulosWeb.includes(submodulo.id)"
-                     (change)="toggleSubmoduloSelection(submodulo.id, modulo.id, 'WEB')"> 
-              {{submodulo.nombre}}
+          
+          <div class="modulos-list" [class.show]="isTipoOpen('WEB')">
+            <div *ngFor="let modulo of modulos_web" class="modulo-item">
+              <div class="modulo-header" 
+                  [class.selected]="selectedModulosWeb.includes(modulo.id)"
+                  (click)="toggleModuloDropdown('WEB', modulo.id)">
+                <div class="modulo-header-content">
+                  <div class="checkbox-container">
+                    <input type="checkbox" 
+                          class="custom-checkbox"
+                          [checked]="selectedModulosWeb.includes(modulo.id)"
+                          (change)="toggleModuloSelection(modulo.id, 'WEB'); $event.stopPropagation()">
+                  </div>
+                  <span class="expand-icon" [class.expanded]="isModuloDropdownOpen('WEB', modulo.id)">▶</span>
+                  <span class="modulo-label">{{ modulo.nombre }}</span>
+                </div>
+                <span class="selection-counter">{{ getContador('WEB_' + modulo.id) }}</span>
+              </div>
+              
+              <div class="submodulos-list" [class.show]="isModuloDropdownOpen('WEB', modulo.id)">
+                <div *ngFor="let submodulo of getSubmodulos(modulo.id, 'WEB')" 
+                    class="submodulo-item"
+                    [class.selected]="selectedSubmodulosWeb.includes(submodulo.id)"
+                    (click)="toggleSubmoduloSelection(submodulo.id, modulo.id, 'WEB')">
+                  <div class="checkbox-container">
+                    <input type="checkbox" 
+                          class="custom-checkbox"
+                          [checked]="selectedSubmodulosWeb.includes(submodulo.id)"
+                          (change)="$event.stopPropagation()">
+                  </div>
+                  <span class="submodulo-label">{{ submodulo.nombre }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -88,20 +238,51 @@
 
     <div class="modal-section" *ngIf="tipoPerfil !== 'WEB'">
       <h3>MÓDULOS MÓVIL</h3>
-      <div class="modulos-container">
-        <div *ngFor="let modulo of modulos_movil" class="modulo-dropdown">
-          <div class="modulo-header" (click)="toggleDropdown(modulo.id, 'MOVIL')">
-            <input type="checkbox" 
-                   [checked]="selectedModulosMovil.includes(modulo.id)"
-                   (change)="toggleModuloSelection(modulo.id, 'MOVIL'); $event.stopPropagation()">
-            <span>{{modulo.nombre}}</span>
+      <div class="modulos-container-jerarquico">
+        
+        <!-- Tipo MOVIL -->
+        <div class="tipo-section">
+          <div class="tipo-header" [class.active]="isTipoOpen('MOVIL')" (click)="toggleTipo('MOVIL')">
+            <div class="tipo-header-content">
+              <span class="expand-icon" [class.expanded]="isTipoOpen('MOVIL')">▶</span>
+              <span class="tipo-label">MÓVIL</span>
+              <span class="tipo-badge">Aplicación Móvil</span>
+            </div>
+            <span class="selection-counter">{{ getContador('MOVIL') }}</span>
           </div>
-          <div class="submodulos-list" [class.show]="isDropdownOpen(modulo.id, 'MOVIL')">
-            <div *ngFor="let submodulo of getSubmodulos(modulo.id, 'MOVIL')">
-              <input type="checkbox" 
-                      [checked]="selectedSubmodulosMovil.includes(submodulo.id)"
-                      (change)="toggleSubmoduloSelection(submodulo.id, modulo.id, 'MOVIL')">
-              {{submodulo.nombre}}
+          
+          <div class="modulos-list" [class.show]="isTipoOpen('MOVIL')">
+            <div *ngFor="let modulo of modulos_movil" class="modulo-item">
+              <div class="modulo-header" 
+                  [class.selected]="selectedModulosMovil.includes(modulo.id)"
+                  (click)="toggleModuloDropdown('MOVIL', modulo.id)">
+                <div class="modulo-header-content">
+                  <div class="checkbox-container">
+                    <input type="checkbox" 
+                          class="custom-checkbox"
+                          [checked]="selectedModulosMovil.includes(modulo.id)"
+                          (change)="toggleModuloSelection(modulo.id, 'MOVIL'); $event.stopPropagation()">
+                  </div>
+                  <span class="expand-icon" [class.expanded]="isModuloDropdownOpen('MOVIL', modulo.id)">▶</span>
+                  <span class="modulo-label">{{ modulo.nombre }}</span>
+                </div>
+                <span class="selection-counter">{{ getContador('MOVIL_' + modulo.id) }}</span>
+              </div>
+              
+              <div class="submodulos-list" [class.show]="isModuloDropdownOpen('MOVIL', modulo.id)">
+                <div *ngFor="let submodulo of getSubmodulos(modulo.id, 'MOVIL')" 
+                    class="submodulo-item"
+                    [class.selected]="selectedSubmodulosMovil.includes(submodulo.id)"
+                    (click)="toggleSubmoduloSelection(submodulo.id, modulo.id, 'MOVIL')">
+                  <div class="checkbox-container">
+                    <input type="checkbox" 
+                          class="custom-checkbox"
+                          [checked]="selectedSubmodulosMovil.includes(submodulo.id)"
+                          (change)="$event.stopPropagation()">
+                  </div>
+                  <span class="submodulo-label">{{ submodulo.nombre }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

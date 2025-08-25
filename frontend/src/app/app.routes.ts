@@ -58,10 +58,12 @@ import { FacturasVentaDistribuidasComponent } from './pages/mother-layout/costos
 import { PagosIngresosComponent } from './pages/mother-layout/tesoreria/pagos-ingresos/pagos-ingresos.component';
 import { PagosEgresosComponent } from './pages/mother-layout/tesoreria/pagos-egresos/pagos-egresos.component';
 import { HistorialPagosComponent } from './pages/mother-layout/tesoreria/historial-pagos/historial-pagos.component';
+import { ChangePasswordComponent } from './pages/change-password/change-password.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  { path: 'change-password', component: ChangePasswordComponent },
   { 
     path: 'super-admin', 
     component: SuperadminComponent, 

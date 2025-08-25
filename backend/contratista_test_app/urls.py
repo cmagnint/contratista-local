@@ -114,14 +114,16 @@ from .views import (
     VerifyJWTAPIView,
     RefreshJWTAPIView,
     CheckHealthAPIView,
+    PasswordResetAPIView,
 )
 
 app_name = 'contratista_test'
 
 urlpatterns = [
     path('health/', CheckHealthAPIView.as_view(), name='check_health'),
+    path('password-reset/', PasswordResetAPIView.as_view(), name='password_reset'),
     path('verify_superadmin_access/', CheckTokenSuperAdmin.as_view(), name='verify_superadmin_access'),
-    path('verify_jwt/', VerifyJWTAPIView.as_view(), name='verify_jwt'),          # JWT (principal)
+    path('verify_jwt/', VerifyJWTAPIView.as_view(), name='verify_jwt'),
     path('refresh_jwt/', RefreshJWTAPIView.as_view(), name='refresh_jwt'),  
     path('api_login/', LoginAPIView.as_view(), name='api_login'),
     path('api_holding/', HoldingAPIView.as_view(),name='api_holding'),

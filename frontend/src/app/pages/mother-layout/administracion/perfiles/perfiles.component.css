@@ -580,3 +580,668 @@ select, input[type="text"] {
   background-color: #166a82 !important;
   /*replace with your color*/
 }
+
+/* ============================================ */
+/* 🎯 CONTROL GRANULAR MODULOS */
+/* ============================================ */
+
+/* Contenedor principal jerárquico */
+.modulos-container-jerarquico {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: #fafafa;
+}
+
+/* Scrollbar personalizada */
+.modulos-container-jerarquico::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modulos-container-jerarquico::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modulos-container-jerarquico::-webkit-scrollbar-thumb {
+  background: #4CAF50;
+  border-radius: 4px;
+}
+
+.modulos-container-jerarquico::-webkit-scrollbar-thumb:hover {
+  background: #45a049;
+}
+
+/* Nivel 1: Tipos (WEB/MOVIL) */
+.tipo-section {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tipo-header {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  padding: 12px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.tipo-header:hover {
+  background: linear-gradient(135deg, #1976D2, #1565C0);
+  transform: translateX(2px);
+}
+
+.tipo-header.active {
+  background: linear-gradient(135deg, #4CAF50, #388E3C);
+}
+
+.tipo-header-content {
+  display: flex;
+  align-items: center;
+}
+
+.tipo-label {
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.tipo-badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+/* Nivel 2: Módulos */
+.modulos-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease-out;
+  background-color: #f8f9fa;
+}
+
+.modulos-list.show {
+  max-height: 500px;
+  transition: max-height 0.6s ease-in;
+}
+
+.modulo-item {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modulo-header {
+  background-color: #ffffff;
+  border-left: 4px solid transparent;
+  padding: 10px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.modulo-header:hover {
+  background-color: #e8f5e8;
+  border-left-color: #4CAF50;
+  transform: translateX(3px);
+}
+
+.modulo-header.selected {
+  background-color: #e8f5e8;
+  border-left-color: #4CAF50;
+  color: #2e7d32;
+}
+
+.modulo-header-content {
+  display: flex;
+  align-items: center;
+}
+
+.modulo-label {
+  margin-left: 8px;
+}
+
+/* Nivel 3: Submódulos */
+.submodulos-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  background-color: #f0f8ff;
+  padding-left: 20px;
+}
+
+.submodulos-list.show {
+  max-height: 300px;
+  transition: max-height 0.4s ease-in;
+  padding: 10px 20px;
+}
+
+.submodulo-item {
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  margin: 2px 0;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.submodulo-item:hover {
+  background-color: #e3f2fd;
+  transform: translateX(2px);
+}
+
+.submodulo-item.selected {
+  background-color: #bbdefb;
+  color: #1565c0;
+}
+
+.submodulo-label {
+  margin-left: 8px;
+}
+
+/* Checkboxes estilizados */
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.custom-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #4CAF50;
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 8px;
+}
+
+.custom-checkbox:checked {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+}
+
+.custom-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 2px;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Íconos expandir/contraer */
+.expand-icon {
+  font-size: 18px;
+  transition: transform 0.3s ease;
+  color: #666;
+  min-width: 20px;
+  text-align: center;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+  color: #4CAF50;
+}
+
+/* Contador de seleccionados */
+.selection-counter {
+  background-color: #4CAF50;
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+  display: inline-block;
+}
+
+/* Animaciones */
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 500px;
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+  }
+  to { 
+    opacity: 1; 
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tipo-header {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+  
+  .modulo-header {
+    padding: 8px 15px;
+    font-size: 14px;
+  }
+  
+  .submodulo-item {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .custom-checkbox {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .expand-icon {
+    font-size: 16px;
+  }
+}
+
+/* ============================================ */
+/* ============================================ */
+
+/* ============================================ */
+/* 🎯 ESTILOS PARA TABLA INTERACTIVA DE MÓDULOS */
+/* ============================================ */
+
+/* Celda interactiva de módulos */
+.modulos-cell-interactive {
+  padding: 8px !important;
+  vertical-align: top !important;
+  max-width: 350px;
+}
+
+/* Contenedor principal */
+.modulos-interactive-container {
+  max-height: 250px;
+  overflow-y: auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* ============================================ */
+/* 🎯 NIVEL 1: TIPOS (WEB/MOVIL) */
+/* ============================================ */
+
+.tipo-item-interactive {
+  margin-bottom: 8px;
+}
+
+.tipo-item-interactive:last-child {
+  margin-bottom: 0;
+}
+
+.tipo-header-interactive {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+/* Colores específicos por tipo */
+.web-header {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
+  border-left: 3px solid #2196F3;
+}
+
+.web-header:hover {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.15), rgba(33, 150, 243, 0.08));
+  transform: translateX(2px);
+  border-color: #2196F3;
+}
+
+.web-header.expanded {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.2), rgba(33, 150, 243, 0.1));
+  border-color: #1976D2;
+}
+
+.movil-header {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.05));
+  border-left: 3px solid #FF9800;
+}
+
+.movil-header:hover {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.15), rgba(255, 152, 0, 0.08));
+  transform: translateX(2px);
+  border-color: #FF9800;
+}
+
+.movil-header.expanded {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.2), rgba(255, 152, 0, 0.1));
+  border-color: #F57C00;
+}
+
+/* Información del tipo */
+.tipo-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tipo-icon {
+  font-size: 14px;
+}
+
+.tipo-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Contadores del tipo */
+.tipo-counters {
+  display: flex;
+  gap: 4px;
+}
+
+.counter-badge {
+  background-color: #4CAF50;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 16px;
+  text-align: center;
+}
+
+.counter-badge.modules {
+  background-color: #2196F3;
+}
+
+.counter-badge.submodules {
+  background-color: #FF9800;
+}
+
+.counter-badge.small {
+  padding: 1px 4px;
+  font-size: 9px;
+  min-width: 14px;
+}
+
+/* ============================================ */
+/* 🎯 NIVEL 2: MÓDULOS */
+/* ============================================ */
+
+.modulos-list-table {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  padding-left: 12px;
+}
+
+.modulos-list-table.expanded {
+  max-height: 200px;
+  transition: max-height 0.4s ease-in;
+  padding-top: 4px;
+}
+
+.modulo-item-interactive {
+  margin-bottom: 4px;
+}
+
+.modulo-header-interactive {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid transparent;
+}
+
+.modulo-header-interactive:hover {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
+  transform: translateX(2px);
+}
+
+.modulo-header-interactive.expanded {
+  background-color: rgba(76, 175, 80, 0.15);
+  border-color: rgba(76, 175, 80, 0.4);
+}
+
+.modulo-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.modulo-icon {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.modulo-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: #2e7d32;
+}
+
+/* ============================================ */
+/* 🎯 NIVEL 3: SUBMÓDULOS */
+/* ============================================ */
+
+.submodulos-list-table {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+  padding-left: 16px;
+}
+
+.submodulos-list-table.expanded {
+  max-height: 100px;
+  transition: max-height 0.3s ease-in;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.submodulo-item-interactive {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  margin-bottom: 1px;
+  border-radius: 2px;
+  transition: all 0.1s ease;
+}
+
+.submodulo-item-interactive:hover {
+  background-color: rgba(33, 150, 243, 0.08);
+  transform: translateX(1px);
+}
+
+.submodulo-icon {
+  color: #666;
+  font-size: 10px;
+}
+
+.submodulo-name {
+  font-size: 10px;
+  color: #555;
+  line-height: 1.2;
+}
+
+/* ============================================ */
+/* 🎯 ICONOS DE EXPANSIÓN */
+/* ============================================ */
+
+.expand-icon-table {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+  color: #666;
+  min-width: 14px;
+  text-align: center;
+}
+
+.expand-icon-table.small {
+  font-size: 10px;
+  min-width: 12px;
+}
+
+.tipo-header-interactive.expanded .expand-icon-table,
+.modulo-header-interactive.expanded .expand-icon-table {
+  transform: rotate(90deg);
+  color: #4CAF50;
+}
+
+/* ============================================ */
+/* 🎯 ESTADO SIN MÓDULOS */
+/* ============================================ */
+
+.no-modules-interactive {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px dashed #FFC107;
+  border-radius: 4px;
+  color: #F57C00;
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  justify-content: center;
+}
+
+.no-modules-icon {
+  font-size: 12px;
+}
+
+/* ============================================ */
+/* 🎯 SCROLLBAR PERSONALIZADA */
+/* ============================================ */
+
+.modulos-interactive-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modulos-interactive-container::-webkit-scrollbar-track {
+  background: rgba(240, 240, 240, 0.8);
+  border-radius: 3px;
+}
+
+.modulos-interactive-container::-webkit-scrollbar-thumb {
+  background: rgba(76, 175, 80, 0.6);
+  border-radius: 3px;
+}
+
+.modulos-interactive-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(76, 175, 80, 0.8);
+}
+
+/* ============================================ */
+/* 🎯 ANIMACIONES Y EFECTOS */
+/* ============================================ */
+
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 200px;
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modulos-list-table.expanded,
+.submodulos-list-table.expanded {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE */
+/* ============================================ */
+
+@media (max-width: 768px) {
+  .modulos-cell-interactive {
+    max-width: 300px;
+  }
+  
+  .modulos-interactive-container {
+    font-size: 11px;
+    max-height: 200px;
+  }
+  
+  .tipo-header-interactive {
+    padding: 4px 6px;
+  }
+  
+  .modulo-header-interactive {
+    padding: 3px 6px;
+  }
+  
+  .tipo-icon {
+    font-size: 12px;
+  }
+  
+  .tipo-label {
+    font-size: 11px;
+  }
+  
+  .modulo-name {
+    font-size: 10px;
+  }
+  
+  .submodulo-name {
+    font-size: 9px;
+  }
+}
+
+/* ============================================ */
+/* 🎯 EFECTOS AL HACER HOVER EN LA CELDA */
+/* ============================================ */
+
+.modulos-cell-interactive:hover .modulos-interactive-container {
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.15);
+  border-radius: 4px;
+  transition: box-shadow 0.2s ease;
+}
+
+/* Evitar que el hover de la fila interfiera */
+.mat-row:hover .modulos-cell-interactive .tipo-header-interactive,
+.mat-row:hover .modulos-cell-interactive .modulo-header-interactive {
+  background-color: inherit;
+}
