@@ -14,7 +14,6 @@ try {
       CryptoJS = crypto;
     });
   } catch (error2) {
-    console.error('Error importing CryptoJS:', error2);
   }
 }
 
@@ -63,11 +62,8 @@ export class JwtService {
    */
   private initializeTokens(): void {
     if (isPlatformBrowser(this.platformId)) {
-      console.log('🌐 JWT Service: Inicializando en browser');
       this.preloadTokensFromStorage();
-    } else {
-      console.log('🖥️ JWT Service: Inicializando en servidor (SSR)');
-    }
+    } 
   }
 
   /**
@@ -82,13 +78,8 @@ export class JwtService {
       this.tokenCache = localStorage.getItem(this.JWT_TOKEN_KEY);
       this.refreshTokenCache = localStorage.getItem(this.REFRESH_TOKEN_KEY);
       
-      console.log('🔄 Tokens precargados desde localStorage:', {
-        hasJwtToken: !!this.tokenCache,
-        hasRefreshToken: !!this.refreshTokenCache,
-        jwtTokenLength: this.tokenCache?.length || 0
-      });
+      
     } catch (error) {
-      console.error('❌ Error precargando tokens:', error);
       this.tokenCache = null;
       this.refreshTokenCache = null;
     }
@@ -107,22 +98,15 @@ export class JwtService {
    * ✅ GET TOKEN: Compatible con SSR
    */
   getToken(): string | null {
-    console.log('🔍 Obteniendo JWT token...');
-    console.log('🌐 Platform check:', {
-      isPlatformBrowser: isPlatformBrowser(this.platformId),
-      hasWindow: typeof window !== 'undefined',
-      hasLocalStorage: typeof localStorage !== 'undefined'
-    });
+
     
     // En servidor, el token siempre será null
     if (!isPlatformBrowser(this.platformId)) {
-      console.log('🖥️ Servidor: Token no disponible en SSR');
       return null;
     }
 
     // Primero verificar el cache
     if (this.tokenCache) {
-      console.log('✅ Token encontrado en cache');
       return this.tokenCache;
     }
 
@@ -132,15 +116,12 @@ export class JwtService {
         const token = localStorage.getItem(this.JWT_TOKEN_KEY);
         if (token) {
           this.tokenCache = token; // Actualizar cache
-          console.log('✅ Token encontrado en localStorage');
           return token;
         }
       } catch (error) {
-        console.error('❌ Error accediendo localStorage:', error);
       }
     }
 
-    console.log('❌ No se encontró JWT token');
     return null;
   }
 
@@ -177,14 +158,12 @@ export class JwtService {
    * ✅ STORE TOKEN: Solo en browser
    */
   storeToken(token: string): void {
-    console.log('💾 Almacenando JWT token...');
     
     // Actualizar cache inmediatamente (disponible en SSR y browser)
     this.tokenCache = token;
     
     // Solo almacenar en localStorage si estamos en browser
     if (!isPlatformBrowser(this.platformId)) {
-      console.log('🖥️ Servidor: Token almacenado solo en cache (SSR)');
       return;
     }
 
@@ -192,12 +171,10 @@ export class JwtService {
     if (this.isStorageAvailable()) {
       try {
         localStorage.setItem(this.JWT_TOKEN_KEY, token);
-        console.log('✅ Token almacenado en localStorage');
       } catch (error) {
         console.error('❌ Error almacenando token en localStorage:', error);
       }
     } else {
-      console.log('⚠️ localStorage no disponible, usando solo cache');
     }
   }
 
@@ -227,29 +204,21 @@ export class JwtService {
    * ✅ IS AUTHENTICATED: Compatible con SSR
    */
   isAuthenticated(): boolean {
-    console.log('🔐 Verificando autenticación...');
     
     // En servidor, considerar como no autenticado (se verificará en browser)
     if (!isPlatformBrowser(this.platformId)) {
-      console.log('🖥️ Servidor: Marcando como no autenticado (se verificará en browser)');
       return false;
     }
     
     const token = this.getToken();
     if (!token) {
-      console.log('❌ No hay token disponible');
       return false;
     }
 
     const isExpired = this.isTokenExpired(token);
     const result = !isExpired;
     
-    console.log('🔐 Resultado autenticación:', {
-      hasToken: !!token,
-      tokenLength: token.length,
-      isExpired: isExpired,
-      isAuthenticated: result
-    });
+   
 
     return result;
   }
@@ -258,7 +227,6 @@ export class JwtService {
    * ✅ CLEAR TOKENS: Compatible con SSR
    */
   clearTokens(): void {
-    console.log('🧹 Limpiando todos los tokens...');
     
     // Limpiar cache inmediatamente (disponible en SSR y browser)
     this.tokenCache = null;
@@ -266,7 +234,6 @@ export class JwtService {
     
     // Solo limpiar localStorage si estamos en browser
     if (!isPlatformBrowser(this.platformId)) {
-      console.log('🖥️ Servidor: Tokens limpiados del cache (SSR)');
       return;
     }
 
@@ -288,57 +255,15 @@ export class JwtService {
           localStorage.removeItem(key);
         });
         
-        console.log('✅ Tokens eliminados de localStorage');
       } catch (error) {
         console.error('❌ Error limpiando localStorage:', error);
       }
     }
     
-    console.log('✅ Cache de tokens limpiado');
+
   }
 
-  /**
-   * ✅ DEBUG STORAGE: Compatible con SSR
-   */
-  debugStorage(): void {
-    console.log('=== 🔍 DEBUG STORAGE ===');
-    console.log('Platform ID:', this.platformId);
-    console.log('isPlatformBrowser:', isPlatformBrowser(this.platformId));
-    console.log('typeof window:', typeof window);
-    console.log('typeof localStorage:', typeof localStorage);
-    console.log('tokenCache:', this.tokenCache ? 'EXISTS' : 'NULL');
-    console.log('refreshTokenCache:', this.refreshTokenCache ? 'EXISTS' : 'NULL');
-    
-    if (isPlatformBrowser(this.platformId)) {
-      console.log('🌐 BROWSER ENVIRONMENT');
-      
-      if (this.isStorageAvailable()) {
-        try {
-          const storedJWT = localStorage.getItem(this.JWT_TOKEN_KEY);
-          const storedRefresh = localStorage.getItem(this.REFRESH_TOKEN_KEY);
-          console.log('localStorage JWT:', storedJWT ? 'EXISTS' : 'NULL');
-          console.log('localStorage Refresh:', storedRefresh ? 'EXISTS' : 'NULL');
-          
-          // Mostrar algunos items de localStorage
-          const allKeys = Object.keys(localStorage);
-          console.log('localStorage keys count:', allKeys.length);
-          console.log('JWT related keys:', allKeys.filter(key => 
-            key.includes('jwt') || key.includes('token') || key.includes('refresh')
-          ));
-        } catch (error) {
-          console.log('Error accessing localStorage:', error);
-        }
-      } else {
-        console.log('localStorage NOT AVAILABLE in browser');
-      }
-    } else {
-      console.log('🖥️ SERVER ENVIRONMENT (SSR)');
-      console.log('localStorage and sessionStorage are not available in SSR');
-    }
-    
-    console.log('=== 🔍 END DEBUG ===');
-  }
-
+  
   // ============================================
   // ✅ MÉTODOS DE PERMISOS ACTUALIZADOS
   // ============================================
@@ -588,10 +513,8 @@ export class JwtService {
     if (isPlatformBrowser(this.platformId)) {
       try {
         if (!CryptoJS) {
-          console.log('🔐 Attempting to load CryptoJS...');
           const cryptoModule = await import('crypto-js');
           CryptoJS = cryptoModule.default || cryptoModule;
-          console.log('✅ CryptoJS loaded successfully');
         }
       } catch (error) {
         console.error('❌ Failed to load CryptoJS:', error);
@@ -608,11 +531,9 @@ export class JwtService {
       throw new Error('Hash de contraseña no disponible en servidor');
     }
 
-    console.log('🔐 Hasheando password con salt dinámico...');
     try {
       const combined = password + rut + dynamicSalt;
       const hash = CryptoJS.SHA256(combined).toString();
-      console.log('✅ Hash generado exitosamente');
       return hash;
     } catch (error) {
       console.error('❌ Error hasheando password:', error);

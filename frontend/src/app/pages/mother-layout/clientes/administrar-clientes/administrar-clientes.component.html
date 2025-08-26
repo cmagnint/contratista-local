@@ -48,8 +48,8 @@
       </div>
     </div>
   
-    <div id="modalmodificarCliente" class="modal-perfiles" *ngIf="modals['modificarCliente']">
-      <div class="modal-content">
+    <div id="modalmodificarCliente" class="modal-perfiles" *ngIf="modals['modificarCliente']" (click)="closeModal('modificarCliente')">
+      <div class="modal-content" (click)="$event.stopPropagation()">
         <div class="modal-header">
           <span class="close" (click)="closeModal('modificarCliente')">&times;</span>
           <div class="header-bar"></div>

@@ -15,7 +15,7 @@
 
           <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'PARAMETROS ADMINISTRACION')" (click)="navigateToAdministrarSociedad()">
             <mat-icon>domain</mat-icon>
-            <span class="icon-label">SOCIEDAD</span>
+            <span class="icon-label">SOCIEDADES</span>
           </li>
 
           <li *ngIf="puedeAccederSubmodulo('ADMINISTRACION', 'PERSONAL')" (click)="navigateToAdministrarPersonal()">
@@ -38,16 +38,63 @@
             <span class="icon-label">AREAS/CARGOS ADMINISTRACION</span>
           </li>
           
-          <li (click)="toggleGroup('parametrosSubGroupAD')">
-            <mat-icon>settings</mat-icon>
-            <span class="icon-label">PARAMETROS</span>
-          </li>
           
-          <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupAD')">
-          </ul>
         </ul>
       </li>
           
+      <!-- ✅ CLIENTES: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('CLIENTES')">
+        <h3 (click)="toggleGroup('group3')" class="group-title">
+          <mat-icon>support_agent</mat-icon>
+          <span class="icon-label">CLIENTES</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group3')">
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'ADMINISTRAR CLIENTES')" (click)="navigateToAdministrarClientes()">
+            <mat-icon>business</mat-icon>
+            <span class="icon-label">ADMINISTRAR CLIENTES</span>
+          </li>
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'AREA/CARGOS CLIENTES')" (click)="navigateToAdministrarCargos()">
+            <mat-icon>work</mat-icon>
+            <span class="icon-label">AREA/CARGOS CLIENTES</span>
+          </li>
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'CONTACTOS')" (click)="navigateToAdministrarContactos()">
+            <mat-icon>contacts</mat-icon>
+            <span class="icon-label">CONTACTOS</span>
+          </li>
+        </ul>
+      </li>
+
+      <!-- ✅ COMERCIAL: Con verificaciones JWT -->
+      <li *ngIf="puedeAccederModulo('COMERCIAL')">
+        <h3 (click)="toggleGroup('group4')" class="group-title">
+          <mat-icon>store</mat-icon>
+          <span class="icon-label">COMERCIAL</span>
+        </h3>
+        <ul class="sub-menu-list" [class.show]="isGroupOpen('group4')">
+          
+          <li *ngIf="puedeAccederSubmodulo('COMERCIAL', 'ACUERDO COMERCIAL')" (click)="navigateToFolioComercial()">
+            <mat-icon>description</mat-icon>
+            <span class="icon-label">ACUERDO COMERCIAL</span>
+          </li>
+
+          <li (click)="toggleGroup('parametrosSubGroupComercial')">
+            <mat-icon>settings</mat-icon>
+            <span class="icon-label">PARAMETROS</span>
+          </li>
+          <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupComercial')">
+            <li (click)="navigateToUnidadControlComercial()">
+              <mat-icon>table_view</mat-icon>
+              <span class="icon-label">UNIDAD DE CONTROL</span>
+            </li>
+            <li (click)="navigateToLaboresComercial()">
+              <mat-icon>table_view</mat-icon>
+              <span class="icon-label">LABORES</span>
+            </li>
+          </ul>
+          
+        </ul>
+      </li>
+      
       <!-- ✅ RECURSOS HUMANOS: Con verificaciones JWT -->
       <li *ngIf="puedeAccederModulo('RECURSOS HUMANOS')">
         <h3 (click)="toggleGroup('group2')" class="group-title">
@@ -112,59 +159,6 @@
         </ul>
       </li>
       
-      <!-- ✅ CLIENTES: Con verificaciones JWT -->
-      <li *ngIf="puedeAccederModulo('CLIENTES')">
-        <h3 (click)="toggleGroup('group3')" class="group-title">
-          <mat-icon>support_agent</mat-icon>
-          <span class="icon-label">CLIENTES</span>
-        </h3>
-        <ul class="sub-menu-list" [class.show]="isGroupOpen('group3')">
-          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'ADMINISTRAR CLIENTES')" (click)="navigateToAdministrarClientes()">
-            <mat-icon>business</mat-icon>
-            <span class="icon-label">ADMINISTRAR CLIENTES</span>
-          </li>
-          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'AREA/CARGOS CLIENTES')" (click)="navigateToAdministrarCargos()">
-            <mat-icon>work</mat-icon>
-            <span class="icon-label">AREA/CARGOS CLIENTES</span>
-          </li>
-          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'CONTACTOS')" (click)="navigateToAdministrarContactos()">
-            <mat-icon>contacts</mat-icon>
-            <span class="icon-label">CONTACTOS</span>
-          </li>
-        </ul>
-      </li>
-
-      <!-- ✅ COMERCIAL: Con verificaciones JWT -->
-      <li *ngIf="puedeAccederModulo('COMERCIAL')">
-        <h3 (click)="toggleGroup('group4')" class="group-title">
-          <mat-icon>store</mat-icon>
-          <span class="icon-label">COMERCIAL</span>
-        </h3>
-        <ul class="sub-menu-list" [class.show]="isGroupOpen('group4')">
-          
-          <li *ngIf="puedeAccederSubmodulo('COMERCIAL', 'ACUERDO COMERCIAL')" (click)="navigateToFolioComercial()">
-            <mat-icon>description</mat-icon>
-            <span class="icon-label">ACUERDO COMERCIAL</span>
-          </li>
-
-          <li (click)="toggleGroup('parametrosSubGroupComercial')">
-            <mat-icon>settings</mat-icon>
-            <span class="icon-label">PARAMETROS</span>
-          </li>
-          <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupComercial')">
-            <li (click)="navigateToUnidadControlComercial()">
-              <mat-icon>table_view</mat-icon>
-              <span class="icon-label">UNIDAD DE CONTROL</span>
-            </li>
-            <li (click)="navigateToLaboresComercial()">
-              <mat-icon>table_view</mat-icon>
-              <span class="icon-label">LABORES</span>
-            </li>
-          </ul>
-          
-        </ul>
-      </li>
-
       <!-- ✅ TRANSPORTE: Con verificaciones JWT -->
       <li *ngIf="puedeAccederModulo('TRANSPORTE')">
         <h3 (click)="toggleGroup('group5')" class="group-title">
@@ -468,7 +462,7 @@
         </div>
 
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="70px" viewBox="0 0 4 2" preserveAspectRatio="none">
-          <rect width="4" height="2" fill="#166a82" opacity="1"/>
+          <rect width="4" height="2" fill="#0f5163" opacity="1"/>
           <path d="M 0 0 Q 0 3.5 4 0" fill="#00A693" opacity="1"/>
           <path d="M 0 2 Q 2 1.5 4 2" fill="#00A693" opacity="1"/>
         </svg>

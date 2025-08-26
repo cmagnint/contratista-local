@@ -94,11 +94,9 @@ export class MotherLayoutComponent implements OnInit {
       const userInfo = this.jwtService.getUserInfo();
       const nombre = userInfo?.nombre;
       
-      console.log('👤 Nombre usuario desde JWT:', nombre);
       
       return nombre || '';
     } catch (error) {
-      console.error('❌ Error obteniendo nombre de usuario del JWT:', error);
       return '';
     }
   }
@@ -117,11 +115,9 @@ export class MotherLayoutComponent implements OnInit {
       const userInfo = this.jwtService.getUserInfo();
       const userId = userInfo?.user_id;
       
-      console.log('🆔 User ID desde JWT:', userId);
       
       return userId || null;
     } catch (error) {
-      console.error('❌ Error obteniendo user ID del JWT:', error);
       return null;
     }
   }
@@ -138,16 +134,13 @@ export class MotherLayoutComponent implements OnInit {
       const userInfo = this.jwtService.getUserInfo();
       const holdingId = userInfo?.holding_id;
       
-      console.log('🔍 Holding ID desde JWT:', holdingId);
       
       if (holdingId && holdingId !== null) {
         return holdingId.toString();
       } else {
-        console.warn('⚠️ Holding ID no encontrado en JWT o es null');
         return '';
       }
     } catch (error) {
-      console.error('❌ Error extrayendo holding_id del JWT:', error);
       return '';
     }
   }
@@ -164,11 +157,9 @@ export class MotherLayoutComponent implements OnInit {
       const payload = this.jwtService.decodeToken();
       const isAdmin = payload?.is_admin || payload?.user_type === 'ADMIN_HOLDING';
       
-      console.log('🔑 Is Admin desde JWT:', isAdmin);
       
       return isAdmin || false;
     } catch (error) {
-      console.error('❌ Error obteniendo is_admin del JWT:', error);
       return false;
     }
   }
@@ -178,12 +169,10 @@ export class MotherLayoutComponent implements OnInit {
    */
   private initializeUserDataFromJWT(): void {
     if (!isPlatformBrowser(this.platformId)) {
-      console.log('🖥️ SSR: Saltando inicialización de datos JWT');
       return;
     }
 
     try {
-      console.log('🔄 Inicializando datos del usuario desde JWT...');
       
       // ✅ REEMPLAZAR LOCALSTORAGE CON JWT
       this.nombre_user = this.getNombreUsuarioFromJWT();
@@ -191,19 +180,11 @@ export class MotherLayoutComponent implements OnInit {
       this.usuario_id = this.getUserIdFromJWT();
       this.is_admin = this.getIsAdminFromJWT();
       
-      console.log('✅ Datos del usuario cargados desde JWT:', {
-        nombre_user: this.nombre_user,
-        nombre_holding: this.nombre_holding,
-        holding: this.holding,
-        usuario_id: this.usuario_id,
-        is_admin: this.is_admin
-      });
+  
       
     } catch (error) {
-      console.error('❌ Error inicializando datos del usuario desde JWT:', error);
       
       // ✅ FALLBACK: Si falla JWT, intentar localStorage como respaldo
-      console.log('⚠️ Fallback: Intentando cargar desde localStorage...');
       this.initializeUserDataFromLocalStorage();
     }
   }
@@ -212,7 +193,6 @@ export class MotherLayoutComponent implements OnInit {
    * ✅ FALLBACK: Cargar desde localStorage solo si JWT falla
    */
   private initializeUserDataFromLocalStorage(): void {
-    console.log('📦 Cargando datos desde localStorage (fallback)...');
     
     this.nombre_user = localStorage.getItem('nombre_user');
     this.nombre_holding = localStorage.getItem('nombre_holding');
@@ -223,13 +203,7 @@ export class MotherLayoutComponent implements OnInit {
     
     this.is_admin = localStorage.getItem('is_admin') === 'true';
     
-    console.log('⚠️ Datos cargados desde localStorage:', {
-      nombre_user: this.nombre_user,
-      nombre_holding: this.nombre_holding,
-      holding: this.holding,
-      usuario_id: this.usuario_id,
-      is_admin: this.is_admin
-    });
+
   }
 
   /**
@@ -246,7 +220,6 @@ export class MotherLayoutComponent implements OnInit {
     try {
       // Solo sincronizar si tenemos datos válidos del JWT
       if (this.hasValidUserData()) {
-        console.log('🔄 Sincronizando datos JWT con localStorage para compatibilidad...');
         
         localStorage.setItem('nombre_user', this.nombre_user || '');
         localStorage.setItem('nombre_holding', this.nombre_holding || '');
@@ -254,23 +227,19 @@ export class MotherLayoutComponent implements OnInit {
         localStorage.setItem('usuario_id', this.usuario_id?.toString() || '');
         localStorage.setItem('is_admin', this.is_admin.toString());
         
-        console.log('✅ Sincronización con localStorage completada');
       }
     } catch (error) {
-      console.error('❌ Error sincronizando con localStorage:', error);
     }
   }
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      console.log('🌐 Mother Layout: Inicializando en browser...');
       
       // ✅ CARGAR DATOS DESDE JWT (reemplazando localStorage)
       this.initializeUserDataFromJWT();
       
       // ✅ Verificar que tenemos datos válidos
       if (!this.hasValidUserData()) {
-        console.warn('⚠️ No se pudieron cargar datos válidos del usuario');
         // Opcional: redirigir al login si no hay datos válidos
         // this.router.navigate(['/login']);
         // return;
@@ -279,16 +248,12 @@ export class MotherLayoutComponent implements OnInit {
       // ✅ Sincronizar con localStorage para compatibilidad con código legacy
       this.syncWithLocalStorage();
       
-      // ✅ DEBUG: Solo en browser, no en SSR
-      console.log('🔍 Tipo de usuario detectado:', this.obtenerTipoUsuario());
-      console.log('🔑 Es admin o superadmin:', this.esAdminOSuperadmin());
+    
       
       // ✅ CARGAR SOCIEDADES DEL USUARIO
       if (this.usuario_id) {
-        console.log('👥 Cargando sociedades para usuario:', this.usuario_id);
         this.cargarSociedadesUsuario();
       } else {
-        console.warn('⚠️ No se pudo obtener usuario_id, no se cargarán sociedades');
       }
       
       // ✅ CARGAR SOCIEDAD DE TRABAJO ACTUAL
@@ -296,9 +261,7 @@ export class MotherLayoutComponent implements OnInit {
       if (sociedadTrabajoGuardada) {
         try {
           this.sociedadTrabajoActual = JSON.parse(sociedadTrabajoGuardada);
-          console.log('🏢 Sociedad de trabajo cargada:', this.sociedadTrabajoActual?.nombre);
         } catch (error) {
-          console.error('❌ Error parseando sociedad de trabajo:', error);
           localStorage.removeItem('sociedad_trabajo_actual');
         }
       }
@@ -307,15 +270,12 @@ export class MotherLayoutComponent implements OnInit {
       this.cargarSubmodulosWeb(); // Mantener por compatibilidad legacy
       
       if (this.holding) {
-        console.log('🏢 Cargando sociedades para holding:', this.holding);
         this.cargarSociedades();
       } else {
-        console.warn('⚠️ No se pudo obtener holding_id, no se cargarán sociedades');
       }
       
     } else {
       // ✅ SSR: Solo log mínimo
-      console.log('🖥️ Mother Layout: Ejecutándose en servidor (SSR)');
     }
   }
 
@@ -329,7 +289,6 @@ export class MotherLayoutComponent implements OnInit {
       this.apiService.get(`api_sociedades_usuario/${this.usuario_id}/`).subscribe({
         next: (response) => {
           this.sociedadesUsuario = response.sociedades;
-          console.log('Sociedades del usuario:', this.sociedadesUsuario);
           
           // Si solo hay una sociedad, seleccionarla automáticamente
           if (this.sociedadesUsuario.length === 1) {
@@ -355,7 +314,6 @@ export class MotherLayoutComponent implements OnInit {
           }
         },
         error: (error) => {
-          console.error('Error al cargar sociedades del usuario:', error);
         }
       });
     }
@@ -371,7 +329,6 @@ export class MotherLayoutComponent implements OnInit {
     this.dropdownOpenSociedadTrabajo = false;
     
     // Opcional: Recargar datos relacionados con la sociedad seleccionada
-    console.log('Sociedad de trabajo seleccionada:', sociedad);
     
     // Puedes emitir un evento o recargar componentes si es necesario
     // this.recargarDatosSociedad();
@@ -692,7 +649,7 @@ export class MotherLayoutComponent implements OnInit {
     const submodulosWebString = localStorage.getItem('submodulos_web');
     if (submodulosWebString) {
       this.submodulosWeb = JSON.parse(submodulosWebString);
-      console.log(this.submodulosWeb)
+
     }
   }
 
@@ -798,21 +755,17 @@ export class MotherLayoutComponent implements OnInit {
   }
 
   confirmLogout(): void {
-  console.log('🚪 Logout desde mother layout...');
   
   try {
     // Limpiar todos los tokens JWT
     this.jwtService.clearTokens();
     
-    console.log('✅ Tokens JWT eliminados');
     
     // Redirigir al login
     this.router.navigate(['/login']);
     
-    console.log('✅ Redirección al login completada');
     
   } catch (error) {
-    console.error('❌ Error durante logout:', error);
     // En caso de error, forzar redirección
     this.router.navigate(['/login']);
   }
@@ -836,29 +789,24 @@ export class MotherLayoutComponent implements OnInit {
       // ✅ BROWSER: Verificación real de permisos
       const payload = this.jwtService.decodeToken();
       if (!payload) {
-        console.log('❌ No se pudo decodificar el JWT');
         return false;
       }
 
       // ✅ SUPERADMINS: Acceso total al sistema
       if (payload.is_superuser) {
-        console.log('👑 Usuario SUPERADMIN - Acceso total al módulo:', nombreModulo);
         return true;
       }
 
       // ✅ ADMINS: Acceso total a su holding
       if (payload.is_admin || payload.user_type === 'ADMIN_HOLDING') {
-        console.log('🔑 Usuario ADMIN - Acceso total al módulo:', nombreModulo);
         return true;
       }
 
       // ✅ USUARIOS NORMALES: Verificar permisos específicos
       const tieneAcceso = this.jwtService.canAccessModule(nombreModulo, 'web');
-      console.log(`👤 Usuario normal - Acceso al módulo '${nombreModulo}':`, tieneAcceso);
       return tieneAcceso;
 
     } catch (error) {
-      console.error('❌ Error verificando acceso al módulo:', error);
       // En caso de error y estamos en browser, denegar acceso
       return !isPlatformBrowser(this.platformId);
     }
@@ -878,29 +826,24 @@ export class MotherLayoutComponent implements OnInit {
       // ✅ BROWSER: Verificación real de permisos
       const payload = this.jwtService.decodeToken();
       if (!payload) {
-        console.log('❌ No se pudo decodificar el JWT');
         return false;
       }
 
       // ✅ SUPERADMINS: Acceso total al sistema
       if (payload.is_superuser) {
-        console.log(`👑 Usuario SUPERADMIN - Acceso total al submódulo: ${nombreModulo}/${nombreSubmodulo}`);
         return true;
       }
 
       // ✅ ADMINS: Acceso total a su holding
       if (payload.is_admin || payload.user_type === 'ADMIN_HOLDING') {
-        console.log(`🔑 Usuario ADMIN - Acceso total al submódulo: ${nombreModulo}/${nombreSubmodulo}`);
         return true;
       }
 
       // ✅ USUARIOS NORMALES: Verificar permisos específicos
       const tieneAcceso = this.jwtService.canAccessSubmodule(nombreModulo, nombreSubmodulo, 'web');
-      console.log(`👤 Usuario normal - Acceso al submódulo '${nombreModulo}/${nombreSubmodulo}':`, tieneAcceso);
       return tieneAcceso;
 
     } catch (error) {
-      console.error('❌ Error verificando acceso al submódulo:', error);
       // En caso de error y estamos en browser, denegar acceso
       return !isPlatformBrowser(this.platformId);
     }
@@ -928,7 +871,6 @@ export class MotherLayoutComponent implements OnInit {
 
       return payload.is_superuser || payload.is_admin || payload.user_type === 'ADMIN_HOLDING';
     } catch (error) {
-      console.error('❌ Error verificando si es admin:', error);
       return false;
     }
   }
@@ -950,7 +892,6 @@ export class MotherLayoutComponent implements OnInit {
       if (payload.is_admin || payload.user_type === 'ADMIN_HOLDING') return 'ADMIN';
       return 'USER';
     } catch (error) {
-      console.error('❌ Error obteniendo tipo de usuario:', error);
       return 'ERROR';
     }
   }

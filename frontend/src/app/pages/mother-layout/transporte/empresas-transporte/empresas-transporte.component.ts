@@ -28,10 +28,6 @@ export class EmpresasTransporteComponent implements OnInit {
   public deletedRow: any[] = [];
   public selectedEmpresaId: number | null = null;
 
-  // VARIABLES PARA FOLIOS
-  public foliosTransporte: any[] = [];
-  public folioTransportistaId: number | null = null;
-
   // VARIABLES PARA EMPRESA
   public nombreEmpresa: string = '';
   public rutEmpresa: string = '';
@@ -41,7 +37,7 @@ export class EmpresasTransporteComponent implements OnInit {
   public direccionEmpresaNew: string = '';
 
   // COLUMNAS DE LA TABLA
-  columnasDesplegadas = ['nombre', 'rut', 'direccion', 'folio_transportista'];
+  columnasDesplegadas = ['nombre', 'rut', 'direccion'];
 
   // MODALES
   public modals: { [key: string]: boolean } = {
@@ -57,8 +53,7 @@ export class EmpresasTransporteComponent implements OnInit {
     id_empresa_seleccionada: 0,
     nombre_empresa_seleccionada: '',
     rut_empresa_seleccionada: '',
-    direccion_empresa_seleccionada: '',
-    folio_transportista: null
+    direccion_empresa_seleccionada: ''
   };
 
   constructor(
@@ -70,7 +65,6 @@ export class EmpresasTransporteComponent implements OnInit {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = localStorage.getItem('holding_id') || '';
       this.cargarEmpresas();
-      this.cargarFoliosTransporte();
     }
   }
 
@@ -87,26 +81,13 @@ export class EmpresasTransporteComponent implements OnInit {
     });
   }
 
-  cargarFoliosTransporte(): void {
-    this.apiService.get(`api_folio_transportista/?holding=${this.holding}`).subscribe({
-      next: (response) => {
-        this.foliosTransporte = response;
-        console.log('Folios de transporte cargados:', this.foliosTransporte);
-      },
-      error: (error) => {
-        console.error('Error al cargar folios de transporte:', error);
-      }
-    });
-  }
-
   // OPERACIONES CRUD
   crearEmpresa(): void {
     let data = {
       holding: this.holding,
       nombre: this.nombreEmpresa,
       rut: this.rutEmpresa.replace(/[\.\-]/g, ''),
-      direccion: this.direccionEmpresa,
-      folio_transportista: this.folioTransportistaId
+      direccion: this.direccionEmpresa
     }
     this.apiService.post('api_empresa_transportes/', data).subscribe({
       next: (response) => {
@@ -129,8 +110,7 @@ export class EmpresasTransporteComponent implements OnInit {
       id: this.selectedEmpresaId,
       nombre: this.nombreEmpresaNew,
       rut: this.rutEmpresaNew.replace(/[\.\-]/g, ''),
-      direccion: this.direccionEmpresaNew,
-      folio_transportista: this.folioTransportistaId
+      direccion: this.direccionEmpresaNew
     }
     this.apiService.put('api_empresa_transportes/', data).subscribe({
       next: (response) => {
@@ -166,16 +146,10 @@ export class EmpresasTransporteComponent implements OnInit {
   }
 
   // UTILIDADES
-  getFolioInfo(folioId: number): string {
-    const folio = this.foliosTransporte.find(f => f.id === folioId);
-    return folio ? `${folio.nombre_tramo} - ${folio.valor_pago_transportista}` : 'Sin folio';
-  }
-
   limpiarFormulario(): void {
     this.nombreEmpresa = '';
     this.rutEmpresa = '';
     this.direccionEmpresa = '';
-    this.folioTransportistaId = null;
     this.nombreEmpresaNew = '';
     this.rutEmpresaNew = '';
     this.direccionEmpresaNew = '';
@@ -196,14 +170,12 @@ export class EmpresasTransporteComponent implements OnInit {
         nombre_empresa_seleccionada: lastSelectedRow.nombre,
         rut_empresa_seleccionada: lastSelectedRow.rut,
         direccion_empresa_seleccionada: lastSelectedRow.direccion,
-        id_empresa_seleccionada: lastSelectedRow.id,
-        folio_transportista: lastSelectedRow.folio_transportista
+        id_empresa_seleccionada: lastSelectedRow.id
       };
       this.selectedEmpresaId = this.empresaSeleccionada.id_empresa_seleccionada;
       this.nombreEmpresaNew = this.empresaSeleccionada.nombre_empresa_seleccionada;
       this.rutEmpresaNew = this.formatRUTString(this.empresaSeleccionada.rut_empresa_seleccionada);
       this.direccionEmpresaNew = this.empresaSeleccionada.direccion_empresa_seleccionada;
-      this.folioTransportistaId = this.empresaSeleccionada.folio_transportista;
     }
   }
 
@@ -250,12 +222,6 @@ export class EmpresasTransporteComponent implements OnInit {
     if (key === 'confirmacionModal') {
       this.deletedRow = this.selectedRows;
     }
-  }
-
-  getFolioTransportistaInfo(folioId: number | null): string {
-    if (!folioId) return 'Sin folio asignado';
-    const folio = this.foliosTransporte.find(f => f.id === folioId);
-    return folio ? `${folio.nombre_tramo} - $${folio.valor_pago_transportista.toLocaleString()}` : 'Sin folio asignado';
   }
 
   closeModal(key: string): void {

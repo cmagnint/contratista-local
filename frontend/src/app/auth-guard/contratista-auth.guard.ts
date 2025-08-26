@@ -20,20 +20,10 @@ export const contratistaAuthGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
   const platformId = inject(PLATFORM_ID);
 
-  console.log(`🔒 ===============================`);
-  console.log(`🔒 Auth Guard iniciando para: ${state.url}`);
-  console.log(`🔒 Platform: ${platformId}`);
-  console.log(`🔒 ===============================`);
-
   // ✅ DETECCIÓN SSR: Si estamos en servidor, permitir navegación
   if (!isPlatformBrowser(platformId)) {
-    console.log('🖥️ DETECTADO SSR: Ejecutándose en servidor');
-    console.log('✅ SSR: Permitiendo navegación, verificación se hará en browser');
     return true; // ← Permitir navegación, la verificación se hará en el browser
   }
-
-  console.log('🌐 DETECTADO BROWSER: Ejecutándose en navegador');
-  console.log('🔐 BROWSER: Iniciando verificación de autenticación...');
 
   // ✅ VERIFICACIÓN NORMAL EN BROWSER (después de hidratación)
   return checkAuthenticationInBrowser(state.url, jwtService, apiService, router);
@@ -49,25 +39,18 @@ function checkAuthenticationInBrowser(
   router: Router
 ): boolean | Promise<boolean> {
   
-  console.log('🔍 Verificando autenticación en browser...');
-  
-  // Debug del storage en browser
-  jwtService.debugStorage();
 
   // Verificar token
   const token = jwtService.getToken();
   
   if (!token) {
-    console.log('❌ No hay JWT token en browser, redirigiendo a login');
     router.navigate(['/login']);
     return false;
   }
 
-  console.log('✅ Token encontrado en browser');
 
   // Verificar si está expirado
   if (jwtService.isTokenExpired()) {
-    console.log('⏰ Token expirado, intentando refresh...');
     
     // Aquí podrías implementar refresh logic si lo necesitas
     // Por ahora, limpiar y redirigir
@@ -76,7 +59,6 @@ function checkAuthenticationInBrowser(
     return false;
   }
 
-  console.log('✅ Token válido, verificando permisos...');
   return checkRouteAccess(url, jwtService, router);
 }
 
@@ -87,21 +69,17 @@ function checkRouteAccess(url: string, jwtService: JwtService, router: Router): 
   const payload = jwtService.decodeToken();
   
   if (!payload) {
-    console.log('❌ No se pudo decodificar payload, redirigiendo a login');
     jwtService.clearTokens();
     router.navigate(['/login']);
     return false;
   }
 
-  console.log(`👤 Usuario: ${payload.nombre_completo} (${payload.user_type})`);
 
   // SUPERADMIN: Verificación específica
   if (payload.is_superuser) {
     if (url.startsWith('/super-admin')) {
-      console.log('✅ Superadmin: Acceso permitido a /super-admin');
       return true;
     } else if (url.startsWith('/fs/')) {
-      console.log('❌ Superadmin: No puede acceder a /fs/, redirigiendo');
       router.navigate(['/super-admin']);
       return false;
     }
@@ -110,7 +88,6 @@ function checkRouteAccess(url: string, jwtService: JwtService, router: Router): 
 
   // USUARIOS NORMALES: No pueden acceder a /super-admin
   if (url.startsWith('/super-admin')) {
-    console.log('❌ Usuario normal: No puede acceder a /super-admin');
     router.navigate(['/fs/home']);
     return false;
   }
@@ -121,10 +98,8 @@ function checkRouteAccess(url: string, jwtService: JwtService, router: Router): 
     const hasMovilModules = payload.permissions?.movil && Object.keys(payload.permissions.movil).length > 0;
     
     if (hasWebModules || hasMovilModules) {
-      console.log(`✅ Acceso permitido a: ${url}`);
       return true;
     } else {
-      console.log(`❌ Sin permisos para: ${url}`);
       router.navigate(['/fs/home']);
       return false;
     }
@@ -140,7 +115,6 @@ function checkRouteAccess(url: string, jwtService: JwtService, router: Router): 
     return false;
   }
 
-  console.log(`✅ Acceso por defecto permitido a: ${url}`);
   return true;
 }
 
@@ -152,7 +126,6 @@ export const simpleAuthGuard: CanActivateFn = (route, state) => {
   
   // En servidor, permitir navegación
   if (!isPlatformBrowser(platformId)) {
-    console.log('🖥️ Simple Guard SSR: Permitiendo navegación');
     return true;
   }
   
@@ -160,15 +133,12 @@ export const simpleAuthGuard: CanActivateFn = (route, state) => {
   const jwtService = inject(JwtService);
   const router = inject(Router);
 
-  console.log('🌐 Simple Guard Browser: Verificando...');
 
   if (!jwtService.isAuthenticated()) {
-    console.log('❌ Simple Guard: No autenticado');
     router.navigate(['/login']);
     return false;
   }
 
-  console.log('✅ Simple Guard: Autenticado');
   return true;
 };
 
@@ -180,11 +150,9 @@ export const browserOnlyAuthGuard: CanActivateFn = (route, state) => {
   const jwtService = inject(JwtService);
   const router = inject(Router);
 
-  console.log(`🔒 Browser Only Guard: ${state.url}`);
 
   // Bloquear completamente en servidor
   if (!isPlatformBrowser(platformId)) {
-    console.log('🚫 Bloqueando en servidor - Solo permitido en browser');
     return false;
   }
 
@@ -206,7 +174,6 @@ export const deferredAuthGuard: CanActivateFn = (route, state) => {
   
   // En servidor, siempre permitir
   if (!isPlatformBrowser(platformId)) {
-    console.log('🖥️ Deferred Guard SSR: Permitiendo - validación diferida');
     return true;
   }
 
@@ -217,7 +184,6 @@ export const deferredAuthGuard: CanActivateFn = (route, state) => {
   return new Promise<boolean>((resolve) => {
     // Pequeño delay para asegurar que la hidratación esté completa
     setTimeout(() => {
-      console.log('⏰ Deferred Guard: Validando después de delay...');
       
       if (jwtService.isAuthenticated()) {
         resolve(checkRouteAccess(state.url, jwtService, router));
@@ -238,11 +204,9 @@ export const hybridAuthGuard: CanActivateFn = (route, state) => {
   const jwtService = inject(JwtService);
   const router = inject(Router);
 
-  console.log(`🔀 Hybrid Guard: ${state.url} [Platform: ${platformId}]`);
 
   // ESTRATEGIA SSR: Permitir navegación inicial
   if (!isPlatformBrowser(platformId)) {
-    console.log('🖥️ Hybrid SSR: Permitiendo navegación inicial');
     
     // Para rutas críticas, podrías hacer verificaciones del lado del servidor
     // Por ejemplo, validar JWT con el backend directamente
@@ -250,22 +214,18 @@ export const hybridAuthGuard: CanActivateFn = (route, state) => {
   }
 
   // ESTRATEGIA BROWSER: Verificación completa después de hidratación
-  console.log('🌐 Hybrid Browser: Verificación completa');
   
   // Verificar que el localStorage esté disponible
   if (typeof localStorage === 'undefined') {
-    console.log('⚠️ localStorage no disponible, permitiendo y marcando para re-verificación');
     return true;
   }
 
   // Verificación normal
   if (!jwtService.isAuthenticated()) {
-    console.log('❌ Hybrid: No autenticado en browser');
     router.navigate(['/login']);
     return false;
   }
 
-  console.log('✅ Hybrid: Verificación completa exitosa');
   return checkRouteAccess(state.url, jwtService, router);
 };
 

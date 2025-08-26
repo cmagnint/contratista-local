@@ -27,7 +27,7 @@ import { JwtService } from './jwt.service';
     }
     
     .neutral-background {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #66ea7cff 0%, #41a8c4ff 100%);
     }
     
     .app-background {

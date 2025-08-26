@@ -1,6 +1,6 @@
 <!--folio-comercial.component.html-->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
-    <button mat-raised-button color="primary" class="custom-button" (click)="openModal('crearFolio')">Crear Folio</button>
+    <button mat-raised-button color="primary" class="custom-button" (click)="openModal('crearFolio')">Crear Labor</button>
     <button mat-raised-button color="primary" class="custom-button" [disabled]="!(selectedRows.length > 0 && selectedRows.length < 2)" (click)="openModal('modificarFolio')">Modificar Folio</button>
     <button mat-raised-button color="primary" class="custom-button" [disabled]="!(selectedRows.length > 0)" (click)="openModal('confirmacionModal')">Eliminar Folio</button>
 
@@ -126,7 +126,7 @@
                 <input type="number" id="valorFacturacion" [(ngModel)]="folioSeleccionado.valor_facturacionNew" (input)="formatNumber($event)">
             </div>
 
-            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="crearFolio()">Crear Labor</button>
+            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="crearFolio()">Crear Folio</button>
         </div>
     </div>
 
@@ -253,7 +253,7 @@
                 <input type="number" id="valorFacturacion" [(ngModel)]="folioSeleccionado.valor_facturacionNew" (input)="formatNumber($event)">
             </div>
 
-            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="modificarFolio()">Modificar Labor</button>
+            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="modificarFolio()">Modificar Folio</button>
         </div>
     </div>
 

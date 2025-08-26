@@ -19,20 +19,12 @@
                    [(ngModel)]="nombreEmpresa" (ngModelChange)="nombreEmpresa = $event.toUpperCase()">
               
             <h3>RUT Empresa:</h3>
-            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" 
+            <input type="text" class="input-usuario" id="rutEmpresa" name="rutEmpresa" 
                    [(ngModel)]="rutEmpresa" (input)="formatRUT($event)">
   
             <h3>Direccion Empresa:</h3>
-            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" 
+            <input type="text" class="input-usuario" id="direccionEmpresa" name="direccionEmpresa" 
                    [(ngModel)]="direccionEmpresa">
-
-            <h3>Folio Transportista:</h3>
-            <select class="input-usuario" [(ngModel)]="folioTransportistaId">
-                <option [ngValue]="null">Seleccione un folio</option>
-                <option *ngFor="let folio of foliosTransporte" [value]="folio.id">
-                    {{folio.nombre_tramo}} - Valor: ${{folio.valor_pago_transportista | number}}
-                </option>
-            </select>
             
             <button class="custom-button-ingreso" (click)="crearEmpresa()" id="ingresarHoldingBtn">
                 Crear Empresa
@@ -60,16 +52,8 @@
                    [(ngModel)]="rutEmpresaNew" (input)="formatRUT($event)">
   
             <h3>Modificar Direccion Empresa:</h3>
-            <input type="text" class="input-usuario" id="emailUsuarioNew" name="emailUsuarioNew" 
+            <input type="text" class="input-usuario" id="direccionUsuarioNew" name="direccionUsuarioNew" 
                    [(ngModel)]="direccionEmpresaNew">
-
-            <h3>Modificar Folio Transportista:</h3>
-            <select class="input-usuario" [(ngModel)]="folioTransportistaId">
-                <option [ngValue]="null">Seleccione un folio</option>
-                <option *ngFor="let folio of foliosTransporte" [value]="folio.id">
-                    {{folio.nombre_tramo}} - Valor: ${{folio.valor_pago_transportista | number}}
-                </option>
-            </select>
 
             <button class="custom-button-ingreso" (click)="modificarEmpresa()" id="ingresarHoldingBtn">
                 Modificar Empresa
@@ -80,41 +64,34 @@
     <!-- Botones de acción -->
     <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" 
             (click)="openModal('modificarEmpresa')">
-        Modificar Cliente
+        Modificar Empresa
     </button>
     
     <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" 
             (click)="openModal('confirmacionModal')">
-        Eliminar Cliente(s)
+        Eliminar Empresa(s)
     </button>
       
     <!-- Tabla principal -->
     <table mat-table [dataSource]="empresasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
         <ng-container matColumnDef="rut">
             <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
-            <td mat-cell *matCellDef="let cliente" class="mat-cell">
-                {{ formatRUTString(cliente.rut) }}
+            <td mat-cell *matCellDef="let empresa" class="mat-cell">
+                {{ formatRUTString(empresa.rut) }}
             </td>
         </ng-container>
             
         <ng-container matColumnDef="nombre">
             <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
-            <td mat-cell *matCellDef="let cliente" class="mat-cell">
-                {{ cliente.nombre }}
+            <td mat-cell *matCellDef="let empresa" class="mat-cell">
+                {{ empresa.nombre }}
             </td>
         </ng-container>
             
         <ng-container matColumnDef="direccion">
-            <th mat-header-cell *matHeaderCellDef class="mat-header">Direccion</th>
-            <td mat-cell *matCellDef="let cliente" class="mat-cell">
-                {{ cliente.direccion }}
-            </td>
-        </ng-container>
-
-        <ng-container matColumnDef="folio_transportista">
-            <th mat-header-cell *matHeaderCellDef class="mat-header">Folio Transportista</th>
+            <th mat-header-cell *matHeaderCellDef class="mat-header">Dirección</th>
             <td mat-cell *matCellDef="let empresa" class="mat-cell">
-                {{ getFolioTransportistaInfo(empresa.folio_transportista) }}
+                {{ empresa.direccion }}
             </td>
         </ng-container>
       
@@ -150,7 +127,7 @@
 <!-- Modal de Confirmación -->
 <div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
     <div class="modal-content">
-        <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
+        <h2 style="color:white;">¿Desea eliminar la(s) empresa(s) seleccionada(s)?</h2>
         <div class="exito-message" id="exitoText"></div>
         <div class="modal-actions">
             <button class="custom-button yes-button" (click)="eliminarEmpresasSeleccionados()">Sí</button>
