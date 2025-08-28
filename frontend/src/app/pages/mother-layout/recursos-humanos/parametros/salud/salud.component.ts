@@ -16,7 +16,6 @@ import { MatTableModule } from '@angular/material/table';
   styleUrl: './salud.component.css'
 })
 export class SaludComponent implements OnInit {
-  //VARIABLES
 
   constructor(
     private apiService: ContratistaApiService,
@@ -27,66 +26,40 @@ export class SaludComponent implements OnInit {
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
-    crearSalud: false,
     modificarSalud: false,
-    confirmacionModal: false,
   };
 
-  //Salud seleccionada
+  // Salud seleccionada
   public saludSeleccionada: any = {
-    nombre_salud_seleccionada: '',
     id_salud_seleccionada: 0,
-    porcentaje_descuento_seleccionado: 7.0,
+    nombre_salud_seleccionada: '',
+    porcentaje_seleccionado: 7.0,
   }
   
-  public holding: string = ''; //Variable para guardar el ID del holding al cual pertenece al adminitrador
-  public nombreSalud: string = '';
-  public porcentajeDescuento: number = 7.0; // Default value
+  public holding: string = '';
+  
+  // Variables para modificar Salud (solo porcentaje)
+  public porcentajeNew: number = 7.0;
 
-  errorMessage!: string; //Variable usada para mostrar los mensajes de error de la API
-  selectedRows: any[] = []; //Array usado para guardar las filas seleccionadas
-  dropdownOpen: boolean = false; //Booleano usado para abrir los dropdownmenus 
-
-  public todasSeleccionadas: boolean = false; //Booleano para seleccionar todas/ninguna casilla
+  errorMessage!: string;
+  selectedRows: any[] = [];
 
   public saludCargadas: any[] = [];
 
-  columnasDesplegadas = ['codigo', 'nombre', 'porcentaje']; // Added porcentaje
-  
-  public nombreSaludNew: string = '';
-  public porcentajeDescuentoNew: number = 7.0;
-
-  public deletedRow: any[] = [];
+  // Columnas para mostrar
+  columnasDesplegadas = [
+    'id',         // Código Previred
+    'nombre',     // Nombre Previred
+    'porcentaje'  // Porcentaje descuento
+  ];
   
   public selectedSaludId: number | null = null;
 
-  //FUNCIONES
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = localStorage.getItem('holding_id') || '';
       this.cargarSalud();
     }
-  }
-
-  //FUNCIONES CRUD
-  crearSalud(): void {
-    let data = {
-      holding: this.holding,
-      nombre: this.nombreSalud,
-      porcentaje_descuento: this.porcentajeDescuento
-    }
-    this.apiService.post('api_salud_trabajadores/', data).subscribe({
-      next: (response) => {
-        console.log(response);
-        this.closeModal('crearSalud');
-        this.cargarSalud();
-        this.openModal('exitoModal');
-      }, 
-      error: (error) => {
-        this.errorMessage = error.error?.message || 'Error al crear Salud';
-        this.openModal('errorModal');
-      }
-    })
   }
 
   cargarSalud(): void {
@@ -106,9 +79,9 @@ export class SaludComponent implements OnInit {
     let data = {
       holding: this.holding,
       id: this.selectedSaludId,
-      nombre: this.nombreSaludNew,
-      porcentaje_descuento: this.porcentajeDescuentoNew
+      porcentaje: this.porcentajeNew
     }
+    
     this.apiService.put('api_salud_trabajadores/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarSalud');
@@ -122,27 +95,6 @@ export class SaludComponent implements OnInit {
       }
     })
   }
-  
-  eliminarSaludSeleccionadas(): void {
-    if (this.deletedRow.length > 0) {
-      const idsToDelete = this.deletedRow.map(row => row.id);
-      this.apiService.delete('api_salud_trabajadores/', {ids: idsToDelete}).subscribe({
-        next: () => {
-          this.closeModal('confirmacionModal')
-          this.cargarSalud();
-          this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
-        },
-        error: (error) => {
-          this.errorMessage = error.error?.message || 'Error al eliminar Salud';
-          this.openModal('errorModal');
-          console.error('Error al eliminar salud:', error);
-        }
-      });
-    }
-  }
-
-  //------------------------------------------------------------------------------//
 
   isSelected(row: any): boolean {
     return this.selectedRows.some(r => r.id === row.id);
@@ -151,42 +103,39 @@ export class SaludComponent implements OnInit {
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
-      // Si la fila ya está seleccionada, deseleccionarla
       this.selectedRows.splice(index, 1);
     } else {
-      // Agregar fila a las seleccionadas
-      this.selectedRows.push(row);
+      // Solo permitir una fila seleccionada
+      this.selectedRows = [row];
     }
 
     if (this.selectedRows.length > 0) {
-      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+      const selectedRow = this.selectedRows[0];
       this.saludSeleccionada = {
-        nombre_salud_seleccionada: lastSelectedRow.nombre,
-        id_salud_seleccionada: lastSelectedRow.id,
-        porcentaje_descuento_seleccionado: lastSelectedRow.porcentaje_descuento,
+        id_salud_seleccionada: selectedRow.id,
+        nombre_salud_seleccionada: selectedRow.nombre,
+        porcentaje_seleccionado: selectedRow.porcentaje,
       };
+      
       this.selectedSaludId = this.saludSeleccionada.id_salud_seleccionada;
-      this.nombreSaludNew = this.saludSeleccionada.nombre_salud_seleccionada;
-      this.porcentajeDescuentoNew = this.saludSeleccionada.porcentaje_descuento_seleccionado;
+      this.porcentajeNew = this.saludSeleccionada.porcentaje_seleccionado;
     } else {
-      // Limpiar saludSeleccionada si no hay filas seleccionadas
       this.saludSeleccionada = {
-        nombre_salud_seleccionada: '',
         id_salud_seleccionada: 0,
-        porcentaje_descuento_seleccionado: 7.0,
+        nombre_salud_seleccionada: '',
+        porcentaje_seleccionado: 7.0,
       }
+      this.selectedSaludId = null;
     }
   }
 
   deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = [];  // Deselecciona todas las filas
+    this.selectedRows = [];
+    this.selectedSaludId = null;
   }
 
   openModal(key: string): void {
     this.modals[key] = true;
-    if (key == 'confirmacionModal') {
-      this.deletedRow = this.selectedRows;
-    }
   }
 
   closeModal(key: string): void {

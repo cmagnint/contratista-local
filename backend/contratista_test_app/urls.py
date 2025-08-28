@@ -115,6 +115,7 @@ from .views import (
     RefreshJWTAPIView,
     CheckHealthAPIView,
     PasswordResetAPIView,
+    DocumentoVariablesNativasAPIView,
 )
 
 app_name = 'contratista_test'
@@ -259,6 +260,8 @@ urlpatterns = [
     path('api_cuentas/<int:holding_id>/', CuentasAPIView.as_view(), name='api_cuentas_by_holding'),
     path('api_cuentas/update/<int:cuenta_id>/', CuentasAPIView.as_view(), name='api_cuenta_update'),
     path('api_cuentas/delete/<int:cuenta_id>/', CuentasAPIView.as_view(), name='api_cuenta_delete'),
+    path('api_documento_nativo/', DocumentoVariablesNativasAPIView.as_view(), name='documento_nativo_list_create'),
+    path('api_documento_nativo/<int:documento_id>/', DocumentoVariablesNativasAPIView.as_view(), name='documento_nativo_detail'),
     # URLs para Facturas Compra
     path('facturas_compra_automatico/', FacturasCompraAutomaticoAPIView.as_view(), name='facturas_compra_automatico'),
     path('facturas_sii_compra_distribuidas/', FacturasCompraDistribucion.as_view(), name='facturas_sii_distribuidas'),

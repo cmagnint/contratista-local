@@ -350,6 +350,10 @@ export class MotherLayoutComponent implements OnInit {
     this.rightSidenav.toggle();
   }
 
+  //========================================================
+  //============== ADMINISTRACION ==========================
+  //========================================================
+
   navigateToAdministrarSociedad() {
     this.router.navigate(['/fs/admin-sociedad']);
     this.leftSidenav.close();

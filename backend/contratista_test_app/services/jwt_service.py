@@ -93,13 +93,6 @@ class JWTService:
         # Generar y firmar token
         token = jwt.encode(payload, cls.get_secret_key(), algorithm=cls.ALGORITHM)
         
-        # ✅ LOGGING DETALLADO PARA DEBUG
-        print(f"🔐 JWT generado para usuario {user.id} ({user.rut})")
-        print(f"👤 Tipo de usuario: {user_type}")
-        print(f"📊 Permisos web: {list(permissions_structure.get('web', {}).keys())}")
-        print(f"📱 Permisos móvil: {list(permissions_structure.get('movil', {}).keys())}")
-        print(f"🛡️ Rutas permitidas: {len(allowed_routes)} rutas")
-        
         return token
     
     @classmethod
@@ -113,11 +106,9 @@ class JWTService:
         Returns:
             Tuple con (user_type, permissions_structure, allowed_routes)
         """
-        print(f"🔍 Obteniendo permisos para usuario {user.id} ({user.rut})")
         
         # ✅ SUPERADMIN: Acceso total al sistema
         if user.is_superuser:
-            print("👑 Usuario SUPERADMIN detectado")
             return (
                 'SUPERADMIN',
                 {'superadmin_access': True},
@@ -126,10 +117,8 @@ class JWTService:
         
         # ✅ Si no tiene perfil activo, denegar acceso
         if not user.perfil or not user.perfil.estado:
-            print("❌ Usuario sin perfil activo")
             return ('INACTIVE', {}, [])
         
-        print(f"📋 Perfil encontrado: {user.perfil.nombre_perfil} ({user.perfil.tipo})")
         
         # ✅ Construir estructura de permisos basada en módulos/submódulos del perfil
         permissions_structure = {}
@@ -140,12 +129,10 @@ class JWTService:
         
         # ✅ PERMISOS WEB
         if user.perfil.tipo in ['WEB', 'AMBOS']:
-            print("🌐 Procesando permisos WEB...")
             web_permissions = {}
             
             # Obtener módulos web del perfil con optimización de consultas
             modulos_web = user.perfil.modulos_web.all().prefetch_related('submodulos')
-            print(f"📦 Módulos web encontrados: {[m.nombre for m in modulos_web]}")
             
             for modulo in modulos_web:
                 # Obtener submódulos asociados a este módulo desde el perfil
@@ -154,24 +141,20 @@ class JWTService:
                 
                 if submodulos_nombres:  # Solo agregar si tiene submódulos
                     web_permissions[modulo.nombre] = submodulos_nombres
-                    print(f"  📂 {modulo.nombre}: {submodulos_nombres}")
                     
                     # ✅ Mapear submódulos a rutas
                     rutas_del_modulo = cls._map_submodulos_to_routes(submodulos_del_modulo)
                     allowed_routes.extend(rutas_del_modulo)
-                    print(f"  🛤️ Rutas agregadas: {rutas_del_modulo}")
             
             if web_permissions:
                 permissions_structure['web'] = web_permissions
         
         # ✅ PERMISOS MÓVIL  
         if user.perfil.tipo in ['MOVIL', 'AMBOS']:
-            print("📱 Procesando permisos MÓVIL...")
             movil_permissions = {}
             
             # Obtener módulos móvil del perfil
             modulos_movil = user.perfil.modulos_movil.all().prefetch_related('submodulos')
-            print(f"📦 Módulos móvil encontrados: {[m.nombre for m in modulos_movil]}")
             
             for modulo in modulos_movil:
                 # Obtener submódulos asociados a este módulo desde el perfil
@@ -180,13 +163,11 @@ class JWTService:
                 
                 if submodulos_nombres:  # Solo agregar si tiene submódulos
                     movil_permissions[modulo.nombre] = submodulos_nombres
-                    print(f"  📂 {modulo.nombre}: {submodulos_nombres}")
             
             if movil_permissions:
                 permissions_structure['movil'] = movil_permissions
         
-        print(f"✅ Permisos finales: {permissions_structure}")
-        print(f"🛡️ Rutas permitidas: {allowed_routes}")
+     
         
         return (user_type, permissions_structure, allowed_routes)
     

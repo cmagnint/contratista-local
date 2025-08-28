@@ -1,5 +1,5 @@
 <!--posicionar-variable-contrato.component.html-->
-<div class="main-container" *ngIf="!modoCalibration && !modoModificacion">
+<div class="main-container" *ngIf="!modoModificacion">
   <!-- Panel de variables a la izquierda -->
   <div class="variables-panel">
     <!-- Sección para trabajar con documentos existentes -->
@@ -33,21 +33,21 @@
       <!-- Botones de acción para documento seleccionado -->
       <div *ngIf="modoDocumentoExistente && documentoSeleccionado" class="documento-actions-buttons">
         <button 
-          class="action-btn calibrate-direct-btn"
-          (click)="calibrarDocumentoSeleccionado()">
-          Calibrar "{{ documentoSeleccionado?.nombre }}"
-        </button>
-        <button 
           class="action-btn modify-direct-btn"
           (click)="modificarDocumentoSeleccionado()">
           Modificar "{{ documentoSeleccionado?.nombre }}"
+        </button>
+        <button 
+          class="action-btn preview-btn"
+          (click)="generarPDFPrueba()">
+          Generar PDF de Prueba
         </button>
       </div>
     </div>
 
     <div *ngIf="!modoDocumentoExistente">
       <h3>Variables del Documento</h3>
-      <p class="panel-instruction">Haz clic en las variables para posicionarlas en el PDF</p>
+      <p class="panel-instruction">Haz clic en las variables para posicionarlas en el PDF. Los valores mostrados son ejemplos de cómo aparecerán en el documento final.</p>
       
       <div class="variables-list">
         <div class="variable-item" *ngFor="let variable of variables">
@@ -57,20 +57,21 @@
               {{ variable.colocada ? 'Colocada' : 'No colocada' }}
             </span>
           </div>
+          
+          <!-- NUEVO: Mostrar preview del valor de ejemplo -->
+          <div class="variable-preview">
+            <span class="preview-label">Aparecerá como:</span>
+            <span class="preview-value" [class.centered]="esCampocentrado(variable.nombre)">
+              {{ obtenerValorEjemplo(variable.nombre) }}
+            </span>
+          </div>
+          
           <div class="variable-input-group">
             <button 
               class="place-btn" 
               (click)="seleccionarVariable(variable)"
               [disabled]="modoColocacion">
               Colocar
-            </button>
-            
-            <button 
-              *ngIf="variable.colocada"
-              class="calibrate-btn" 
-              (click)="calibrarVariable(variable)"
-              [disabled]="modoColocacion">
-              Calibrar
             </button>
           </div>
           
@@ -94,9 +95,18 @@
           Guardar Formato
         </button>
 
-        <!-- Nueva sección para generar PDF de prueba -->
+        <!-- Sección para generar PDF de prueba -->
         <div class="test-pdf-section" *ngIf="documentoGuardadoId">
           <h4>Generar PDF con Datos de Prueba</h4>
+          
+          <!-- NUEVO: Botón para guardar posiciones modificadas -->
+          <button 
+            *ngIf="haycambiosPendientes" 
+            class="action-btn sync-btn" 
+            (click)="guardarPosicionesModificadas()">
+            Guardar Posiciones Modificadas
+          </button>
+          
           <button class="action-btn preview-btn" (click)="generarPDFPrueba()">
             Generar PDF de Prueba
           </button>
@@ -104,16 +114,6 @@
             <a [href]="pdfPreviewUrl" target="_blank">Ver PDF Generado</a>
             <button class="download-btn" (click)="descargarPDF()">Descargar</button>
           </div>
-        </div>
-
-        <div class="calibration-actions" *ngIf="documentoGuardadoId">
-          <h4>Herramientas de Calibración</h4>
-          <button class="action-btn calibration-btn" (click)="generarPDFCalibracion()">
-            Generar PDF de Calibración
-          </button>
-          <button class="action-btn calibration-btn" (click)="iniciarCalibracion()">
-            Modo Calibración Avanzado
-          </button>
         </div>
       </div>
     </div>
@@ -140,6 +140,13 @@
       <!-- Mensaje para modo de colocación activo -->
       <div *ngIf="modoColocacion" class="placement-mode-indicator">
         <p>Haz clic en el PDF para colocar: <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong></p>
+        <p class="preview-text">Valor de ejemplo: <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em></p>
+      </div>
+      
+      <!-- Información sobre coordenadas nativas -->
+      <div *ngIf="pdfNativeWidth > 0" class="pdf-info">
+        <p><strong>Dimensiones nativas del PDF:</strong> {{ pdfNativeWidth | number:'1.0-0' }} x {{ pdfNativeHeight | number:'1.0-0' }} puntos</p>
+        <p><em>Las coordenadas se guardan en unidades nativas del PDF para máxima precisión. Los valores mostrados son ejemplos realistas.</em></p>
       </div>
     </div>
     
@@ -189,21 +196,12 @@
 
         <div class="documento-mensaje">
           <i class="info-icon">ℹ️</i> 
-          Documento cargado correctamente. Utilice los botones de calibrar o modificar para trabajar con este documento.
+          Documento cargado correctamente. Las variables usan coordenadas nativas para máxima precisión y muestran valores de ejemplo realistas.
         </div>
       </div>
     </div>
   </div>
 </div>
-
-<!-- Componente de calibración -->
-<app-calibrar-variable 
-  *ngIf="modoCalibration"
-  [documentoId]="documentoGuardadoId"
-  [variables]="variables"
-  (calibracionCompletada)="onCalibracionCompletada($event)"
-  (cerrarCalibracion)="cerrarCalibracion()">
-</app-calibrar-variable>
 
 <!-- Modal para guardar formato -->
 <div class="modal-overlay" *ngIf="mostrarModal">
@@ -246,7 +244,7 @@
     <h3>Generar PDF con Datos de Prueba</h3>
     
     <p class="modal-description">
-      Ingrese datos de prueba para las variables colocadas o use los valores predeterminados.
+      Modifique los valores de ejemplo o úselos tal como están. Los valores mostrados coinciden con la apariencia visual del PDF final.
     </p>
     
     <div class="variables-test-data">
@@ -259,6 +257,9 @@
           [(ngModel)]="variable.valorPrueba"
           [placeholder]="variable.valorPredeterminado"
         >
+        <small class="field-hint" *ngIf="esCampocentrado(variable.nombre)">
+          Este campo aparecerá centrado en el PDF
+        </small>
       </div>
     </div>
     
@@ -274,7 +275,13 @@
   <!-- Panel de variables a la izquierda -->
   <div class="variables-panel">
     <h3>Modificar Documento: "{{ documentoSeleccionado?.nombre }}"</h3>
-    <p class="panel-instruction">Puedes añadir nuevas variables, mover o eliminar las existentes.</p>
+    <p class="panel-instruction">Puedes añadir nuevas variables, mover o eliminar las existentes. Los valores mostrados son ejemplos realistas.</p>
+    
+    <!-- NUEVO: Indicador de cambios pendientes -->
+    <div *ngIf="haycambiosPendientes" class="changes-indicator">
+      <p><strong>⚠️ Hay cambios sin guardar</strong></p>
+      <p>Recuerde guardar los cambios para que se reflejen en futuros PDFs generados.</p>
+    </div>
     
     <div class="variables-list">
       <div class="variable-item" *ngFor="let variable of variables">
@@ -284,12 +291,21 @@
             {{ variable.colocada ? 'Colocada' : 'No colocada' }}
           </span>
         </div>
+        
+        <!-- NUEVO: Mostrar preview del valor de ejemplo también en modo modificación -->
+        <div class="variable-preview" *ngIf="variable.colocada">
+          <span class="preview-label">Aparece como:</span>
+          <span class="preview-value" [class.centered]="esCampocentrado(variable.nombre)">
+            {{ obtenerValorEjemplo(variable.nombre) }}
+          </span>
+        </div>
+        
         <div class="variable-input-group">
           <button 
             class="place-btn" 
             (click)="seleccionarVariable(variable)"
             [disabled]="modoColocacion">
-            Colocar
+            Colocar Nueva
           </button>
         </div>
         
@@ -303,11 +319,22 @@
     </div>
     
     <div class="panel-actions">
+      <button 
+        class="action-btn sync-btn" 
+        *ngIf="haycambiosPendientes"
+        (click)="guardarPosicionesModificadas()">
+        Sincronizar Cambios
+      </button>
+      
       <button class="action-btn save-btn" (click)="guardarCambiosDocumento()">
-        Guardar Cambios
+        Guardar y Cerrar
       </button>
       <button class="action-btn cancel-btn" (click)="cerrarModificacion()">
-        Cancelar Modificación
+        {{ haycambiosPendientes ? 'Cancelar (se perderán cambios)' : 'Cancelar' }}
+      </button>
+      
+      <button class="action-btn preview-btn" (click)="generarPDFPrueba()">
+        Vista Previa PDF
       </button>
     </div>
   </div>
@@ -320,6 +347,7 @@
       <!-- Mensaje para modo de colocación activo -->
       <div *ngIf="modoColocacion" class="placement-mode-indicator">
         <p>Haz clic en el PDF para colocar: <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong></p>
+        <p class="preview-text">Aparecerá como: <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em></p>
       </div>
       
       <div class="document-info">
@@ -328,6 +356,8 @@
           <li>Arrastra las variables para moverlas a nuevas posiciones</li>
           <li>Haz clic en el botón ✕ para eliminar una variable</li>
           <li>Selecciona una variable del panel izquierdo para añadir una nueva ubicación</li>
+          <li>Los valores mostrados son ejemplos realistas que coinciden con el PDF final</li>
+          <li>Las coordenadas se almacenan en unidades nativas del PDF</li>
         </ul>
       </div>
     </div>
@@ -345,7 +375,7 @@
         <p>Por favor, inténtelo de nuevo o pruebe con otro archivo PDF.</p>
       </div>
       
-      <!-- Contenedor para el visor de PDF - IMPORTANTE: Es necesario mostrar el contenedor -->
+      <!-- Contenedor para el visor de PDF -->
       <div id="pdf-container" class="pdf-viewer" 
           [style.display]="(pdfSrc && !isLoading && !errorMessage) ? 'block' : 'none'"
           [style.min-height]="'600px'">

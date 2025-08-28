@@ -2269,151 +2269,102 @@ class ChoferesTransporteAPIView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
 class SaludTrabajadoresAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
-    # Define required_scopes como un atributo de instancia
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required_scopes = []
 
     def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
+        # Solo permitir GET y PUT (para modificar porcentaje únicamente)
+        if request.method in ['GET', 'PUT']:
+            self.required_scopes = ['admin', 'write']
         return super().dispatch(request, *args, **kwargs)
 
-    #Metodo GET
+    # Método GET
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
         if holding_id:
-            vehiculos = SaludTrabajadores.objects.filter(holding_id=holding_id)
-            serializer = SaludTrabajadoresSerializer(vehiculos, many=True)
+            salud_trabajadores = SaludTrabajadores.objects.filter(holding_id=holding_id)
+            serializer = SaludTrabajadoresSerializer(salud_trabajadores, many=True)
             return Response(serializer.data)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo POST    
-    def post(self, request, format=None):
-        serializer = SaludTrabajadoresSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo DELETE
-    def delete(self, request, format=None): 
-        vehiculos_ids = request.data.get('ids', [])
-        SaludTrabajadores.objects.filter(id__in=vehiculos_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    #Metodo PATCH
-    def patch(self, request, format=None):
-        vehiculos_ids = request.data.get('id')
-        if not vehiculos_ids:
-            
-            return Response({"message": "ID de perfil es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            vehiculos = SaludTrabajadores.objects.get(id=vehiculos_ids)
-        except SaludTrabajadores.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "holding_id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = SaludTrabajadoresSerializer(vehiculos, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo PUT
+    # Método PUT - Solo para modificar porcentaje
     def put(self, request, format=None):
-        cliente_id = request.data.get('id')
+        salud_id = request.data.get('id')
         try:
-            vehiculos = SaludTrabajadores.objects.get(id=cliente_id)
+            salud = SaludTrabajadores.objects.get(id=salud_id)
         except SaludTrabajadores.DoesNotExist:
-            return Response({"message": "Cargo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Registro de salud no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = SaludTrabajadoresSerializer(vehiculos, data=request.data)  # Sin partial=True
-        if serializer.is_valid():
-            serializer.save()
+        # Solo permitir actualizar el porcentaje
+        porcentaje = request.data.get('porcentaje')
+        if porcentaje is not None:
+            salud.porcentaje = porcentaje
+            salud.save()
+            serializer = SaludTrabajadoresSerializer(salud)
             return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+        else:
+            return Response({"message": "Porcentaje es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
 class AFPTrabajadoresAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
-    # Define required_scopes como un atributo de instancia
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required_scopes = []
 
     def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
+        # Solo permitir GET y PUT (para modificar porcentajes únicamente)
+        if request.method in ['GET', 'PUT']:
+            self.required_scopes = ['admin', 'write']
         return super().dispatch(request, *args, **kwargs)
 
-    #Metodo GET
+    # Método GET
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
         if holding_id:
-            vehiculos = AFPTrabajadores.objects.filter(holding_id=holding_id)
-            serializer = AFPTrabajadoresSerializer(vehiculos, many=True)
+            afp_trabajadores = AFPTrabajadores.objects.filter(holding_id=holding_id)
+            serializer = AFPTrabajadoresSerializer(afp_trabajadores, many=True)
             return Response(serializer.data)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo POST    
-    def post(self, request, format=None):
-        serializer = AFPTrabajadoresSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo DELETE
-    def delete(self, request, format=None): 
-        vehiculos_ids = request.data.get('ids', [])
-        AFPTrabajadores.objects.filter(id__in=vehiculos_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    #Metodo PATCH
-    def patch(self, request, format=None):
-        vehiculos_ids = request.data.get('id')
-        if not vehiculos_ids:
-            
-            return Response({"message": "ID de perfil es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            vehiculos = AFPTrabajadores.objects.get(id=vehiculos_ids)
-        except AFPTrabajadores.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "holding_id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = AFPTrabajadoresSerializer(vehiculos, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo PUT
+    # Método PUT - Solo para modificar porcentajes
     def put(self, request, format=None):
-        cliente_id = request.data.get('id')
+        afp_id = request.data.get('id')
         try:
-            vehiculos = AFPTrabajadores.objects.get(id=cliente_id)
+            afp = AFPTrabajadores.objects.get(id=afp_id)
         except AFPTrabajadores.DoesNotExist:
-            return Response({"message": "Cargo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "AFP no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = AFPTrabajadoresSerializer(vehiculos, data=request.data)  # Sin partial=True
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+        # Solo permitir actualizar los porcentajes
+        data_to_update = {}
+        campos_permitidos = [
+            'porcentaje_cotizacion_individual', 
+            'comision_afp', 
+            'porcentaje_cargo_empleador', 
+            'porcentaje_seguro_social'
+        ]
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        for campo in campos_permitidos:
+            if campo in request.data:
+                data_to_update[campo] = request.data[campo]
+        
+        if data_to_update:
+            for campo, valor in data_to_update.items():
+                setattr(afp, campo, valor)
+            afp.save()
+            serializer = AFPTrabajadoresSerializer(afp)
+            return Response(serializer.data)
+        else:
+            return Response({"message": "No hay campos válidos para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
 
 class CasasTrabajadoresAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -18133,4 +18084,470 @@ class HistorialPagosAPIView(APIView):
         response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
         
         return response
+    
+class DocumentoVariablesNativasAPIView(APIView):
+    """
+    Vista unificada para manejo de documentos con variables usando coordenadas nativas.
+    Elimina toda la complejidad de calibración.
+    """
+    
+    def get(self, request, documento_id=None, *args, **kwargs):
+        """
+        GET /api_documento_nativo/ - Lista todos los documentos
+        GET /api_documento_nativo/{id}/ - Obtiene un documento específico
+        """
+        try:
+            if documento_id:
+                # Obtener documento específico
+                documento = get_object_or_404(ContratoVariables, id=documento_id)
+                
+                return Response({
+                    'id': documento.id,
+                    'nombre': documento.nombre,
+                    'tipo': documento.tipo,
+                    'archivo_pdf_url': request.build_absolute_uri(documento.archivo_pdf.url),
+                    'variables': documento.variables,
+                    'fecha_creacion': documento.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
+                    'activo': documento.activo
+                })
+            else:
+                # Listar todos los documentos
+                documentos = ContratoVariables.objects.filter(holding=request.user.holding)
+                documentos_list = []
+                
+                for doc in documentos:
+                    documentos_list.append({
+                        'id': doc.id,
+                        'nombre': doc.nombre,
+                        'tipo': doc.tipo,
+                        'fecha_creacion': doc.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
+                        'activo': doc.activo
+                    })
+                
+                return Response(documentos_list)
+                
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request, *args, **kwargs):
+        """
+        POST /api_documento_nativo/ - Crear nuevo documento
+        POST /api_documento_nativo/generar/ - Generar PDF con datos
+        """
+        action = request.data.get('action', 'create')
+        
+        if action == 'generar':
+            return self._generar_pdf_con_datos(request)
+        elif action == 'generar_prueba':
+            return self._generar_pdf_prueba(request)
+        else:
+            return self._crear_documento(request)
+    
+    def put(self, request, documento_id, *args, **kwargs):
+        """
+        PUT /api_documento_nativo/{id}/ - Actualizar documento existente
+        """
+        return self._actualizar_documento(request, documento_id)
+    
+    def delete(self, request, documento_id, *args, **kwargs):
+        """
+        DELETE /api_documento_nativo/{id}/ - Eliminar documento
+        """
+        try:
+            documento = get_object_or_404(ContratoVariables, id=documento_id)
+            
+            if documento.holding != request.user.holding:
+                return Response(
+                    {"error": "No tienes permisos para eliminar este documento"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            nombre = documento.nombre
+            documento.delete()
+            
+            return Response({
+                "mensaje": f"Documento '{nombre}' eliminado exitosamente"
+            })
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _crear_documento(self, request):
+        """Crear un nuevo documento con variables posicionadas"""
+        try:
+            pdf_file = request.FILES.get('archivo_pdf')
+            
+            if not pdf_file:
+                return Response({"error": "El archivo PDF es obligatorio"}, status=400)
+            
+            if pdf_file.size == 0:
+                return Response({"error": "El archivo PDF está vacío"}, status=400)
+            
+            nombre = request.data.get('nombre', 'Documento sin nombre')
+            tipo = request.data.get('tipo', 'CHILENO')
+            
+            # Procesar variables
+            variables_data = request.data.get('variables')
+            if isinstance(variables_data, str):
+                variables_json = json.loads(variables_data)
+            else:
+                variables_json = variables_data or []
+            
+            # Validar estructura de variables
+            for variable in variables_json:
+                if 'nombre' not in variable:
+                    return Response(
+                        {"error": "Todas las variables deben tener un nombre"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if 'ubicaciones' not in variable:
+                    return Response(
+                        {"error": "Todas las variables deben tener ubicaciones"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Crear documento
+            documento = ContratoVariables.objects.create(
+                holding=request.user.holding,
+                nombre=nombre,
+                tipo=tipo,
+                archivo_pdf=pdf_file,
+                variables=variables_json
+            )
+            
+            return Response({
+                "id": documento.id,
+                "mensaje": "Documento guardado exitosamente con coordenadas nativas"
+            }, status=201)
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error al guardar el documento: {str(e)}"
+            }, status=500)
+    
+    def _actualizar_documento(self, request, documento_id):
+        """Actualizar variables de un documento existente"""
+        try:
+            documento = get_object_or_404(ContratoVariables, id=documento_id)
+            
+            if documento.holding != request.user.holding:
+                return Response(
+                    {"error": "No tienes permisos para modificar este documento"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            if 'variables' in request.data:
+                variables_data = request.data['variables']
+                
+                if isinstance(variables_data, str):
+                    try:
+                        variables_json = json.loads(variables_data)
+                    except json.JSONDecodeError:
+                        return Response(
+                            {"error": "Formato de variables inválido"}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                else:
+                    variables_json = variables_data
+                
+                # Validar estructura
+                for variable in variables_json:
+                    if 'nombre' not in variable or 'ubicaciones' not in variable:
+                        return Response(
+                            {"error": "Estructura de variables inválida"}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                documento.variables = variables_json
+                documento.save()
+                
+                return Response({
+                    "mensaje": "Variables actualizadas correctamente",
+                    "id": documento.id,
+                    "variables_count": len(variables_json)
+                })
+            else:
+                return Response({
+                    "error": "No se proporcionaron variables para actualizar"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _generar_pdf_con_datos(self, request):
+        """Generar PDF usando datos de un trabajador"""
+        try:
+            trabajador_id = request.data.get('trabajador_id')
+            documento_id = request.data.get('documento_id')
+            
+            if not trabajador_id or not documento_id:
+                return Response({
+                    "error": "Se requieren trabajador_id y documento_id"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            documento = get_object_or_404(ContratoVariables, id=documento_id)
+            trabajador = get_object_or_404(PersonalTrabajadores, id=trabajador_id)
+            
+            # Preparar datos del trabajador
+            datos_variables = {
+                'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
+                'rut': trabajador.rut or "",
+                'dni': trabajador.dni or "",
+                'f_inicio': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
+                'f_ingreso': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
+                'f_termino': trabajador.fecha_termino.strftime('%d/%m/%Y') if hasattr(trabajador, 'fecha_termino') and trabajador.fecha_termino else "",
+                'nacionalidad': trabajador.nacionalidad or "",
+                'f_nacmnto': trabajador.fecha_nacimiento.strftime('%d/%m/%Y') if trabajador.fecha_nacimiento else "",
+                'e_civil': trabajador.estado_civil or "",
+                'domicilio': trabajador.direccion or "",
+                'campo_cliente': getattr(trabajador, 'campo_cliente', "") or "",
+                'banco': trabajador.banco.nombre if hasattr(trabajador, 'banco') and trabajador.banco else "",
+                'cuenta': str(trabajador.numero_cuenta) if hasattr(trabajador, 'numero_cuenta') and trabajador.numero_cuenta else "",
+                'firma_empleador': "",
+                'afp': trabajador.afp.nombre if hasattr(trabajador, 'afp') and trabajador.afp else "",
+                'salud': trabajador.salud.nombre if hasattr(trabajador, 'salud') and trabajador.salud else "",
+                'telefono': trabajador.telefono or "",
+                'correo': trabajador.correo or ""
+            }
+            
+            # Generar PDF usando coordenadas nativas
+            pdf_path = self._generar_documento_coordenadas_nativas(documento_id, datos_variables)
+            
+            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
+            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
+            
+            return Response({
+                "mensaje": "Documento generado exitosamente",
+                "url": pdf_url,
+                "datos": {
+                    "trabajador": f"{trabajador.nombres} {trabajador.apellidos}",
+                    "documento": documento.nombre,
+                    "fecha_generacion": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error al generar documento: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _generar_pdf_prueba(self, request):
+        """Generar PDF con datos de prueba"""
+        try:
+            documento_id = request.data.get('documento_id')
+            datos_variables = request.data.get('datos_variables', {})
+            debug = request.data.get('debug', False)  # ACTIVAR DEBUG POR DEFECTO
+            
+            if not documento_id:
+                return Response({
+                    "error": "Se requiere documento_id"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            documento = get_object_or_404(ContratoVariables, id=documento_id)
+            
+            # Generar PDF con datos de prueba Y DEBUG ACTIVADO
+            pdf_path = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=debug)
+            
+            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
+            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
+            
+            return Response({
+                "mensaje": "PDF de prueba generado exitosamente con indicadores de debug",
+                "url": pdf_url,
+                "documento": documento.nombre,
+                "debug_enabled": debug
+            })
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error al generar PDF de prueba: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
+        """
+        Genera un PDF usando directamente las coordenadas nativas con transformación escalable.
+        Funciona con cualquier dimensión de PDF.
+        
+        Args:
+            documento_id: ID del documento base
+            datos_variables: Diccionario con valores para cada variable
+            debug: Si es True, dibuja indicadores visuales para calibración
+        """
+        from PyPDF2 import PdfReader, PdfWriter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        import io
+        import uuid
+        import os
+        
+        # Obtener documento
+        documento = ContratoVariables.objects.get(id=documento_id)
+        
+        # Configuración de archivos
+        input_pdf_path = documento.archivo_pdf.path
+        filename = f"documento_nativo_{uuid.uuid4().hex}.pdf"
+        output_dir = os.path.join(settings.MEDIA_ROOT, 'contratos_nativas')
+        os.makedirs(output_dir, exist_ok=True)
+        output_pdf_path = os.path.join(output_dir, filename)
+        
+        # Procesar PDF
+        reader = PdfReader(open(input_pdf_path, "rb"))
+        writer = PdfWriter()
+        
+        # CONFIGURACIÓN ESCALABLE
+        BASE_FONT_SIZE = 9
+        
+        def calcular_offsets_escalables(page_width, page_height, font_size):
+            """
+            Calcula offsets proporcionales al tamaño del PDF para que funcione
+            con cualquier dimensión de documento.
+            """
+            # Ratios basados en PDF estándar carta (612 x 792 puntos)
+            REFERENCE_WIDTH = 612.0
+            REFERENCE_HEIGHT = 792.0
+            
+            # Offsets originales que funcionan bien en PDF carta
+            BASE_OFFSET_X = -8
+            BASE_OFFSET_Y = -15.2  # Cambiado de -10 a +15 para corregir posición Y
+            
+            # Calcular offsets proporcionales
+            offset_x = (page_width / REFERENCE_WIDTH) * BASE_OFFSET_X
+            offset_y = (page_height / REFERENCE_HEIGHT) * BASE_OFFSET_Y
+            
+            # Ajuste baseline del texto (aproximadamente 30% del font size)
+            font_baseline = font_size * 0.3
+            
+            return {
+                'offset_x': offset_x,
+                'offset_y': offset_y,
+                'font_baseline': font_baseline
+            }
+        
+        # Organizar variables por página
+        variables_por_pagina = {}
+        for variable_data in documento.variables:
+            nombre_variable = variable_data.get('nombre')
+            for ubicacion in variable_data.get('ubicaciones', []):
+                pagina = ubicacion.get('pagina', 1)
+                if pagina not in variables_por_pagina:
+                    variables_por_pagina[pagina] = []
+                
+                variable_info = {
+                    'nombre': nombre_variable,
+                    'posX': ubicacion.get('posX', 0),
+                    'posY': ubicacion.get('posY', 0)
+                }
+                variables_por_pagina[pagina].append(variable_info)
+        
+        # Procesar cada página
+        for page_num in range(len(reader.pages)):
+            ui_page_num = page_num + 1
+            page = reader.pages[page_num]
+            
+            if ui_page_num in variables_por_pagina:
+                # Crear overlay para esta página
+                packet = io.BytesIO()
+                page_width = float(page.mediabox.width)
+                page_height = float(page.mediabox.height)
+                
+                # Calcular offsets escalables para esta página específica
+                offsets = calcular_offsets_escalables(page_width, page_height, BASE_FONT_SIZE)
+                
+                can = canvas.Canvas(packet, pagesize=(page_width, page_height))
+                
+                print(f"Página {ui_page_num}: {page_width} x {page_height} puntos")
+                print(f"Offsets calculados: X={offsets['offset_x']:.1f}, Y={offsets['offset_y']:.1f}, Baseline={offsets['font_baseline']:.1f}")
+                
+                # Definir campos que deben centrarse
+                campos_centrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 
+                                'nacionalidad', 'f_ingreso', 'f_termino']
+                
+                # Agregar variables usando coordenadas nativas con transformación escalable
+                for variable in variables_por_pagina[ui_page_num]:
+                    nombre = variable['nombre']
+                    if nombre in datos_variables and datos_variables[nombre]:
+                        # Coordenadas del frontend (nativas del PDF)
+                        frontend_x = variable['posX']
+                        frontend_y = variable['posY']
+                        
+                        # TRANSFORMACIÓN ESCALABLE CORREGIDA
+                        pdf_x = frontend_x + offsets['offset_x']
+                        pdf_y = page_height - frontend_y + offsets['offset_y'] + offsets['font_baseline']
+                        
+                        # Ajustes específicos por tipo de campo (opcionales)
+                        if nombre == 'rut':
+                            # RUT necesita un ajuste adicional hacia la izquierda
+                            pdf_x += offsets['offset_x'] * 0.5  # 50% de offset adicional
+                        elif nombre == 'nombre':
+                            # Nombre puede necesitar ajuste mínimo
+                            pdf_x += offsets['offset_x'] * 0.1
+                        
+                        valor = str(datos_variables[nombre])
+                        
+                        print(f"Variable '{nombre}': Frontend({frontend_x:.1f}, {frontend_y:.1f}) -> PDF({pdf_x:.1f}, {pdf_y:.1f}) = '{valor}'")
+                        
+                        # Configurar fuente
+                        can.setFont("Helvetica", BASE_FONT_SIZE)
+                        
+                        # Aplicar centrado si corresponde
+                        if nombre in campos_centrados:
+                            text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
+                            final_x = pdf_x - (text_width / 2)
+                            can.drawString(final_x, pdf_y, valor)
+                            print(f"  Campo centrado: ancho={text_width:.1f}, posición final X={final_x:.1f}")
+                        else:
+                            can.drawString(pdf_x, pdf_y, valor)
+                            print(f"  Campo izquierda: posición final X={pdf_x:.1f}")
+                        
+                        # MODO DEBUG: Indicadores visuales escalables
+                        if debug:
+                            can.saveState()
+                            
+                            # Calcular tamaños de debug proporcionales al PDF
+                            debug_line_length = min(page_width, page_height) * 0.02  # 2% del menor dimension
+                            debug_rect_size = debug_line_length * 1.5
+                            
+                            # Cruz roja en la posición exacta
+                            can.setStrokeColorRGB(1, 0, 0)  # Rojo
+                            can.setLineWidth(1)
+                            can.line(pdf_x - debug_line_length, pdf_y, pdf_x + debug_line_length, pdf_y)  # Horizontal
+                            can.line(pdf_x, pdf_y - debug_line_length, pdf_x, pdf_y + debug_line_length)  # Vertical
+                            
+                            # Rectángulo semitransparente
+                            can.setFillColorRGB(1, 0.8, 0.8, alpha=0.3)  # Rosa claro
+                            can.rect(pdf_x - debug_rect_size/2, pdf_y - debug_rect_size/2, 
+                                    debug_rect_size, debug_rect_size, fill=True, stroke=False)
+                            
+                            # Texto con información de debug
+                            debug_font_size = max(6, BASE_FONT_SIZE - 2)
+                            can.setFont("Helvetica", debug_font_size)
+                            can.setFillColorRGB(1, 0, 0)  # Rojo
+                            
+                            # Posicionar texto debug para que no se sobreponga
+                            debug_text_x = pdf_x + debug_rect_size
+                            debug_text_y = pdf_y + debug_font_size
+                            
+                            can.drawString(debug_text_x, debug_text_y, f"F:({int(frontend_x)},{int(frontend_y)})")
+                            can.drawString(debug_text_x, debug_text_y - debug_font_size, f"P:({int(pdf_x)},{int(pdf_y)})")
+                            can.drawString(debug_text_x, debug_text_y - debug_font_size * 2, f"{nombre}")
+                            can.drawString(debug_text_x, debug_text_y - debug_font_size * 3, f"Dims:{int(page_width)}x{int(page_height)}")
+                            
+                            can.restoreState()
+                
+                can.save()
+                packet.seek(0)
+                
+                # Combinar con página original
+                overlay = PdfReader(packet)
+                page.merge_page(overlay.pages[0])
+            
+            # Añadir página al documento final
+            writer.add_page(page)
+        
+        # Guardar PDF final
+        with open(output_pdf_path, "wb") as output_file:
+            writer.write(output_file)
+        
+        print(f"PDF generado exitosamente: {output_pdf_path}")
+        return output_pdf_path
     

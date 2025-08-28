@@ -276,20 +276,46 @@ class ChoferesTransporte(models.Model):
 
 class SaludTrabajadores(models.Model):
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.AutoField(primary_key=True)
-    codigo = models.IntegerField(blank=True, null=True)
-    nombre = models.CharField(max_length=255)
-    porcentaje_descuento = models.DecimalField(max_digits=5, decimal_places=2, default=7.0)
+    id = models.IntegerField(primary_key=True)  # Código dado por Previred (00, 01, 02, etc.)
+    nombre = models.CharField(max_length=255)  # Nombre dado por Previred
+    porcentaje = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=7.0,
+        help_text="Porcentaje de descuento salud (7% para la mayoría, puede variar)"
+    )
     
     class Meta:
         db_table = 'salud'
 
 class AFPTrabajadores(models.Model):
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.AutoField(primary_key=True)
-    codigo = models.IntegerField(blank=True, null=True)
-    nombre = models.CharField(max_length=255)
-    porcentaje_descuento = models.DecimalField(max_digits=5, decimal_places=2, default=10.0)
+    id = models.IntegerField(primary_key=True)  # Código dado por Previred (00, 03, 05, etc.)
+    nombre = models.CharField(max_length=255)  # Nombre dado por Previred
+    porcentaje_cotizacion_individual = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=10.0,
+        help_text="% Cotización Individual del trabajador"
+    )
+    comision_afp = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.58,
+        help_text="Comisión AFP %"
+    )
+    porcentaje_cargo_empleador = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.1,
+        help_text="% Cargo Empleador"
+    )
+    porcentaje_seguro_social = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.9,
+        help_text="% Seguro Social"
+    )
     
     class Meta:
         db_table = 'afp'

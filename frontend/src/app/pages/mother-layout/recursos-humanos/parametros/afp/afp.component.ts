@@ -16,7 +16,6 @@ import { MatTableModule } from '@angular/material/table';
   styleUrl: './afp.component.css'
 })
 export class AfpComponent implements OnInit {
-  //VARIABLES
 
   constructor(
     private apiService: ContratistaApiService,
@@ -27,66 +26,49 @@ export class AfpComponent implements OnInit {
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
-    crearAfp: false,
     modificarAfp: false,
-    confirmacionModal: false,
   };
 
-  //Perfil seleccionado
+  // AFP seleccionada
   public afpSeleccionada: any = {
-    nombre_afp_seleccionada: '',
     id_afp_seleccionada: 0,
-    porcentaje_descuento_seleccionado: 10.0,
+    nombre_afp_seleccionada: '',
+    porcentaje_cotizacion_individual_seleccionado: 10.0,
+    comision_afp_seleccionado: 0.58,
+    porcentaje_cargo_empleador_seleccionado: 0.1,
+    porcentaje_seguro_social_seleccionado: 0.9,
   }
 
-  public holding: string = ''; //Variable para guardar el ID del holding al cual pertenece al adminitrador
-  public nombreAfp: string = '';
-  public porcentajeDescuento: number = 10.0; // Default value
+  public holding: string = '';
+  
+  // Variables para modificar AFP (solo porcentajes)
+  public porcentajeCotizacionIndividualNew: number = 10.0;
+  public comisionAfpNew: number = 0.58;
+  public porcentajeCargoEmpleadorNew: number = 0.1;
+  public porcentajeSeguroSocialNew: number = 0.9;
 
-  errorMessage!: string; //Variable usada para mostrar los mensajes de error de la API
-  selectedRows: any[] = []; //Array usado para guardar las filas seleccionadas
-  dropdownOpen: boolean = false; //Booleano usado para abrir los dropdownmenus 
-
-  public todasSeleccionadas: boolean = false; //Booleano para seleccionar todas/ninguna casilla
+  errorMessage!: string;
+  selectedRows: any[] = [];
 
   public afpsCargadas: any[] = [];
 
-  columnasDesplegadas = ['codigo', 'nombre', 'porcentaje']; // Added porcentaje
-  
-  public nombreAFpNew: string = '';
-  public porcentajeDescuentoNew: number = 10.0;
-
-  public deletedRow: any[] = [];
+  // Columnas según la especificación
+  columnasDesplegadas = [
+    'id',  // Código Previred
+    'nombre', 
+    'porcentaje_cotizacion_individual',  // % Cot Indv
+    'comision_afp',  // % ComAFP
+    'porcentaje_cargo_empleador',  // % Cargo Empleador
+    'porcentaje_seguro_social'  // % Seguro Social
+  ];
   
   public selectedAfpId: number | null = null;
 
-  //FUNCIONES
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = localStorage.getItem('holding_id') || '';
       this.cargarAfps();
     }
-  }
-
-  //FUNCIONES CRUD
-  crearAfps(): void {
-    let data = {
-      holding: this.holding,
-      nombre: this.nombreAfp,
-      porcentaje_descuento: this.porcentajeDescuento
-    }
-    this.apiService.post('api_afp_trabajadores/', data).subscribe({
-      next: (response) => {
-        console.log(response);
-        this.closeModal('crearAfp');
-        this.cargarAfps();
-        this.openModal('exitoModal');
-      }, 
-      error: (error) => {
-        this.errorMessage = error.error?.message || 'Error al crear AFP';
-        this.openModal('errorModal');
-      }
-    })
   }
 
   cargarAfps(): void {
@@ -106,9 +88,12 @@ export class AfpComponent implements OnInit {
     let data = {
       holding: this.holding,
       id: this.selectedAfpId,
-      nombre: this.nombreAFpNew,
-      porcentaje_descuento: this.porcentajeDescuentoNew
+      porcentaje_cotizacion_individual: this.porcentajeCotizacionIndividualNew,
+      comision_afp: this.comisionAfpNew,
+      porcentaje_cargo_empleador: this.porcentajeCargoEmpleadorNew,
+      porcentaje_seguro_social: this.porcentajeSeguroSocialNew
     }
+    
     this.apiService.put('api_afp_trabajadores/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarAfp');
@@ -122,27 +107,6 @@ export class AfpComponent implements OnInit {
       }
     })
   }
-  
-  eliminarAfpSeleccionadas(): void {
-    if (this.deletedRow.length > 0) {
-      const idsToDelete = this.deletedRow.map(row => row.id);
-      this.apiService.delete('api_afp_trabajadores/', {ids: idsToDelete}).subscribe({
-        next: () => {
-          this.closeModal('confirmacionModal')
-          this.cargarAfps();
-          this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
-        },
-        error: (error) => {
-          this.errorMessage = error.error?.message || 'Error al eliminar AFPs';
-          this.openModal('errorModal');
-          console.error('Error al eliminar AFPs:', error);
-        }
-      });
-    }
-  }
-
-  //------------------------------------------------------------------------------//
 
   isSelected(row: any): boolean {
     return this.selectedRows.some(r => r.id === row.id);
@@ -151,42 +115,50 @@ export class AfpComponent implements OnInit {
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
-      // Si la fila ya está seleccionada, deseleccionarla
       this.selectedRows.splice(index, 1);
     } else {
-      // Agregar fila a las seleccionadas
-      this.selectedRows.push(row);
+      // Solo permitir una fila seleccionada
+      this.selectedRows = [row];
     }
 
     if (this.selectedRows.length > 0) {
-      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+      const selectedRow = this.selectedRows[0];
       this.afpSeleccionada = {
-        nombre_afp_seleccionada: lastSelectedRow.nombre,
-        id_afp_seleccionada: lastSelectedRow.id,
-        porcentaje_descuento_seleccionado: lastSelectedRow.porcentaje_descuento,
+        id_afp_seleccionada: selectedRow.id,
+        nombre_afp_seleccionada: selectedRow.nombre,
+        porcentaje_cotizacion_individual_seleccionado: selectedRow.porcentaje_cotizacion_individual,
+        comision_afp_seleccionado: selectedRow.comision_afp,
+        porcentaje_cargo_empleador_seleccionado: selectedRow.porcentaje_cargo_empleador,
+        porcentaje_seguro_social_seleccionado: selectedRow.porcentaje_seguro_social,
       };
+      
       this.selectedAfpId = this.afpSeleccionada.id_afp_seleccionada;
-      this.nombreAFpNew = this.afpSeleccionada.nombre_afp_seleccionada;
-      this.porcentajeDescuentoNew = this.afpSeleccionada.porcentaje_descuento_seleccionado;
+      
+      // Cargar datos en el formulario de modificación
+      this.porcentajeCotizacionIndividualNew = this.afpSeleccionada.porcentaje_cotizacion_individual_seleccionado;
+      this.comisionAfpNew = this.afpSeleccionada.comision_afp_seleccionado;
+      this.porcentajeCargoEmpleadorNew = this.afpSeleccionada.porcentaje_cargo_empleador_seleccionado;
+      this.porcentajeSeguroSocialNew = this.afpSeleccionada.porcentaje_seguro_social_seleccionado;
     } else {
-      // Limpiar afpSeleccionada si no hay filas seleccionadas
       this.afpSeleccionada = {
-        nombre_afp_seleccionada: '',
         id_afp_seleccionada: 0,
-        porcentaje_descuento_seleccionado: 10.0,
+        nombre_afp_seleccionada: '',
+        porcentaje_cotizacion_individual_seleccionado: 10.0,
+        comision_afp_seleccionado: 0.58,
+        porcentaje_cargo_empleador_seleccionado: 0.1,
+        porcentaje_seguro_social_seleccionado: 0.9,
       }
+      this.selectedAfpId = null;
     }
   }
 
   deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = [];  // Deselecciona todas las filas
+    this.selectedRows = [];
+    this.selectedAfpId = null;
   }
 
   openModal(key: string): void {
     this.modals[key] = true;
-    if (key == 'confirmacionModal') {
-      this.deletedRow = this.selectedRows;
-    }
   }
 
   closeModal(key: string): void {

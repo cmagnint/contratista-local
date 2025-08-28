@@ -647,22 +647,41 @@ class ChoferesTransporteSerializer(serializers.ModelSerializer):
             return obj.vehiculo.modelo
         return None  # Retorna None o cualquier valor por defecto si no hay perfil
     
+#======================================================================
+#========================= SALUD ======================================
+#======================================================================
+
 class SaludTrabajadoresSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaludTrabajadores
-        fields = ['holding', 'id', 'nombre', 'porcentaje_descuento']
+        fields = [
+            'holding', 
+            'id',         # Código Previred
+            'nombre',     # Nombre Previred
+            'porcentaje'  # Porcentaje de descuento (7% generalmente)
+        ]
         extra_kwargs = {
             'holding': {'write_only': True},
-            'id': {'read_only': True},
         }
+
+#======================================================================
+#=========================== AFP ======================================
+#======================================================================
 
 class AFPTrabajadoresSerializer(serializers.ModelSerializer):
     class Meta:
         model = AFPTrabajadores
-        fields = ['holding', 'id', 'nombre', 'porcentaje_descuento']
+        fields = [
+            'holding', 
+            'id',                                # Código Previred
+            'nombre',                            # Nombre Previred
+            'porcentaje_cotizacion_individual',  # % Cot Indv
+            'comision_afp',                      # % ComAFP
+            'porcentaje_cargo_empleador',        # % Cargo Empleador
+            'porcentaje_seguro_social'           # % Seguro Social
+        ]
         extra_kwargs = {
             'holding': {'write_only': True},
-            'id': {'read_only': True},
         }
 
 class CasasTrabajadoresSerializer(serializers.ModelSerializer):

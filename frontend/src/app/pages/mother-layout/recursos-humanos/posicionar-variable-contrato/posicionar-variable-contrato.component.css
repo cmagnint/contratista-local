@@ -88,6 +88,79 @@
   color: #2c7a2c;
 }
 
+/* NUEVO: Estilos para preview de valores de ejemplo */
+.variable-preview {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 0.85rem;
+}
+
+.preview-label {
+  color: #6c757d;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.preview-value {
+  font-family: Arial, sans-serif; /* SINCRONIZADO con el backend */
+  font-size: 10px; /* SINCRONIZADO con BASE_FONT_SIZE del backend */
+  font-weight: normal;
+  color: #333;
+  background-color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: 1px dashed #4a80f5;
+  display: inline-block;
+  min-width: 80px;
+}
+
+.preview-value.centered {
+  text-align: center;
+}
+
+/* NUEVO: Estilos para el texto de preview en modo colocación */
+.preview-text {
+  font-size: 0.9rem;
+  color: #0050b3;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+/* NUEVO: Hint para campos centrados en modal */
+.field-hint {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-style: italic;
+  margin-top: 3px;
+  display: block;
+}
+
+/* NUEVO: Estilos para indicador de cambios pendientes */
+.changes-indicator {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.changes-indicator p {
+  margin: 5px 0;
+  color: #856404;
+  font-size: 0.9rem;
+}
+
+.changes-indicator strong {
+  color: #856404;
+}
+
 /* Ajustes para el diseño sin campos de valor */
 .variable-input-group {
   display: flex;
@@ -261,6 +334,10 @@
   margin: 0;
   color: #0050b3;
   font-size: 0.9rem;
+}
+
+.placement-mode-indicator p:not(:last-child) {
+  margin-bottom: 5px;
 }
 
 /* File upload section */
@@ -503,14 +580,19 @@ h2 {
   background-color: white;
 }
 
-/* Variable on PDF */
+/* Variable on PDF - SINCRONIZADO CON BACKEND */
 .pdf-variable {
   position: absolute;
   background-color: rgba(74, 128, 245, 0.1);
   border: 2px dashed #4a80f5;
   border-radius: 4px;
   padding: 4px 8px;
-  font-size: 12px;
+  
+  /* SINCRONIZACIÓN CRÍTICA CON BACKEND */
+  font-family: Arial, sans-serif !important; /* Igual al backend */
+  font-size: 14px !important; /* Igual al BASE_FONT_SIZE del backend */
+  font-weight: normal !important;
+  
   z-index: 100;
   color: #333;
   backdrop-filter: blur(1px);
@@ -519,6 +601,11 @@ h2 {
   cursor: move;
   user-select: none;
   transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  
+  /* Evitar problemas de renderizado */
+  white-space: nowrap;
+  max-width: none;
+  overflow: visible;
 }
 
 .pdf-variable:hover {
@@ -532,6 +619,42 @@ h2 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   opacity: 0.9;
   z-index: 200;
+}
+
+/* NUEVO: Estilos para variables en modo edición */
+.pdf-variable.edit-mode {
+  border-color: #28a745;
+  background-color: rgba(40, 167, 69, 0.1);
+  position: relative;
+}
+
+.pdf-variable.edit-mode:hover {
+  background-color: rgba(40, 167, 69, 0.2);
+}
+
+/* Botón de eliminar en modo edición */
+.delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 101;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.2s;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
 }
 
 /* Mobile responsive styles */
@@ -593,6 +716,8 @@ h2 {
   width: 400px;
   max-width: 90%;
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .modal-description {
@@ -618,6 +743,7 @@ h2 {
   border: 1px solid #ddd;
   border-radius: 4px;
   box-sizing: border-box;
+  font-family: inherit;
 }
 
 .modal-actions {
@@ -747,19 +873,6 @@ h2 {
   margin-bottom: 15px;
 }
 
-.calibrate-direct-btn {
-  background-color: #722ed1;
-  color: white;
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  transition: background-color 0.2s;
-}
-
-.calibrate-direct-btn:hover {
-  background-color: #5b21ae;
-}
-
 /* Styles for document info card */
 .documento-info-card {
   background-color: #f9f9f9;
@@ -834,7 +947,6 @@ h2 {
   background-color: #218838;
 }
 
-
 /* Modo modificación */
 .document-info {
   background-color: #f0f8ff;
@@ -865,112 +977,96 @@ h2 {
   background-color: #5a6268;
 }
 
-/* Estilo para contador de variables */
-.variables-counter {
-  background-color: #f8f9fa;
-  padding: 10px;
+/* Botón sync - MEJORADO */
+.sync-btn {
+  background-color: #ff6b35;
+  color: white;
+  margin-bottom: 10px;
+  border: 2px solid #ff6b35;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.sync-btn:hover {
+  background-color: #e55a2b;
+  border-color: #e55a2b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+}
+
+.sync-btn::before {
+  content: "⚠️";
+  margin-right: 8px;
+}
+
+/* Mensaje de documento con mejoras visuales */
+.documento-mensaje {
+  background-color: #e8f4fd;
+  border: 1px solid #b3d4fc;
+  border-radius: 6px;
+  padding: 12px;
   margin-top: 15px;
-  border-radius: 4px;
-  text-align: center;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   font-size: 0.9rem;
-  color: #495057;
+  color: #0c4a6e;
 }
 
-.variables-counter strong {
-  color: #4a80f5;
+.info-icon {
   font-size: 1.1rem;
+  margin-top: 2px;
 }
 
-/* Tooltip para instrucciones de uso */
-.tooltip-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background-color: #6c757d;
-  color: white;
-  border-radius: 50%;
-  font-size: 12px;
-  margin-left: 5px;
-  cursor: help;
+/* Mejoras para información del PDF */
+.pdf-info {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 15px;
 }
 
-.tooltip-content {
-  display: none;
-  position: absolute;
-  background-color: #333;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
-  width: 220px;
-  font-size: 0.8rem;
-  z-index: 1000;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+.pdf-info p {
+  margin: 5px 0;
+  font-size: 0.9rem;
 }
 
-.tooltip-icon:hover + .tooltip-content {
-  display: block;
+.pdf-info em {
+  color: #6c757d;
+  font-style: italic;
 }
 
-/* Animación para variables en el modo edición */
-@keyframes pulse-edit {
+/* Animación sutil para elementos importantes */
+@keyframes pulse-success {
   0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
   70% { box-shadow: 0 0 0 6px rgba(40, 167, 69, 0); }
   100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
 }
 
-.edit-mode-active .pdf-variable.edit-mode {
-  animation: pulse-edit 2s infinite;
+@keyframes pulse-warning {
+  0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 193, 7, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
 }
 
-/* Contenedor de botones para documentos seleccionados */
-.documento-actions-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
+.changes-indicator {
+  animation: pulse-warning 2s infinite;
 }
 
-.modify-direct-btn {
-  background-color: #28a745;
-  color: white;
-  width: 100%;
-  padding: 12px;
-  transition: background-color 0.2s;
+/* Tooltip mejorado */
+[title] {
+  position: relative;
 }
 
-.modify-direct-btn:hover {
-  background-color: #218838;
+/* Mejoras de accesibilidad y UX */
+.action-btn:focus {
+  outline: 2px solid #4a80f5;
+  outline-offset: 2px;
 }
 
-
-/* Modo modificación */
-.document-info {
-  background-color: #f0f8ff;
-  border-left: 4px solid #4a80f5;
-  padding: 10px 15px;
-  margin-top: 15px;
-  border-radius: 4px;
-}
-
-.document-info ul {
-  padding-left: 20px;
-  margin: 5px 0;
-}
-
-.document-info li {
-  margin-bottom: 5px;
-  font-size: 0.9rem;
-  color: #333;
-}
-
-.cancel-btn {
-  background-color: #6c757d;
-  color: white;
-  margin-top: 10px;
-}
-
-.cancel-btn:hover {
-  background-color: #5a6268;
+.pdf-variable:focus {
+  outline: 2px solid #28a745;
+  outline-offset: 1px;
 }

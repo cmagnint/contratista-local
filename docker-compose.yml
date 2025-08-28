@@ -1,0 +1,33 @@
+# docker-compose.yml
+
+services:
+  db:
+    profiles:
+      - local-dev
+    image: postgres:15
+    container_name: contratista_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: contratista_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: contratista789
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups  # Para acceder a tus backups
+    networks:
+      - contratista_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d contratista_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  contratista_network:
+    driver: bridge
