@@ -5,8 +5,9 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 
+
 @Component({
-  selector: 'app-produccion-trabajador',
+  selector: 'app-maestro-trabajadores',
   standalone: true,
   imports: [
     CommonModule,
@@ -14,10 +15,10 @@ import { MatTableModule } from '@angular/material/table';
     MatTableModule,
     FormsModule
   ],
-  templateUrl: './produccion-trabajador.component.html',
-  styleUrl: './produccion-trabajador.component.css'
+  templateUrl: './maestro-trabajadores.component.html',
+  styleUrl: './maestro-trabajadores.component.css'
 })
-export class ProduccionTrabajadorComponent implements OnInit {
+export class MaestroTrabajadoresComponent implements OnInit {
   //VARIABLES
 
   constructor(
@@ -533,4 +534,5 @@ export class ProduccionTrabajadorComponent implements OnInit {
     
   }
 }
+
 

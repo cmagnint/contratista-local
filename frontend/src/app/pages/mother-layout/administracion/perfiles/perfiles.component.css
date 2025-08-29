@@ -681,7 +681,7 @@ select {
 }
 
 .submodulos-list.show {
-  max-height: 300px;
+  max-height: 800px;
   transition: max-height 0.4s ease-in;
   padding: 10px 20px;
 }

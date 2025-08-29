@@ -1,4 +1,4 @@
-//posicionar-variable-contrato.component.ts
+//formatos.component.ts
 import { Component, Inject, NgZone, OnInit, PLATFORM_ID, ViewChild } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -38,18 +38,17 @@ interface VariableConDatos {
   valorPredeterminado: string;
   valorPrueba: string;
 }
-
 @Component({
-  selector: 'app-posicionar-variable-contrato',
+  selector: 'app-formatos',
   standalone: true,
   imports: [
     CommonModule,
     FormsModule
   ],
-  templateUrl: './posicionar-variable-contrato.component.html',
-  styleUrls: ['./posicionar-variable-contrato.component.css']
+  templateUrl: './formatos.component.html',
+  styleUrl: './formatos.component.css'
 })
-export class PosicionarVariableContratoComponent implements OnInit {
+export class FormatosComponent implements OnInit {
   pdfSrc: string | ArrayBuffer | null = null;
   isLoading = false;
   isBrowser: boolean;
@@ -1251,3 +1250,4 @@ export class PosicionarVariableContratoComponent implements OnInit {
     });
   }
 }
+

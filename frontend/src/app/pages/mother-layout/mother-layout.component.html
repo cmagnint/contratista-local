@@ -216,9 +216,9 @@
           
           </ul>
 
-          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'PRODUCCION TRABAJADOR')" (click)="navigateToProduccion()">
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'MAESTRO TRABAJADORES')" (click)="navigateToMaestroTrabajadores()">
             <mat-icon>receipt</mat-icon>
-            <span class="icon-label">Producción Trabajadores</span>
+            <span class="icon-label">Maestro Trabajadores</span>
           </li>
 
           <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CONTRATACION PERSONAL')" (click)="navigateToAutoRegistro()">
@@ -232,19 +232,19 @@
           </li>
 
           <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'GENERACION CONTRATOS')" (click)="toggleGroup('generacionContratosSubGroup')">
-            <mat-icon>contract</mat-icon>
+            <mat-icon>receipt</mat-icon>
             <span class="icon-label">Generación Contratos</span>
           </li>
           <ul class="sub-menu-list" [class.show]="isGroupOpen('generacionContratosSubGroup')">
 
             <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CREAR CONTRATO')" (click)="navigateToGenerarContratos()">
-              <mat-icon>contract_edit</mat-icon>
+              <mat-icon>handshake</mat-icon>
               <span class="icon-label">Generar Contratos</span>
             </li>
 
-            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'POSICIONAR VARIABLE CONTRATO')" (click)="navigateToPosVarContrato()">
-              <mat-icon>receipt</mat-icon>
-              <span class="icon-label">Posicionar Variable Contrato</span>
+            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'FORMATOS')" (click)="navigateToFormatos()">
+              <mat-icon>format_color_fill</mat-icon>
+              <span class="icon-label">Formatos</span>
             </li>
           
           </ul>

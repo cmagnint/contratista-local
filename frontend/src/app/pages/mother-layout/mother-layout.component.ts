@@ -499,8 +499,8 @@ export class MotherLayoutComponent implements OnInit {
     this.leftSidenav.close();
   }
 
-  navigateToProduccion() {
-    this.router.navigate(['/fs/produccion-trabajador']);
+  navigateToMaestroTrabajadores() {
+    this.router.navigate(['/fs/maestro-trabajadores']);
     this.leftSidenav.close();
   }
 
@@ -509,8 +509,8 @@ export class MotherLayoutComponent implements OnInit {
     this.leftSidenav.close();
   }
 
-  navigateToPosVarContrato() {
-    this.router.navigate(['/fs/pos-var-contrato']);
+  navigateToFormatos() {
+    this.router.navigate(['/fs/formatos']);
     this.leftSidenav.close();
   }
 

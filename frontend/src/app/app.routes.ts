@@ -9,7 +9,6 @@ import { PerfilesComponent } from './pages/mother-layout/administracion/perfiles
 import { contratistaAuthGuard } from './auth-guard/contratista-auth.guard';
 import { UsuariosComponent } from './pages/mother-layout/administracion/usuarios/usuarios.component';
 import { AreasCargosAdministracionComponent } from './pages/mother-layout/administracion/areas-cargos-administracion/areas-cargos-administracion.component';
-import { ProduccionTrabajadorComponent } from './pages/mother-layout/recursos-humanos/produccion-trabajador/produccion-trabajador.component';
 import { AdministrarClientesComponent } from './pages/mother-layout/clientes/administrar-clientes/administrar-clientes.component';
 import { AreasCargosClientesComponent } from './pages/mother-layout/clientes/areas-cargos-clientes/areas-cargos-clientes.component';
 import { ContactosClientesComponent } from './pages/mother-layout/clientes/contactos-clientes/contactos-clientes.component';
@@ -45,7 +44,6 @@ import { ArchivoPreviredComponent } from './pages/mother-layout/leyes-sociales/a
 import { LiquidacionesComponent } from './pages/mother-layout/leyes-sociales/liquidaciones/liquidaciones.component';
 import { AsignacionHaberesComponent } from './pages/mother-layout/leyes-sociales/asignacion-haberes-descuentos/asignacion-haberes/asignacion-haberes.component';
 import { AsignacionDescuentosComponent } from './pages/mother-layout/leyes-sociales/asignacion-haberes-descuentos/asignacion-descuentos/asignacion-descuentos.component';
-import { PosicionarVariableContratoComponent } from './pages/mother-layout/recursos-humanos/posicionar-variable-contrato/posicionar-variable-contrato.component';
 import { LibroRemuneracionesElectronicoComponent } from './pages/mother-layout/recursos-humanos/libro-remuneraciones-electronico/libro-remuneraciones-electronico.component';
 import { GenerarContratosComponent } from './pages/mother-layout/recursos-humanos/generar-contratos/generar-contratos.component';
 import { CuentasComponent } from './pages/mother-layout/costos/cuentas/cuentas.component';
@@ -59,6 +57,8 @@ import { PagosIngresosComponent } from './pages/mother-layout/tesoreria/pagos-in
 import { PagosEgresosComponent } from './pages/mother-layout/tesoreria/pagos-egresos/pagos-egresos.component';
 import { HistorialPagosComponent } from './pages/mother-layout/tesoreria/historial-pagos/historial-pagos.component';
 import { ChangePasswordComponent } from './pages/change-password/change-password.component';
+import { MaestroTrabajadoresComponent } from './pages/mother-layout/recursos-humanos/maestro-trabajadores/maestro-trabajadores.component';
+import { FormatosComponent } from './pages/mother-layout/recursos-humanos/formatos/formatos.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -91,14 +91,14 @@ export const routes: Routes = [
       { path: 'areas-cargos-administracion', component: AreasCargosAdministracionComponent },
       { path: 'admin-sociedad', component: SociedadComponent },
       //RUTAS RECURSOS HUMANOS
-      { path: 'produccion-trabajador', component: ProduccionTrabajadorComponent },
+      { path: 'maestro-trabajadores', component: MaestroTrabajadoresComponent },
       { path: 'r-h-afp', component: AfpComponent },
       { path: 'r-h-salud', component: SaludComponent },
       { path: 'r-h-casas', component: CasasComponent },
       { path: 'r-h-horarios', component: HorariosComponent },
       { path: 'generar-qr', component: GenerarQrComponent },
       { path: 'autoregistro-personal', component: AutoRegistroComponent },
-      { path: 'pos-var-contrato', component: PosicionarVariableContratoComponent },
+      { path: 'formatos', component: FormatosComponent },
       { path: 'generar-contrato',  component: GenerarContratosComponent },
       // RUTAS DE CLIENTES
       { path: 'administrar-clientes', component: AdministrarClientesComponent },
