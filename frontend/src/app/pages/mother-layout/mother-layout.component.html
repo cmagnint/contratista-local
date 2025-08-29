@@ -216,6 +216,11 @@
           
           </ul>
 
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'PRODUCCION TRABAJADOR')" (click)="navigateToProduccion()">
+            <mat-icon>receipt</mat-icon>
+            <span class="icon-label">Producción Trabajadores</span>
+          </li>
+
           <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CONTRATACION PERSONAL')" (click)="navigateToAutoRegistro()">
             <mat-icon>app_registration</mat-icon>
             <span class="icon-label">Autoregistro</span>
