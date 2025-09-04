@@ -90,13 +90,12 @@ export class UsuariosComponent implements OnInit {
   ngOnInit() {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT();
-      //this.sociedad_actual_id = parseInt(localStorage.getItem('sociedad_actual_id')!);
-      //this.sucursal_actual_id = parseInt(localStorage.getItem('campo_actual_id')!);
       this.cargarSociedades();
       this.cargarPerfiles();
       this.cargarUsuarios();
-      this.cargarPersonalDisponible();
       this.cargarSupervisores();
+      this.cargarPersonalDisponible();
+      
     }
   }
 

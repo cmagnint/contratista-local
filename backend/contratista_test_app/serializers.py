@@ -656,12 +656,14 @@ class SaludTrabajadoresSerializer(serializers.ModelSerializer):
         model = SaludTrabajadores
         fields = [
             'holding', 
-            'id',         # Código Previred
-            'nombre',     # Nombre Previred
-            'porcentaje'  # Porcentaje de descuento (7% generalmente)
+            'id',       # AutoField (solo lectura)
+            'codigo',   # Código Previred (mostrar en tabla)
+            'nombre',   
+            'porcentaje'
         ]
         extra_kwargs = {
             'holding': {'write_only': True},
+            'id': {'read_only': True},
         }
 
 #======================================================================
@@ -673,15 +675,17 @@ class AFPTrabajadoresSerializer(serializers.ModelSerializer):
         model = AFPTrabajadores
         fields = [
             'holding', 
-            'id',                                # Código Previred
-            'nombre',                            # Nombre Previred
-            'porcentaje_cotizacion_individual',  # % Cot Indv
-            'comision_afp',                      # % ComAFP
-            'porcentaje_cargo_empleador',        # % Cargo Empleador
-            'porcentaje_seguro_social'           # % Seguro Social
+            'id',       # AutoField (solo lectura)
+            'codigo',   # Código Previred (mostrar en tabla)
+            'nombre',   
+            'porcentaje_cotizacion_individual',
+            'comision_afp',
+            'porcentaje_cargo_empleador',
+            'porcentaje_seguro_social'
         ]
         extra_kwargs = {
             'holding': {'write_only': True},
+            'id': {'read_only': True},
         }
 
 class CasasTrabajadoresSerializer(serializers.ModelSerializer):

@@ -275,8 +275,9 @@ class ChoferesTransporte(models.Model):
         db_table = 'choferes'
 
 class SaludTrabajadores(models.Model):
+    id = models.AutoField(primary_key=True)  # ID único autoincremental
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.IntegerField(primary_key=True)  # Código dado por Previred (00, 01, 02, etc.)
+    codigo = models.IntegerField(null=True)  # Código Previred (00, 01, 02, etc.)
     nombre = models.CharField(max_length=255)  # Nombre dado por Previred
     porcentaje = models.DecimalField(
         max_digits=5, 
@@ -287,10 +288,15 @@ class SaludTrabajadores(models.Model):
     
     class Meta:
         db_table = 'salud'
+        unique_together = [['holding', 'codigo']]  # Evita duplicados por holding
+        
+    def __str__(self):
+        return f"{self.codigo:02d} - {self.nombre}"
 
 class AFPTrabajadores(models.Model):
+    id = models.AutoField(primary_key=True)  # ID único autoincremental
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.IntegerField(primary_key=True)  # Código dado por Previred (00, 03, 05, etc.)
+    codigo = models.IntegerField(null=True)  # Código Previred (00, 03, 05, etc.)
     nombre = models.CharField(max_length=255)  # Nombre dado por Previred
     porcentaje_cotizacion_individual = models.DecimalField(
         max_digits=5, 
@@ -319,6 +325,10 @@ class AFPTrabajadores(models.Model):
     
     class Meta:
         db_table = 'afp'
+        unique_together = [['holding', 'codigo']]  # Evita duplicados por holding
+        
+    def __str__(self):
+        return f"{self.codigo:02d} - {self.nombre}"
 
 class IpsRegimen(models.Model):
     id = models.AutoField(primary_key=True)
