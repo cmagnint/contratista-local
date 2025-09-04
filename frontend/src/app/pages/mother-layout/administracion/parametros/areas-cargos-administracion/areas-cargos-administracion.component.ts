@@ -19,14 +19,14 @@ import { JwtService } from '../../../../../services/jwt.service';
   styleUrl: './areas-cargos-administracion.component.css'
 })
 export class AreasCargosAdministracionComponent implements OnInit {
-  // VARIABLES
+  // CONSTRUCTOR
   constructor(
     private apiService: ContratistaApiService,
     private jwtService: JwtService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
-  // Booleanos para abrir o cerrar ventanas
+  // MODALES
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
@@ -34,9 +34,8 @@ export class AreasCargosAdministracionComponent implements OnInit {
     modificarArea: false,
     crearCargo: false,
     modificarCargo: false,
-    confirmacionModal: false,
-    areasModal: false,
-    clientesModal: false,
+    confirmacionModalArea: false,
+    confirmacionModalCargo: false,
   };
 
   // VARIABLES PARA ÁREAS
@@ -47,12 +46,10 @@ export class AreasCargosAdministracionComponent implements OnInit {
 
   public nombreArea: string = '';
   public nombreAreaNew: string = '';
-  selectedRows: any[] = [];
+  public selectedAreaRows: any[] = []; // Filas seleccionadas de la tabla de áreas
   public areasCargadas: any[] = [];
-  
-  // ✅ SEPARAMOS LAS VARIABLES DE SELECCIÓN
-  public selectedAreaIdForTable: number | null = null; // Para selección en tabla
-  public selectedAreaIdForCargo: number | null = null; // Para crear/modificar cargos
+  public selectedAreaForCargo: any = null; // Área seleccionada para crear/modificar cargos
+  public deletedAreaRows: any[] = []; // Áreas para eliminar
 
   // VARIABLES PARA CARGOS
   public cargoSeleccionado: any = {
@@ -61,28 +58,27 @@ export class AreasCargosAdministracionComponent implements OnInit {
     id_area_cargo_seleccionado: 0,
   };
 
-  
   public nombreCargo: string = '';
   public nombreCargoNew: string = '';
   public cargosCargados: any[] = [];
+  public selectedCargoRows: any[] = []; // Filas seleccionadas de la tabla de cargos
   public selectedCargoId: number | null = null;
+  public deletedCargoRows: any[] = []; // Cargos para eliminar
+
+  // VARIABLES GENERALES
   public errorMessage!: string;
   public holding: string = '';
-  public dropdownOpen: boolean = false;
-  public deletedRow: any[] = [];
-  
 
-   // COLUMNAS PARA TABLAS
+  // COLUMNAS PARA TABLAS
   columnasDesplegadas = ['nombre'];
   columnasDesplegadasCargos = ['nombre', 'area'];
 
-  // FUNCIONES
+  // INICIALIZACIÓN
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT();
       this.cargarAreas();
       this.cargarCargos();
-      
     }
   }
 
@@ -105,17 +101,20 @@ export class AreasCargosAdministracionComponent implements OnInit {
     }
   }
 
+  // ===================================================
   // FUNCIONES CRUD PARA ÁREAS
+  // ===================================================
+
   crearAreas(): void {
     let data = {
       holding: this.holding,
       nombre: this.nombreArea,
-      
     };
+    
     this.apiService.post('api_areas_administracion/', data).subscribe({
       next: (response) => {
         this.closeModal('crearArea');
-        this.nombreArea = ''; // ✅ Limpiar campo
+        this.nombreArea = '';
         this.cargarAreas();
         this.openModal('exitoModal');
       },
@@ -137,15 +136,24 @@ export class AreasCargosAdministracionComponent implements OnInit {
   }
 
   modificarAreas(): void {
+    if (this.selectedAreaRows.length === 0) {
+      this.errorMessage = 'No hay área seleccionada para modificar';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
-      id: this.selectedAreaIdForTable,
+      id: this.selectedAreaRows[0].id,
       nombre: this.nombreAreaNew,
     };
+    
     this.apiService.put('api_areas_administracion/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarArea');
-        this.nombreAreaNew = ''; // ✅ Limpiar campo
+        this.nombreAreaNew = '';
+        this.selectedAreaRows = [];
+        this.selectedAreaForCargo = null;
         this.cargarAreas();
         this.openModal('exitoModal');
       },
@@ -157,14 +165,17 @@ export class AreasCargosAdministracionComponent implements OnInit {
   }
 
   eliminarAreasSeleccionadas(): void {
-    if (this.deletedRow.length > 0) {
-      const idsToDelete = this.deletedRow.map((row) => row.id);
+    if (this.deletedAreaRows.length > 0) {
+      const idsToDelete = this.deletedAreaRows.map((row) => row.id);
       this.apiService.delete('api_areas_administracion/', { ids: idsToDelete }).subscribe({
         next: () => {
-          this.closeModal('confirmacionModal');
+          this.closeModal('confirmacionModalArea');
+          this.selectedAreaRows = [];
+          this.selectedAreaForCargo = null;
           this.cargarAreas();
+          this.cargarCargos(); // Recargar cargos porque pueden haberse eliminado por cascada
           this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
+          this.deletedAreaRows = [];
         },
         error: (error) => {
           this.openModal('errorModal');
@@ -174,19 +185,28 @@ export class AreasCargosAdministracionComponent implements OnInit {
     }
   }
 
+  // ===================================================
   // FUNCIONES CRUD PARA CARGOS
+  // ===================================================
+
   crearCargos(): void {
+    if (!this.selectedAreaForCargo) {
+      this.errorMessage = 'No hay área seleccionada para crear el cargo';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
       nombre: this.nombreCargo,
-      area: this.selectedAreaIdForCargo,
+      area: this.selectedAreaForCargo.id,
     };
+    
     this.apiService.post('api_cargos_administracion/', data).subscribe({
       next: (response) => {
         console.log(response);
         this.closeModal('crearCargo');
-        this.nombreCargo = ''; // ✅ Limpiar campo
-        this.selectedAreaIdForCargo = null; // ✅ Limpiar selección de área
+        this.nombreCargo = '';
         this.cargarCargos();
         this.openModal('exitoModal');
       },
@@ -208,17 +228,24 @@ export class AreasCargosAdministracionComponent implements OnInit {
   }
 
   modificarCargos(): void {
+    if (this.selectedCargoRows.length === 0) {
+      this.errorMessage = 'No hay cargo seleccionado para modificar';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
-      id: this.selectedCargoId,
+      id: this.selectedCargoRows[0].id,
       nombre: this.nombreCargoNew,
-      area: this.selectedAreaIdForCargo,
+      area: this.selectedCargoRows[0].area, // Mantener el área original
     };
+    
     this.apiService.put('api_cargos_administracion/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarCargo');
-        this.nombreCargoNew = ''; // ✅ Limpiar campo
-        this.selectedAreaIdForCargo = null; // ✅ Limpiar selección de área
+        this.nombreCargoNew = '';
+        this.selectedCargoRows = [];
         this.cargarCargos();
         this.openModal('exitoModal');
       },
@@ -230,14 +257,15 @@ export class AreasCargosAdministracionComponent implements OnInit {
   }
 
   eliminarCargosSeleccionados(): void {
-    if (this.deletedRow.length > 0) {
-      const idsToDelete = this.deletedRow.map((row) => row.id);
+    if (this.deletedCargoRows.length > 0) {
+      const idsToDelete = this.deletedCargoRows.map((row) => row.id);
       this.apiService.delete('api_cargos_administracion/', { ids: idsToDelete }).subscribe({
         next: () => {
-          this.closeModal('confirmacionModal');
+          this.closeModal('confirmacionModalCargo');
+          this.selectedCargoRows = [];
           this.cargarCargos();
           this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
+          this.deletedCargoRows = [];
         },
         error: (error) => {
           this.openModal('errorModal');
@@ -247,61 +275,148 @@ export class AreasCargosAdministracionComponent implements OnInit {
     }
   }
 
-  // FUNCIONES COMUNES
-  // ✅ FUNCIÓN CORREGIDA PARA SELECCIÓN DE ÁREA EN CARGOS
-  toggleSelection(areaId: number): void {
-    if (this.selectedAreaIdForCargo === areaId) {
-      this.selectedAreaIdForCargo = null; // Deseleccionar si el mismo área es clickeada nuevamente
-    } else {
-      this.selectedAreaIdForCargo = areaId; // Seleccionar el nuevo área
-    }
+  // ===================================================
+  // FUNCIONES DE SELECCIÓN DE FILAS - ÁREAS
+  // ===================================================
+
+  isAreaSelected(row: any): boolean {
+    return this.selectedAreaRows.some((r) => r.id === row.id);
   }
 
-  isSelected(row: any): boolean {
-    return this.selectedRows.some((r) => r.id === row.id);
-  }
-
-  // ✅ FUNCIÓN CORREGIDA PARA SELECCIÓN DE FILAS EN TABLA
-  selectRow(row: any): void {
-    const index = this.selectedRows.findIndex((selectedRow) => selectedRow.id === row.id);
+  selectAreaRow(row: any): void {
+    const index = this.selectedAreaRows.findIndex((selectedRow) => selectedRow.id === row.id);
+    
     if (index > -1) {
       // Si la fila ya está seleccionada, deseleccionarla
-      this.selectedRows.splice(index, 1);
+      this.selectedAreaRows.splice(index, 1);
+      
+      // Si deseleccionamos el área que estaba marcada para cargos, la limpiamos
+      if (this.selectedAreaForCargo && this.selectedAreaForCargo.id === row.id) {
+        this.selectedAreaForCargo = null;
+      }
     } else {
       // Agregar fila a las seleccionadas
-      this.selectedRows.push(row);
+      this.selectedAreaRows.push(row);
     }
 
-    if (this.selectedRows.length > 0) {
-      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+    // Solo marcar un área para cargos si hay exactamente una seleccionada
+    if (this.selectedAreaRows.length === 1) {
+      this.selectedAreaForCargo = this.selectedAreaRows[0];
+      
+      // Actualizar datos para modificación
       this.areaSeleccionada = {
-        nombre_area_seleccionada: lastSelectedRow.nombre,
-        id_area_seleccionada: lastSelectedRow.id,
+        nombre_area_seleccionada: this.selectedAreaRows[0].nombre,
+        id_area_seleccionada: this.selectedAreaRows[0].id,
       };
-      this.selectedAreaIdForTable = this.areaSeleccionada.id_area_seleccionada; // ✅ Usar variable específica para tabla
       this.nombreAreaNew = this.areaSeleccionada.nombre_area_seleccionada;
-
-      this.cargoSeleccionado = {
-        nombre_cargo_seleccionada: lastSelectedRow.nombre,
-        id_cargo_seleccionado: lastSelectedRow.id,
-        id_area_cargo_seleccionado: lastSelectedRow.area,
-      };
-      this.selectedCargoId = this.cargoSeleccionado.id_cargo_seleccionado;
-      this.nombreCargoNew = this.cargoSeleccionado.nombre_cargo_seleccionada;
-      this.selectedAreaIdForCargo = this.cargoSeleccionado.id_area_cargo_seleccionado; // ✅ Solo para cargos
-
     } else {
-      // Limpiar perfilSeleccionado si no hay filas seleccionadas
+      // Si hay 0 o más de 1 área seleccionada, limpiar área para cargos
+      this.selectedAreaForCargo = null;
+      
+      // Limpiar datos de modificación si no hay exactamente una selección
       this.areaSeleccionada = {
-        nombre_cliente_seleccionado: '',
+        nombre_area_seleccionada: '',
+        id_area_seleccionada: 0,
       };
-      this.selectedAreaIdForTable = null; // ✅ Limpiar selección de tabla
+      this.nombreAreaNew = '';
     }
   }
 
+  deseleccionarFilaAreas(event: MouseEvent): void {
+    this.selectedAreaRows = [];
+    this.selectedAreaForCargo = null;
+    this.areaSeleccionada = {
+      nombre_area_seleccionada: '',
+      id_area_seleccionada: 0,
+    };
+    this.nombreAreaNew = '';
+  }
+
+  // ===================================================
+  // FUNCIONES DE SELECCIÓN DE FILAS - CARGOS
+  // ===================================================
+
+  isCargoSelected(row: any): boolean {
+    return this.selectedCargoRows.some((r) => r.id === row.id);
+  }
+
+  selectCargoRow(row: any): void {
+    const index = this.selectedCargoRows.findIndex((selectedRow) => selectedRow.id === row.id);
+    
+    if (index > -1) {
+      // Si la fila ya está seleccionada, deseleccionarla
+      this.selectedCargoRows.splice(index, 1);
+    } else {
+      // Agregar fila a las seleccionadas
+      this.selectedCargoRows.push(row);
+    }
+
+    // Actualizar datos para modificación si hay un solo cargo seleccionado
+    if (this.selectedCargoRows.length === 1) {
+      this.cargoSeleccionado = {
+        nombre_cargo_seleccionado: this.selectedCargoRows[0].nombre,
+        id_cargo_seleccionado: this.selectedCargoRows[0].id,
+        id_area_cargo_seleccionado: this.selectedCargoRows[0].area,
+      };
+      this.selectedCargoId = this.cargoSeleccionado.id_cargo_seleccionado;
+      this.nombreCargoNew = this.cargoSeleccionado.nombre_cargo_seleccionado;
+    } else {
+      // Limpiar si no hay o hay más de una selección
+      this.cargoSeleccionado = {
+        nombre_cargo_seleccionado: '',
+        id_cargo_seleccionado: 0,
+        id_area_cargo_seleccionado: 0,
+      };
+      this.selectedCargoId = null;
+      this.nombreCargoNew = '';
+    }
+  }
+
+  deseleccionarFilaCargos(event: MouseEvent): void {
+    this.selectedCargoRows = [];
+    this.cargoSeleccionado = {
+      nombre_cargo_seleccionado: '',
+      id_cargo_seleccionado: 0,
+      id_area_cargo_seleccionado: 0,
+    };
+    this.selectedCargoId = null;
+    this.nombreCargoNew = '';
+  }
+
+  // ===================================================
+  // FUNCIONES DE MODALES
+  // ===================================================
+
+  openModal(key: string): void {
+    this.modals[key] = true;
+    
+    if (key === 'confirmacionModalArea') {
+      this.deletedAreaRows = [...this.selectedAreaRows];
+      console.log('Áreas para eliminar:', this.deletedAreaRows);
+    }
+    
+    if (key === 'confirmacionModalCargo') {
+      this.deletedCargoRows = [...this.selectedCargoRows];
+      console.log('Cargos para eliminar:', this.deletedCargoRows);
+    }
+  }
+
+  closeModal(key: string): void {
+    this.modals[key] = false;
+    
+    if (key === 'exitoModal') {
+      this.cargarAreas();
+      this.cargarCargos();
+    }
+  }
+
+  // ===================================================
+  // FUNCIONES AUXILIARES (MANTENER COMPATIBILIDAD)
+  // ===================================================
+
   formatRUT(event: Event): void {
-    const target = event.target as HTMLInputElement; // Casting seguro
-    if (!target) return; // Verificar que realmente existe un target
+    const target = event.target as HTMLInputElement;
+    if (!target) return;
 
     let rut = target.value.replace(/\D/g, '');
     let parts = [];
@@ -329,39 +444,6 @@ export class AreasCargosAdministracionComponent implements OnInit {
     }
     parts.unshift(rut);
     return parts.join('.') + '-' + verifier;
-  }
-
-  toggleDropdown() {
-    this.dropdownOpen = !this.dropdownOpen;
-  }
-
-  deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = []; // Deselecciona todas las filas
-    this.selectedAreaIdForTable = null; // ✅ Limpiar selección de tabla
-  }
-
-  openModal(key: string): void {
-    this.modals[key] = true;
-    if (key == 'confirmacionModal') {
-      this.deletedRow = this.selectedRows;
-      console.log(this.deletedRow);
-    }
-    // ✅ Limpiar selección de área para cargos al abrir modales de creación
-    if (key === 'crearCargo') {
-      this.selectedAreaIdForCargo = null;
-    }
-  }
-
-  closeModal(key: string): void {
-    this.modals[key] = false;
-    if (key === 'exitoModal') {
-      this.cargarAreas();
-      this.cargarCargos();
-    }
-    // ✅ Limpiar selección al cerrar modal de áreas
-    if (key === 'areasModal') {
-      this.dropdownOpen = false;
-    }
   }
 
   checkValue(): void {}
