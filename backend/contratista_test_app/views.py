@@ -5068,6 +5068,7 @@ class FolioTransportistaAPIView(APIView):
                     {"error": f"Error al crear el folio: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, format=None):

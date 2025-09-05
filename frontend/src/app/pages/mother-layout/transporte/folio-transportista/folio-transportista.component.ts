@@ -10,8 +10,7 @@ interface FolioTransportista {
   holding: number;
   folio_comercial: number;
   nombre_folio_comercial?: string;
-  valor_pago_transportista: number;
-  valor_facturacion_transportista: number;
+  valor_cancelacion: number;
   tramo: number;
   nombre_tramo?: string;
 }
@@ -41,8 +40,7 @@ export class FolioTransportistaComponent implements OnInit {
   public displayedColumns: string[] = [
     'id', 
     'nombre_folio_comercial',
-    'valor_pago_transportista',
-    'valor_facturacion_transportista',
+    'valor_cancelacion',
     'nombre_tramo'
   ];
 
@@ -59,16 +57,14 @@ export class FolioTransportistaComponent implements OnInit {
   public newFolio: FolioTransportista = {
     holding: 0,
     folio_comercial: 0,
-    valor_pago_transportista: 0,
-    valor_facturacion_transportista: 0,
+    valor_cancelacion: 0,
     tramo: 0
   };
 
   public selectedFolio: FolioTransportista = {
     holding: 0,
     folio_comercial: 0,
-    valor_pago_transportista: 0,
-    valor_facturacion_transportista: 0,
+    valor_cancelacion: 0,
     tramo: 0
   };
 
@@ -130,8 +126,7 @@ export class FolioTransportistaComponent implements OnInit {
     const data = {
       holding: parseInt(this.holding), // Convertimos el holding a número
       folio_comercial: this.newFolio.folio_comercial,
-      valor_pago_transportista: this.newFolio.valor_pago_transportista,
-      valor_facturacion_transportista: this.newFolio.valor_facturacion_transportista,
+      valor_cancelacion: this.newFolio.valor_cancelacion,
       tramo: this.newFolio.tramo
     };
   
@@ -154,8 +149,7 @@ export class FolioTransportistaComponent implements OnInit {
       id: this.selectedFolio.id,
       holding: parseInt(this.holding), // Convertimos el holding a número
       folio_comercial: this.selectedFolio.folio_comercial,
-      valor_pago_transportista: this.selectedFolio.valor_pago_transportista,
-      valor_facturacion_transportista: this.selectedFolio.valor_facturacion_transportista,
+      valor_cancelacion: this.selectedFolio.valor_cancelacion,
       tramo: this.selectedFolio.tramo
     };
   
@@ -232,8 +226,7 @@ export class FolioTransportistaComponent implements OnInit {
     this.newFolio = {
       holding: 0,
       folio_comercial: 0,
-      valor_pago_transportista: 0,
-      valor_facturacion_transportista: 0,
+      valor_cancelacion: 0,
       tramo: 0
     };
   }

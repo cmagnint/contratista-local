@@ -481,7 +481,7 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Clientes
-        fields = ['id','holding', 'rut', 'nombre', 'direccion', 'giro', 'campos_personalizados','rut_rep_legal','nombre_rep_legal','direccion_rep_legal']
+        fields = ['id','holding', 'rut', 'nombre', 'direccion', 'giro', 'campos_personalizados','nombre_rep_legal','direccion_rep_legal']
         extra_kwargs = {
             'holding': {'write_only': True},
             'id': {'read_only': True},
@@ -612,7 +612,7 @@ class VehiculosTransporteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model =  VehiculosTransporte
-        fields = ['holding','id','empresa','ppu','modelo','year','color','num_pasajeros','marca','nombre_empresa']
+        fields = ['holding','id','empresa','tipo','ppu','modelo','year','color','num_pasajeros','marca','nombre_empresa']
         extra_kwargs = {
             'holding': {'write_only': True},
             'id':{'read_only': True},
@@ -1683,8 +1683,7 @@ class FolioTransportistaSerializer(serializers.ModelSerializer):
             'holding', 
             'folio_comercial', 
             'nombre_folio_comercial',
-            'valor_pago_transportista', 
-            'valor_facturacion_transportista', 
+            'valor_cancelacion',
             'tramo',
             'nombre_tramo'
         ]
@@ -1701,14 +1700,11 @@ class FolioTransportistaSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         # Validar que los montos sean positivos
-        if data.get('valor_pago_transportista', 0) <= 0:
+        if data.get('valor_cancelacion', 0) <= 0:
             raise serializers.ValidationError(
-                {'valor_pago_transportista': 'El valor de pago debe ser mayor que 0'}
+                {'valor_cancelacion': 'El valor de pago debe ser mayor que 0'}
             )
-        if data.get('valor_facturacion_transportista', 0) <= 0:
-            raise serializers.ValidationError(
-                {'valor_facturacion_transportista': 'El valor de facturación debe ser mayor que 0'}
-            )
+        
         
         # Validar que el folio comercial pertenezca al holding correcto
         if data.get('folio_comercial') and data.get('holding'):

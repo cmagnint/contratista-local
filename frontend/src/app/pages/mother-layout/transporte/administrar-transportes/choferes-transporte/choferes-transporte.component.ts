@@ -240,6 +240,16 @@ export class ChoferesTransporteComponent implements OnInit {
     }
   }
 
+  getEmpresaName(id: number): string {
+    const empresa = this.empresasCargadas.find(e => e.id === id);
+    return empresa ? empresa.nombre : 'No seleccionado';
+  }
+
+  getVehiculoName(id: number): string {
+  const empresa = this.vehiculosAgrupados.find(e => e.id === id);
+  return empresa ? empresa.nombre : 'No seleccionado';
+}
+
   formatNumber(event: Event): void{
     const target = event.target as HTMLInputElement; 
     if (!target) return;

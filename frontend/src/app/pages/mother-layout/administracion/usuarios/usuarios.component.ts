@@ -23,6 +23,8 @@ export class UsuariosComponent implements OnInit {
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
+    advertenciaModal: false, // ✨ NUEVO: Modal de advertencia
+    loadingModal: false, // ✨ NUEVO: Modal de loading
     crearUsuario: false,
     modificarUsuario: false,
     perfilesModal: false,
@@ -62,6 +64,7 @@ export class UsuariosComponent implements OnInit {
   public rutUsuario: string = '';
   public emailUsuario: string = '';
   public errorMessage!: string;
+  public advertenciaMessage!: string; // ✨ NUEVO: Mensaje de advertencia
   public selectedRows: any[] = [];
   public dropdownOpen: boolean = false;
   public todasSeleccionadas: boolean = false;
@@ -126,7 +129,7 @@ export class UsuariosComponent implements OnInit {
     return selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA';
   }
 
-
+  // ✨ MODIFICADO: Cambiar error por advertencia
   cargarSupervisores():void{
     this.apiService.get(`api_supervisores/${this.holding}/`).subscribe({
       next: (response) => {
@@ -134,7 +137,8 @@ export class UsuariosComponent implements OnInit {
         console.log('Supervisores cargados:', this.supervisoresCargados);
       },
       error: (error) => {
-        this.openErrorModal('No se encontraron supervisores');
+        // ✨ CAMBIO: Mostrar advertencia en lugar de error
+        this.openAdvertenciaModal('Advertencia: No hay Supervisores disponibles, no se van a poder crear Jefes de Cuadrillas');
       }
     })
   }
@@ -149,7 +153,7 @@ export class UsuariosComponent implements OnInit {
             this.openErrorModal('Error al cargar personal: ' + error.error.message);
         }
     });
-}
+  }
 
   onPersonalSelected(personalId: string | number): void {
     // Convertir a número ya que viene como string desde el select
@@ -176,7 +180,7 @@ export class UsuariosComponent implements OnInit {
         this.emailUsuario = '';
         this.selectedPersonalId = null;
     }
-}
+  }
 
   cargarSociedades(): void {
     this.apiService.get(`api_sociedad/?holding=${this.holding}`).subscribe({
@@ -211,6 +215,7 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
+  // ✨ MODIFICADO: Agregar indicador de carga
   crearUsuario(): void {
     if (!this.selectedPersonalId) {
       this.openModal('errorModal');
@@ -223,6 +228,9 @@ export class UsuariosComponent implements OnInit {
       this.errorMessage = 'Por favor, complete todos los campos antes de crear un usuario.';
       return;
     }
+
+    // ✨ NUEVO: Mostrar modal de loading
+    this.openModal('loadingModal');
 
     let data = {
       holding: this.holding,
@@ -237,11 +245,15 @@ export class UsuariosComponent implements OnInit {
     
     this.apiService.post('api_usuarios/', data).subscribe({
       next: (response) => {
+        // ✨ NUEVO: Cerrar modal de loading
+        this.closeModal('loadingModal');
         this.closeModal('crearUsuario');
         this.cargarUsuarios();
         this.openModal('exitoModal');
       },
       error: (error) => {
+        // ✨ NUEVO: Cerrar modal de loading
+        this.closeModal('loadingModal');
         this.openModal('errorModal')
         this.errorMessage = 'Error al crear usuario: ' + error.error.message;
       }
@@ -419,7 +431,8 @@ export class UsuariosComponent implements OnInit {
     
     // Unir todo con el verificador (número o K)
     return parts.join('.') + '-' + verifier;
-}
+  }
+
   toggleDropdown() {
     this.dropdownOpen = !this.dropdownOpen;
   }
@@ -445,5 +458,11 @@ export class UsuariosComponent implements OnInit {
   openErrorModal(message: string): void {
     this.modals['errorModal'] = true;
     this.errorMessage = message;
+  }
+
+  // ✨ NUEVO: Método para abrir modal de advertencia
+  openAdvertenciaModal(message: string): void {
+    this.modals['advertenciaModal'] = true;
+    this.advertenciaMessage = message;
   }
 }

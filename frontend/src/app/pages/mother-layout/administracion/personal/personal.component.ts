@@ -303,39 +303,41 @@ export class PersonalComponent implements OnInit {
 
   //FUNCIONES CRUD DEL MODULO
 
-  crearTrabajador():void{
-    let data = {
-      holding: this.holding,
-      nombres: this.nombresTrabajador,
-      apellidos: this.apellidosTrabajador,
-      rut: this.rutTrabajador!.replace(/[\.\-]/g, ''),
-      correo: this.correoTrabajador,
-      direccion: this.direccionTrabajador,
-      sexo: this.sexoTrabajador,
-      telefono: this.telefonoTrabajador,
-      nacionalidad: this.nacionalidadTrabajador,
-      sociedad: this.selectedSociedadId,
-      area: this.selectedAreaId,
-      cargo: this.selectedCargoId,
-      afp: this.selectedAfpId,
-      salud: this.selectedSaludId,
-      metodo_pago: this.metodoPago,
-      fecha_ingreso: this.fechaIngreso,
-      banco: this.selectedBancoId,
-      tipo_cuenta_bancaria: this.tipoCuenta,
-      numero_cuenta: this.numeroCuenta
-    }
-    this.contratistaApiService.post('api_personal/', data).subscribe({
-      next: (response) => {
-        this.closeModal('crearTrabajador');
-        this.cargarTrabajadores();
-        this.openModal('exitoModal');
-        
-      }, error:(error) => {
-        this.openModal('errorModal')
-      }
-    })
+  crearTrabajador(): void {
+  let data = {
+    holding: this.holding,
+    nombres: this.nombresTrabajador,
+    apellidos: this.apellidosTrabajador,
+    rut: this.rutTrabajador!.replace(/[\.\-]/g, ''),
+    correo: this.correoTrabajador,
+    direccion: this.direccionTrabajador,
+    sexo: this.sexoTrabajador,
+    telefono: this.telefonoTrabajador,
+    nacionalidad: this.nacionalidadTrabajador,
+    sociedad: this.selectedSociedadId,
+    area: this.selectedAreaId,
+    cargo: this.selectedCargoId,
+    afp: this.selectedAfpId,
+    salud: this.selectedSaludId,
+    metodo_pago: this.metodoPago,
+    fecha_ingreso: this.fechaIngreso,
+    banco: this.selectedBancoId,
+    tipo_cuenta_bancaria: this.tipoCuenta,
+    numero_cuenta: this.numeroCuenta
   }
+  
+  this.contratistaApiService.post('api_personal/', data).subscribe({
+    next: (response) => {
+      this.closeModal('crearTrabajador');
+      this.cargarTrabajadores();
+      this.limpiarFormularioCreacion(); // 🎯 AGREGAMOS LA LIMPIEZA DEL FORMULARIO
+      this.openModal('exitoModal');
+    }, 
+    error: (error) => {
+      this.openModal('errorModal')
+    }
+  });
+}
 
   onMetodoPagoChange(event: Event): void {
     const selectElement = event.target as HTMLSelectElement;
@@ -392,26 +394,7 @@ export class PersonalComponent implements OnInit {
     });
   }
 
-  limpiarFormularioModificacion(): void {
-    this.nombreTrabajadorNew = '';
-    this.rutTrabajadorNew = '';
-    this.correoTrabajadorNew = '';
-    this.direccionTrabajadorNew = '';
-    this.sexoTrabajadorNew = '';
-    this.telefonoTrabajadorNew = '';
-    this.nacionalidadTrabajadorNew = 'CHILENA';
-    this.fechaIngresoNew = '';
-    this.metodoPagoNew = '';
-    this.bancoNew = '';
-    this.tipoCuentaNew = '';
-    this.numeroCuentaNew = '';
-    this.selectedSociedadId = null;
-    this.selectedAreaId = null;
-    this.selectedCargoId = null;
-    this.selectedAfpId = null;
-    this.selectedSaludId = null;
-    this.selectedBancoId = null;
-  }
+
   
   eliminarTrabajadoresSeleccionados(): void {
     if (this.deletedRow.length > 0) {
@@ -500,37 +483,6 @@ export class PersonalComponent implements OnInit {
     return this.selectedRows.some(r => r.id === row.id);
   }
 
-  selectRow(row: any): void {
-  const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
-  if (index > -1) {
-    this.selectedRows.splice(index, 1);
-  } else {
-    this.selectedRows.push(row);
-  }
-
-  if (this.selectedRows.length === 1) {
-    const selectedRow = this.selectedRows[0];
-    this.selectedTrabajadorId = selectedRow.id;
-    this.nombreTrabajadorNew = selectedRow.nombres;
-    this.rutTrabajadorNew = this.formatRUTString(selectedRow.rut);
-    this.correoTrabajadorNew = selectedRow.correo;
-    this.direccionTrabajadorNew = selectedRow.direccion;
-    this.sexoTrabajadorNew = selectedRow.sexo;
-    this.telefonoTrabajadorNew = selectedRow.telefono;
-    this.nacionalidadTrabajadorNew = selectedRow.nacionalidad;
-    this.fechaIngresoNew = selectedRow.fecha_ingreso;
-    this.metodoPagoNew = selectedRow.metodo_pago;
-    this.bancoNew = selectedRow.banco;
-    this.tipoCuentaNew = selectedRow.tipo_cuenta_bancaria;
-    this.numeroCuentaNew = selectedRow.numero_cuenta;
-    this.selectedSociedadId = selectedRow.sociedad;
-    this.selectedAreaId = selectedRow.area;
-    this.selectedCargoId = selectedRow.cargo;
-    this.selectedAfpId = selectedRow.afp;
-    this.selectedSaludId = selectedRow.salud;
-    this.selectedBancoId = selectedRow.banco;
-  }
-}
 
   formatRUT(event: Event): void {
     const target = event.target as HTMLInputElement; // Casting seguro
@@ -608,6 +560,184 @@ export class PersonalComponent implements OnInit {
       this.cargarTrabajadores();  
     }
   }
+
+  // ============================================
+  // 🎯 MÉTODOS PARA MOSTRAR NOMBRES EN DROPDOWNS DEL MODAL MODIFICAR
+  // ============================================
+
+  getNombreSociedadSeleccionada(): string {
+    if (this.selectedSociedadId) {
+      const sociedad = this.sociedadesCargadas.find(s => s.id === this.selectedSociedadId);
+      return sociedad ? sociedad.nombre : '';
+    }
+    return '';
+  }
+
+  getNombreAreaSeleccionada(): string {
+    if (this.selectedAreaId) {
+      const area = this.areasCargadas.find(a => a.id === this.selectedAreaId);
+      return area ? area.nombre : '';
+    }
+    return '';
+  }
+
+  getNombreCargoSeleccionado(): string {
+    if (this.selectedCargoId) {
+      const cargo = this.cargosCargados.find(c => c.id === this.selectedCargoId);
+      return cargo ? cargo.nombre : '';
+    }
+    return '';
+  }
+
+  getNombreAfpSeleccionada(): string {
+    if (this.selectedAfpId) {
+      const afp = this.afpCargadas.find(a => a.id === this.selectedAfpId);
+      return afp ? afp.nombre : '';
+    }
+    return '';
+  }
+
+  getNombreSaludSeleccionada(): string {
+    if (this.selectedSaludId) {
+      const salud = this.saludCargadas.find(s => s.id === this.selectedSaludId);
+      return salud ? salud.nombre : '';
+    }
+    return '';
+  }
+
+  getNombreBancoSeleccionado(): string {
+    if (this.selectedBancoId) {
+      const banco = this.bancosCargados.find(b => b.id === this.selectedBancoId);
+      return banco ? `${banco.nombre} (${banco.codigo_sbif})` : '';
+    }
+    return '';
+  }
+
+  // ============================================
+  // 🎯 MÉTODO PARA CAMBIO DE MÉTODO DE PAGO EN MODIFICAR
+  // ============================================
+
+  onMetodoPagoChangeModificar(event: Event): void {
+    const selectElement = event.target as HTMLSelectElement;
+    this.metodoPagoNew = selectElement.value;
+  }
+
+  // ============================================
+  // 🎯 MÉTODO SELECTROW ACTUALIZADO PARA INCLUIR APELLIDOS
+  // ============================================
+
+  selectRow(row: any): void {
+    const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
+    if (index > -1) {
+      this.selectedRows.splice(index, 1);
+    } else {
+      this.selectedRows.push(row);
+    }
+
+    if (this.selectedRows.length === 1) {
+      const selectedRow = this.selectedRows[0];
+      this.selectedTrabajadorId = selectedRow.id;
+      
+      // Información personal
+      this.nombreTrabajadorNew = selectedRow.nombres;
+      this.rutTrabajadorNew = this.formatRUTString(selectedRow.rut);
+      this.correoTrabajadorNew = selectedRow.correo;
+      this.direccionTrabajadorNew = selectedRow.direccion;
+      this.sexoTrabajadorNew = selectedRow.sexo;
+      this.telefonoTrabajadorNew = selectedRow.telefono;
+      this.nacionalidadTrabajadorNew = selectedRow.nacionalidad;
+      this.fechaIngresoNew = selectedRow.fecha_ingreso;
+      
+      // Método de pago
+      this.metodoPagoNew = selectedRow.metodo_pago;
+      this.tipoCuentaNew = selectedRow.tipo_cuenta_bancaria;
+      this.numeroCuentaNew = selectedRow.numero_cuenta;
+      
+      // IDs para dropdowns - ESTOS SON LOS IMPORTANTES
+      this.selectedSociedadId = selectedRow.sociedad;
+      this.selectedAreaId = selectedRow.area;
+      this.selectedCargoId = selectedRow.cargo;
+      this.selectedAfpId = selectedRow.afp;
+      this.selectedSaludId = selectedRow.salud;
+      this.selectedBancoId = selectedRow.banco;
+      
+      console.log('🔍 Datos cargados para modificar:', {
+        trabajadorId: this.selectedTrabajadorId,
+        sociedadId: this.selectedSociedadId,
+        areaId: this.selectedAreaId,
+        cargoId: this.selectedCargoId,
+        afpId: this.selectedAfpId,
+        saludId: this.selectedSaludId,
+        bancoId: this.selectedBancoId
+      });
+    }
+  }
+
+  // ============================================
+  // 🎯 MÉTODO LIMPIAR FORMULARIO MODIFICACIÓN ACTUALIZADO
+  // ============================================
+
+  limpiarFormularioModificacion(): void {
+    this.nombreTrabajadorNew = '';
+    this.rutTrabajadorNew = '';
+    this.correoTrabajadorNew = '';
+    this.direccionTrabajadorNew = '';
+    this.sexoTrabajadorNew = '';
+    this.telefonoTrabajadorNew = '';
+    this.nacionalidadTrabajadorNew = 'CHILENA';
+    this.fechaIngresoNew = '';
+    this.metodoPagoNew = '';
+    this.tipoCuentaNew = '';
+    this.numeroCuentaNew = '';
+    
+    // Limpiar selecciones de dropdowns
+    this.selectedSociedadId = null;
+    this.selectedAreaId = null;
+    this.selectedCargoId = null;
+    this.selectedAfpId = null;
+    this.selectedSaludId = null;
+    this.selectedBancoId = null;
+    
+    // Cerrar todos los dropdowns
+    Object.keys(this.dropdownStates).forEach(key => {
+      this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
+    });
+  }
+
+  limpiarFormularioCreacion(): void {
+    // Limpiar campos de información personal
+    this.nombresTrabajador = null;
+    this.apellidosTrabajador = null;
+    this.rutTrabajador = null;
+    this.correoTrabajador = null;
+    this.direccionTrabajador = null;
+    this.sexoTrabajador = 'Hombre';
+    this.telefonoTrabajador = null;
+    this.nacionalidadTrabajador = 'CHILENA';
+    
+    // Limpiar selecciones de dropdowns
+    this.selectedSociedadId = null;
+    this.selectedAreaId = null;
+    this.selectedCargoId = null;
+    this.selectedAfpId = null;
+    this.selectedSaludId = null;
+    this.selectedBancoId = null;
+    
+    // Limpiar campos de método de pago
+    this.metodoPago = 'Sin Pago';
+    this.banco = null;
+    this.tipoCuenta = null;
+    this.numeroCuenta = null;
+    
+    // Resetear fecha de ingreso a la fecha actual
+    this.setDefaultFechaCelebracion();
+    
+    // Cerrar todos los dropdowns
+    Object.keys(this.dropdownStates).forEach(key => {
+      this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
+    });
+  }
+
 
   checkValue():void{
     

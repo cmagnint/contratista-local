@@ -52,6 +52,7 @@ export class VehiculosTransporteComponent implements OnInit {
   public nombreEmpresa: string = '';
   public ppuVehiculo: string = '';
   public modeloVehiculo: string = '';
+  public tipoVehiculo: string = '';
   public yearVehiculo: number = 0;
   public colorVehiculo: string = '';
   public numeroPasajerosVehiculo: number = 0;
@@ -66,10 +67,11 @@ export class VehiculosTransporteComponent implements OnInit {
   public vehiculosCargados: any[] = [];
   public empresasCargadas: any[] = [];
 
-  columnasDesplegadas = ['empresa','ppu','modelo','year','color','numero_pasajeros','marca'];
+  columnasDesplegadas = ['empresa','ppu','modelo','tipo','year','color','numero_pasajeros','marca'];
   
   public ppuVehiculoNew: string = '';
   public modeloVehiculoNew: string = '';
+  public tipoVehiculoNew: string = '';
   public yearVehiculoNew: number | null = null;
   public colorVehiculoNew: string = '';
   public numeroPasajerosVehiculoNew: number | null = null;
@@ -105,7 +107,8 @@ export class VehiculosTransporteComponent implements OnInit {
       year: this.yearVehiculo,
       color: this.colorVehiculo,
       num_pasajeros: this.numeroPasajerosVehiculo,
-      marca: this.marcaVehiculo
+      marca: this.marcaVehiculo,
+      tipo: this.tipoVehiculo,
     }
     this.apiService.post('api_vehiculos_transportes/', data).subscribe({
       next: (response) => {
@@ -154,6 +157,7 @@ export class VehiculosTransporteComponent implements OnInit {
       color: this.colorVehiculoNew,
       num_pasajeros: this.numeroPasajerosVehiculoNew,
       marca: this.marcaVehiculoNew,
+      tipo: this.tipoVehiculoNew,
       
     }
     this.apiService.put('api_vehiculos_transportes/', data).subscribe({
@@ -215,6 +219,7 @@ export class VehiculosTransporteComponent implements OnInit {
         this.vehiculoSeleccionado = {
         ppu_vehiculo_seleccionado: lastSelectedRow.ppu,
         modelo_vehiculo_seleccionado: lastSelectedRow.modelo,
+        tipo_vehiculo_seleccionado: lastSelectedRow.tipo,
         year_vehiculo_seleccionado: lastSelectedRow.year,
         color_vehiculo_seleccionado:  lastSelectedRow.color,
         numero_pasajeros_vehiculo_seleccionado: lastSelectedRow.num_pasajeros,
@@ -224,6 +229,7 @@ export class VehiculosTransporteComponent implements OnInit {
       };
       this.ppuVehiculoNew = this.vehiculoSeleccionado.ppu_vehiculo_seleccionado
       this.modeloVehiculoNew = this.vehiculoSeleccionado.modelo_vehiculo_seleccionado
+      this.tipoVehiculoNew = this.vehiculoSeleccionado.tipo_vehiculo_seleccionado
       this.yearVehiculoNew = this.vehiculoSeleccionado.year_vehiculo_seleccionado
       this.colorVehiculoNew = this.vehiculoSeleccionado.color_vehiculo_seleccionado
       this.numeroPasajerosVehiculoNew = this.vehiculoSeleccionado.numero_pasajeros_vehiculo_seleccionado
@@ -236,6 +242,7 @@ export class VehiculosTransporteComponent implements OnInit {
       this.vehiculoSeleccionado = {
         ppu_vehiculo_seleccionado : '',
         modelo_vehiculo_seleccionado : '',
+        tipo_vehiculo_seleccionado : '',
         year_vehiculo_seleccionado : 0,
         color_vehiculo_seleccionado : '',
         numero_pasajeros_vehiculo_seleccionado : 0,
@@ -244,6 +251,11 @@ export class VehiculosTransporteComponent implements OnInit {
         id_vehiculo_seleccionada : 0,
       }
     }
+  }
+
+  getEmpresaName(id: number): string {
+    const empresa = this.empresasCargadas.find(e => e.id === id);
+    return empresa ? empresa.nombre : 'No seleccionado';
   }
 
 

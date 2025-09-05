@@ -16,7 +16,7 @@
         mat-raised-button 
         color="primary" 
         class="custom-button" 
-        (click)="openModal('crearArea')">
+        (click)="$event.stopPropagation(); openModal('crearArea')">
         CREAR ÁREA
       </button>
 
@@ -25,7 +25,7 @@
         color="primary" 
         class="custom-button-modificar" 
         [disabled]="!(selectedAreaRows.length>0 && selectedAreaRows.length<2)" 
-        (click)="openModal('modificarArea')">
+        (click)="$event.stopPropagation(); openModal('modificarArea')">
         MODIFICAR ÁREA
       </button>
 
@@ -34,7 +34,7 @@
         color="primary" 
         class="custom-button-cancelar" 
         [disabled]="!(selectedAreaRows.length>0)" 
-        (click)="openModal('confirmacionModalArea')">
+        (click)="$event.stopPropagation(); openModal('confirmacionModalArea')">
         ELIMINAR ÁREA(S)
       </button>
 
@@ -144,8 +144,8 @@
         mat-raised-button 
         color="primary" 
         class="custom-button" 
-        [disabled]="selectedAreaForCargo === null"
-        (click)="openModal('crearCargo')">
+        [disabled]="selectedAreaForCargo === null || selectedAreaRows.length !== 1"
+        (click)="$event.stopPropagation(); openModal('crearCargo')">
         CREAR CARGO
       </button>
 
@@ -154,7 +154,7 @@
         color="primary" 
         class="custom-button-modificar" 
         [disabled]="!(selectedCargoRows.length>0 && selectedCargoRows.length<2)" 
-        (click)="openModal('modificarCargo')">
+        (click)="$event.stopPropagation(); openModal('modificarCargo')">
         MODIFICAR CARGO
       </button>
 
@@ -163,7 +163,7 @@
         color="primary" 
         class="custom-button-cancelar" 
         [disabled]="!(selectedCargoRows.length>0)" 
-        (click)="openModal('confirmacionModalCargo')">
+        (click)="$event.stopPropagation(); openModal('confirmacionModalCargo')">
         ELIMINAR CARGO(S)
       </button>
 

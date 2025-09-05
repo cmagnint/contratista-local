@@ -246,6 +246,11 @@ export class LaboresComercialComponent implements OnInit {
 
   estadoLabor: boolean = true; // Inicializa el estado
 
+  getUnidadControlName(id: number): string {
+    const unidad = this.unidadControlCargadas.find(u => u.id === id);
+    return unidad ? unidad.nombre : 'No seleccionado';
+  }
+  
   toggleEstadoLabor() {
     this.estadoLabor = !this.estadoLabor;
   }

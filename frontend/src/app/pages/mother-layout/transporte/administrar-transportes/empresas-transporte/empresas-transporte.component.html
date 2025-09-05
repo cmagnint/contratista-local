@@ -1,137 +1,271 @@
+<!--empresas-transporte.component.html - VERSIÓN MODERNIZADA-->
+
+<!-- ============================================ -->
+<!-- 🎯 CONTENEDOR PRINCIPAL Y BOTONES DE ACCIÓN -->
+<!-- ============================================ -->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+  
+  <!-- Botones de acción principales -->
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button" 
+    (click)="openModal('crearEmpresa')">
+    CREAR EMPRESA
+  </button>
+  
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button-modificar" 
+    [disabled]="!(selectedRows.length > 0 && selectedRows.length < 2)" 
+    (click)="openModal('modificarEmpresa')">
+    MODIFICAR EMPRESA
+  </button>
+  
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button-cancelar" 
+    [disabled]="!(selectedRows.length > 0)" 
+    (click)="openModal('confirmacionModal')">
+    ELIMINAR EMPRESA(S)
+  </button>
 
-    <!-- Botones principales -->
-    <button mat-raised-button color="primary" (click)="openModal('crearEmpresa')">Crear Empresa</button>
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL CREAR EMPRESA -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['crearEmpresa']" 
+    (click)="closeModal('crearEmpresa')">
+    
+    <div class="modal-content" (click)="$event.stopPropagation()">
       
-    <!-- Modal Crear Empresa -->
-    <div id="modalCrearCliente" class="modal-perfiles" *ngIf="modals['crearEmpresa']">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close" (click)="closeModal('crearEmpresa')">&times;</span>
-                <div class="header-bar"></div>
-                <div class="title-container">
-                    <h2>Crear Empresa</h2>
-                </div>
-            </div>
-            
-            <h3>Nombre Empresa:</h3>
-            <input type="text" class="input-usuario" id="nombreUsuario" name="nombreUsuario" 
-                   [(ngModel)]="nombreEmpresa" (ngModelChange)="nombreEmpresa = $event.toUpperCase()">
-              
-            <h3>RUT Empresa:</h3>
-            <input type="text" class="input-usuario" id="rutEmpresa" name="rutEmpresa" 
-                   [(ngModel)]="rutEmpresa" (input)="formatRUT($event)">
-  
-            <h3>Direccion Empresa:</h3>
-            <input type="text" class="input-usuario" id="direccionEmpresa" name="direccionEmpresa" 
-                   [(ngModel)]="direccionEmpresa">
-            
-            <button class="custom-button-ingreso" (click)="crearEmpresa()" id="ingresarHoldingBtn">
-                Crear Empresa
-            </button>
+      <!-- Título modernizado -->
+      <h2>CREAR EMPRESA</h2>
+      
+      <!-- Sección de información de la empresa -->
+      <div class="modal-section">
+        <h3>Información de la Empresa</h3>
+        
+        <div class="input-container">
+          <label for="nombreEmpresa">Nombre Empresa:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="nombreEmpresa" 
+            name="nombreEmpresa" 
+            [(ngModel)]="nombreEmpresa" 
+            (ngModelChange)="nombreEmpresa = $event.toUpperCase()"
+            placeholder="Ingrese el nombre de la empresa">
         </div>
-    </div>
+        
+        <div class="input-container">
+          <label for="rutEmpresa">RUT Empresa:</label>
+          <input 
+            type="text" 
+            class="input-usuario input-rut" 
+            id="rutEmpresa" 
+            name="rutEmpresa" 
+            [(ngModel)]="rutEmpresa" 
+            (input)="formatRUT($event)"
+            placeholder="Ej: 12.345.678-9"
+            maxlength="12">
+        </div>
+        
+        <div class="input-container">
+          <label for="direccionEmpresa">Dirección Empresa:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="direccionEmpresa" 
+            name="direccionEmpresa" 
+            [(ngModel)]="direccionEmpresa"
+            placeholder="Ingrese la dirección de la empresa">
+        </div>
+      </div>
       
-    <!-- Modal Modificar Empresa -->  
-    <div id="modalmodificarCliente" class="modal-perfiles" *ngIf="modals['modificarEmpresa']">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close" (click)="closeModal('modificarEmpresa')">&times;</span>
-                <div class="header-bar"></div>
-                <div class="title-container">
-                    <h2>Modificar Empresa</h2>
-                </div>
-            </div>
-            
-            <h3>Modificar Nombre Empresa:</h3>
-            <input type="text" class="input-perfil" id="nombreUsuarioNew" name="nombreUsuarioNew" 
-                   [(ngModel)]="nombreEmpresaNew" (ngModelChange)="nombreEmpresaNew = $event.toUpperCase()">
-            
-            <h3>Modificar RUT Empresa:</h3>
-            <input type="text" class="input-usuario" id="rutUsuarioNew" name="rutUsuarioNew" 
-                   [(ngModel)]="rutEmpresaNew" (input)="formatRUT($event)">
-  
-            <h3>Modificar Direccion Empresa:</h3>
-            <input type="text" class="input-usuario" id="direccionUsuarioNew" name="direccionUsuarioNew" 
-                   [(ngModel)]="direccionEmpresaNew">
+      <!-- Botón de acción -->
+      <div class="button-container">
+        <button 
+          class="button-bottom" 
+          (click)="crearEmpresa()">
+          Crear Empresa
+        </button>
+      </div>
+    </div>
+  </div>
 
-            <button class="custom-button-ingreso" (click)="modificarEmpresa()" id="ingresarHoldingBtn">
-                Modificar Empresa
-            </button>
-        </div>
-    </div>
-      
-    <!-- Botones de acción -->
-    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" 
-            (click)="openModal('modificarEmpresa')">
-        Modificar Empresa
-    </button>
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL MODIFICAR EMPRESA -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['modificarEmpresa']" 
+    (click)="closeModal('modificarEmpresa')">
     
-    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" 
-            (click)="openModal('confirmacionModal')">
-        Eliminar Empresa(s)
-    </button>
+    <div class="modal-content" (click)="$event.stopPropagation()">
       
-    <!-- Tabla principal -->
-    <table mat-table [dataSource]="empresasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
-        <ng-container matColumnDef="rut">
-            <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
-            <td mat-cell *matCellDef="let empresa" class="mat-cell">
-                {{ formatRUTString(empresa.rut) }}
-            </td>
-        </ng-container>
-            
-        <ng-container matColumnDef="nombre">
-            <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
-            <td mat-cell *matCellDef="let empresa" class="mat-cell">
-                {{ empresa.nombre }}
-            </td>
-        </ng-container>
-            
-        <ng-container matColumnDef="direccion">
-            <th mat-header-cell *matHeaderCellDef class="mat-header">Dirección</th>
-            <td mat-cell *matCellDef="let empresa" class="mat-cell">
-                {{ empresa.direccion }}
-            </td>
-        </ng-container>
+      <!-- Título modernizado -->
+      <h2>MODIFICAR EMPRESA</h2>
       
-        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
-        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" 
-            [class.selected]="isSelected(row)" 
-            (click)="selectRow(row)">
-        </tr>
-    </table>
-</div>
-  
-<!-- Modal de Éxito -->
-<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
-    <div class="modal-content">
-        <h2 style="color:white;">¡Éxito!</h2>
-        <div class="exito-message" id="exitoText"></div>
-        <button class="custom-button" (click)="closeModal('exitoModal')">Cerrar</button>
-    </div>
-</div>
-    
-<!-- Modal de Error -->
-<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
-    <div class="modal-content">
-        <h2 style="color:white;">¡Error!</h2>
-        <div class="error-icon-container">
-            <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+      <!-- Sección de información de la empresa -->
+      <div class="modal-section">
+        <h3>Información de la Empresa</h3>
+        
+        <div class="input-container">
+          <label for="nombreEmpresaNew">Modificar Nombre Empresa:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="nombreEmpresaNew" 
+            name="nombreEmpresaNew" 
+            [(ngModel)]="nombreEmpresaNew" 
+            (ngModelChange)="nombreEmpresaNew = $event.toUpperCase()"
+            placeholder="Modifique el nombre de la empresa">
         </div>
-        <div class="error-message" style="color:white;">{{ errorMessage }}</div>
-        <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
-    </div>
-</div>
-    
-<!-- Modal de Confirmación -->
-<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
-    <div class="modal-content">
-        <h2 style="color:white;">¿Desea eliminar la(s) empresa(s) seleccionada(s)?</h2>
-        <div class="exito-message" id="exitoText"></div>
-        <div class="modal-actions">
-            <button class="custom-button yes-button" (click)="eliminarEmpresasSeleccionados()">Sí</button>
-            <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
+        
+        <div class="input-container">
+          <label for="rutEmpresaNew">Modificar RUT Empresa:</label>
+          <input 
+            type="text" 
+            class="input-usuario input-rut" 
+            id="rutEmpresaNew" 
+            name="rutEmpresaNew" 
+            [(ngModel)]="rutEmpresaNew" 
+            (input)="formatRUT($event)"
+            placeholder="Ej: 12.345.678-9"
+            maxlength="12">
         </div>
+        
+        <div class="input-container">
+          <label for="direccionEmpresaNew">Modificar Dirección Empresa:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="direccionEmpresaNew" 
+            name="direccionEmpresaNew" 
+            [(ngModel)]="direccionEmpresaNew"
+            placeholder="Modifique la dirección de la empresa">
+        </div>
+      </div>
+      
+      <!-- Botón de acción -->
+      <div class="button-container">
+        <button 
+          class="button-bottom" 
+          (click)="modificarEmpresa()">
+          Modificar Empresa
+        </button>
+      </div>
     </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 TABLA DE EMPRESAS -->
+  <!-- ============================================ -->
+  <table mat-table [dataSource]="empresasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+    
+    <!-- Columna RUT -->
+    <ng-container matColumnDef="rut">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">
+        <span class="rut-formatted">{{ formatRUTString(empresa.rut) }}</span>
+      </td>
+    </ng-container>
+    
+    <!-- Columna Nombre -->
+    <ng-container matColumnDef="nombre">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">{{ empresa.nombre }}</td>
+    </ng-container>
+    
+    <!-- Columna Dirección -->
+    <ng-container matColumnDef="direccion">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Dirección</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">
+        <span class="direccion-text" [title]="empresa.direccion">
+          {{ empresa.direccion | slice:0:40 }}{{ empresa.direccion?.length > 40 ? '...' : '' }}
+        </span>
+      </td>
+    </ng-container>
+    
+    <!-- Definición de filas -->
+    <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    <tr 
+      mat-row 
+      *matRowDef="let row; columns: columnasDesplegadas;" 
+      [class.selected]="isSelected(row)" 
+      (click)="selectRow(row)">
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL DE ÉXITO -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
+  <div class="modal-content-message success" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container success">
+      <div class="icon-circle success">✓</div>
+    </div>
+    
+    <h2 class="modal-title success">¡Éxito!</h2>
+    <p class="modal-message">La operación se ha completado exitosamente.</p>
+    
+    <div class="button-container">
+      <button class="button-bottom success" (click)="closeModal('exitoModal')">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL DE ERROR -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
+  <div class="modal-content-message error" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container error">
+      <div class="icon-circle error">✕</div>
+    </div>
+    
+    <h2 class="modal-title error">Error</h2>
+    <p class="modal-message">{{ errorMessage }}</p>
+    
+    <div class="button-container">
+      <button class="button-bottom error" (click)="closeModal('errorModal')">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL DE CONFIRMACIÓN -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
+  <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container confirmation">
+      <div class="icon-circle confirmation">?</div>
+    </div>
+    
+    <h2 class="modal-title confirmation">Confirmar eliminación</h2>
+    <p class="modal-message">
+      ¿Está seguro que desea eliminar la(s) empresa(s) seleccionada(s)?
+    </p>
+    
+    <div class="button-container confirmation">
+      <button class="button-bottom confirm-yes" (click)="eliminarEmpresasSeleccionados()">
+        Sí
+      </button>
+      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">
+        No
+      </button>
+    </div>
+  </div>
 </div>

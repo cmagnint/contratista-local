@@ -136,7 +136,7 @@ export class AreasCargosAdministracionComponent implements OnInit {
   }
 
   modificarAreas(): void {
-    if (this.selectedAreaRows.length === 0) {
+    if (!this.areaSeleccionada.id_area_seleccionada || this.areaSeleccionada.id_area_seleccionada === 0) {
       this.errorMessage = 'No hay área seleccionada para modificar';
       this.openModal('errorModal');
       return;
@@ -144,7 +144,7 @@ export class AreasCargosAdministracionComponent implements OnInit {
 
     let data = {
       holding: this.holding,
-      id: this.selectedAreaRows[0].id,
+      id: this.areaSeleccionada.id_area_seleccionada,
       nombre: this.nombreAreaNew,
     };
     
@@ -154,6 +154,10 @@ export class AreasCargosAdministracionComponent implements OnInit {
         this.nombreAreaNew = '';
         this.selectedAreaRows = [];
         this.selectedAreaForCargo = null;
+        this.areaSeleccionada = {
+          nombre_area_seleccionada: '',
+          id_area_seleccionada: 0,
+        };
         this.cargarAreas();
         this.openModal('exitoModal');
       },
@@ -228,7 +232,7 @@ export class AreasCargosAdministracionComponent implements OnInit {
   }
 
   modificarCargos(): void {
-    if (this.selectedCargoRows.length === 0) {
+    if (!this.selectedCargoId || this.selectedCargoId === null) {
       this.errorMessage = 'No hay cargo seleccionado para modificar';
       this.openModal('errorModal');
       return;
@@ -236,9 +240,9 @@ export class AreasCargosAdministracionComponent implements OnInit {
 
     let data = {
       holding: this.holding,
-      id: this.selectedCargoRows[0].id,
+      id: this.selectedCargoId,
       nombre: this.nombreCargoNew,
-      area: this.selectedCargoRows[0].area, // Mantener el área original
+      area: this.cargoSeleccionado.id_area_cargo_seleccionado, // Mantener el área original
     };
     
     this.apiService.put('api_cargos_administracion/', data).subscribe({
@@ -246,6 +250,12 @@ export class AreasCargosAdministracionComponent implements OnInit {
         this.closeModal('modificarCargo');
         this.nombreCargoNew = '';
         this.selectedCargoRows = [];
+        this.selectedCargoId = null;
+        this.cargoSeleccionado = {
+          nombre_cargo_seleccionado: '',
+          id_cargo_seleccionado: 0,
+          id_area_cargo_seleccionado: 0,
+        };
         this.cargarCargos();
         this.openModal('exitoModal');
       },

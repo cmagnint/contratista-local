@@ -154,7 +154,6 @@ class Clientes(models.Model):
     nombre = models.CharField(max_length=255)
     direccion = models.CharField(max_length=255)
     giro = models.CharField(max_length=255)
-    rut_rep_legal = models.CharField(max_length=255,null=True, blank=True)
     nombre_rep_legal = models.CharField(max_length=255,null=True, blank=True)
     direccion_rep_legal = models.CharField(max_length=255,null=True, blank=True)
   
@@ -258,6 +257,7 @@ class VehiculosTransporte(models.Model):
     color = models.CharField(max_length=100)
     num_pasajeros = models.IntegerField()
     marca = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=100, null=True)
 
     class Meta:
         db_table = 'vehiculos_transporte'
@@ -880,8 +880,7 @@ class FolioTransportista(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     folio_comercial = models.ForeignKey(FolioComercial, on_delete=models.SET_NULL, null=True, blank=True)
-    valor_pago_transportista = models.IntegerField()
-    valor_facturacion_transportista = models.IntegerField()
+    valor_cancelacion = models.IntegerField(null=True)
     tramo = models.ForeignKey(Tramos, on_delete= models.SET_NULL, null=True, blank=True)
 
     class Meta:

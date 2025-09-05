@@ -5,6 +5,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { JwtService } from '../../../../services/jwt.service';
+
 @Component({
   selector: 'app-administrar-clientes',
   standalone: true,
@@ -32,6 +33,8 @@ export class AdministrarClientesComponent implements OnInit {
     direccion_cliente_seleccionado: '',
     giro_cliente_seleccionado: '',
     id_cliente_seleccionado: 0,
+    nombre_rep_legal_seleccionado: '',
+    direccion_rep_legal_seleccionado: '',
   };
 
   public usuarioIdNew = 0;
@@ -41,7 +44,6 @@ export class AdministrarClientesComponent implements OnInit {
   public direccionCliente: string = '';
   public giroCliente: string = '';
   public nombreRepresentanteLegal: string = '';
-  public RUTRepresentanteLegal: string = '';
   public direccionRepresentanteLegal: string = '';
   public nuevoCampo: { nombre: string, direccion: string, comuna: string } = { nombre: '', direccion: '', comuna: '' };
   public campos: { nombre: string, direccion: string, comuna: string }[] = [];
@@ -52,14 +54,17 @@ export class AdministrarClientesComponent implements OnInit {
   dropdownOpen: boolean = false;
   public todasSeleccionadas: boolean = false;
   public clientesCargados: any[] = [];
-  columnasDesplegadas = ['rut', 'nombre', 'direccion', 'giro', 'campos_personalizados','nombre_rep','rut_rep'];
+  columnasDesplegadas = ['rut', 'nombre', 'direccion', 'giro', 'campos_personalizados','nombre_rep'];
 
   public nombreClienteNew: string = '';
   public rutClienteNew: string = '';
   public direccionClienteNew: string = '';
   public giroClienteNew: string = '';
+  // 🆕 NUEVAS VARIABLES PARA REPRESENTANTE LEGAL EN MODIFICACIÓN
+  public nombreRepresentanteLegalNew: string = '';
+  public direccionRepresentanteLegalNew: string = '';
+  
   public deletedRow: any[] = [];
-
   public selectedClienteId: number | null = null;
 
   constructor(
@@ -101,21 +106,34 @@ export class AdministrarClientesComponent implements OnInit {
       rut: this.rutCliente.replace(/[\.\-]/g, ''),
       direccion: this.direccionCliente,
       giro: this.giroCliente,
-      rut_rep_legal:  this.RUTRepresentanteLegal.replace(/[\.\-]/g, ''),
       nombre_rep_legal: this.nombreRepresentanteLegal,
       direccion_rep_legal: this.direccionRepresentanteLegal ,
     };
     this.apiService.post('api_clientes/', data).subscribe({
       next: (response) => {
-        this.crearCampos(response.id); // Crear los campos personalizados para el cliente creado
+        this.crearCampos(response.id);
         this.cargarClientes();
         this.closeModal('crearCliente');
         this.openModal('exitoModal');
+        // Limpiar formulario después de crear
+        this.limpiarFormularioCrear();
       },
       error: (error) => {
         this.openModal('errorModal');
       }
     });
+  }
+
+  // 🆕 MÉTODO PARA LIMPIAR FORMULARIO DE CREAR
+  limpiarFormularioCrear(): void {
+    this.nombreCliente = '';
+    this.rutCliente = '';
+    this.direccionCliente = '';
+    this.giroCliente = '';
+    this.nombreRepresentanteLegal = '';
+    this.direccionRepresentanteLegal = '';
+    this.campos = [];
+    this.nuevoCampo = { nombre: '', direccion: '', comuna: '' };
   }
 
   crearCampos(clienteId: number): void {
@@ -137,13 +155,12 @@ export class AdministrarClientesComponent implements OnInit {
         }
       });
     }
-    this.campos = []; // Limpiar los campos después de crear
+    this.campos = [];
   }
 
   cargarClientes(): void {
     this.apiService.get(`api_clientes/?holding=${this.holding}`).subscribe({
       next: (response) => {
-        
         this.clientesCargados = response;
       },
       error: (error) => {
@@ -164,25 +181,31 @@ export class AdministrarClientesComponent implements OnInit {
     });
   }
 
+  // 🆕 MÉTODO MODIFICAR CLIENTE ACTUALIZADO PARA INCLUIR REPRESENTANTE LEGAL
   modificarCliente(): void {
     let data = {
       holding: this.holding,
       id: this.selectedClienteId,
       nombre: this.nombreClienteNew,
-      rut: this.rutClienteNew,
+      rut: this.rutClienteNew.replace(/[\.\-]/g, ''), // Limpiar formato RUT
       direccion: this.direccionClienteNew,
       giro: this.giroClienteNew,
+      nombre_rep_legal: this.nombreRepresentanteLegalNew, // 🆕 Incluir nombre rep legal
+      direccion_rep_legal: this.direccionRepresentanteLegalNew, // 🆕 Incluir dirección rep legal
       camposPersonalizados: this.camposNew
     };
+    
+    console.log('🔄 Datos a enviar para modificar:', data);
+    
     this.apiService.put('api_clientes/', data).subscribe({
       next: (response) => {
-        console.log('Cliente actualizado:', response);
+        console.log('✅ Cliente actualizado:', response);
         this.closeModal('modificarCliente');
         this.cargarClientes();
         this.openModal('exitoModal');
       },
       error: (error) => {
-        console.log(error);
+        console.error('❌ Error al modificar cliente:', error);
         this.openModal('errorModal');
       }
     });
@@ -229,6 +252,7 @@ export class AdministrarClientesComponent implements OnInit {
     return this.selectedRows.some(r => r.id === row.id);
   }
 
+  // 🆕 MÉTODO SELECT ROW ACTUALIZADO PARA INCLUIR DATOS DE REPRESENTANTE LEGAL
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
@@ -245,20 +269,29 @@ export class AdministrarClientesComponent implements OnInit {
         direccion_cliente_seleccionado: lastSelectedRow.direccion,
         giro_cliente_seleccionado: lastSelectedRow.giro,
         id_cliente_seleccionado: lastSelectedRow.id,
+        nombre_rep_legal_seleccionado: lastSelectedRow.nombre_rep_legal || '', // 🆕 Agregar rep legal
+        direccion_rep_legal_seleccionado: lastSelectedRow.direccion_rep_legal || '', // 🆕 Agregar dirección rep legal
       };
+      
+      // Actualizar variables para el formulario de modificación
       this.selectedClienteId = this.clienteSeleccionado.id_cliente_seleccionado;
       this.nombreClienteNew = this.clienteSeleccionado.nombre_cliente_seleccionado;
       this.rutClienteNew = this.formatRUTString(this.clienteSeleccionado.rut_cliente_seleccionado);
       this.direccionClienteNew = this.clienteSeleccionado.direccion_cliente_seleccionado;
       this.giroClienteNew = this.clienteSeleccionado.giro_cliente_seleccionado;
+      // 🆕 ACTUALIZAR VARIABLES DE REPRESENTANTE LEGAL
+      this.nombreRepresentanteLegalNew = this.clienteSeleccionado.nombre_rep_legal_seleccionado;
+      this.direccionRepresentanteLegalNew = this.clienteSeleccionado.direccion_rep_legal_seleccionado;
 
-      this.cargarCampos(this.selectedClienteId!); // Cargar campos personalizados al seleccionar cliente
+      this.cargarCampos(this.selectedClienteId!);
     } else {
       this.clienteSeleccionado = {
         nombre_cliente_seleccionado: '',
         rut_cliente_seleccionado: '',
         direccion_cliente_seleccionado: '',
         giro_cliente_seleccionado: '',
+        nombre_rep_legal_seleccionado: '',
+        direccion_rep_legal_seleccionado: '',
       };
     }
   }

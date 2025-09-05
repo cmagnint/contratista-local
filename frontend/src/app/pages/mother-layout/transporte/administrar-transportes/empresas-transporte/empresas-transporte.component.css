@@ -1,346 +1,745 @@
+/*empresas-transporte.component.css - VERSIÓN MODERNIZADA*/
+
+/* ============================================ */
+/* 🎯 CONTENEDOR PRINCIPAL */
+/* ============================================ */
+
+.admin-usuarios-container {
+  margin: 20px 20px 100px 20px;
+}
+
 .admin-usuarios-container table {
-    width: 100%;
-    border-collapse: collapse; /* Asegurar que las líneas se colapsen en una sola */
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+/* ============================================ */
+/* 🎯 ESTILOS DE TABLA MAT-TABLE */
+/* ============================================ */
+
+.mat-header {
+  background-color: #0f5163 !important; 
+  color: white !important;
+  border-right: 1px solid black !important;
+  font-weight: 600;
+}
+
+.mat-header-row th:last-child {
+  border-right: none;
+}
+
+.mat-cell {
+  border-right: 1px solid black;
+  background-color: white;
+  font-size: 13px !important;
+  font-weight: 500;
+  padding: 8px;
+}
+
+.mat-row td:last-child {
+  border-right: none;
+}
+
+.mat-cell:not(.selected) {
+  animation: none;
+}
+
+.selected .mat-cell {
+  background-color: #6dbeb5 !important;
+}
+
+/* ============================================ */
+/* 🎯 FORMATEO ESPECIALIZADO */
+/* ============================================ */
+
+.rut-formatted {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #2c3e50;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-left: 3px solid #2196F3;
+  display: inline-block;
+  min-width: 100px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.rut-formatted:hover {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.15), rgba(33, 150, 243, 0.08));
+  transform: translateX(2px);
+}
+
+.direccion-text {
+  display: inline-block;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+  transition: all 0.3s ease;
+}
+
+.direccion-text:hover {
+  color: #4CAF50;
+  font-weight: 600;
+}
+
+/* ============================================ */
+/* 🎯 BOTONES BASE (ADAPTADO DE PERFILES) */
+/* ============================================ */
+
+.custom-button,
+.custom-button-cancelar,
+.custom-button-modificar {
+  padding: 12px 24px;
+  margin-right: 20px;
+  margin-top: 20px;
+  background-color: #1188c3;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  width: auto;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 
+              0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  background-image: radial-gradient(circle, transparent 1%, #1188c3 1%);
+  background-position: center;
+  background-size: 15000%;
+}
+
+.custom-button:disabled,
+.custom-button-cancelar:disabled,
+.custom-button-modificar:disabled {
+  color: gray;
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Variaciones de hover */
+.custom-button:not(:disabled):hover {
+  background-color: #63b54e;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.custom-button-cancelar:not(:disabled):hover {
+  background-color: #f30c0c;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.custom-button-modificar:not(:disabled):hover {
+  background-color: #ee8a0f;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* ============================================ */
+/* 🎯 MODALES BASE */
+/* ============================================ */
+
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 30px;
+  border: none;
+  width: 85%;
+  max-width: 700px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.modal-content h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.modal-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 250px;
+  height: 3px;
+  background: linear-gradient(90deg, #4CAF50, #2196F3);
+  border-radius: 2px;
+}
+
+.modal-section {
+  width: 100%;
+  margin-bottom: 25px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 249, 250, 0.6));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  padding: 25px;
+  border-radius: 15px;
+  position: relative;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.modal-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  background: linear-gradient(135deg, #4CAF50, #2196F3, #FF9800);
+  border-radius: 15px;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  z-index: -1;
+}
+
+.modal-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+.modal-section h3 {
+  margin-top: 0;
+  color: #4CAF50;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+/* ============================================ */
+/* 🎯 INPUTS Y FORMULARIOS */
+/* ============================================ */
+
+.input-container {
+  width: 100%;
+  margin: 20px 0;
+}
+
+.input-container label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #4CAF50;
+  font-size: 16px;
+}
+
+.input-usuario {
+  width: 90%;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 500;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #2c3e50;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.input-usuario:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.input-usuario::placeholder {
+  color: #8e9ba8;
+  font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+.input-usuario:focus::placeholder {
+  color: #bdc3c7;
+}
+
+/* ============================================ */
+/* 🎯 INPUT RUT ESPECIALIZADO */
+/* ============================================ */
+
+.input-rut {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 1px;
+  position: relative;
+}
+
+.input-rut::before {
+  content: '🏢';
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  pointer-events: none;
+}
+
+.input-rut {
+  padding-left: 50px;
+}
+
+.input-rut:focus {
+  border-color: #2196F3;
+  box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.input-rut:valid {
+  border-color: #4CAF50;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05), #ffffff);
+}
+
+.input-rut:invalid:not(:placeholder-shown) {
+  border-color: #f44336;
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.05), #ffffff);
+}
+
+/* ============================================ */
+/* 🎯 BOTONES ESPECIALIZADOS */
+/* ============================================ */
+
+.button-bottom {
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  width: 300px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.button-bottom::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.button-bottom:hover::before {
+  left: 100%;
+}
+
+/* Botones de éxito */
+.button-bottom:first-child,
+.button-bottom.success,
+.button-bottom.confirm-yes {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+}
+
+.button-bottom:first-child:hover,
+.button-bottom.success:hover,
+.button-bottom.confirm-yes:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+}
+
+/* Botones de error */
+.button-bottom.error {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+}
+
+.button-bottom.error:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
+}
+
+/* Botón de cancelar/No */
+.button-bottom.confirm-no {
+  background: linear-gradient(135deg, #c41818 0%, #c01313 100%);
+  color: white;
+}
+
+.button-bottom.confirm-no:hover {
+  background: linear-gradient(135deg, #ff0000 0%, #ff3e3e 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(158, 158, 158, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 CONTENEDOR DE BOTONES */
+/* ============================================ */
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.button-container.confirmation {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  border-top: none;
+  padding-top: 10px;
+  margin-top: 20px;
+}
+
+.button-container.confirmation .button-bottom {
+  flex: none;
+  width: 120px !important;
+  max-width: 120px !important;
+  min-width: 120px !important;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+/* ============================================ */
+/* 🎯 MODALES DE MENSAJE MEJORADOS */
+/* ============================================ */
+
+.modal-content-message {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 40px 30px;
+  border: none;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  text-align: center;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.modal-content-message.confirmation {
+  max-width: 450px;
+}
+
+/* ============================================ */
+/* 🎯 ICONOS DE ESTADO */
+/* ============================================ */
+
+.icon-container {
+  margin-bottom: 20px;
+}
+
+.icon-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: bold;
+  color: white;
+  position: relative;
+  animation: scaleIn 0.3s ease-out;
+}
+
+.icon-circle.success {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+}
+
+.icon-circle.error {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  box-shadow: 0 8px 16px rgba(244, 67, 54, 0.3);
+}
+
+.icon-circle.confirmation {
+  background: linear-gradient(135deg, #e24110, #F57C00);
+  box-shadow: 0 8px 16px rgba(255, 152, 0, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 TÍTULOS DE MODALES */
+/* ============================================ */
+
+.modal-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.modal-title.success {
+  color: #4CAF50;
+}
+
+.modal-title.error {
+  color: #f44336;
+}
+
+.modal-title.confirmation {
+  background: linear-gradient(135deg, #e24110, #F57C00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================ */
+/* 🎯 MENSAJES DE MODALES */
+/* ============================================ */
+
+.modal-message {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+/* ============================================ */
+/* 🎯 ANIMACIONES */
+/* ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
   }
-    
-  .mat-header{
-    background-color: rgb(20, 179, 92) !important;
-    color: white !important;
-    border-right: 1px solid black !important;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-    
-  .mat-header-row th:last-child {
-    border-right: none; /* Eliminar la línea del último encabezado para que no se desborde */
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
   }
-    
-  .mat-cell {
-    border-right: 1px solid black; 
-    background-color: white; 
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
-    
-  .mat-row td:last-child {
-    border-right: none; /* Eliminar la línea de la última celda para que no se desborde */
-  }
-    
-  .mat-cell:not(.selected) {
-    animation: none; /* Desactivar la animación cuando la fila no está seleccionada */
-  }
-    
-  .selected .mat-cell {
-    background-color: #00A693 !important;
-  }
-    
-  button:disabled {
-    color: gray;
-    background-color: #ccc;
-  }
-   
-  button:not(:disabled):hover {
-    background-color: green;
-    color: white;
-  }
-  
-  h3 {
-    margin-top: 0px; /* Reducción del margen superior */
-    margin-bottom: 5px; /* Reducción del margen inferior */
-  }
-  
-  .modal-content .crearholding-button-modal {
-    width: 70%; /* Menor ancho respecto al original */
-    padding: 20px 30px; /* Mayor altura gracias al padding superior e inferior */
-    margin: 20px auto; /* Margen superior e inferior para espaciado, y auto en los lados para centrarlo */
-    display: block; /* Hace que el botón se trate como un bloque, permitiendo el centrado con margin auto */
-  }
-  
-  .modal-content input[type="text"],
-  .modal-content input[type="button"],
-  .modal-content input[type="usuario"],
-  .modal-content button {
-    margin-top: 0px; /* Reduce el margen superior */
-    margin-bottom: 5px; /* Reduce el margen inferior */
-    width: 80%; /* Mantén el ancho de los campos de entrada */
-    padding: 8px; /* Mantén el padding para mejor estética */
-  }
-  
-  
-  .checklist-container {
-    display: flex;
-    justify-content: space-around;
-    width: 100%; /* Usa todo el ancho disponible del contenedor modal */
-    margin: 10px 0; /* Reduce el espacio vertical entre elementos */
-  }
-  
-  input[type="checkbox"] {
-    transform: scale(1.5); /* Aumenta el tamaño de los checkboxes */
-    margin-right: 5px; /* Espacio entre el checkbox y el texto */
-  }
-  
-  .modal-perfiles {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: -10%; /* Ajustado para que comience desde la parte superior */
-    width: 100%;
-    height: 110%; /* Ajustado para cubrir toda la altura de la ventana */
-    overflow: hidden; /* Asegurar que el fondo no se desplace */
-    background-color: rgba(0,0,0,0.4); /* Color de fondo semitransparente */
-    display: flex;
-    justify-content: center;
-    align-items: center; /* Alinear el contenido del modal verticalmente al centro */
+}
+
+/* ============================================ */
+/* 🎯 EFECTOS HOVER EN FILAS */
+/* ============================================ */
+
+.mat-row:hover:not(.selected) {
+  background-color: rgba(76, 175, 80, 0.1) !important;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mat-row:hover:not(.selected) .mat-cell {
+  background-color: rgba(76, 175, 80, 0.1) !important;
+}
+
+.mat-row.selected:hover .mat-cell {
+  background-color: #5ba8a1 !important;
+}
+
+/* ============================================ */
+/* 🎯 VALIDACIÓN VISUAL */
+/* ============================================ */
+
+.input-container.valid .input-usuario {
+  border-color: #4CAF50;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05), #ffffff);
+}
+
+.input-container.invalid .input-usuario {
+  border-color: #f44336;
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.05), #ffffff);
+}
+
+.input-container.valid label::after {
+  content: ' ✓';
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.input-container.invalid label::after {
+  content: ' ✕';
+  color: #f44336;
+  font-weight: bold;
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE DESIGN */
+/* ============================================ */
+
+@media (max-width: 1200px) {
+  .admin-usuarios-container {
+    margin: 15px;
   }
   
   .modal-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
-    padding: 10px;
-    margin: auto;
-    border: 1px solid #888;
-    width: 50%;
-    max-height: 100vh; /* 80% de la altura de la ventana gráfica */
-    overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
-    overflow-x: hidden;
-    background-color: #fefefe;
-    border: 3px solid black;
-  }
-  
-  .modal-header {
-    width: 100%;
-    position: relative;
-    margin-bottom: 20px; /* Espacio entre el encabezado y el contenido */
-  }
-  
-  .header-bar {
-    position: absolute;
-    height: 35px;
-    background-color: #00A693;
-    width: 105.2%;
-    top: -25%;
-    left: -2.9%;
-    border: 3px solid black;
-  }
-  
-  .title-container {
-    background-color: rgb(20, 179, 92);
-    border: 3px solid black;
-    padding: 0px 0; /* Reducir el espacio vertical */
-    width: 50%; /* Reducir el ancho */
-    text-align: center;
-    color: white;
-    margin: auto; /* Centrar horizontalmente */
-    margin-top: 20px;
-  
-  }
-  
-  .close {
-    position: absolute;
-    top: -25%;
-    right: 0%;
-    color: #aaa;
-    font-size: 40px;
-    font-weight: bold;
-    z-index: 1;
-  }
-  
-  .close:hover,
-  .close:focus {
-    color: red;
-    cursor: pointer;
-  }
-  
-  .checklist-box {
-    border: 1px solid black;
-    padding: 10px;
     width: 90%;
+    max-width: 600px;
   }
   
-  .checklist-container {
-    display: flex;
-    flex-wrap: wrap; /* Permitir que los elementos se ajusten según el ancho */
-    justify-content: space-between;
+  .direccion-text {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-usuarios-container {
+    margin: 15px 15px 80px 15px;
   }
   
-  .checkbox-label {
-    flex: 1 1 30%; /* Flexibilidad y base de 30% */
-    text-align: center;
-    margin: 10px;
-  }
-  
-  input[type="checkbox"] {
-    transform: scale(1.5);
-    margin-right: 5px;
-  }
-  
-  .custom-button {
-    padding: 12px 24px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 5px;
-    margin-top: 20px;
-    width: auto;
-    font-size: 18px;
-  }
-  
-  
-  
-  .yes-button {
-    
-    background-color: #4ca5af; /* Verde */
-    ;
-  }
-  
-  .no-button {
-    background-color: #f44336; /* Rojo */
-  }
-  
-  .modal-actions {
-    display: flex;
-    justify-content: center;
+  .modal-content {
+    width: 95%;
     padding: 20px;
+    max-height: 85vh;
   }
-  #errorModal .modal-content {
-    position: absolute;
-    flex-direction: column; /* Stack items vertically */
-    align-items: center; /* Center items horizontally */
-    justify-content: space-around; /* Distribute spacing evenly */
+  
+  .modal-content h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .modal-section {
     padding: 20px;
-    margin: 5% auto;
-    border: 1px solid #000000;
-    width: 20%; /* Adjust the width as necessary */
-    background-color: #ff5050; /* Un tono de rojo para el fondo */
-    z-index: 1005;
-    left: 38%;
-    top: 25%;
+    margin-bottom: 20px;
   }
   
-  #exitoModal .modal-content {
-    background-color: #4CAF50;
-    width: 20%; /* Un tono de verde para el fondo */
-    z-index: 1005;
+  .custom-button,
+  .custom-button-cancelar,
+  .custom-button-modificar {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    padding: 10px 16px;
   }
   
-  #confirmacionModal .modal-content {
-    background-color: #4CAF50;
-    width: 30%; /* Un tono de verde para el fondo */
-    z-index: 1005;
-    text-align: center;
-  }
-  
-  .exito-message {
-    text-align: center;
-    color: white;
-  }
-  
-  .mini-modal {
-    display: flex;
-    position: absolute;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start; /* Cambiado de center a flex-start para alinear los elementos al principio */
-    padding: 20px;
-    margin: auto;
-    border: 1px solid #888;
-    width: 40%;
-    height: 30%;
-    max-height: 90vh; /* 80% de la altura de la ventana gráfica */
-    overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es más alto que el contenedor */
-    overflow-x: hidden;
-    background-color: #fefefe;
-    border: 3px solid black;
-    z-index: 5;
-    left: 28%;
-    top: 30%;
-    
-  }
-  
-  /* Estilo para el botón que activa el dropdown */
-  .dropdown-button {
-    position: relative;
-    padding: 10px !important;
-    width: 100% !important; /* Establecer el ancho al 100% del contenedor para aumentarlo */
-    margin-bottom: 10px !important;
-    background-color: #4CAF50 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    text-align: center !important;
-    bottom: 50% !important; /* Alinea el texto a la izquierda */
-    z-index: auto;
-  }
-  
-  /* Contenedor del dropdown */
-  .dropdown {
-    position: absolute;
-    display: inline-block;
-    width: 400px;
-  }
-  
-  /* Contenido del dropdown */
-  .dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    padding: 10px;
-    z-index: 1;
-    max-height: 200px; /* Limita la altura y agrega scroll */
-    overflow-y: auto;
+  .input-usuario {
     width: 100%;
   }
   
-  /* Mostrar dropdown-content cuando dropdown está activo */
-  .dropdown-content.show {
-    display: block;
+  .button-bottom {
+    width: 250px !important;
+    font-size: 14px;
+    padding: 12px 20px;
   }
   
-  /* Estilo para las etiquetas de las checkboxes */
-  .dropdown-content label {
-    display: block;
-    cursor: pointer;
+  .button-container.confirmation .button-bottom {
+    width: 100px !important;
+    font-size: 13px;
   }
   
-  .custom-button-sociedades {
-    position: absolute;
-    padding: 8px 16px !important; /* Padding más pequeño para reducir el tamaño */
-    background-color: #4CAF50 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    border-radius: 5px !important;
-    margin-top: 10px !important;
-    width: auto !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
-    font-size: 16px !important; /* Puedes ajustar el tamaño de la fuente si es necesario */
-    display: inline-block !important;
-    bottom: 0 !important; /* Para permitir el ajuste de ancho */
-    z-index: auto;
+  .direccion-text {
+    max-width: 150px;
   }
   
-  .table-button {
-    position: relative;
-    z-index: 2;
+  .rut-formatted {
+    min-width: 80px;
+    font-size: 12px;
+    padding: 3px 6px;
   }
   
-  .custom-button-ingreso {
-    position: relative;
-    padding: 8px 16px !important; /* Padding más pequeño para reducir el tamaño */
-    background-color: #4CAF50 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    border-radius: 5px !important;
-    margin-top: 10px !important;
-    width: 50% !important; /* O puedes poner un ancho específico si quieres un tamaño exacto */
-    font-size: 16px !important; /* Puedes ajustar el tamaño de la fuente si es necesario */
-    display: inline-block !important;
-    bottom: 0 !important; /* Para permitir el ajuste de ancho */
-    z-index: auto;
+  .mat-cell {
+    font-size: 11px !important;
+    padding: 6px;
   }
   
-  .disabled {
-    color: #ccc; 
-    pointer-events: none;  
+  .mat-header {
+    font-size: 10px !important;
+    padding: 8px 6px;
   }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 98%;
+    padding: 15px;
+  }
+  
+  .modal-content h2 {
+    font-size: 20px;
+  }
+  
+  .input-container label {
+    font-size: 14px;
+  }
+  
+  .input-usuario {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  
+  .input-rut {
+    padding-left: 40px;
+  }
+  
+  .button-bottom {
+    width: 200px !important;
+    font-size: 13px;
+    padding: 10px 16px;
+  }
+  
+  .direccion-text {
+    max-width: 100px;
+  }
+  
+  .rut-formatted {
+    min-width: 70px;
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  
+  .custom-button,
+  .custom-button-cancelar,
+  .custom-button-modificar {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}

@@ -1,161 +1,363 @@
+<!--labores-comercial.component.html - VERSIÓN MODERNIZADA-->
+
+<!-- ============================================ -->
+<!-- 🎯 CONTENEDOR PRINCIPAL Y BOTONES DE ACCIÓN -->
+<!-- ============================================ -->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
-
-    <button mat-raised-button color="primary" (click)=" openModal('crearLabor')">Crear Labor</button>
-
-    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)"  (click)="openModal('modificarLabor')" >Modificar Labor</button>
-      
-    <button mat-raised-button color="primary" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')" >Eliminar Labor</button>
     
-    <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearLabor']" (click)="closeModal('crearLabor')">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-                <div class="header-bar"></div>
-                <div class="title-container">
-                    <h2>Crear Labor</h2>
-                </div>
-            </div>
-            
-            <h3>Nombre Labor:</h3>
-            
-            <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="nombreLabor" (ngModelChange)="nombreLabor = $event.toUpperCase()"><br><br>
-            
-            <h3>Nombre Especie </h3>
-              
-            <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="nombreEspecieLabor" ><br><br>
-
-            <button mat-raised-button class="table-button" (click)="openModal('unidadControlModal')">Seleccionar Unidad Control</button>
+  <!-- Botones de acción principales -->
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button" 
+    (click)="openModal('crearLabor')">
+    CREAR LABOR
+  </button>
   
-            <!-- Modal para selección de Unidad Control  -->
-            <div id="AreasModales" class="modal-perfiles" *ngIf="modals['unidadControlModal']">
-                <div class="mini-modal">
-                    <div class="dropdown">
-                        <button class="dropdown-button" (click)="toggleDropdown()">SELECCIONAR UNIDAD CONTROL</button>
-                        <div id="area-dropdown" class="dropdown-content" [class.show]="dropdownOpen">
-                            <ng-container *ngFor="let unidad of unidadControlCargadas">
-                                <label [class.disabled]="selectedUnidadControlId !== null && selectedUnidadControlId !== unidad.id">
-                                    <input type="checkbox" [checked]="selectedUnidadControlId === unidad.id" (change)="toggleSelection(unidad.id)" [disabled]="selectedUnidadControlId !== null && selectedUnidadControlId !== unidad.id">
-                                    {{ unidad.nombre }}
-                                </label>
-                            </ng-container>
-                        </div>
-                    </div>
-                    <button class="custom-button-sociedades" (click)="closeModal('unidadControlModal')">OK</button>
-                </div>
-            </div>
-
-            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="crearLabor()">Crear Labor</button>
-        </div>
-    </div>
-
-    <div id="modalModificarLabor" class="modal-perfiles" *ngIf="modals['modificarLabor']" (click)="closeModal('modificarLabor')">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-                <div class="header-bar"></div>
-                <div class="title-container">
-                    <h2>Crear Labor</h2>
-                </div>
-            </div>
-            
-            <h3>Modificar Nombre Labor:</h3>
-            
-            <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="nombreLaborNew" (ngModelChange)="nombreLaborNew = $event.toUpperCase()"><br><br>
-            
-            <h3>Modificar Nombre Especie </h3>
-              
-            <input type="text" class="input-usuario" id="nombreUnidadControl" name="nombreUnidadControl" [(ngModel)]="nombreEspecieLaborNew" ><br><br>
-
-            <button mat-raised-button class="table-button" (click)="openModal('unidadControlModal')">Modificar Unidad Control Seleccionada</button>
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button-modificar" 
+    [disabled]="!(selectedRows.length > 0 && selectedRows.length < 2)" 
+    (click)="openModal('modificarLabor')">
+    MODIFICAR LABOR
+  </button>
   
-            <!-- Modal para selección de Unidad Control  -->
-            <div id="AreasModales" class="modal-perfiles" *ngIf="modals['unidadControlModal']">
-                <div class="mini-modal">
-                    <div class="dropdown">
-                        <button class="dropdown-button" (click)="toggleDropdown()">SELECCIONAR UNIDAD CONTROL</button>
-                        <div id="area-dropdown" class="dropdown-content" [class.show]="dropdownOpen">
-                            <ng-container *ngFor="let unidad of unidadControlCargadas">
-                                <label [class.disabled]="selectedUnidadControlNewId !== null && selectedUnidadControlNewId !== unidad.id">
-                                    <input type="checkbox" 
-                                    [checked]="selectedUnidadControlNewId === unidad.id" (change)="toggleSelectionUnidadControlSelectedNew(unidad.id)" 
-                                    [disabled]="selectedUnidadControlNewId !== null && selectedUnidadControlNewId !== unidad.id">
-                                    {{ unidad.nombre }}
-                                </label>
-                            </ng-container>
-                        </div>
-                    </div>
-                    <button class="custom-button-sociedades" (click)="closeModal('unidadControlModal')">OK</button>
-                </div>
-            </div>
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button-cancelar" 
+    [disabled]="!(selectedRows.length > 0)" 
+    (click)="openModal('confirmacionModal')">
+    ELIMINAR LABOR
+  </button>
 
-            <button class="custom-button-ingreso" id="ingresarUnidadControlBtn" (click)="modificarLabor()">Modificar Labor</button>
-        </div>
-    </div>
-        
-     
-    <table mat-table [dataSource]="laboresCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
-        
-        <ng-container matColumnDef="codigo">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Codigo </th>
-            <td mat-cell *matCellDef="let labor" class="mat-cell"> {{ labor.id }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="nombre">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
-            <td mat-cell *matCellDef="let labor" class="mat-cell"> {{ labor.nombre }} </td>
-        </ng-container>
-        
-        <ng-container matColumnDef="especie">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Especie </th>
-            <td mat-cell *matCellDef="let labor" class="mat-cell"> {{ labor.especie }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="unidad_control">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Unidad Control </th>
-            <td mat-cell *matCellDef="let labor" class="mat-cell"> {{ labor.nombre_unidad_control }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="estado">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Estado </th>
-            <td mat-cell *matCellDef="let labor" class="mat-cell">
-              <span *ngIf="labor.estado; else inactivo">ACTIVO</span>
-              <ng-template #inactivo>INNACTIVO</ng-template>
-            </td>
-        </ng-container>
-        
-        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL CREAR LABOR -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['crearLabor']" 
+    (click)="closeModal('crearLabor')">
     
-        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
-    </table>
-    
-</div>
-    
-<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
-        <div class="modal-content">
-            <h2 style="color:white;">¡Éxito!</h2>
-            <div class="exito-message" id="exitoText"></div>
-            <button class="custom-button" (click)="closeModal('exitoModal')" >Cerrar</button>
-        </div>
-</div>
+    <div class="modal-content" (click)="$event.stopPropagation()">
       
-<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
-        <div class="modal-content">
-            <h2 style="color:white;">¡Error!</h2>
-            <div class="error-icon-container">
-                <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
-            </div>
-            <div class="error-message" style="color:white;">{{ errorMessage }}</div>
-            <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
-        </div>
-</div>
+      <!-- Título modernizado -->
+      <h2>CREAR LABOR</h2>
       
-<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
-      <div class="modal-content">
-          <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
-          <div class="exito-message" id="exitoText"></div>
-          <!-- Botones para confirmar o cancelar la acción -->
-          <div class="modal-actions">
-              <button class="custom-button yes-button" (click)="eliminarLaborSeleccionadas()" >Sí</button>
-              <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
-          </div>
+      <!-- Sección de información básica -->
+      <div class="modal-section">
+        <h3>Información de la Labor</h3>
+        
+        <div class="input-container">
+          <label for="nombreLabor">Nombre Labor:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="nombreLabor" 
+            name="nombreLabor" 
+            [(ngModel)]="nombreLabor" 
+            (ngModelChange)="nombreLabor = $event.toUpperCase()"
+            placeholder="Ingrese el nombre de la labor">
+        </div>
+        
+        <div class="input-container">
+          <label for="nombreEspecieLabor">Nombre Especie:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="nombreEspecieLabor" 
+            name="nombreEspecieLabor" 
+            [(ngModel)]="nombreEspecieLabor"
+            placeholder="Ingrese el nombre de la especie">
+        </div>
       </div>
-</div>
+      
+      <!-- Sección de selección de unidad control -->
+      <div class="modal-section">
+        <h3>Unidad de Control</h3>
+        
+        <div class="selection-container">
+          <button 
+            class="dropdown-button-modern" 
+            (click)="openModal('unidadControlModal')">
+            <span class="button-text">
+              {{ selectedUnidadControlId ? 'Unidad Control Seleccionada' : 'SELECCIONAR UNIDAD CONTROL' }}
+            </span>
+            <span class="button-icon">📋</span>
+          </button>
+          
+          <div class="selected-item" *ngIf="selectedUnidadControlId">
+            <span class="item-label">Seleccionado:</span>
+            <span class="item-name">{{ getUnidadControlName(selectedUnidadControlId) }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Botón de acción -->
+      <div class="button-container">
+        <button 
+          class="button-bottom" 
+          (click)="crearLabor()">
+          Crear Labor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL MODIFICAR LABOR -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['modificarLabor']" 
+    (click)="closeModal('modificarLabor')">
     
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      
+      <!-- Título modernizado -->
+      <h2>MODIFICAR LABOR</h2>
+      
+      <!-- Sección de información básica -->
+      <div class="modal-section">
+        <h3>Información de la Labor</h3>
+        
+        <div class="input-container">
+          <label for="nombreLaborNew">Modificar Nombre Labor:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="nombreLaborNew" 
+            name="nombreLaborNew" 
+            [(ngModel)]="nombreLaborNew" 
+            (ngModelChange)="nombreLaborNew = $event.toUpperCase()"
+            placeholder="Ingrese el nuevo nombre de la labor">
+        </div>
+        
+        <div class="input-container">
+          <label for="nombreEspecieLaborNew">Modificar Nombre Especie:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="nombreEspecieLaborNew" 
+            name="nombreEspecieLaborNew" 
+            [(ngModel)]="nombreEspecieLaborNew"
+            placeholder="Ingrese el nuevo nombre de la especie">
+        </div>
+      </div>
+      
+      <!-- Sección de selección de unidad control -->
+      <div class="modal-section">
+        <h3>Unidad de Control</h3>
+        
+        <div class="selection-container">
+          <button 
+            class="dropdown-button-modern" 
+            (click)="openModal('unidadControlModal')">
+            <span class="button-text">
+              MODIFICAR UNIDAD CONTROL SELECCIONADA
+            </span>
+            <span class="button-icon">📋</span>
+          </button>
+          
+          <div class="selected-item" *ngIf="selectedUnidadControlNewId">
+            <span class="item-label">Seleccionado:</span>
+            <span class="item-name">{{ getUnidadControlName(selectedUnidadControlNewId) }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sección de estado -->
+      <div class="modal-section">
+        <h3>Estado de la Labor</h3>
+        
+        <div class="estado-container">
+          <label for="estadoLabor">Estado:</label>
+          <mat-slide-toggle 
+            id="estadoLabor"
+            [(ngModel)]="estadoLabor"
+            color="primary">
+            {{ estadoLabor ? 'ACTIVO' : 'INACTIVO' }}
+          </mat-slide-toggle>
+        </div>
+      </div>
+      
+      <!-- Botón de acción -->
+      <div class="button-container">
+        <button 
+          class="button-bottom" 
+          (click)="modificarLabor()">
+          Modificar Labor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL SELECCIÓN UNIDAD CONTROL -->
+  <!-- ============================================ -->
+  <div 
+    class="modal-overlay" 
+    *ngIf="modals['unidadControlModal']" 
+    (click)="closeModal('unidadControlModal')">
+    
+    <div class="modal-selection" (click)="$event.stopPropagation()">
+      
+      <div class="selection-header">
+        <h3>Seleccionar Unidad Control</h3>
+        <button class="close-button" (click)="closeModal('unidadControlModal')">✕</button>
+      </div>
+      
+      <div class="selection-content">
+        <div class="dropdown-container-modern">
+          <button class="dropdown-button-selection" (click)="toggleDropdown()">
+            <span>SELECCIONAR UNIDAD CONTROL</span>
+            <span class="dropdown-arrow">{{ dropdownOpen ? '▲' : '▼' }}</span>
+          </button>
+          
+          <div class="dropdown-content-modern" [class.show]="dropdownOpen">
+            <div 
+              *ngFor="let unidad of unidadControlCargadas" 
+              class="dropdown-item-modern"
+              [class.disabled]="selectedUnidadControlId !== null && selectedUnidadControlId !== unidad.id && modals['crearLabor']"
+              [class.disabled-new]="selectedUnidadControlNewId !== null && selectedUnidadControlNewId !== unidad.id && modals['modificarLabor']">
+              
+              <label class="checkbox-label-modern">
+                <input 
+                  type="checkbox" 
+                  class="checkbox-modern"
+                  [checked]="modals['crearLabor'] ? selectedUnidadControlId === unidad.id : selectedUnidadControlNewId === unidad.id"
+                  (change)="modals['crearLabor'] ? toggleSelection(unidad.id) : toggleSelectionUnidadControlSelectedNew(unidad.id)"
+                  [disabled]="(modals['crearLabor'] && selectedUnidadControlId !== null && selectedUnidadControlId !== unidad.id) || (modals['modificarLabor'] && selectedUnidadControlNewId !== null && selectedUnidadControlNewId !== unidad.id)">
+                <span class="checkbox-text">{{ unidad.nombre }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="selection-footer">
+        <button class="button-selection-ok" (click)="closeModal('unidadControlModal')">
+          CONFIRMAR SELECCIÓN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 TABLA DE LABORES -->
+  <!-- ============================================ -->
+  <table mat-table [dataSource]="laboresCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+    
+    <!-- Columna Código -->
+    <ng-container matColumnDef="codigo">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Código</th>
+      <td mat-cell *matCellDef="let labor" class="mat-cell">{{ labor.id }}</td>
+    </ng-container>
+    
+    <!-- Columna Nombre -->
+    <ng-container matColumnDef="nombre">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
+      <td mat-cell *matCellDef="let labor" class="mat-cell">{{ labor.nombre }}</td>
+    </ng-container>
+    
+    <!-- Columna Especie -->
+    <ng-container matColumnDef="especie">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Especie</th>
+      <td mat-cell *matCellDef="let labor" class="mat-cell">{{ labor.especie }}</td>
+    </ng-container>
+    
+    <!-- Columna Unidad Control -->
+    <ng-container matColumnDef="unidad_control">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Unidad Control</th>
+      <td mat-cell *matCellDef="let labor" class="mat-cell">{{ labor.nombre_unidad_control }}</td>
+    </ng-container>
+    
+    <!-- Columna Estado -->
+    <ng-container matColumnDef="estado">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Estado</th>
+      <td mat-cell *matCellDef="let labor" class="mat-cell">
+        <span class="estado-badge" [class.activo]="labor.estado" [class.inactivo]="!labor.estado">
+          {{ labor.estado ? 'ACTIVO' : 'INACTIVO' }}
+        </span>
+      </td>
+    </ng-container>
+    
+    <!-- Definición de filas -->
+    <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    <tr 
+      mat-row 
+      *matRowDef="let row; columns: columnasDesplegadas;" 
+      [class.selected]="isSelected(row)" 
+      (click)="selectRow(row)">
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL DE ÉXITO -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
+  <div class="modal-content-message success" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container success">
+      <div class="icon-circle success">✓</div>
+    </div>
+    
+    <h2 class="modal-title success">¡Éxito!</h2>
+    <p class="modal-message">La operación se ha completado exitosamente.</p>
+    
+    <div class="button-container">
+      <button class="button-bottom success" (click)="closeModal('exitoModal')">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL DE ERROR -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
+  <div class="modal-content-message error" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container error">
+      <div class="icon-circle error">✕</div>
+    </div>
+    
+    <h2 class="modal-title error">Error</h2>
+    <p class="modal-message">{{ errorMessage }}</p>
+    
+    <div class="button-container">
+      <button class="button-bottom error" (click)="closeModal('errorModal')">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL DE CONFIRMACIÓN -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
+  <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container confirmation">
+      <div class="icon-circle confirmation">?</div>
+    </div>
+    
+    <h2 class="modal-title confirmation">Confirmar eliminación</h2>
+    <p class="modal-message">
+      ¿Está seguro que desea eliminar la(s) labor(es) seleccionada(s)?
+    </p>
+    
+    <div class="button-container confirmation">
+      <button class="button-bottom confirm-yes" (click)="eliminarLaborSeleccionadas()">
+        Sí
+      </button>
+      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">
+        No
+      </button>
+    </div>
+  </div>
+</div>

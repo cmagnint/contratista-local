@@ -1,170 +1,341 @@
+<!--administrar-clientes.component.html - ADAPTADO CON ESTILOS MODERNOS DE PERFILES-->
+
+<!-- ============================================ -->
+<!-- 🎯 CONTENEDOR PRINCIPAL DE ADMINISTRAR CLIENTES -->
+<!-- ============================================ -->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
-    <button mat-raised-button color="primary" class="custom-button" (click)="openModal('crearCliente')">Crear Cliente</button>
     
-    <div id="modalCrearCliente" class="modal-perfiles" *ngIf="modals['crearCliente']" (click)="closeModal('crearCliente')">
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-        
-          <div class="title-container">
-            <h2>Crear Cliente</h2>
-          </div>
+  <!-- Botones de acción principales -->
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button" 
+    (click)="openModal('crearCliente')">
+    CREAR CLIENTE
+  </button>
+  
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button-modificar" 
+    [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" 
+    (click)="openModal('modificarCliente')">
+    MODIFICAR CLIENTE
+  </button>
+  
+  <button 
+    mat-raised-button 
+    color="primary" 
+    class="custom-button-cancelar" 
+    [disabled]="!(selectedRows.length>0)" 
+    (click)="openModal('confirmacionModal')">
+    ELIMINAR CLIENTE(S)
+  </button>
+    
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL CREAR CLIENTE -->
+  <!-- ============================================ -->
+  <div 
+    id="modalCrearCliente" 
+    class="modal-perfiles" 
+    *ngIf="modals['crearCliente']" 
+    (click)="closeModal('crearCliente')">
+      
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="title-container">
+          <h2>Crear Cliente</h2>
         </div>
+      </div>
+      
+      <h2>CREAR CLIENTE</h2>
+      
+      <h3>RUT Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="rutCliente" 
+        (input)="formatRUT($event)"
+        placeholder="Ej: 12.345.678-9">
+
+      <h3>Nombre Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="nombreCliente" 
+        (ngModelChange)="nombreCliente = $event.toUpperCase()"
+        placeholder="Ingrese el nombre del cliente">
+
+      <h3>Dirección Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="direccionCliente"
+        placeholder="Ingrese la dirección del cliente">
+
+      <h3>Giro Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="giroCliente"
+        placeholder="Ingrese el giro comercial">
+
+      <h3>Representante Legal:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        placeholder="Nombre Representante Legal" 
+        [(ngModel)]="nombreRepresentanteLegal">
+      
+      <input 
+        type="text" 
+        class="input-usuario" 
+        placeholder="Dirección Representante Legal" 
+        [(ngModel)]="direccionRepresentanteLegal">
+
+      <!-- Sección de campos personalizados -->
+      <div class="campos-section">
+        <h3>Agregar Campo(s) Personalizados:</h3>
         
-        <h3>Nombre Cliente:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="nombreCliente" (ngModelChange)="nombreCliente = $event.toUpperCase()"><br><br>
-  
-        <h3>RUT Cliente:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="rutCliente" (input)="formatRUT($event)"><br><br>
-  
-        <h3>Direccion Cliente:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="direccionCliente"><br><br>
-  
-        <h3>Giro Cliente:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="giroCliente"><br><br>
-  
-        <h3>Representante Legal:</h3>
-        <input type="text" class="input-usuario" placeholder="Nombre Representante Legal" [(ngModel)]="nombreRepresentanteLegal"><br><br>
-        <input type="text" class="input-usuario" placeholder="RUT Representante Legal" [(ngModel)]="RUTRepresentanteLegal" (input)="formatRUT($event)"><br><br>
-        <input type="text" class="input-usuario" placeholder="Dirección Representante Legal" [(ngModel)]="direccionRepresentanteLegal"><br><br>
-  
-        <h3>Agregar Campo(s):</h3>
-        <input type="text" class="input-usuario" placeholder="Nombre" [(ngModel)]="nuevoCampo.nombre"><br><br>
-        <input type="text" class="input-usuario" placeholder="Dirección" [(ngModel)]="nuevoCampo.direccion"><br><br>
-        <input type="text" class="input-usuario" placeholder="Comuna" [(ngModel)]="nuevoCampo.comuna"><br><br>
-        <button class="custom-button-ingreso" (click)="agregarCampo()">Añadir Campo</button><br><br>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          placeholder="Nombre del campo" 
+          [(ngModel)]="nuevoCampo.nombre">
         
-        <div *ngIf="campos.length > 0">
+        <input 
+          type="text" 
+          class="input-usuario" 
+          placeholder="Dirección del campo" 
+          [(ngModel)]="nuevoCampo.direccion">
+        
+        <input 
+          type="text" 
+          class="input-usuario" 
+          placeholder="Comuna del campo" 
+          [(ngModel)]="nuevoCampo.comuna">
+        
+        <button 
+          class="custom-button-ingreso add-campo-button" 
+          (click)="agregarCampo()">
+          AÑADIR CAMPO
+        </button>
+        
+        <!-- Lista de campos agregados -->
+        <div *ngIf="campos.length > 0" class="campos-list">
           <ul>
-            <li *ngFor="let campo of campos; let i = index">
+            <li *ngFor="let campo of campos; let i = index" class="campo-item">
               <h1>{{ campo.nombre }}</h1>
-              <h3>Direccion: {{ campo.direccion }}</h3>
+              <h3>Dirección: {{ campo.direccion }}</h3>
               <h3>Comuna: {{ campo.comuna }}</h3>
-              <button (click)="eliminarCampo(i)">Eliminar</button>
+              <button (click)="eliminarCampo(i)">ELIMINAR</button>
             </li>
           </ul>
         </div>
-  
-        <button class="custom-button-ingreso" (click)="crearCliente()">Crear Cliente</button>
+      </div>
+
+      <div class="button-container">
+        <button class="custom-button-ingreso" (click)="crearCliente()">
+          CREAR CLIENTE
+        </button>
       </div>
     </div>
-  
-    <div id="modalmodificarCliente" class="modal-perfiles" *ngIf="modals['modificarCliente']" (click)="closeModal('modificarCliente')">
-      <div class="modal-content" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <span class="close" (click)="closeModal('modificarCliente')">&times;</span>
-          <div class="header-bar"></div>
-          <div class="title-container">
-            <h2>Modificar Cliente </h2>
-          </div>
-        </div>
-  
-        <h3>Modificar Nombre Cliente:</h3>
-        <input type="text" class="input-perfil" [(ngModel)]="nombreClienteNew" (ngModelChange)="nombreClienteNew = $event.toUpperCase()"><br><br>
-  
-        <h3>Modificar RUT Cliente:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="rutClienteNew" (input)="formatRUT($event)"><br><br>
-  
-        <h3>Modificar Direccion Usuario:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="direccionClienteNew"><br><br>
-  
-        <h3>Modificar Giro Usuario:</h3>
-        <input type="text" class="input-usuario" [(ngModel)]="giroClienteNew"><br><br>
-  
-        <div *ngIf="camposNew.length > 0">
-          <h3>Campos:</h3>
-          <ul>
-            <li *ngFor="let campo of camposNew; let i = index">
-              <h3>Nombre:</h3>
-              <input type="text" [(ngModel)]="campo.nombre_campo"><br><br>
-              <h3>Direccion:</h3>
-              <input type="text" [(ngModel)]="campo.direccion_campo"><br><br>
-              <h3>Comuna:</h3>
-              <input type="text" [(ngModel)]="campo.comuna_campo"><br><br>
-            </li>
-          </ul>
-        </div>
-        
-        <button class="custom-button-ingreso" (click)="modificarCliente()">Modificar Perfil</button>
-      </div>
-    </div>
-  
-    <button mat-raised-button color="primary" class="custom-button" [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" (click)="openModal('modificarCliente')">Modificar Cliente</button>
-    <button mat-raised-button color="primary" class="custom-button" [disabled]="!(selectedRows.length>0)" (click)="openModal('confirmacionModal')">Eliminar Cliente(s)</button>
-  
-    <table mat-table [dataSource]="clientesCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
-      
-        <ng-container matColumnDef="rut">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> RUT </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell"> {{ formatRUTString(cliente.rut) }} </td>
-      </ng-container>
-      
-      <ng-container matColumnDef="nombre">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell"> {{ cliente.nombre }} </td>
-      </ng-container>
-      
-      <ng-container matColumnDef="direccion">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> Direccion </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell"> {{ cliente.direccion }} </td>
-      </ng-container>
-      
-      <ng-container matColumnDef="giro">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> Giro </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell"> {{ cliente.giro }} </td>
-      </ng-container>
-  
-      <ng-container matColumnDef="campos_personalizados">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> Campos </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell">
-          <span *ngFor="let campo of cliente.campos_personalizados; let i = index">
-            {{ campo.nombre_campo }}{{i < cliente.campos_personalizados.length - 1 ? ', ' : ''}}
-          </span>
-        </td>
-      </ng-container>
-  
-      <ng-container matColumnDef="nombre_rep">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre Representante  </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell"> {{ cliente.nombre_rep_legal }} </td>
-      </ng-container>
-  
-      <ng-container matColumnDef="rut_rep">
-        <th mat-header-cell *matHeaderCellDef class="mat-header"> RUT Representante  </th>
-        <td mat-cell *matCellDef="let cliente" class="mat-cell"> {{ formatRUTString(cliente.rut_rep_legal) }} </td>
-      </ng-container>
-  
-      <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
-      <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" [class.selected]="isSelected(row)" (click)="selectRow(row)"></tr>
-    </table>
   </div>
-  
-  <div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
-    <div class="modal-content">
-      <h2 style="color:white;">¡Éxito!</h2>
-      <div class="exito-message" id="exitoText"></div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL MODIFICAR CLIENTE -->
+  <!-- ============================================ -->
+  <div 
+    id="modalmodificarCliente" 
+    class="modal-perfiles" 
+    *ngIf="modals['modificarCliente']" 
+    (click)="closeModal('modificarCliente')">
+      
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <span class="close" (click)="closeModal('modificarCliente')">&times;</span>
+        <div class="header-bar"></div>
+        <div class="title-container">
+          <h2>Modificar Cliente</h2>
+        </div>
+      </div>
+
+      <h2>MODIFICAR CLIENTE</h2>
+      
+      <h3>Modificar RUT Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="rutClienteNew" 
+        (input)="formatRUT($event)"
+        placeholder="Ej: 12.345.678-9">
+
+      <h3>Modificar Nombre Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-perfil" 
+        [(ngModel)]="nombreClienteNew" 
+        (ngModelChange)="nombreClienteNew = $event.toUpperCase()"
+        placeholder="Ingrese el nuevo nombre">
+
+      <h3>Modificar Dirección Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="direccionClienteNew"
+        placeholder="Ingrese la nueva dirección">
+
+      <h3>Modificar Giro Cliente:</h3>
+      <input 
+        type="text" 
+        class="input-usuario" 
+        [(ngModel)]="giroClienteNew"
+        placeholder="Ingrese el nuevo giro">
+      
+      <!-- 🆕 SECCIÓN PARA MODIFICAR REPRESENTANTE LEGAL -->
+      <div class="representante-legal-section">
+        <h3>Modificar Nombre Representante Legal:</h3>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          [(ngModel)]="nombreRepresentanteLegalNew"
+          placeholder="Nuevo nombre del representante legal">
+        
+        <h3>Modificar Dirección Representante Legal:</h3>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          [(ngModel)]="direccionRepresentanteLegalNew"
+          placeholder="Nueva dirección del representante legal">
+      </div>
+
+
+      <!-- Campos personalizados existentes -->
+      <div *ngIf="camposNew.length > 0" class="campos-section">
+        <h3>Campos Personalizados:</h3>
+        <div class="campos-list">
+          <ul>
+            <li *ngFor="let campo of camposNew; let i = index" class="campo-item">
+              <h3>Nombre:</h3>
+              <input 
+                type="text" 
+                class="input-usuario" 
+                [(ngModel)]="campo.nombre_campo"
+                placeholder="Nombre del campo">
+              
+              <h3>Dirección:</h3>
+              <input 
+                type="text" 
+                class="input-usuario" 
+                [(ngModel)]="campo.direccion_campo"
+                placeholder="Dirección del campo">
+              
+              <h3>Comuna:</h3>
+              <input 
+                type="text" 
+                class="input-usuario" 
+                [(ngModel)]="campo.comuna_campo"
+                placeholder="Comuna del campo">
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="button-container">
+        <button class="custom-button-ingreso" (click)="modificarCliente()">
+          MODIFICAR CLIENTE
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 TABLA DE CLIENTES -->
+  <!-- ============================================ -->
+  <table mat-table [dataSource]="clientesCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+      
+    <ng-container matColumnDef="rut">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
+      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ formatRUTString(cliente.rut) }}</td>
+    </ng-container>
+    
+    <ng-container matColumnDef="nombre">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
+      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.nombre }}</td>
+    </ng-container>
+    
+    <ng-container matColumnDef="direccion">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Dirección</th>
+      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.direccion }}</td>
+    </ng-container>
+    
+    <ng-container matColumnDef="giro">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Giro</th>
+      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.giro }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="campos_personalizados">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Campos</th>
+      <td mat-cell *matCellDef="let cliente" class="mat-cell">
+        <span *ngFor="let campo of cliente.campos_personalizados; let i = index">
+          {{ campo.nombre_campo }}{{i < cliente.campos_personalizados.length - 1 ? ', ' : ''}}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="nombre_rep">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre Representante</th>
+      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.nombre_rep_legal }}</td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    <tr 
+      mat-row 
+      *matRowDef="let row; columns: columnasDesplegadas;" 
+      [class.selected]="isSelected(row)" 
+      (click)="selectRow(row)">
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODALES DE NOTIFICACIÓN -->
+<!-- ============================================ -->
+
+<!-- Modal de éxito -->
+<div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h2>¡Éxito!</h2>
+    <div class="exito-message" id="exitoText">La operación se ha completado exitosamente.</div>
+    <div class="button-container">
       <button class="custom-button" (click)="closeModal('exitoModal')">Cerrar</button>
     </div>
   </div>
-  
-  <div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
-    <div class="modal-content">
-      <h2 style="color:white;">¡Error!</h2>
-      <div class="error-icon-container">
-        <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
-      </div>
-      <div class="error-message" style="color:white;">{{ errorMessage }}</div>
+</div>
+
+<!-- Modal de error -->
+<div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h2>¡Error!</h2>
+    <div class="error-icon-container">
+      <i class="fas fa-exclamation-triangle icon-exclamation-triangle"></i>
+    </div>
+    <div class="error-message">{{ errorMessage }}</div>
+    <div class="button-container">
       <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
     </div>
   </div>
-  
-  <div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
-    <div class="modal-content">
-      <h2 style="color:white;">¿Desea eliminar el(los) usuario(s) seleccionado(s)?</h2>
-      <div class="exito-message" id="exitoText"></div>
-      <!-- Botones para confirmar o cancelar la acción -->
-      <div class="modal-actions">
-        <button class="custom-button yes-button" (click)="eliminarClientesSeleccionados()">Sí</button>
-        <button class="custom-button no-button" (click)="closeModal('confirmacionModal')">No</button>
-      </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <h2>¿Desea eliminar el(los) cliente(s) seleccionado(s)?</h2>
+    <div class="exito-message" id="exitoText">Esta acción no se puede deshacer.</div>
+    
+    <div class="modal-actions">
+      <button class="yes-button" (click)="eliminarClientesSeleccionados()">Sí</button>
+      <button class="no-button" (click)="closeModal('confirmacionModal')">No</button>
     </div>
   </div>
-  
+</div>
