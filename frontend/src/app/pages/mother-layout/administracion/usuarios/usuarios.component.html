@@ -1,4 +1,4 @@
-<!--usuarios.component.html - ADAPTADO CON ESTILOS MODERNOS DE PERFILES-->
+<!--usuarios.component.html - SIN MODAL DE ADVERTENCIA-->
 
 <!-- ============================================ -->
 <!-- 🎯 CONTENEDOR PRINCIPAL DE USUARIOS -->
@@ -53,10 +53,10 @@
 
       <h3>Seleccionar Personal:</h3>
       <select 
-        class="input-usuario" 
+        class="input-usuario select-personal" 
         [(ngModel)]="selectedPersonalId" 
         (change)="onPersonalSelected($any($event.target).value)">
-        <option value="">Seleccione una persona</option>
+        <option value="" disabled selected>Seleccione una persona</option>
         <option *ngFor="let personal of personalDisponible" [value]="personal.id">
           {{personal.nombre_completo}} - {{personal.rut}}
         </option>
@@ -86,36 +86,26 @@
         readonly
         placeholder="Se completará automáticamente">
       
-      <button 
-        mat-raised-button 
-        class="table-button custom-button" 
-        (click)="openModal('perfilesModal')">
-        SELECCIONAR PERFILES
-      </button>
-      
-      <!-- Modal para selección de Perfiles -->
-      <div id="perfilesModales" class="modal-perfiles" *ngIf="modals['perfilesModal']">
-        <div class="mini-modal">
-          <div class="dropdown">
-            <button class="dropdown-button" (click)="toggleDropdown()">
-              SELECCIONAR PERFIL
-            </button>
-            <div id="perfiles-dropdown" class="dropdown-content" [class.show]="dropdownOpen"> 
-              <ng-container *ngFor="let perfil of perfilesCargados">
-                <label [class.disabled]="selectedPerfilId !== null && selectedPerfilId !== perfil.id">
-                  <input 
-                    type="checkbox"
-                    [checked]="selectedPerfilId === perfil.id"
-                    (change)="toggleSelectionPerfil(perfil.id)"
-                    [disabled]="selectedPerfilId !== null && selectedPerfilId !== perfil.id">
-                  {{ perfil.nombre_perfil }}
-                </label>
-              </ng-container>
-            </div>
-          </div>
-          <button class="custom-button-sociedades" (click)="closeModal('perfilesModal')">
-            CONFIRMAR
-          </button>
+      <!-- ✨ NUEVO: Dropdown directo para perfiles -->
+      <h3>Seleccionar Perfil:</h3>
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdownPerfiles()">
+          {{getSelectedPerfilName()}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownOpenPerfiles"> 
+          <ng-container *ngFor="let perfil of perfilesCargados">
+            <label [class.disabled]="(selectedPerfilId !== null && selectedPerfilId !== perfil.id) || isPerfilDisabled(perfil)">
+              <input 
+                type="checkbox"
+                [checked]="selectedPerfilId === perfil.id"
+                (change)="toggleSelectionPerfil(perfil.id)"
+                [disabled]="(selectedPerfilId !== null && selectedPerfilId !== perfil.id) || isPerfilDisabled(perfil)">
+              {{ perfil.nombre_perfil }}
+              <span *ngIf="isPerfilDisabled(perfil)" class="disabled-reason">
+                (No hay supervisores disponibles)
+              </span>
+            </label>
+          </ng-container>
         </div>
       </div>
 
@@ -123,48 +113,35 @@
       <div *ngIf="isJefeCuadrilla()">
         <h3>Supervisor Asignado:</h3>
         <select class="input-usuario" [(ngModel)]="selectedSupervisorId">
-          <option value="">Seleccione un supervisor</option>
+          <option value="" disabled>Seleccione un supervisor</option>
           <option *ngFor="let supervisor of supervisoresCargados" [value]="supervisor.usuario">
             {{supervisor.usuario_nombre}} - {{supervisor.usuario_rut}}
           </option>
         </select>
       </div>
         
-      <button 
-        mat-raised-button 
-        class="table-button custom-button" 
-        (click)="openModal('sociedadesModal')">
-        SELECCIONAR SOCIEDADES
-      </button>
-
-      <!-- Modal para selección de sociedades -->
-      <div id="sociedadesModales" class="modal-perfiles" *ngIf="modals['sociedadesModal']">
-        <div class="mini-modal">
-          <div class="dropdown">
-            <button class="dropdown-button" (click)="toggleDropdown()">
-              SELECCIONAR SOCIEDADES
-            </button>
-            <div id="sociedades-dropdown" class="dropdown-content" [class.show]="dropdownOpen"> 
-              <label>
-                <input 
-                  type="checkbox" 
-                  (change)="selectAllSociedades($any($event.target).checked)">
-                Seleccionar Todas
-              </label>
-              <ng-container *ngFor="let sociedad of sociedadesCargadas">
-                <label>
-                  <input 
-                    type="checkbox" 
-                    [checked]="selectedSociedades.includes(sociedad.id)"
-                    (change)="toggleSelection(sociedad.id, selectedSociedades, sociedadesCargadas)">
-                  {{ sociedad.name }}
-                </label>
-              </ng-container>
-            </div>
-          </div>
-          <button class="custom-button-sociedades" (click)="closeModal('sociedadesModal')">
-            CONFIRMAR
-          </button>
+      <!-- ✨ NUEVO: Dropdown directo para sociedades -->
+      <h3>Seleccionar Sociedades:</h3>
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdownSociedades()">
+          SELECCIONAR SOCIEDADES
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownOpenSociedades"> 
+          <label>
+            <input 
+              type="checkbox" 
+              (change)="selectAllSociedades($any($event.target).checked)">
+            Seleccionar Todas
+          </label>
+          <ng-container *ngFor="let sociedad of sociedadesCargadas">
+            <label>
+              <input 
+                type="checkbox" 
+                [checked]="selectedSociedades.includes(sociedad.id)"
+                (change)="toggleSelection(sociedad.id, selectedSociedades, sociedadesCargadas)">
+              {{ sociedad.name }}
+            </label>
+          </ng-container>
         </div>
       </div>
       
@@ -223,74 +200,48 @@
         readonly
         placeholder="Email del usuario">
       
-      <button 
-        mat-raised-button 
-        class="table-button custom-button" 
-        (click)="openModal('perfilesModal')">
-        MODIFICAR PERFIL
-      </button>
-      
-      <button 
-        mat-raised-button 
-        class="table-button custom-button" 
-        (click)="openModal('sociedadesModal')">
-        MODIFICAR SOCIEDADES
-      </button>
-      
-      <!-- Modal para selección de sociedades en modificar -->
-      <div id="sociedadesModalesModificar" class="modal-perfiles" *ngIf="modals['sociedadesModal']">
-        <div class="mini-modal">
-          <div class="dropdown">
-            <button class="dropdown-button" (click)="toggleDropdown()">
-              SELECCIONAR SOCIEDADES
-            </button>
-            <div id="sociedades-dropdown" class="dropdown-content" [class.show]="dropdownOpen"> 
-              <label>
-                <input 
-                  type="checkbox"
-                  (change)="selectAllSociedadesNew($any($event.target).checked)">
-                Seleccionar Todas
-              </label>
-              <ng-container *ngFor="let sociedad of sociedadesCargadas">
-                <label>
-                  <input 
-                    type="checkbox" 
-                    [checked]="selectedSociedadesNew.includes(sociedad.id)"
-                    (change)="toggleSelection(sociedad.id, selectedSociedadesNew, sociedadesCargadas)">
-                  {{ sociedad.name }}
-                </label>
-              </ng-container>
-            </div>
-          </div>
-          <button class="custom-button-sociedades" (click)="closeModal('sociedadesModal')">
-            CONFIRMAR
-          </button>
+      <!-- ✨ NUEVO: Dropdown directo para perfiles en modificar -->
+      <h3>Modificar Perfil:</h3>
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdownPerfiles()">
+          {{getSelectedPerfilName()}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownOpenPerfiles"> 
+          <ng-container *ngFor="let perfil of perfilesCargados">
+            <label>
+              <input 
+                type="checkbox"
+                [checked]="selectedPerfilId === perfil.id"
+                (change)="toggleSelectionPerfil(perfil.id)"
+                [disabled]="selectedPerfilId !== null && selectedPerfilId !== perfil.id">
+              {{ perfil.nombre_perfil }}
+            </label>
+          </ng-container>
         </div>
       </div>
       
-      <!-- Modal para selección de PERFILES en modificar -->
-      <div id="perfilesModalesModificar" class="modal-perfiles" *ngIf="modals['perfilesModal']">
-        <div class="mini-modal">
-          <div class="dropdown">
-            <button class="dropdown-button" (click)="toggleDropdown()">
-              SELECCIONAR PERFILES
-            </button>
-            <div id="perfiles-dropdown" class="dropdown-content" [class.show]="dropdownOpen"> 
-              <ng-container *ngFor="let perfil of perfilesCargados">
-                <label>
-                  <input 
-                    type="checkbox"
-                    [checked]="selectedPerfilId === perfil.id"
-                    (change)="toggleSelectionPerfil(perfil.id)"
-                    [disabled]="selectedPerfilId !== null && selectedPerfilId !== perfil.id">
-                  {{ perfil.nombre_perfil }}
-                </label>
-              </ng-container>
-            </div>
-          </div>
-          <button class="custom-button-sociedades" (click)="closeModal('perfilesModal')">
-            CONFIRMAR
-          </button>
+      <!-- ✨ NUEVO: Dropdown directo para sociedades en modificar -->
+      <h3>Modificar Sociedades:</h3>
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdownSociedades()">
+          SELECCIONAR SOCIEDADES
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownOpenSociedades"> 
+          <label>
+            <input 
+              type="checkbox"
+              (change)="selectAllSociedadesNew($any($event.target).checked)">
+            Seleccionar Todas
+          </label>
+          <ng-container *ngFor="let sociedad of sociedadesCargadas">
+            <label>
+              <input 
+                type="checkbox" 
+                [checked]="selectedSociedadesNew.includes(sociedad.id)"
+                (change)="toggleSelection(sociedad.id, selectedSociedadesNew, sociedadesCargadas)">
+              {{ sociedad.name }}
+            </label>
+          </ng-container>
         </div>
       </div>
       
@@ -384,21 +335,7 @@
   </div>
 </div>
 
-<!-- ✨ NUEVO: Modal de advertencia -->
-<div id="advertenciaModal" class="modal-perfiles" *ngIf="modals['advertenciaModal']" (click)="closeModal('advertenciaModal')">
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <h2>¡Advertencia!</h2>
-    <div class="warning-icon-container">
-      <i class="fas fa-exclamation-triangle icon-warning-triangle"></i>
-    </div>
-    <div class="warning-message">{{advertenciaMessage}}</div>
-    <div class="button-container">
-      <button class="custom-button" (click)="closeModal('advertenciaModal')">Entendido</button>
-    </div>
-  </div>
-</div>
-
-<!-- ✨ NUEVO: Modal de loading -->
+<!-- Modal de loading -->
 <div id="loadingModal" class="modal-perfiles" *ngIf="modals['loadingModal']">
   <div class="modal-content loading-modal" (click)="$event.stopPropagation()">
     <div class="loading-content">

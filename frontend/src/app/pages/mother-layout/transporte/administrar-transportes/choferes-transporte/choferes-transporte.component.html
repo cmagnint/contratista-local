@@ -1,4 +1,4 @@
-<!--choferes-transporte.component.html - VERSIÓN MODERNIZADA-->
+<!--choferes-transporte.component.html - VERSIÓN CORREGIDA COMPLETAMENTE-->
 
 <!-- ============================================ -->
 <!-- 🎯 CONTENEDOR PRINCIPAL Y BOTONES DE ACCIÓN -->
@@ -129,6 +129,113 @@
           </div>
         </div>
       </div>
+
+      <!-- SECCIÓN DE IMÁGENES -->
+      <div class="modal-section">
+        <h3>Imágenes del Chofer</h3>
+        
+        <div class="files-grid">
+          <!-- Licencia Frontal -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🪪 Licencia Frontal</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelect($event, 'foto_licencia_frontal')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Seleccionar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenes['foto_licencia_frontal']">
+              <img [src]="previewImagenes['foto_licencia_frontal']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImage('foto_licencia_frontal')">✕</button>
+            </div>
+          </div>
+
+          <!-- Licencia Trasera -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🪪 Licencia Trasera</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelect($event, 'foto_licencia_trasera')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Seleccionar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenes['foto_licencia_trasera']">
+              <img [src]="previewImagenes['foto_licencia_trasera']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImage('foto_licencia_trasera')">✕</button>
+            </div>
+          </div>
+
+          <!-- Carnet Frontal -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🆔 Carnet Frontal</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelect($event, 'foto_cedula_frontal')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Seleccionar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenes['foto_cedula_frontal']">
+              <img [src]="previewImagenes['foto_cedula_frontal']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImage('foto_cedula_frontal')">✕</button>
+            </div>
+          </div>
+
+          <!-- Carnet Trasero -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🆔 Carnet Trasero</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelect($event, 'foto_cedula_trasera')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Seleccionar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenes['foto_cedula_trasera']">
+              <img [src]="previewImagenes['foto_cedula_trasera']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImage('foto_cedula_trasera')">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DE DOCUMENTOS -->
+      <div class="modal-section">
+        <h3>Documentos Adicionales</h3>
+        
+        <div class="document-upload-container">
+          <label class="file-upload-label-docs">
+            <span class="file-label-text">📄 Documentos (PDF, Excel, Word, TXT)</span>
+            <input 
+              type="file" 
+              multiple 
+              accept=".pdf,.xlsx,.xls,.doc,.docx,.txt" 
+              (change)="onDocumentSelect($event)"
+              class="file-input-hidden">
+            <span class="file-upload-button-docs">Seleccionar Documentos</span>
+          </label>
+          
+          <div class="documents-list" *ngIf="documentos.length > 0">
+            <h4>Documentos Seleccionados:</h4>
+            <div 
+              *ngFor="let doc of documentos; let i = index" 
+              class="document-item">
+              <span class="document-name">{{ doc.name }}</span>
+              <button class="remove-doc-btn" (click)="removeDocument(i)">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <!-- Botón de acción -->
       <div class="button-container">
@@ -142,7 +249,7 @@
   </div>
 
   <!-- ============================================ -->
-  <!-- 🎯 MODAL MODIFICAR CHOFER -->
+  <!-- 🎯 MODAL MODIFICAR CHOFER - CORREGIDO -->
   <!-- ============================================ -->
   <div 
     class="modal" 
@@ -246,9 +353,150 @@
             </div>
           </div>
           
+          <!-- CORREGIDO: Mostrar vehículo seleccionado -->
           <div class="selected-item" *ngIf="selectedVehiculoId">
             <span class="item-label">Vehículo:</span>
             <span class="item-name">{{ getVehiculoName(selectedVehiculoId) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DE IMÁGENES EXISTENTES Y MODIFICACIÓN -->
+      <div class="modal-section">
+        <h3>Modificar Imágenes del Chofer</h3>
+        
+        <!-- Mostrar imágenes existentes -->
+        <div class="existing-images-section" *ngIf="getObjectKeys(imagenesExistentesChofer).length > 0">
+          <h4>Imágenes Actuales:</h4>
+          <div class="existing-images-grid">
+            <div *ngFor="let key of getObjectKeys(imagenesExistentesChofer)" class="existing-image-item">
+              <div class="image-type-label">{{ key.replace('foto_', '').replace('_', ' ') | titlecase }}</div>
+              <div class="existing-image-container" *ngIf="imagenesExistentesChofer[key]">
+                <img [src]="imagenesExistentesChofer[key]" alt="Imagen actual" class="existing-image-thumb" 
+                     (click)="abrirImagenEnModal(imagenesExistentesChofer[key], key)">
+                <div class="image-overlay">
+                  <button class="view-image-btn" (click)="abrirImagenEnModal(imagenesExistentesChofer[key], key)">👁️</button>
+                </div>
+              </div>
+              <div class="no-image-placeholder" *ngIf="!imagenesExistentesChofer[key]">
+                <span>Sin imagen</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="files-grid">
+          <!-- Licencia Frontal -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🪪 Cambiar Licencia Frontal</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelectModificar($event, 'foto_licencia_frontal')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Cambiar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenesModificar['foto_licencia_frontal']">
+              <img [src]="previewImagenesModificar['foto_licencia_frontal']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImageModificar('foto_licencia_frontal')">✕</button>
+            </div>
+          </div>
+
+          <!-- Licencia Trasera -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🪪 Cambiar Licencia Trasera</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelectModificar($event, 'foto_licencia_trasera')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Cambiar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenesModificar['foto_licencia_trasera']">
+              <img [src]="previewImagenesModificar['foto_licencia_trasera']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImageModificar('foto_licencia_trasera')">✕</button>
+            </div>
+          </div>
+
+          <!-- Carnet Frontal -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🆔 Cambiar Carnet Frontal</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelectModificar($event, 'foto_cedula_frontal')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Cambiar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenesModificar['foto_cedula_frontal']">
+              <img [src]="previewImagenesModificar['foto_cedula_frontal']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImageModificar('foto_cedula_frontal')">✕</button>
+            </div>
+          </div>
+
+          <!-- Carnet Trasero -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">🆔 Cambiar Carnet Trasero</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                (change)="onImageSelectModificar($event, 'foto_cedula_trasera')"
+                class="file-input-hidden">
+              <span class="file-upload-button">Cambiar</span>
+            </label>
+            
+            <div class="file-preview" *ngIf="previewImagenesModificar['foto_cedula_trasera']">
+              <img [src]="previewImagenesModificar['foto_cedula_trasera']" alt="Preview" class="image-preview">
+              <button class="remove-file-btn" (click)="removeImageModificar('foto_cedula_trasera')">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DE DOCUMENTOS EXISTENTES Y MODIFICACIÓN -->
+      <div class="modal-section">
+        <h3>Modificar Documentos Adicionales</h3>
+        
+        <!-- Mostrar documentos existentes -->
+        <div class="existing-documents-section" *ngIf="documentosExistentesChofer.length > 0">
+          <h4>Documentos Actuales:</h4>
+          <div class="existing-documents-list">
+            <div 
+              *ngFor="let docUrl of documentosExistentesChofer" 
+              class="existing-document-item">
+              <span class="existing-document-name">{{ getNombreArchivoDesdeUrl(docUrl) }}</span>
+              <button class="download-doc-btn" (click)="descargarDocumento(docUrl, getNombreArchivoDesdeUrl(docUrl))">⬇️ Descargar</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="document-upload-container">
+          <label class="file-upload-label-docs">
+            <span class="file-label-text">📄 Agregar Nuevos Documentos (PDF, Excel, Word, TXT)</span>
+            <input 
+              type="file" 
+              multiple 
+              accept=".pdf,.xlsx,.xls,.doc,.docx,.txt" 
+              (change)="onDocumentSelectModificar($event)"
+              class="file-input-hidden">
+            <span class="file-upload-button-docs">Agregar Documentos</span>
+          </label>
+          
+          <div class="documents-list" *ngIf="documentosModificar.length > 0">
+            <h4>Nuevos Documentos:</h4>
+            <div 
+              *ngFor="let doc of documentosModificar; let i = index" 
+              class="document-item">
+              <span class="document-name">{{ doc.name }}</span>
+              <button class="remove-doc-btn" (click)="removeDocumentModificar(i)">✕</button>
+            </div>
           </div>
         </div>
       </div>
@@ -368,7 +616,33 @@
   </div>
 
   <!-- ============================================ -->
-  <!-- 🎯 TABLA DE CHOFERES -->
+  <!-- 🎯 NUEVO: MODAL PARA VER IMAGEN -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['imageViewModal']" 
+    (click)="closeModal('imageViewModal')">
+    
+    <div class="modal-content-image" (click)="$event.stopPropagation()">
+      <div class="image-view-header">
+        <h3>{{ tipoImagenEnVisualizacion.replace('foto_', '').replace('_', ' ') | titlecase }}</h3>
+        <button class="close-button-image" (click)="closeModal('imageViewModal')">✕</button>
+      </div>
+      
+      <div class="image-view-container">
+        <img [src]="imagenEnVisualizacion" alt="Imagen del chofer" class="image-view-full">
+      </div>
+      
+      <div class="image-view-footer">
+        <button class="button-bottom" (click)="closeModal('imageViewModal')">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 TABLA DE CHOFERES CON NUEVAS COLUMNAS -->
   <!-- ============================================ -->
   <table mat-table [dataSource]="choferesCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
     
@@ -382,7 +656,7 @@
     <ng-container matColumnDef="modelo">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Modelo Vehículo</th>
       <td mat-cell *matCellDef="let chofer" class="mat-cell">
-        <span class="vehiculo-badge">{{ chofer.modelo_vehiculo }}</span>
+        <span class="vehiculo-badge">{{ chofer.modelo_vehiculo || 'Sin Vehículo' }}</span>
       </td>
     </ng-container>
     
@@ -408,6 +682,53 @@
       </td>
     </ng-container>
     
+    <!-- NUEVA: Columna Imágenes -->
+    <ng-container matColumnDef="imagenes">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Imágenes</th>
+      <td mat-cell *matCellDef="let chofer" class="mat-cell images-cell">
+        <div class="images-buttons-container" *ngIf="hasImages(chofer); else noImages">
+          <button 
+            *ngFor="let key of getObjectKeys(chofer.imagenes_urls)"
+            [disabled]="!chofer.imagenes_urls[key]"
+            class="image-btn"
+            [class.has-image]="chofer.imagenes_urls[key]"
+            [class.no-image]="!chofer.imagenes_urls[key]"
+            (click)="chofer.imagenes_urls[key] && abrirImagenEnModal(chofer.imagenes_urls[key], key)"
+            [title]="key.replace('foto_', '').replace('_', ' ') | titlecase">
+            <span class="image-btn-icon">
+              {{ key === 'foto_licencia_frontal' ? '🪪F' : 
+                 key === 'foto_licencia_trasera' ? '🪪T' : 
+                 key === 'foto_cedula_frontal' ? '🆔F' : '🆔T' }}
+            </span>
+          </button>
+        </div>
+        <ng-template #noImages>
+          <span class="no-content">Sin imágenes</span>
+        </ng-template>
+      </td>
+    </ng-container>
+    
+    <!-- NUEVA: Columna Documentos -->
+    <ng-container matColumnDef="documentos">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Documentos</th>
+      <td mat-cell *matCellDef="let chofer" class="mat-cell documents-cell">
+        <div class="documents-buttons-container" *ngIf="hasDocuments(chofer); else noDocuments">
+          <span class="documents-count">{{ chofer.documentos_urls.length }} doc(s)</span>
+          <button 
+            *ngFor="let docUrl of chofer.documentos_urls; let i = index"
+            class="document-btn"
+            (click)="descargarDocumento(docUrl, getNombreArchivoDesdeUrl(docUrl))"
+            [title]="'Descargar: ' + getNombreArchivoDesdeUrl(docUrl)">
+            <span class="document-btn-icon">📄</span>
+            <span class="document-btn-number">{{ i + 1 }}</span>
+          </button>
+        </div>
+        <ng-template #noDocuments>
+          <span class="no-content">Sin documentos</span>
+        </ng-template>
+      </td>
+    </ng-container>
+    
     <!-- Definición de filas -->
     <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
     <tr 
@@ -420,8 +741,10 @@
 </div>
 
 <!-- ============================================ -->
-<!-- 🎯 MODAL DE ÉXITO -->
+<!-- 🎯 MODALES DE ESTADO -->
 <!-- ============================================ -->
+
+<!-- Modal de Éxito -->
 <div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
   <div class="modal-content-message success" (click)="$event.stopPropagation()">
     
@@ -440,9 +763,7 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ERROR -->
-<!-- ============================================ -->
+<!-- Modal de Error -->
 <div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
   <div class="modal-content-message error" (click)="$event.stopPropagation()">
     
@@ -461,9 +782,7 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE CONFIRMACIÓN -->
-<!-- ============================================ -->
+<!-- Modal de Confirmación -->
 <div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
   <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
     

@@ -67,6 +67,8 @@ from .models import (
     CartolaMovimiento,
     RegistroIngreso,
     RegistroEgreso,
+    DocumentosChofer,
+    DocumentosVehiculo,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -607,46 +609,253 @@ class EmpresaTransporteSerializer(serializers.ModelSerializer):
             'id':{'read_only': True},
         }
 
+class DocumentosVehiculoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentosVehiculo
+        fields = '__all__'
+        extra_kwargs = {
+            'vehiculo': {'write_only': True},
+            'fecha_subida': {'read_only': True},
+        }
+
+# MODIFICAR el VehiculosTransporteSerializer existente
 class VehiculosTransporteSerializer(serializers.ModelSerializer):
     nombre_empresa = serializers.SerializerMethodField()
+    documentos = DocumentosVehiculoSerializer(many=True, read_only=True)  # NUEVO
+    documentos_urls = serializers.SerializerMethodField()  # NUEVO
 
     class Meta:
-        model =  VehiculosTransporte
-        fields = ['holding','id','empresa','tipo','ppu','modelo','year','color','num_pasajeros','marca','nombre_empresa']
+        model = VehiculosTransporte
+        fields = [
+            'holding','id','empresa','tipo','ppu','modelo','year','color','num_pasajeros','marca',
+            'nombre_empresa','documentos','documentos_urls'  # AGREGADOS
+        ]
         extra_kwargs = {
             'holding': {'write_only': True},
-            'id':{'read_only': True},
+            'id': {'read_only': True},
         }
 
     def get_nombre_empresa(self, obj):
-    # Verificar si el usuario tiene un perfil asociado y retornar el nombre del perfil
         if obj.empresa:
             return obj.empresa.nombre
-        return None  # Retorna None o cualquier valor por defecto si no hay perfil
+        return None
+    
+    # NUEVO MÉTODO
+    def get_documentos_urls(self, obj):
+        """Retorna las URLs completas de los documentos del vehículo"""
+        try:
+            documento = DocumentosVehiculo.objects.get(vehiculo=obj, tipo='documentos_varios')
+            if documento.documentos_rutas:
+                urls_completas = []
+                for ruta in documento.documentos_rutas:
+                    if self.context and 'request' in self.context:
+                        # Construir URL completa usando el request
+                        request = self.context['request']
+                        if ruta.startswith('/'):
+                            url_completa = request.build_absolute_uri(ruta)
+                        else:
+                            # Si es ruta de MEDIA, construir correctamente
+                            media_url = f"/media/{ruta}" if not ruta.startswith('/media/') else ruta
+                            url_completa = request.build_absolute_uri(media_url)
+                    else:
+                        # Fallback: construir URL manualmente
+                        base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                        if ruta.startswith('/'):
+                            url_completa = f"{base_url.rstrip('/')}{ruta}"
+                        else:
+                            url_completa = f"{base_url.rstrip('/')}/media/{ruta}"
+                    urls_completas.append(url_completa)
+                return urls_completas
+            return []
+        except DocumentosVehiculo.DoesNotExist:
+            return []
+
+class DocumentosChoferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentosChofer
+        fields = '__all__'
+        extra_kwargs = {
+            'chofer': {'write_only': True},
+            'fecha_subida': {'read_only': True},
+        }
 
 class ChoferesTransporteSerializer(serializers.ModelSerializer):
-    nombre_empresa =  serializers.SerializerMethodField()
+    nombre_empresa = serializers.SerializerMethodField()
     modelo_vehiculo = serializers.SerializerMethodField()
-
+    documentos = DocumentosChoferSerializer(many=True, read_only=True)
+    imagenes_urls = serializers.SerializerMethodField()
+    documentos_urls = serializers.SerializerMethodField()
+    
     class Meta:
         model = ChoferesTransporte
-        fields = ['holding','id','empresa','nombre','rut','licencia','nombre_empresa','vehiculo','modelo_vehiculo']
+        fields = [
+            'holding','id','empresa','nombre','rut','licencia',
+            'nombre_empresa','vehiculo','modelo_vehiculo','documentos',
+            'imagenes_urls','documentos_urls'
+        ]
         extra_kwargs = {
             'holding': {'write_only': True},
             'id':{'read_only': True},
         }
+        
     def get_nombre_empresa(self, obj):
-    # Verificar si el usuario tiene un perfil asociado y retornar el nombre del perfil
         if obj.empresa:
             return obj.empresa.nombre
-        return None  # Retorna None o cualquier valor por defecto si no hay perfil
+        return None
     
     def get_modelo_vehiculo(self, obj):
-    # Verificar si el usuario tiene un perfil asociado y retornar el nombre del perfil
         if obj.vehiculo:
             return obj.vehiculo.modelo
-        return None  # Retorna None o cualquier valor por defecto si no hay perfil
+        return None
     
+    def get_imagenes_urls(self, obj):
+        """Retorna las URLs completas de las 4 imágenes específicas"""
+        from django.conf import settings
+        
+        imagenes = {}
+        tipos_imagen = [
+            'foto_licencia_frontal', 
+            'foto_licencia_trasera', 
+            'foto_cedula_frontal', 
+            'foto_cedula_trasera'
+        ]
+        
+        for tipo in tipos_imagen:
+            try:
+                documento = DocumentosChofer.objects.get(chofer=obj, tipo=tipo)
+                if documento.imagen and documento.imagen.name:
+                    # CORRECCIÓN: Construir URL completa correctamente
+                    if hasattr(self.context.get('request'), 'build_absolute_uri'):
+                        # Si tenemos contexto de request, usar build_absolute_uri
+                        imagenes[tipo] = self.context['request'].build_absolute_uri(documento.imagen.url)
+                    else:
+                        # Fallback: construir URL manualmente
+                        base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                        imagenes[tipo] = f"{base_url.rstrip('/')}{documento.imagen.url}"
+                else:
+                    imagenes[tipo] = None
+            except DocumentosChofer.DoesNotExist:
+                imagenes[tipo] = None
+        
+        return imagenes
+    
+    def get_documentos_urls(self, obj):
+        """Retorna las URLs completas de los documentos varios"""
+        from django.conf import settings
+        
+        try:
+            documento = DocumentosChofer.objects.get(chofer=obj, tipo='documentos_varios')
+            if documento.documentos_rutas:
+                urls_completas = []
+                for ruta in documento.documentos_rutas:
+                    if ruta:  # Verificar que la ruta no esté vacía
+                        if hasattr(self.context.get('request'), 'build_absolute_uri'):
+                            # Si la ruta es relativa, construir URL completa
+                            if ruta.startswith('/'):
+                                url_completa = self.context['request'].build_absolute_uri(ruta)
+                            else:
+                                # Si es ruta de MEDIA, construir correctamente
+                                media_url = f"/media/{ruta}" if not ruta.startswith('/media/') else ruta
+                                url_completa = self.context['request'].build_absolute_uri(media_url)
+                        else:
+                            # Fallback: construir URL manualmente
+                            base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+                            if ruta.startswith('/'):
+                                url_completa = f"{base_url.rstrip('/')}{ruta}"
+                            else:
+                                url_completa = f"{base_url.rstrip('/')}/media/{ruta}"
+                        urls_completas.append(url_completa)
+                return urls_completas
+            return []
+        except DocumentosChofer.DoesNotExist:
+            return []
+
+#For Docker
+'''
+
+
+class ChoferesTransporteSerializer(serializers.ModelSerializer):
+   nombre_empresa = serializers.SerializerMethodField()
+   modelo_vehiculo = serializers.SerializerMethodField()
+   documentos = DocumentosChoferSerializer(many=True, read_only=True)
+   imagenes_urls = serializers.SerializerMethodField()
+   documentos_urls = serializers.SerializerMethodField()
+   
+   class Meta:
+       model = ChoferesTransporte
+       fields = [
+           'holding','id','empresa','nombre','rut','licencia',
+           'nombre_empresa','vehiculo','modelo_vehiculo','documentos',
+           'imagenes_urls','documentos_urls'
+       ]
+       extra_kwargs = {
+           'holding': {'write_only': True},
+           'id':{'read_only': True},
+       }
+       
+   def get_nombre_empresa(self, obj):
+       if obj.empresa:
+           return obj.empresa.nombre
+       return None
+   
+   def get_modelo_vehiculo(self, obj):
+       if obj.vehiculo:
+           return obj.vehiculo.modelo
+       return None
+   
+   def get_imagenes_urls(self, obj):
+       """Retorna las URLs de las 4 imágenes específicas para Docker"""
+       imagenes = {}
+       tipos_imagen = [
+           'foto_licencia_frontal', 
+           'foto_licencia_trasera', 
+           'foto_cedula_frontal', 
+           'foto_cedula_trasera'
+       ]
+       
+       for tipo in tipos_imagen:
+           try:
+               documento = DocumentosChofer.objects.get(chofer=obj, tipo=tipo)
+               if documento.imagen and documento.imagen.name:
+                   if hasattr(self.context.get('request'), 'build_absolute_uri'):
+                       imagenes[tipo] = self.context['request'].build_absolute_uri(documento.imagen.url)
+                   else:
+                       # Para Docker: usar URL relativa que HAProxy/Nginx resolverá
+                       imagenes[tipo] = documento.imagen.url
+               else:
+                   imagenes[tipo] = None
+           except DocumentosChofer.DoesNotExist:
+               imagenes[tipo] = None
+       
+       return imagenes
+   
+   def get_documentos_urls(self, obj):
+       """Retorna las URLs de los documentos varios para Docker"""
+       try:
+           documento = DocumentosChofer.objects.get(chofer=obj, tipo='documentos_varios')
+           if documento.documentos_rutas:
+               urls_completas = []
+               for ruta in documento.documentos_rutas:
+                   if ruta:
+                       if hasattr(self.context.get('request'), 'build_absolute_uri'):
+                           if ruta.startswith('/'):
+                               url_completa = self.context['request'].build_absolute_uri(ruta)
+                           else:
+                               media_url = f"/media/{ruta}" if not ruta.startswith('/media/') else ruta
+                               url_completa = self.context['request'].build_absolute_uri(media_url)
+                       else:
+                           # Para Docker: usar URL relativa
+                           if ruta.startswith('/'):
+                               url_completa = ruta
+                           else:
+                               url_completa = f"/media/{ruta}"
+                       urls_completas.append(url_completa)
+               return urls_completas
+           return []
+       except DocumentosChofer.DoesNotExist:
+           return []
+'''    
+
 #======================================================================
 #========================= SALUD ======================================
 #======================================================================

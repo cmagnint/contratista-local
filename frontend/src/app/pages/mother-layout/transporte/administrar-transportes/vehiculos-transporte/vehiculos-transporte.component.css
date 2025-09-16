@@ -1,4 +1,4 @@
-/*vehiculos-transporte.component.css - VERSIÓN MODERNIZADA*/
+/*vehiculos-transporte.component.css - VERSIÓN COMPLETA FINAL CON DOCUMENTOS*/
 
 /* ============================================ */
 /* 🎯 CONTENEDOR PRINCIPAL */
@@ -47,6 +47,285 @@
 
 .selected .mat-cell {
   background-color: #6dbeb5 !important;
+}
+
+/* ============================================ */
+/* 🎯 NUEVA COLUMNA DE DOCUMENTOS */
+/* ============================================ */
+
+.documents-cell {
+  text-align: center;
+  padding: 4px !important;
+}
+
+.documents-buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+.document-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 8px;
+  font-weight: 600;
+  padding: 2px;
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+  position: relative;
+}
+
+.document-btn:hover {
+  background: linear-gradient(135deg, #1976D2, #1565C0);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(33, 150, 243, 0.4);
+}
+
+.document-btn-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.document-btn-number {
+  font-size: 6px;
+  font-weight: 700;
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #1976D2;
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.documents-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #2196F3;
+  background: rgba(33, 150, 243, 0.1);
+  padding: 2px 6px;
+  border-radius: 8px;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.no-content {
+  font-size: 11px;
+  color: #999;
+  font-style: italic;
+}
+
+/* ============================================ */
+/* 🎯 SECCIÓN DE DOCUMENTOS EXISTENTES */
+/* ============================================ */
+
+.existing-documents-section {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), rgba(255, 255, 255, 0.8));
+  border-radius: 12px;
+  border-left: 4px solid #2196F3;
+}
+
+.existing-documents-section h4 {
+  margin: 0 0 15px 0;
+  color: #2196F3;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.existing-documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.existing-document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.existing-document-item:hover {
+  background: #f8f9fa;
+  transform: translateX(5px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.existing-document-name {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 14px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.download-doc-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.download-doc-btn:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: scale(1.05);
+}
+
+/* ============================================ */
+/* 🎯 ESTILOS PARA UPLOAD DE DOCUMENTOS */
+/* ============================================ */
+
+.document-upload-container {
+  margin-top: 15px;
+}
+
+.file-upload-label-docs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 25px;
+  border: 2px dashed #2196F3;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), rgba(33, 150, 243, 0.02));
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 90%;
+  min-height: 100px;
+  justify-content: center;
+}
+
+.file-upload-label-docs:hover {
+  border-color: #1976D2;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+.file-label-text {
+  font-weight: 600;
+  color: #2196F3;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.file-upload-button-docs {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.file-upload-button-docs:hover {
+  background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+  transform: scale(1.05);
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.documents-list {
+  margin-top: 20px;
+  padding: 15px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), rgba(255, 255, 255, 0.8));
+  border-radius: 8px;
+  border-left: 4px solid #2196F3;
+}
+
+.documents-list h4 {
+  margin: 0 0 15px 0;
+  color: #2196F3;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.document-item:hover {
+  background: #f8f9fa;
+  transform: translateX(5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.document-name {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 14px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-doc-btn {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.remove-doc-btn:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  transform: scale(1.1);
 }
 
 /* ============================================ */
@@ -133,7 +412,7 @@
 }
 
 /* ============================================ */
-/* 🎯 BOTONES BASE (ADAPTADO DE PERFILES) */
+/* 🎯 BOTONES BASE */
 /* ============================================ */
 
 .custom-button,
@@ -168,7 +447,6 @@
   cursor: not-allowed;
 }
 
-/* Variaciones de hover */
 .custom-button:not(:disabled):hover {
   background-color: #63b54e;
   color: white;
@@ -339,10 +617,6 @@
   color: #bdc3c7;
 }
 
-/* ============================================ */
-/* 🎯 INPUTS ESPECIALIZADOS PARA VEHÍCULOS */
-/* ============================================ */
-
 .input-ppu {
   font-family: 'Courier New', monospace;
   font-weight: 700;
@@ -351,19 +625,6 @@
   position: relative;
   background: linear-gradient(135deg, rgba(33, 150, 243, 0.05), #ffffff);
   border-color: #2196F3;
-}
-
-.input-ppu::before {
-  content: '🚗';
-  position: absolute;
-  left: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 18px;
-  pointer-events: none;
-}
-
-.input-ppu {
   padding-left: 50px;
 }
 
@@ -396,7 +657,6 @@
   box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
-/* Validación visual para inputs numéricos */
 input[type="number"]:valid {
   border-color: #4CAF50;
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.05), #ffffff);
@@ -408,7 +668,7 @@ input[type="number"]:invalid:not(:placeholder-shown) {
 }
 
 /* ============================================ */
-/* 🎯 SELECCIÓN CONTAINER MODERNIZADO */
+/* 🎯 SELECCIÓN CONTAINER */
 /* ============================================ */
 
 .selection-container {
@@ -434,21 +694,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
   position: relative;
   overflow: hidden;
-}
-
-.dropdown-button-modern::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.dropdown-button-modern:hover::before {
-  left: 100%;
 }
 
 .dropdown-button-modern:hover {
@@ -490,7 +735,7 @@ input[type="number"]:invalid:not(:placeholder-shown) {
 }
 
 /* ============================================ */
-/* 🎯 MODAL DE SELECCIÓN ANIDADO */
+/* 🎯 MODAL DE SELECCIÓN */
 /* ============================================ */
 
 .modal-overlay {
@@ -612,21 +857,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-height: 200px;
   overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.dropdown-content-modern::-webkit-scrollbar {
-  width: 6px;
-}
-
-.dropdown-content-modern::-webkit-scrollbar-track {
-  background: #f5f5f5;
-  border-radius: 3px;
-}
-
-.dropdown-content-modern::-webkit-scrollbar-thumb {
-  background: #4CAF50;
-  border-radius: 3px;
 }
 
 .dropdown-content-modern.show {
@@ -650,10 +880,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   transition: all 0.2s ease;
 }
 
-.dropdown-item-modern:last-child {
-  border-bottom: none;
-}
-
 .dropdown-item-modern:hover:not(.disabled) {
   background-color: #f8f9fa;
 }
@@ -670,10 +896,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   cursor: pointer;
   gap: 12px;
   transition: all 0.2s ease;
-}
-
-.checkbox-label-modern:hover {
-  background-color: rgba(76, 175, 80, 0.05);
 }
 
 .checkbox-modern {
@@ -701,11 +923,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   color: white;
   font-size: 14px;
   font-weight: bold;
-}
-
-.checkbox-modern:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .checkbox-text {
@@ -761,66 +978,36 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   overflow: hidden;
   width: 300px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.button-bottom::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.button-bottom:hover::before {
-  left: 100%;
-}
-
-/* Botones de éxito */
-.button-bottom:first-child,
-.button-bottom.success,
-.button-bottom.confirm-yes {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
 }
 
-.button-bottom:first-child:hover,
-.button-bottom.success:hover,
-.button-bottom.confirm-yes:hover {
+.button-bottom:hover {
   background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
 }
 
-/* Botones de error */
 .button-bottom.error {
   background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-  color: white;
 }
 
 .button-bottom.error:hover {
   background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
-  transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
 }
 
-/* Botón de cancelar/No */
+.button-bottom.success {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+}
+
+.button-bottom.confirm-yes {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+}
+
 .button-bottom.confirm-no {
-  background: linear-gradient(135deg, #c41818 0%, #c01313 100%);
-  color: white;
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
 }
-
-.button-bottom.confirm-no:hover {
-  background: linear-gradient(135deg, #ff0000 0%, #ff3e3e 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(158, 158, 158, 0.3);
-}
-
-/* ============================================ */
-/* 🎯 CONTENEDOR DE BOTONES */
-/* ============================================ */
 
 .button-container {
   display: flex;
@@ -841,16 +1028,12 @@ input[type="number"]:invalid:not(:placeholder-shown) {
 }
 
 .button-container.confirmation .button-bottom {
-  flex: none;
   width: 120px !important;
-  max-width: 120px !important;
-  min-width: 120px !important;
-  padding: 12px 16px;
   font-size: 14px;
 }
 
 /* ============================================ */
-/* 🎯 MODALES DE MENSAJE MEJORADOS */
+/* 🎯 MODALES DE MENSAJE */
 /* ============================================ */
 
 .modal-content-message {
@@ -868,14 +1051,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   text-align: center;
   animation: fadeInUp 0.3s ease-out;
 }
-
-.modal-content-message.confirmation {
-  max-width: 450px;
-}
-
-/* ============================================ */
-/* 🎯 ICONOS DE ESTADO */
-/* ============================================ */
 
 .icon-container {
   margin-bottom: 20px;
@@ -910,10 +1085,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   box-shadow: 0 8px 16px rgba(255, 152, 0, 0.3);
 }
 
-/* ============================================ */
-/* 🎯 TÍTULOS DE MODALES */
-/* ============================================ */
-
 .modal-title {
   font-size: 28px;
   font-weight: 700;
@@ -936,10 +1107,6 @@ input[type="number"]:invalid:not(:placeholder-shown) {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-
-/* ============================================ */
-/* 🎯 MENSAJES DE MODALES */
-/* ============================================ */
 
 .modal-message {
   font-size: 16px;
@@ -1095,6 +1262,12 @@ input[type="number"]:invalid:not(:placeholder-shown) {
     font-size: 10px;
   }
   
+  .document-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 7px;
+  }
+  
   .mat-cell {
     font-size: 11px !important;
     padding: 6px;
@@ -1151,6 +1324,12 @@ input[type="number"]:invalid:not(:placeholder-shown) {
     min-width: 18px;
     min-height: 18px;
     font-size: 9px;
+  }
+  
+  .document-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 6px;
   }
   
   .custom-button,

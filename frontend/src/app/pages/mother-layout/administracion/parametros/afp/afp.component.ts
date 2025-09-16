@@ -152,7 +152,6 @@ export class AfpComponent implements OnInit {
         porcentaje_cargo_empleador_seleccionado: 0.1,
         porcentaje_seguro_social_seleccionado: 0.9,
       }
-      this.selectedAfpId = null;
     }
   }
 

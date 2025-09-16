@@ -20,7 +20,7 @@ from django.core.files.base import ContentFile
 from collections import defaultdict
 from rest_framework.views import APIView
 from PyPDF2 import PdfReader, PdfWriter
-from .utils import generar_documento_con_datos
+from .utils import generar_documento_con_datos, validate_uploaded_documents
 from reportlab.lib.pagesizes import letter
 from django.forms import ValidationError
 from datetime import datetime, timezone
@@ -46,6 +46,7 @@ from datetime import date
 from decimal import Decimal
 from math import floor
 from io import BytesIO, StringIO
+from django.core.files.storage import default_storage
 from .jwt_authentication import JWTAuthentication, JWTHasAnyScope
 import traceback
 import tempfile
@@ -136,6 +137,8 @@ from .models import (
     CartolaMovimiento,
     RegistroIngreso,
     RegistroEgreso,
+    DocumentosChofer,
+    DocumentosVehiculo,
 
 )
 
@@ -2127,148 +2130,401 @@ class VehiculosTransporteAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
-    # Define required_scopes como un atributo de instancia
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required_scopes = []
 
     def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
+        if request.method in ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']:
+            self.required_scopes = ['admin', 'write']
         return super().dispatch(request, *args, **kwargs)
 
-    #Metodo GET
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
         if holding_id:
             vehiculos = VehiculosTransporte.objects.filter(holding_id=holding_id)
-            serializer = VehiculosTransporteSerializer(vehiculos, many=True)
+            # AGREGAR CONTEXTO para generar URLs correctamente
+            serializer = VehiculosTransporteSerializer(
+                vehiculos, 
+                many=True, 
+                context={'request': request}
+            )
             return Response(serializer.data)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    #Metodo POST    
     def post(self, request, format=None):
-        serializer = VehiculosTransporteSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo DELETE
-    def delete(self, request, format=None): 
-        vehiculos_ids = request.data.get('ids', [])
-        VehiculosTransporte.objects.filter(id__in=vehiculos_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    #Metodo PATCH
-    def patch(self, request, format=None):
-        vehiculos_ids = request.data.get('id')
-        if not vehiculos_ids:
+        try:
+            # Crear vehículo con datos básicos
+            vehiculo_data = {
+                'holding': request.data.get('holding'),
+                'empresa': request.data.get('empresa'),
+                'tipo': request.data.get('tipo'),
+                'ppu': request.data.get('ppu'),
+                'modelo': request.data.get('modelo'),
+                'year': request.data.get('year'),
+                'color': request.data.get('color'),
+                'num_pasajeros': request.data.get('num_pasajeros'),
+                'marca': request.data.get('marca'),
+            }
             
-            return Response({"message": "ID de perfil es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            vehiculos = VehiculosTransporte.objects.get(id=vehiculos_ids)
-        except VehiculosTransporte.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = VehiculosTransporteSerializer(vehiculos, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            vehiculo_serializer = VehiculosTransporteSerializer(data=vehiculo_data)
+            if vehiculo_serializer.is_valid():
+                vehiculo = vehiculo_serializer.save()
+                
+                # Procesar documentos si existen
+                self.process_documents(request, vehiculo)
+                
+                # Retornar vehículo actualizado con contexto
+                updated_serializer = VehiculosTransporteSerializer(
+                    vehiculo, 
+                    context={'request': request}
+                )
+                return Response(updated_serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(vehiculo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"message": f"Error al crear vehículo: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    #Metodo PUT
+    def delete(self, request, format=None): 
+        try:
+            vehiculo_ids = request.data.get('ids', [])
+            
+            # Eliminar archivos asociados antes de eliminar vehículos
+            vehiculos = VehiculosTransporte.objects.filter(id__in=vehiculo_ids)
+            for vehiculo in vehiculos:
+                self.delete_vehiculo_files(vehiculo)
+            
+            # Eliminar vehículos (los documentos se eliminan por CASCADE)
+            VehiculosTransporte.objects.filter(id__in=vehiculo_ids).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except Exception as e:
+            return Response({"message": f"Error al eliminar vehículos: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def patch(self, request, format=None):
+        return self.put(request, format)
+    
     def put(self, request, format=None):
-        cliente_id = request.data.get('id')
         try:
-            vehiculos = VehiculosTransporte.objects.get(id=cliente_id)
-        except VehiculosTransporte.DoesNotExist:
-            return Response({"message": "Cargo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            vehiculo_id = request.data.get('id')
+            if not vehiculo_id:
+                return Response({"message": "ID de vehículo es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+                
+            try:
+                vehiculo = VehiculosTransporte.objects.get(id=vehiculo_id)
+            except VehiculosTransporte.DoesNotExist:
+                return Response({"message": "Vehículo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = VehiculosTransporteSerializer(vehiculos, data=request.data)  # Sin partial=True
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Actualizar datos básicos del vehículo
+            vehiculo_data = {
+                'holding': request.data.get('holding'),
+                'empresa': request.data.get('empresa'),
+                'tipo': request.data.get('tipo'),
+                'ppu': request.data.get('ppu'),
+                'modelo': request.data.get('modelo'),
+                'year': request.data.get('year'),
+                'color': request.data.get('color'),
+                'num_pasajeros': request.data.get('num_pasajeros'),
+                'marca': request.data.get('marca'),
+            }
+            
+            vehiculo_serializer = VehiculosTransporteSerializer(vehiculo, data=vehiculo_data)
+            if vehiculo_serializer.is_valid():
+                vehiculo = vehiculo_serializer.save()
+                
+                # Procesar nuevos documentos (si existen)
+                self.process_documents(request, vehiculo)
+                
+                # Retornar vehículo actualizado CON CONTEXTO
+                updated_serializer = VehiculosTransporteSerializer(
+                    vehiculo, 
+                    context={'request': request}
+                )
+                return Response(updated_serializer.data)
+            else:
+                return Response(vehiculo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"message": f"Error al actualizar vehículo: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    def process_documents(self, request, vehiculo):
+        """Procesar documentos múltiples del vehículo"""
+        # Buscar archivos de documentos en request.FILES
+        documento_files = []
+        for key, file in request.FILES.items():
+            if key.startswith('documento_'):
+                documento_files.append(file)
+        
+        if documento_files:
+            # Validar formatos
+            try:
+                validate_uploaded_documents(documento_files)
+            except ValidationError as e:
+                # Log error pero continuar (opcional: lanzar excepción)
+                print(f"Error validando documentos: {e}")
+                return
+            
+            # Guardar archivos y obtener rutas
+            rutas_documentos = []
+            for doc_file in documento_files:
+                # Generar nombre único para el archivo
+                timestamp = int(time.time())
+                file_extension = doc_file.name.split('.')[-1]
+                file_name = f"vehiculo_{vehiculo.id}_{timestamp}_{doc_file.name}"
+                file_path = f"transporte/archivos_vehiculos/documentos/{file_name}"
+                
+                # Guardar archivo
+                saved_path = default_storage.save(file_path, ContentFile(doc_file.read()))
+                rutas_documentos.append(saved_path)
+            
+            # Crear o actualizar registro de documentos
+            documento_db, created = DocumentosVehiculo.objects.get_or_create(
+                vehiculo=vehiculo,
+                tipo='documentos_varios',
+                defaults={'documentos_rutas': rutas_documentos}
+            )
+            
+            if not created:
+                # Eliminar documentos anteriores del storage
+                for old_path in documento_db.documentos_rutas:
+                    if default_storage.exists(old_path):
+                        default_storage.delete(old_path)
+                
+                # Actualizar con nuevos documentos
+                documento_db.documentos_rutas = rutas_documentos
+                documento_db.save()
+    
+    def delete_vehiculo_files(self, vehiculo):
+        """Eliminar todos los archivos asociados a un vehículo"""
+        documentos = DocumentosVehiculo.objects.filter(vehiculo=vehiculo)
+        
+        for documento in documentos:
+            # Eliminar documentos si existen
+            for doc_path in documento.documentos_rutas:
+                if default_storage.exists(doc_path):
+                    default_storage.delete(doc_path)
+
 class ChoferesTransporteAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
-    # Define required_scopes como un atributo de instancia
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required_scopes = []
 
     def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
+        if request.method in ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']:
+            self.required_scopes = ['admin','write']
         return super().dispatch(request, *args, **kwargs)
 
-    #Metodo GET
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
         if holding_id:
-            vehiculos = ChoferesTransporte.objects.filter(holding_id=holding_id)
-            serializer = ChoferesTransporteSerializer(vehiculos, many=True)
+            choferes = ChoferesTransporte.objects.filter(holding_id=holding_id)
+            # CORRECCIÓN: Pasar contexto de request al serializer
+            serializer = ChoferesTransporteSerializer(
+                choferes, 
+                many=True, 
+                context={'request': request}  # 👈 ESTO ES CLAVE
+            )
             return Response(serializer.data)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "holding_id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
     
-    #Metodo POST    
     def post(self, request, format=None):
-        serializer = ChoferesTransporteSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo DELETE
-    def delete(self, request, format=None): 
-        vehiculos_ids = request.data.get('ids', [])
-        ChoferesTransporte.objects.filter(id__in=vehiculos_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    #Metodo PATCH
-    def patch(self, request, format=None):
-        vehiculos_ids = request.data.get('id')
-        if not vehiculos_ids:
+        try:
+            # Crear chofer con datos básicos
+            chofer_data = {
+                'holding': request.data.get('holding'),
+                'empresa': request.data.get('empresa'),
+                'nombre': request.data.get('nombre'),
+                'rut': request.data.get('rut'),
+                'licencia': request.data.get('licencia'),
+                'vehiculo': request.data.get('vehiculo')
+            }
             
-            return Response({"message": "ID de perfil es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            vehiculos = ChoferesTransporte.objects.get(id=vehiculos_ids)
-        except ChoferesTransporte.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = ChoferesTransporteSerializer(vehiculos, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            chofer_serializer = ChoferesTransporteSerializer(data=chofer_data)
+            if chofer_serializer.is_valid():
+                chofer = chofer_serializer.save()
+                
+                # Procesar imágenes
+                self.process_images(request, chofer)
+                
+                # Procesar documentos
+                self.process_documents(request, chofer)
+                
+                # Retornar chofer actualizado con contexto
+                updated_serializer = ChoferesTransporteSerializer(
+                    chofer, 
+                    context={'request': request}  # 👈 CONTEXTO AQUÍ TAMBIÉN
+                )
+                return Response(updated_serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(chofer_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"message": f"Error al crear chofer: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    #Metodo PUT
     def put(self, request, format=None):
-        cliente_id = request.data.get('id')
         try:
-            vehiculos = ChoferesTransporte.objects.get(id=cliente_id)
-        except ChoferesTransporte.DoesNotExist:
-            return Response({"message": "Cargo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            chofer_id = request.data.get('id')
+            if not chofer_id:
+                return Response({"message": "ID de chofer es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+                
+            try:
+                chofer = ChoferesTransporte.objects.get(id=chofer_id)
+            except ChoferesTransporte.DoesNotExist:
+                return Response({"message": "Chofer no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ChoferesTransporteSerializer(vehiculos, data=request.data)  # Sin partial=True
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Actualizar datos básicos del chofer
+            chofer_data = {
+                'holding': request.data.get('holding'),
+                'empresa': request.data.get('empresa'),
+                'nombre': request.data.get('nombre'),
+                'rut': request.data.get('rut'),
+                'licencia': request.data.get('licencia'),
+                'vehiculo': request.data.get('vehiculo')
+            }
+            
+            chofer_serializer = ChoferesTransporteSerializer(chofer, data=chofer_data)
+            if chofer_serializer.is_valid():
+                chofer = chofer_serializer.save()
+                
+                # Procesar nuevas imágenes (si existen)
+                self.process_images(request, chofer)
+                
+                # Procesar nuevos documentos (si existen)
+                self.process_documents(request, chofer)
+                
+                # Retornar chofer actualizado CON CONTEXTO
+                updated_serializer = ChoferesTransporteSerializer(
+                    chofer, 
+                    context={'request': request}  # 👈 CONTEXTO CRÍTICO
+                )
+                return Response(updated_serializer.data)
+            else:
+                return Response(chofer_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"message": f"Error al actualizar chofer: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, format=None): 
+        try:
+            chofer_ids = request.data.get('ids', [])
+            
+            # Eliminar archivos asociados antes de eliminar choferes
+            choferes = ChoferesTransporte.objects.filter(id__in=chofer_ids)
+            for chofer in choferes:
+                self.delete_chofer_files(chofer)
+            
+            # Eliminar choferes (los documentos se eliminan por CASCADE)
+            ChoferesTransporte.objects.filter(id__in=chofer_ids).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except Exception as e:
+            return Response({"message": f"Error al eliminar choferes: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def patch(self, request, format=None):
+        # Usar PUT para actualizaciones parciales también
+        return self.put(request, format)
     
+    def process_images(self, request, chofer):
+        """Procesar las 4 imágenes específicas del chofer"""
+        tipos_imagen = ['foto_licencia_frontal', 'foto_licencia_trasera', 'foto_cedula_frontal', 'foto_cedula_trasera']
+        
+        for tipo in tipos_imagen:
+            file_key = f'imagen_{tipo}'
+            if file_key in request.FILES:
+                imagen_file = request.FILES[file_key]
+                
+                # Validar formato de imagen
+                valid_formats = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+                extension = imagen_file.name.lower().split('.')[-1]
+                if extension not in valid_formats:
+                    continue  # Saltar archivos con formato inválido
+                
+                # Crear o actualizar documento de imagen
+                documento, created = DocumentosChofer.objects.get_or_create(
+                    chofer=chofer,
+                    tipo=tipo,
+                    defaults={'imagen': imagen_file}
+                )
+                
+                if not created:
+                    # Eliminar imagen anterior si existe
+                    if documento.imagen:
+                        old_image_path = documento.imagen.path
+                        if os.path.exists(old_image_path):
+                            os.remove(old_image_path)
+                    
+                    # Guardar nueva imagen
+                    documento.imagen = imagen_file
+                    documento.save()
+    
+    def process_documents(self, request, chofer):
+        """Procesar documentos múltiples del chofer"""
+        # Buscar archivos de documentos en request.FILES
+        documento_files = []
+        for key, file in request.FILES.items():
+            if key.startswith('documento_'):
+                documento_files.append(file)
+        
+        if documento_files:
+            # Validar formatos
+            try:
+                validate_uploaded_documents(documento_files)
+            except ValidationError as e:
+                # Log error pero continuar (opcional: lanzar excepción)
+                print(f"Error validando documentos: {e}")
+                return
+            
+            # Guardar archivos y obtener rutas
+            rutas_documentos = []
+            for doc_file in documento_files:
+                # Generar nombre único para el archivo
+                timestamp = int(time.time())
+                file_extension = doc_file.name.split('.')[-1]
+                file_name = f"chofer_{chofer.id}_{timestamp}_{doc_file.name}"
+                file_path = f"transporte/archivos_choferes/documentos/{file_name}"
+                
+                # Guardar archivo
+                saved_path = default_storage.save(file_path, ContentFile(doc_file.read()))
+                rutas_documentos.append(saved_path)
+            
+            # Crear o actualizar registro de documentos
+            documento_db, created = DocumentosChofer.objects.get_or_create(
+                chofer=chofer,
+                tipo='documentos_varios',
+                defaults={'documentos_rutas': rutas_documentos}
+            )
+            
+            if not created:
+                # Eliminar documentos anteriores del storage
+                for old_path in documento_db.documentos_rutas:
+                    if default_storage.exists(old_path):
+                        default_storage.delete(old_path)
+                
+                # Actualizar con nuevos documentos
+                documento_db.documentos_rutas = rutas_documentos
+                documento_db.save()
+    
+    def delete_chofer_files(self, chofer):
+        """Eliminar todos los archivos asociados a un chofer"""
+        documentos = DocumentosChofer.objects.filter(chofer=chofer)
+        
+        for documento in documentos:
+            # Eliminar imagen si existe
+            if documento.imagen:
+                image_path = documento.imagen.path
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+            
+            # Eliminar documentos si existen
+            for doc_path in documento.documentos_rutas:
+                if default_storage.exists(doc_path):
+                    default_storage.delete(doc_path)
 
 class SaludTrabajadoresAPIView(APIView):
     authentication_classes = [JWTAuthentication]

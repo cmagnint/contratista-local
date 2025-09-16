@@ -6,7 +6,7 @@ from django.forms import ValidationError
 from django.utils import timezone
 import pytz
 import os
-from .utils import generate_token, generate_token_link_apk
+from .utils import generate_token, generate_token_link_apk, validate_image_format
 from decimal import Decimal 
 
 def hora_santiago():
@@ -261,7 +261,28 @@ class VehiculosTransporte(models.Model):
 
     class Meta:
         db_table = 'vehiculos_transporte'
+
+class DocumentosVehiculo(models.Model):
+    TIPOS_DOCUMENTO = [
+        ('documentos_varios', 'Documentos Varios'),
+    ]
     
+    vehiculo = models.ForeignKey(VehiculosTransporte, on_delete=models.CASCADE, related_name='documentos')
+    tipo = models.CharField(max_length=50, choices=TIPOS_DOCUMENTO, default='documentos_varios')
+    # Array de rutas a documentos (PDFs, Excel, Word, etc.)
+    documentos_rutas = models.JSONField(default=list, blank=True)
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'documentos_vehiculo'
+        
+    def __str__(self):
+        return f"{self.vehiculo.ppu} - {self.tipo}"
+
+#=================================================================================================================
+#=================================  CHOFERES  ====================================================================
+#=================================================================================================================
+
 class ChoferesTransporte(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
@@ -273,6 +294,41 @@ class ChoferesTransporte(models.Model):
 
     class Meta:
         db_table = 'choferes'
+
+class DocumentosChofer(models.Model):
+    TIPOS_IMAGEN = [
+        ('foto_licencia_frontal', 'Licencia Frontal'),
+        ('foto_licencia_trasera', 'Licencia Trasera'),
+        ('foto_cedula_frontal', 'Carnet Frontal'),
+        ('foto_cedula_trasera', 'Carnet Trasero'),
+    ]
+    
+    TIPOS_DOCUMENTO = [
+        ('documentos_varios', 'Documentos Varios'),
+    ]
+    TIPO_CHOICES = TIPOS_IMAGEN + TIPOS_DOCUMENTO
+    chofer = models.ForeignKey(ChoferesTransporte, on_delete=models.CASCADE, related_name='documentos')
+    tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
+    # Para las 4 imágenes específicas
+    imagen = models.ImageField(
+        upload_to='transporte/archivos_choferes/imagenes/', 
+        null=True, 
+        blank=True,
+        validators=[validate_image_format]
+    )
+    # Para documentos múltiples (array de rutas)
+    documentos_rutas = models.JSONField(default=list, blank=True)  # Array de rutas a PDFs, Excel, etc.
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'documentos_chofer'
+        
+    def __str__(self):
+        return f"{self.chofer.nombre} - {self.tipo}"
+        
+#=================================================================================================================
+#=================================================================================================================
+#=================================================================================================================
 
 class SaludTrabajadores(models.Model):
     id = models.AutoField(primary_key=True)  # ID único autoincremental

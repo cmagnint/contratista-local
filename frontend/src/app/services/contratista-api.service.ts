@@ -122,6 +122,11 @@ export class ContratistaApiService {
     return this.http.post(`${this.baseUrl}/${endpoint}`, formData, { headers });
   }
 
+  putFormData(endpoint: string, formData: FormData): Observable<any> {
+    const headers = this.createFileHeaders();
+    return this.http.put(`${this.baseUrl}/${endpoint}`, formData,  { headers });
+  }
+
   delete(endpoint: string, data: any): Observable<any> {
     const headers = this.createHeaders();
     const options = {
@@ -792,6 +797,8 @@ export class ContratistaApiService {
   getDashboardStats(): Observable<any> {
     return this.get('dashboard_stats/');
   }
+
+
 
   // ===============================================================
   // MÉTODOS DE MANEJO DE FACTURAS

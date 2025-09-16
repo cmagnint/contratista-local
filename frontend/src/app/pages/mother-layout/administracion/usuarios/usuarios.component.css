@@ -1,4 +1,4 @@
-/*usuarios.component.css - VERSIÓN ADAPTADA CON ESTILOS DE PERFILES*/
+/*usuarios.component.css - SIN MODAL DE ADVERTENCIA*/
 
 /* ============================================ */
 /* 🎯 SLIDE TOGGLE PERSONALIZADO */
@@ -305,10 +305,11 @@ h3,
 }
 
 /* ============================================ */
-/* 🎯 SELECT ESTILIZADO */
+/* 🎯 SELECT ESTILIZADO - ✨ ARREGLADO */
 /* ============================================ */
 
-select {
+select,
+.select-personal {
   width: 100%;
   padding: 16px 20px 16px 20px;
   margin-bottom: 20px;
@@ -318,7 +319,7 @@ select {
   border-radius: 12px;
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   color: #2c3e50;
-  cursor: pointer;
+  cursor: pointer; /* ✨ ARREGLADO: Cursor normal */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   appearance: none;
@@ -329,19 +330,43 @@ select {
   padding-right: 50px;
 }
 
-select:focus {
+/* ✨ ARREGLADO: Cursor normal para el select de personal */
+.select-personal {
+  cursor: pointer !important;
+}
+
+select:focus,
+.select-personal:focus {
   outline: none;
   border-color: #4CAF50;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
+  cursor: pointer; /* ✨ ARREGLADO: Mantener cursor normal en focus */
 }
 
-select option {
+select option,
+.select-personal option {
   padding: 12px;
   background-color: #ffffff;
   color: #2c3e50;
   font-weight: 500;
+  cursor: pointer; /* ✨ ARREGLADO: Cursor normal para opciones */
+}
+
+/* ✨ ARREGLADO: Estilo especial para opción disabled (placeholder) */
+select option:disabled,
+.select-personal option:disabled {
+  color: #8e9ba8 !important;
+  font-style: italic;
+  cursor: default;
+  background-color: #ffffff !important;
+}
+
+/* ✨ NUEVO: Asegurar que el placeholder se vea correctamente */
+select:invalid,
+.select-personal:invalid {
+  color: #8e9ba8;
 }
 
 /* ============================================ */
@@ -442,36 +467,11 @@ input[type="checkbox"] {
   opacity: 0.5;
 }
 
-/* ============================================ */
-/* 🎯 MINI MODAL */
-/* ============================================ */
-
-.mini-modal {
-  display: flex;
-  position: absolute;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 30px;
-  margin: auto;
-  border: none;
-  width: 40%;
-  min-height: 30%;
-  max-height: 90vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
-  left: 30%;
-  top: 30%;
-}
-
-.table-button {
-  position: relative;
-  z-index: 2;
-  margin-bottom: 15px;
+.disabled-reason {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+  margin-left: 5px;
 }
 
 /* ============================================ */
@@ -548,28 +548,6 @@ input[type="checkbox"] {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* ✨ NUEVO: Modal de advertencia */
-#advertenciaModal .modal-content {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-  width: 90%;
-  max-width: 500px;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(255, 152, 0, 0.3);
-  color: white;
-  text-align: center;
-  padding: 40px 30px;
-}
-
-#advertenciaModal .modal-content h2 {
-  color: white;
-  font-size: 28px;
-  margin-bottom: 20px;
-}
-
-#advertenciaModal .modal-content h2::after {
-  background: rgba(255, 255, 255, 0.3);
-}
-
 /* Modal de confirmación */
 #confirmacionModal .modal-content {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -592,7 +570,7 @@ input[type="checkbox"] {
   background: linear-gradient(90deg, #e24110, #F57C00);
 }
 
-/* ✨ NUEVO: Modal de loading */
+/* Modal de loading */
 #loadingModal .modal-content {
   background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
   width: 90%;
@@ -654,7 +632,6 @@ input[type="checkbox"] {
 
 .exito-message,
 .error-message,
-.warning-message,
 .loading-message {
   text-align: center;
   color: white;
@@ -668,13 +645,11 @@ input[type="checkbox"] {
 /* 🎯 ICONOS Y EFECTOS */
 /* ============================================ */
 
-.error-icon-container,
-.warning-icon-container {
+.error-icon-container {
   margin-bottom: 15px;
 }
 
-.icon-exclamation-triangle,
-.icon-warning-triangle {
+.icon-exclamation-triangle {
   font-size: 50px;
   color: white;
 }
@@ -792,12 +767,6 @@ input[type="checkbox"] {
     margin-bottom: 20px;
   }
   
-  .mini-modal {
-    width: 90%;
-    left: 5%;
-    top: 20%;
-  }
-  
   .dropdown-content {
     max-height: 150px;
   }
@@ -818,7 +787,7 @@ input[type="checkbox"] {
     margin: 5px 0;
   }
 
-  /* ✨ RESPONSIVE: Loading modal */
+  /* Responsive: Loading modal */
   .loading-spinner {
     width: 40px;
     height: 40px;

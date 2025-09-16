@@ -32,7 +32,7 @@ export class SaludComponent implements OnInit {
   // Salud seleccionada - CORREGIDO: incluye codigo
   public saludSeleccionada: any = {
     id_salud_seleccionada: 0,        // ID interno autoincremental
-    codigo_salud_seleccionado: 0,    // ← AGREGADO: Código Previred
+    codigo_salud_seleccionado: 0,    // Código Previred
     nombre_salud_seleccionada: '',
     porcentaje_seleccionado: 7.0,
   }
@@ -49,7 +49,7 @@ export class SaludComponent implements OnInit {
 
   // Columnas para mostrar - CORREGIDO: usa 'codigo'
   columnasDesplegadas = [
-    'codigo',     // ← CORREGIDO: Código Previred
+    'codigo',     // Código Previred
     'nombre',     
     'porcentaje'  
   ];
@@ -66,6 +66,7 @@ export class SaludComponent implements OnInit {
   cargarSalud(): void {
     this.apiService.get(`api_salud_trabajadores/?holding=${this.holding}`).subscribe({
       next: (response) => {
+        console.log('Salud cargada:', response); // Debug para verificar estructura
         this.saludCargadas = response;
       },
       error: (error) => {
@@ -77,11 +78,20 @@ export class SaludComponent implements OnInit {
   }
 
   modificarSalud(): void {
+    // Verificación adicional antes de enviar
+    if (!this.selectedSaludId) {
+      this.errorMessage = 'No se ha seleccionado una Salud válida';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
       id: this.selectedSaludId,  // Usa ID interno para modificar
       porcentaje: this.porcentajeNew
     }
+    
+    console.log('Datos a enviar:', data); // Debug para verificar datos
     
     this.apiService.put('api_salud_trabajadores/', data).subscribe({
       next: (response) => {
@@ -102,6 +112,8 @@ export class SaludComponent implements OnInit {
   }
 
   selectRow(row: any): void {
+    console.log('Fila seleccionada:', row); // Debug para verificar objeto row
+    
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
       this.selectedRows.splice(index, 1);
@@ -112,20 +124,36 @@ export class SaludComponent implements OnInit {
 
     if (this.selectedRows.length > 0) {
       const selectedRow = this.selectedRows[0];
-      // CORREGIDO: incluye codigo
+      
+      // VERIFICACIÓN: Asegurar que el ID existe
+      if (!selectedRow.id) {
+        console.error('Error: El objeto seleccionado no tiene campo id:', selectedRow);
+        this.errorMessage = 'Error: No se pudo obtener el ID de la Salud seleccionada';
+        this.openModal('errorModal');
+        return;
+      }
+
+      // CORREGIDO: incluye codigo y verificaciones
       this.saludSeleccionada = {
-        id_salud_seleccionada: selectedRow.id,           // ID interno
-        codigo_salud_seleccionado: selectedRow.codigo,   // ← AGREGADO: Código Previred
-        nombre_salud_seleccionada: selectedRow.nombre,
-        porcentaje_seleccionado: selectedRow.porcentaje,
+        id_salud_seleccionada: selectedRow.id,                           // ID interno
+        codigo_salud_seleccionado: selectedRow.codigo || 0,              // Código Previred
+        nombre_salud_seleccionada: selectedRow.nombre || '',
+        porcentaje_seleccionado: selectedRow.porcentaje || 7.0,
       };
       
       this.selectedSaludId = this.saludSeleccionada.id_salud_seleccionada;
+      
+      // Debug para verificar asignación
+      console.log('Salud seleccionada:', this.saludSeleccionada);
+      console.log('ID asignado:', this.selectedSaludId);
+      
+      // Cargar dato en el formulario de modificación
       this.porcentajeNew = this.saludSeleccionada.porcentaje_seleccionado;
     } else {
+      // Reset cuando no hay selección
       this.saludSeleccionada = {
         id_salud_seleccionada: 0,
-        codigo_salud_seleccionado: 0,  // ← AGREGADO
+        codigo_salud_seleccionado: 0,
         nombre_salud_seleccionada: '',
         porcentaje_seleccionado: 7.0,
       }
@@ -136,6 +164,13 @@ export class SaludComponent implements OnInit {
   deseleccionarFila(event: MouseEvent) {
     this.selectedRows = [];
     this.selectedSaludId = null;
+    // Reset objeto seleccionado
+    this.saludSeleccionada = {
+      id_salud_seleccionada: 0,
+      codigo_salud_seleccionado: 0,
+      nombre_salud_seleccionada: '',
+      porcentaje_seleccionado: 7.0,
+    }
   }
 
   openModal(key: string): void {

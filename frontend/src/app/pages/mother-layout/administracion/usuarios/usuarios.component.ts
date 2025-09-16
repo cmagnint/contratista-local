@@ -23,14 +23,11 @@ export class UsuariosComponent implements OnInit {
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
-    advertenciaModal: false, // ✨ NUEVO: Modal de advertencia
-    loadingModal: false, // ✨ NUEVO: Modal de loading
+    loadingModal: false,
     crearUsuario: false,
     modificarUsuario: false,
-    perfilesModal: false,
     confirmacionModal: false,
     seleccionInicial: false,
-    sociedadesModal: false
   };
 
   //Perfil seleccionado
@@ -44,7 +41,7 @@ export class UsuariosComponent implements OnInit {
 
   public usuarioIdNew = 0;
   public personalDisponible: any[] = [];
-  public selectedPersonalId: number | null = null;
+  public selectedPersonalId: string = '';
 
   modulosDisponibles = [
     { id: 1, name: 'Administrar Perfiles' },
@@ -64,9 +61,12 @@ export class UsuariosComponent implements OnInit {
   public rutUsuario: string = '';
   public emailUsuario: string = '';
   public errorMessage!: string;
-  public advertenciaMessage!: string; // ✨ NUEVO: Mensaje de advertencia
   public selectedRows: any[] = [];
-  public dropdownOpen: boolean = false;
+  
+  // ✨ NUEVO: Variables para dropdowns directos
+  public dropdownOpenPerfiles: boolean = false;
+  public dropdownOpenSociedades: boolean = false;
+  
   public todasSeleccionadas: boolean = false;
   public usuariosCargados: any[] = [];
   public columnasDesplegadas = ['codigo', 'perfil', 'sociedad', 'rut', 'nombre', 'email', 'estado'];
@@ -129,7 +129,6 @@ export class UsuariosComponent implements OnInit {
     return selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA';
   }
 
-  // ✨ MODIFICADO: Cambiar error por advertencia
   cargarSupervisores():void{
     this.apiService.get(`api_supervisores/${this.holding}/`).subscribe({
       next: (response) => {
@@ -137,8 +136,8 @@ export class UsuariosComponent implements OnInit {
         console.log('Supervisores cargados:', this.supervisoresCargados);
       },
       error: (error) => {
-        // ✨ CAMBIO: Mostrar advertencia en lugar de error
-        this.openAdvertenciaModal('Advertencia: No hay Supervisores disponibles, no se van a poder crear Jefes de Cuadrillas');
+        console.log('No hay supervisores disponibles');
+        this.supervisoresCargados = [];
       }
     })
   }
@@ -164,7 +163,7 @@ export class UsuariosComponent implements OnInit {
         this.nombreUsuario = personalSeleccionado.nombre_completo;
         this.rutUsuario = this.formatRUTString(personalSeleccionado.rut);
         this.emailUsuario = personalSeleccionado.correo || '';
-        this.selectedPersonalId = id;
+        this.selectedPersonalId = personalId.toString();
         
         // Para debug
         console.log('Personal seleccionado:', personalSeleccionado);
@@ -178,7 +177,7 @@ export class UsuariosComponent implements OnInit {
         this.nombreUsuario = '';
         this.rutUsuario = '';
         this.emailUsuario = '';
-        this.selectedPersonalId = null;
+        this.selectedPersonalId = '';
     }
   }
 
@@ -215,7 +214,6 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
-  // ✨ MODIFICADO: Agregar indicador de carga
   crearUsuario(): void {
     if (!this.selectedPersonalId) {
       this.openModal('errorModal');
@@ -229,7 +227,15 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    // ✨ NUEVO: Mostrar modal de loading
+    // ✨ VALIDACIÓN: Solo verificar supervisor si es JEFE DE CUADRILLA (ya debería estar habilitado)
+    const selectedPerfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
+    if (selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA' && !this.selectedSupervisorId) {
+      this.openModal('errorModal');
+      this.errorMessage = 'Debe seleccionar un supervisor para el Jefe de Cuadrilla.';
+      return;
+    }
+
+    // Mostrar modal de loading
     this.openModal('loadingModal');
 
     let data = {
@@ -245,14 +251,12 @@ export class UsuariosComponent implements OnInit {
     
     this.apiService.post('api_usuarios/', data).subscribe({
       next: (response) => {
-        // ✨ NUEVO: Cerrar modal de loading
         this.closeModal('loadingModal');
         this.closeModal('crearUsuario');
         this.cargarUsuarios();
         this.openModal('exitoModal');
       },
       error: (error) => {
-        // ✨ NUEVO: Cerrar modal de loading
         this.closeModal('loadingModal');
         this.openModal('errorModal')
         this.errorMessage = 'Error al crear usuario: ' + error.error.message;
@@ -260,6 +264,7 @@ export class UsuariosComponent implements OnInit {
     })
   }
 
+  // ✨ ARREGLADO: No mostrar error cuando no hay usuarios
   cargarUsuarios(): void {
     const url = `api_usuarios/${this.holding}/`;
     this.apiService.get(url).subscribe({
@@ -268,7 +273,14 @@ export class UsuariosComponent implements OnInit {
         this.usuariosCargados = response;
       },
       error: (error) => {
-        this.openErrorModal('Error al cargar usuarios: ' + error.error.message);
+        // ✨ CAMBIO: Solo mostrar error si no es "No se encontraron usuarios"
+        if (error.status !== 404) {
+          this.openErrorModal('Error al cargar usuarios: ' + error.error.message);
+        } else {
+          // Si es 404 (no se encontraron usuarios), simplemente cargar array vacío
+          this.usuariosCargados = [];
+          console.log('No se encontraron usuarios, cargando lista vacía');
+        }
       }
     });
   }
@@ -346,6 +358,37 @@ export class UsuariosComponent implements OnInit {
     } else {
       this.selectedPerfilId = perfilId;
     }
+  }
+
+  // ✨ NUEVO: Métodos para manejar dropdowns directos
+  toggleDropdownPerfiles(): void {
+    this.dropdownOpenPerfiles = !this.dropdownOpenPerfiles;
+    // Cerrar el otro dropdown si está abierto
+    if (this.dropdownOpenPerfiles) {
+      this.dropdownOpenSociedades = false;
+    }
+  }
+
+  toggleDropdownSociedades(): void {
+    this.dropdownOpenSociedades = !this.dropdownOpenSociedades;
+    // Cerrar el otro dropdown si está abierto
+    if (this.dropdownOpenSociedades) {
+      this.dropdownOpenPerfiles = false;
+    }
+  }
+
+  // ✨ NUEVO: Método getter para resolver el error de binding
+  getSelectedPerfilName(): string {
+    if (this.selectedPerfilId) {
+      const perfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
+      return perfil?.nombre_perfil || 'SELECCIONAR PERFIL';
+    }
+    return 'SELECCIONAR PERFIL';
+  }
+
+  // ✨ NUEVO: Método para verificar si un perfil está deshabilitado
+  isPerfilDisabled(perfil: any): boolean {
+    return perfil.nombre_perfil === 'JEFE DE CUADRILLA' && (!this.supervisoresCargados || this.supervisoresCargados.length === 0);
   }
 
   isSelected(row: any): boolean {
@@ -433,12 +476,11 @@ export class UsuariosComponent implements OnInit {
     return parts.join('.') + '-' + verifier;
   }
 
-  toggleDropdown() {
-    this.dropdownOpen = !this.dropdownOpen;
-  }
-
   deseleccionarFila(event: MouseEvent) {
     this.selectedRows = [];
+    // Cerrar dropdowns al hacer clic fuera
+    this.dropdownOpenPerfiles = false;
+    this.dropdownOpenSociedades = false;
   }
 
   openModal(key: string): void {
@@ -446,6 +488,23 @@ export class UsuariosComponent implements OnInit {
     if (key == 'confirmacionModal') {
       this.deletedRow = this.selectedRows;
     }
+    // ✨ NUEVO: Resetear campos al abrir modal de crear usuario
+    if (key === 'crearUsuario') {
+      this.resetearCamposCrearUsuario();
+    }
+  }
+
+  // ✨ NUEVO: Método para resetear campos del modal crear usuario
+  resetearCamposCrearUsuario(): void {
+    this.selectedPersonalId = ''; // ✨ ARREGLADO: usar string vacío
+    this.nombreUsuario = '';
+    this.rutUsuario = '';
+    this.emailUsuario = '';
+    this.selectedPerfilId = null;
+    this.selectedSociedades = [];
+    this.selectedSupervisorId = null;
+    this.dropdownOpenPerfiles = false;
+    this.dropdownOpenSociedades = false;
   }
 
   closeModal(key: string): void {
@@ -453,16 +512,15 @@ export class UsuariosComponent implements OnInit {
     if (key === 'exitoModal') {
       this.cargarPerfiles();
     }
+    // ✨ NUEVO: Cerrar dropdowns al cerrar modales
+    if (key === 'crearUsuario' || key === 'modificarUsuario') {
+      this.dropdownOpenPerfiles = false;
+      this.dropdownOpenSociedades = false;
+    }
   }
 
   openErrorModal(message: string): void {
     this.modals['errorModal'] = true;
     this.errorMessage = message;
-  }
-
-  // ✨ NUEVO: Método para abrir modal de advertencia
-  openAdvertenciaModal(message: string): void {
-    this.modals['advertenciaModal'] = true;
-    this.advertenciaMessage = message;
   }
 }

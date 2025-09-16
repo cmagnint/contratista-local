@@ -1,9 +1,8 @@
-<div class="admin-perfiles-container" (click)="deseleccionarFila($event)">
+<div class="admin-perfiles-container" >
 
-    <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarAfp']">
-          <div class="modal-content">
+    <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarAfp']" (click)="closeModal('modificarAfp')">
+        <div class="modal-content" (click)="$event.stopPropagation()">
               <div class="modal-header">
-                  <span class="close" (click)="closeModal('modificarAfp')">&times;</span>
                   <div class="header-bar"></div>
                   <div class="title-container">
                     <h2>Modificar AFP</h2>

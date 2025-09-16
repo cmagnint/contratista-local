@@ -7,6 +7,7 @@ import secrets
 import string
 from django.conf import settings
 import uuid
+from django.core.exceptions import ValidationError
 
 
 def generate_token():
@@ -217,3 +218,17 @@ def generar_documento_con_datos(documento_id, datos_variables, debug=False):
         writer.write(output_file)
     
     return output_pdf_path
+
+
+def validate_image_format(file):
+    valid_formats = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+    if not file.name.lower().split('.')[-1] in valid_formats:
+        raise ValidationError('Solo se permiten imágenes: JPG, PNG, GIF, WEBP')
+
+def validate_uploaded_documents(files):
+    """Validar archivos de documentos subidos"""
+    valid_formats = ['pdf', 'xlsx', 'xls', 'doc', 'docx', 'txt']
+    for file in files:
+        extension = file.name.lower().split('.')[-1]
+        if extension not in valid_formats:
+            raise ValidationError(f'Solo se permiten: PDF, Excel, Word, TXT. Archivo rechazado: {file.name}')
