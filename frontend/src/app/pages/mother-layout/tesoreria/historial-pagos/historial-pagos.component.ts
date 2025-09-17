@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
+
 interface HistorialItem {
   id: number;
   fecha: string;
@@ -34,12 +35,14 @@ export class HistorialPagosComponent implements OnInit, OnDestroy {
   error: string | null = null;
   descargandoCsv = false;
 
-  constructor(private contratistaApi: ContratistaApiService) {}
+  constructor(
+    private contratistaApi: ContratistaApiService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
 
   ngOnInit() {
     // Verificar si hay datos en sessionStorage para mantener estado (opcional)
     this.recuperarEstadoSesion();
-
   }
 
   /**
@@ -47,26 +50,28 @@ export class HistorialPagosComponent implements OnInit, OnDestroy {
    * Útil si el usuario navega y vuelve al componente
    */
   private recuperarEstadoSesion() {
-    try {
-      const estadoGuardado = sessionStorage.getItem('historial_estado');
-      if (estadoGuardado) {
-        const estado = JSON.parse(estadoGuardado);
-        // Solo recuperar si es reciente (menos de 1 hora)
-        const tiempoLimite = 60 * 60 * 1000; // 1 hora en ms
-        if (Date.now() - estado.timestamp < tiempoLimite) {
-          this.tipoSeleccionado = estado.tipo;
-          this.estadoSeleccionado = estado.estado;
-          // Auto-cargar si ambos están seleccionados
-          if (this.tipoSeleccionado && this.estadoSeleccionado) {
-            this.cargarHistorial();
+    if (isPlatformBrowser(this.platformId)) {
+      try {
+        const estadoGuardado = sessionStorage.getItem('historial_estado');
+        if (estadoGuardado) {
+          const estado = JSON.parse(estadoGuardado);
+          // Solo recuperar si es reciente (menos de 1 hora)
+          const tiempoLimite = 60 * 60 * 1000; // 1 hora en ms
+          if (Date.now() - estado.timestamp < tiempoLimite) {
+            this.tipoSeleccionado = estado.tipo;
+            this.estadoSeleccionado = estado.estado;
+            // Auto-cargar si ambos están seleccionados
+            if (this.tipoSeleccionado && this.estadoSeleccionado) {
+              this.cargarHistorial();
+            }
+          } else {
+            // Limpiar estado expirado
+            sessionStorage.removeItem('historial_estado');
           }
-        } else {
-          // Limpiar estado expirado
-          sessionStorage.removeItem('historial_estado');
         }
+      } catch (error) {
+        console.warn('Error recuperando estado de sesión:', error);
       }
-    } catch (error) {
-      console.warn('Error recuperando estado de sesión:', error);
     }
   }
 
@@ -74,13 +79,19 @@ export class HistorialPagosComponent implements OnInit, OnDestroy {
    * Guarda el estado actual en sessionStorage
    */
   private guardarEstadoSesion() {
-    if (this.tipoSeleccionado || this.estadoSeleccionado) {
-      const estado = {
-        tipo: this.tipoSeleccionado,
-        estado: this.estadoSeleccionado,
-        timestamp: Date.now()
-      };
-      sessionStorage.setItem('historial_estado', JSON.stringify(estado));
+    if (isPlatformBrowser(this.platformId)) {
+      if (this.tipoSeleccionado || this.estadoSeleccionado) {
+        const estado = {
+          tipo: this.tipoSeleccionado,
+          estado: this.estadoSeleccionado,
+          timestamp: Date.now()
+        };
+        try {
+          sessionStorage.setItem('historial_estado', JSON.stringify(estado));
+        } catch (error) {
+          console.warn('Error guardando estado de sesión:', error);
+        }
+      }
     }
   }
 
@@ -126,7 +137,13 @@ export class HistorialPagosComponent implements OnInit, OnDestroy {
     } else if (this.tipoSeleccionado) {
       this.tipoSeleccionado = null;
       // Limpiar sessionStorage cuando vuelve al inicio
-      sessionStorage.removeItem('historial_estado');
+      if (isPlatformBrowser(this.platformId)) {
+        try {
+          sessionStorage.removeItem('historial_estado');
+        } catch (error) {
+          console.warn('Error limpiando estado de sesión:', error);
+        }
+      }
     }
     this.error = null;
     this.guardarEstadoSesion();
@@ -208,6 +225,12 @@ export class HistorialPagosComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     // Opcional: limpiar estado al salir del componente
-    // sessionStorage.removeItem('historial_estado');
+    if (isPlatformBrowser(this.platformId)) {
+      try {
+        sessionStorage.removeItem('historial_estado');
+      } catch (error) {
+        console.warn('Error limpiando estado al destruir componente:', error);
+      }
+    }
   }
 }
