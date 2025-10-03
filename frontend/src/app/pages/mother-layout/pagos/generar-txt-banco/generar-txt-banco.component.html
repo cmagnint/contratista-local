@@ -1,0 +1,269 @@
+<!-- ============================================ -->
+<!-- 🎯 CONTENEDOR PRINCIPAL -->
+<!-- ============================================ -->
+<div class="container-principal">
+  
+  <!-- Encabezado -->
+  <div class="header-section">
+    <h1 class="titulo-principal">
+      🏦 Generador de Archivos TXT - Banco de Chile
+    </h1>
+    <p class="subtitulo">
+      Convierte archivos CSV a formato de transferencias masivas
+    </p>
+    <button 
+      class="button-info" 
+      (click)="mostrarInfoFormato()">
+      ℹ️ Ver Información del Formato
+    </button>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 SECCIÓN DE CARGA DE ARCHIVO -->
+  <!-- ============================================ -->
+  <div class="seccion-carga">
+    <div class="card-upload">
+      <div class="upload-icon">📄</div>
+      
+      <h3 class="upload-title">Seleccionar Archivo CSV</h3>
+      
+      <p class="upload-description">
+        El archivo debe contener las columnas necesarias para las transferencias.
+        Cada archivo TXT generado contendrá máximo 30 transferencias.
+      </p>
+
+      <!-- Input de archivo -->
+      <label class="file-upload-label" for="csvFileInput">
+        <input 
+          type="file" 
+          id="csvFileInput"
+          accept=".csv"
+          (change)="onFileSelect($event)"
+          class="file-input-hidden">
+        <div class="file-upload-button">
+          <span class="upload-icon-btn">📁</span>
+          <span>Seleccionar CSV</span>
+        </div>
+      </label>
+
+      <!-- Información del archivo seleccionado -->
+      <div class="archivo-seleccionado" *ngIf="archivoSeleccionado">
+        <div class="archivo-info">
+          <div class="archivo-icono">✅</div>
+          <div class="archivo-detalles">
+            <div class="archivo-nombre">{{ nombreArchivoSeleccionado }}</div>
+            <div class="archivo-tamano">{{ obtenerTamanoArchivo() }}</div>
+          </div>
+          <button 
+            class="button-remove" 
+            (click)="limpiarArchivo()"
+            title="Quitar archivo">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Botón de procesamiento -->
+      <button 
+        class="button-procesar"
+        [disabled]="!archivoSeleccionado || procesando"
+        (click)="procesarArchivo()">
+        <span *ngIf="!procesando">
+          <span class="button-icon">⚙️</span>
+          GENERAR ARCHIVOS TXT
+        </span>
+        <span *ngIf="procesando" class="processing-text">
+          <span class="spinner"></span>
+          Procesando...
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 SECCIÓN DE ARCHIVOS GENERADOS -->
+  <!-- ============================================ -->
+  <div class="seccion-resultados" *ngIf="hayArchivosGenerados()">
+    <div class="card-resultados">
+      <div class="resultados-header">
+        <h3 class="resultados-title">
+          📦 Archivos Generados
+        </h3>
+        <div class="resultados-stats">
+          <div class="stat-item">
+            <span class="stat-label">Total Registros:</span>
+            <span class="stat-value">{{ totalRegistros }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total Archivos:</span>
+            <span class="stat-value">{{ totalArchivos }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de archivos -->
+      <div class="archivos-lista">
+        <div 
+          class="archivo-item" 
+          *ngFor="let archivo of archivosGenerados; let i = index">
+          <div class="archivo-item-info">
+            <div class="archivo-item-numero">{{ i + 1 }}</div>
+            <div class="archivo-item-detalles">
+              <div class="archivo-item-nombre">{{ archivo.nombre }}</div>
+              <div class="archivo-item-lineas">
+                {{ archivo.total_lineas }} transferencia(s)
+              </div>
+            </div>
+          </div>
+          <button 
+            class="button-download" 
+            (click)="descargarArchivo(archivo)"
+            title="Descargar archivo">
+            <span class="download-icon">⬇️</span>
+            Descargar
+          </button>
+        </div>
+      </div>
+
+      <!-- Botón para descargar todos -->
+      <button 
+        class="button-download-all"
+        (click)="descargarTodos()">
+        <span class="download-icon">📥</span>
+        DESCARGAR TODOS LOS ARCHIVOS
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL DE INFORMACIÓN -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['infoModal']" 
+    (click)="closeModal('infoModal')">
+    
+    <div class="modal-content modal-info" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>📋 Información del Formato</h2>
+        <button 
+          class="close-button" 
+          (click)="closeModal('infoModal')">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="info-section">
+          <h3>📄 Formato de Archivo CSV</h3>
+          <p>El archivo CSV debe contener las siguientes columnas (separadas por punto y coma):</p>
+          <ul class="info-list">
+            <li><strong>Tipo Operación:</strong> TOB, TEC, TMC, TAM, TVV</li>
+            <li><strong>RUT Cliente:</strong> Sin puntos ni guión (ej: 773819610)</li>
+            <li><strong>Cuenta Cargo:</strong> Número de cuenta de cargo</li>
+            <li><strong>RUT Beneficiario:</strong> Sin puntos ni guión</li>
+            <li><strong>Nombre Beneficiario:</strong> Nombre completo</li>
+            <li><strong>Cuenta Beneficiario:</strong> Número de cuenta destino</li>
+            <li><strong>RUT Banco Beneficiario:</strong> Sin puntos ni guión</li>
+            <li><strong>Monto:</strong> En pesos chilenos (sin decimales)</li>
+            <li><strong>(Campo vacío):</strong> Dejar vacío para Abono Inmediato</li>
+            <li><strong>Motivo:</strong> Motivo de la transferencia</li>
+            <li><strong>Notificación Email:</strong> 1 (Sí) o 0 (No)</li>
+            <li><strong>Asunto Email:</strong> Asunto del correo</li>
+            <li><strong>Email:</strong> Correo del beneficiario</li>
+            <li><strong>Tipo Cuenta:</strong> CTD (Corriente) o JUV (Vista)</li>
+          </ul>
+        </div>
+
+        <div class="info-section">
+          <h3>📝 Ejemplo de Línea CSV</h3>
+          <div class="code-block">
+            TOB;773819610;2180525808;115664905;Juan Miguel Torres Lillo;86475339;970060006;100;;Remun 092025;1;Pago sueldo;jmiguelt&#64;hotmail.com;CTD
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>✅ Características del Formato TXT</h3>
+          <ul class="info-list">
+            <li>Cada línea tiene exactamente 219 caracteres</li>
+            <li>Formato de ancho fijo (fixed-width)</li>
+            <li>Campos numéricos alineados a la derecha con ceros</li>
+            <li>Campos de texto alineados a la izquierda con espacios</li>
+            <li>Máximo 30 transferencias por archivo</li>
+          </ul>
+        </div>
+
+        <div class="info-section warning">
+          <h3>⚠️ Importante</h3>
+          <ul class="info-list">
+            <li>Los RUTs deben ir SIN puntos y SIN guión</li>
+            <li>Los montos deben ser en pesos chilenos SIN decimales</li>
+            <li>El archivo CSV debe estar en formato UTF-8</li>
+            <li>Si el CSV tiene más de 30 registros, se generarán múltiples archivos TXT</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button 
+          class="button-modal-close" 
+          (click)="closeModal('infoModal')">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL DE ÉXITO -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['exitoModal']" 
+    (click)="closeModal('exitoModal')">
+    
+    <div class="modal-content-message success" (click)="$event.stopPropagation()">
+      <div class="icon-container">
+        <div class="icon-circle success">✓</div>
+      </div>
+      
+      <h2 class="modal-title success">¡Éxito!</h2>
+      <p class="modal-message">{{ exitoMensaje }}</p>
+      
+      <div class="button-container">
+        <button 
+          class="button-bottom success" 
+          (click)="closeModal('exitoModal')">
+          Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 🎯 MODAL DE ERROR -->
+  <!-- ============================================ -->
+  <div 
+    class="modal" 
+    *ngIf="modals['errorModal']" 
+    (click)="closeModal('errorModal')">
+    
+    <div class="modal-content-message error" (click)="$event.stopPropagation()">
+      <div class="icon-container">
+        <div class="icon-circle error">✕</div>
+      </div>
+      
+      <h2 class="modal-title error">Error</h2>
+      <p class="modal-message">{{ errorMensaje }}</p>
+      
+      <div class="button-container">
+        <button 
+          class="button-bottom error" 
+          (click)="closeModal('errorModal')">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

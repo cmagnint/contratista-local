@@ -116,6 +116,7 @@ from .views import (
     CheckHealthAPIView,
     PasswordResetAPIView,
     DocumentoVariablesNativasAPIView,
+    GenerarTxtBancoAPIView,
 )
 
 app_name = 'contratista_test'
@@ -291,7 +292,7 @@ urlpatterns = [
     path('historial/<str:tipo>/<str:estado>/', HistorialPagosAPIView.as_view(), name='historial-pagos'),
     # URLs para historial de pagos CSV
     path('historial/<str:tipo>/<str:estado>/csv/', HistorialPagosAPIView.as_view(), {'formato': 'csv'}, name='historial-pagos-csv'),
-    
+    path('generar_txt_banco/', GenerarTxtBancoAPIView.as_view(), name='generar_txt_banco'),
 ]   
 
 

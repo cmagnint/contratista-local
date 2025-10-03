@@ -18808,3 +18808,331 @@ class DocumentoVariablesNativasAPIView(APIView):
         print(f"PDF generado exitosamente: {output_pdf_path}")
         return output_pdf_path
     
+# ===================================================================
+# ===================== GENERADOR TXT BANCO DE CHILE ================
+# ===================================================================
+
+class GenerarTxtBancoAPIView(APIView):
+    """
+    API View para generar archivos TXT en formato Banco de Chile
+    desde archivos CSV de transferencias masivas.
+    
+    Formato: Ancho fijo de 219 caracteres por línea
+    Máximo: 30 transferencias por archivo TXT
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+    
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == 'POST':
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+    
+    def post(self, request, format=None):
+        """
+        Procesa el archivo CSV y genera archivos TXT en formato Banco de Chile
+        """
+        try:
+            # Obtener el archivo CSV del request
+            csv_file = request.FILES.get('csv_file')
+            
+            if not csv_file:
+                return Response({
+                    'success': False,
+                    'message': 'No se recibió archivo CSV'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validar que sea un CSV
+            if not csv_file.name.lower().endswith('.csv'):
+                return Response({
+                    'success': False,
+                    'message': 'El archivo debe ser formato CSV'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validar tamaño (máximo 5MB)
+            if csv_file.size > 5 * 1024 * 1024:
+                return Response({
+                    'success': False,
+                    'message': 'El archivo es demasiado grande. Máximo 5MB'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Leer y procesar el CSV
+            try:
+                # Decodificar archivo
+                decoded_file = csv_file.read().decode('utf-8-sig')  # utf-8-sig para manejar BOM
+                io_string = io.StringIO(decoded_file)
+                reader = csv.reader(io_string, delimiter=';')
+                
+                # Leer todas las filas
+                registros = []
+                for row_num, row in enumerate(reader, start=1):
+                    # Validar que tenga al menos 14 columnas
+                    if len(row) < 14:
+                        return Response({
+                            'success': False,
+                            'message': f'Línea {row_num}: formato inválido. Se esperan 14 columnas, se encontraron {len(row)}'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    registros.append(row)
+                
+                if not registros:
+                    return Response({
+                        'success': False,
+                        'message': 'El archivo CSV está vacío'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+            except UnicodeDecodeError:
+                return Response({
+                    'success': False,
+                    'message': 'Error de codificación. El archivo debe estar en UTF-8'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response({
+                    'success': False,
+                    'message': f'Error al leer el archivo CSV: {str(e)}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Dividir registros en grupos de 30
+            archivos_generados = []
+            total_registros = len(registros)
+            
+            for i in range(0, total_registros, 30):
+                grupo = registros[i:i+30]
+                numero_archivo = (i // 30) + 1
+                
+                # Generar contenido del archivo TXT
+                contenido_txt = self._generar_contenido_txt(grupo)
+                
+                # Validar que el contenido se generó correctamente
+                if contenido_txt is None:
+                    return Response({
+                        'success': False,
+                        'message': f'Error al formatear los datos del grupo {numero_archivo}'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                # Crear nombre de archivo
+                nombre_archivo = f'transferencias_banco_chile_parte_{numero_archivo}.txt'
+                
+                archivos_generados.append({
+                    'nombre': nombre_archivo,
+                    'contenido': contenido_txt,
+                    'numero_archivo': numero_archivo,
+                    'total_lineas': len(grupo)
+                })
+            
+            # Retornar respuesta exitosa
+            return Response({
+                'success': True,
+                'total_registros': total_registros,
+                'total_archivos': len(archivos_generados),
+                'archivos': archivos_generados
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error en GenerarTxtBancoAPIView: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            return Response({
+                'success': False,
+                'message': f'Error interno del servidor: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _generar_contenido_txt(self, registros):
+        """
+        Genera el contenido del archivo TXT en formato Banco de Chile
+        
+        Formato de 219 caracteres por línea con campos de ancho fijo:
+        - Campos numéricos: alineados a la derecha, relleno con ceros
+        - Campos de texto: alineados a la izquierda, relleno con espacios
+        
+        Args:
+            registros: Lista de registros (filas del CSV)
+            
+        Returns:
+            str: Contenido del archivo TXT formateado
+        """
+        try:
+            lineas = []
+            
+            for registro in registros:
+                # Extraer campos del registro (CSV tiene 14 columnas)
+                tipo_operacion = registro[0].strip()
+                rut_cliente = registro[1].strip()
+                cuenta_cargo = registro[2].strip()
+                rut_beneficiario = registro[3].strip()
+                nombre_beneficiario = registro[4].strip()
+                cuenta_beneficiario = registro[5].strip()
+                rut_banco_beneficiario = registro[6].strip()
+                monto = registro[7].strip()
+                # registro[8] está vacío (abono inmediato) - se ignora
+                motivo = registro[9].strip()
+                notif_email_valor = registro[10].strip()
+                asunto_email = registro[11].strip()
+                email = registro[12].strip()
+                tipo_cuenta = registro[13].strip()
+                
+                # Formatear cada campo según especificaciones
+                
+                # 1. Tipo de Operación (3 caracteres, texto)
+                tipo_op_fmt = self._format_text(tipo_operacion, 3)
+                
+                # 2. RUT Cliente (10 caracteres, numérico con ceros, preservar K)
+                rut_cliente_fmt = self._format_rut(rut_cliente, 10)
+                
+                # 3. Cuenta de Cargo (12 caracteres, numérico con ceros)
+                cuenta_cargo_fmt = self._format_numeric(cuenta_cargo, 12)
+                
+                # 4. RUT Beneficiario (10 caracteres, numérico con ceros, preservar K)
+                rut_benef_fmt = self._format_rut(rut_beneficiario, 10)
+                
+                # 5. Nombre Beneficiario (30 caracteres, texto con espacios)
+                nombre_fmt = self._format_text(nombre_beneficiario, 30)
+                
+                # 6. Cuenta Beneficiario (18 caracteres, texto con espacios)
+                # IMPORTANTE: Aunque es número, se formatea como TEXTO
+                cuenta_benef_fmt = self._format_text(cuenta_beneficiario, 18)
+                
+                # 7. RUT Banco Beneficiario (10 caracteres, numérico con ceros, preservar K)
+                rut_banco_fmt = self._format_rut(rut_banco_beneficiario, 10)
+                
+                # 8. Monto (11 caracteres, numérico con ceros)
+                monto_fmt = self._format_numeric(monto, 11)
+                # 8. Monto (11 caracteres, numérico con ceros)
+                monto_fmt = self._format_numeric(monto, 11)
+                
+                # 9. Abono Inmediato (1 caracter, espacio en blanco)
+                abono_inmediato = ' '
+                
+                # 10. Motivo (30 caracteres, texto con espacios)
+                motivo_fmt = self._format_text(motivo, 30)
+                
+                # 11. Notificación Email (1 caracter, 1=Sí, 0=No)
+                # Usar el valor del CSV (columna 10)
+                notif_email = notif_email_valor if notif_email_valor in ['0', '1'] else '1'
+                
+                # 12. Asunto Email (30 caracteres, texto con espacios)
+                asunto_fmt = self._format_text(asunto_email, 30)
+                
+                # 13. Dirección Email (50 caracteres, texto con espacios)
+                email_fmt = self._format_text(email, 50)
+                
+                # 14. Tipo de Cuenta (3 caracteres, texto)
+                tipo_cuenta_fmt = self._format_text(tipo_cuenta, 3)
+                
+                # Concatenar todos los campos (total: 219 caracteres)
+                linea = (
+                    tipo_op_fmt +           # 3 chars (1-3)
+                    rut_cliente_fmt +       # 10 chars (4-13)
+                    cuenta_cargo_fmt +      # 12 chars (14-25)
+                    rut_benef_fmt +         # 10 chars (26-35)
+                    nombre_fmt +            # 30 chars (36-65)
+                    cuenta_benef_fmt +      # 18 chars (66-83)
+                    rut_banco_fmt +         # 10 chars (84-93)
+                    monto_fmt +             # 11 chars (94-104)
+                    abono_inmediato +       # 1 char (105)
+                    motivo_fmt +            # 30 chars (106-135)
+                    notif_email +           # 1 char (136)
+                    asunto_fmt +            # 30 chars (137-166)
+                    email_fmt +             # 50 chars (167-216)
+                    tipo_cuenta_fmt         # 3 chars (217-219)
+                )
+                
+                # Validar longitud exacta
+                if len(linea) != 219:
+                    print(f"ERROR: Línea con longitud incorrecta: {len(linea)} caracteres")
+                    print(f"Contenido: {linea}")
+                    return None
+                
+                lineas.append(linea)
+            
+            # Unir todas las líneas con saltos de línea
+            contenido = '\n'.join(lineas)
+            
+            return contenido
+            
+        except Exception as e:
+            print(f"Error al generar contenido TXT: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _format_rut(self, value, length):
+        """
+        Formatea un RUT chileno: alineado a la derecha, relleno con ceros
+        IMPORTANTE: Preserva la K del dígito verificador
+        
+        Args:
+            value: RUT a formatear (puede contener puntos, guiones, etc.)
+            length: Longitud total del campo (10 caracteres)
+            
+        Returns:
+            str: RUT formateado
+        """
+        # Convertir a string y limpiar
+        value_str = str(value).upper().strip()
+        
+        # Verificar si termina en K (dígito verificador chileno)
+        tiene_k = value_str.endswith('K')
+        
+        if tiene_k:
+            # Remover la K temporalmente
+            sin_k = value_str[:-1]
+            # Limpiar solo dejando dígitos
+            cleaned = ''.join(c for c in sin_k if c.isdigit())
+            # Rellenar con ceros a la izquierda (longitud - 1 para dejar espacio a la K)
+            formatted = cleaned.zfill(length - 1) + 'K'
+        else:
+            # Limpiar solo dejando dígitos
+            cleaned = ''.join(c for c in value_str if c.isdigit())
+            # Rellenar con ceros a la izquierda
+            formatted = cleaned.zfill(length)
+        
+        # Truncar si es más largo que el requerido
+        return formatted[-length:]
+    
+    def _format_numeric(self, value, length):
+        """
+        Formatea un campo numérico: alineado a la derecha, relleno con ceros
+        NO preserva letras, solo dígitos (para cuentas, montos, etc.)
+        
+        Args:
+            value: Valor a formatear
+            length: Longitud total del campo
+            
+        Returns:
+            str: Campo formateado
+        """
+        # Limpiar el valor: SOLO dígitos (sin K, sin letras)
+        cleaned = ''.join(c for c in str(value) if c.isdigit())
+        
+        # Rellenar con ceros a la izquierda
+        formatted = cleaned.zfill(length)
+        
+        # Truncar si es más largo que el requerido
+        return formatted[-length:]
+    
+    def _format_text(self, value, length):
+        """
+        Formatea un campo de texto: alineado a la izquierda, relleno con espacios
+        
+        Args:
+            value: Valor a formatear
+            length: Longitud total del campo
+            
+        Returns:
+            str: Campo formateado
+        """
+        # Convertir a string y hacer uppercase
+        text = str(value).upper().strip()
+        
+        # Rellenar con espacios a la derecha
+        formatted = text.ljust(length)
+        
+        # Truncar si es más largo que el requerido
+        return formatted[:length]

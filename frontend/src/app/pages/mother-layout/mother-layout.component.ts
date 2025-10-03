@@ -562,6 +562,12 @@ export class MotherLayoutComponent implements OnInit {
   
 
   // RUTAS DE PAGO
+
+  navigateToTxtBanco() {
+    this.router.navigate(['/fs/txt-banco']);
+    this.leftSidenav.close();
+  }
+
   navigateToPagoTransferencia() {
     this.router.navigate(['/fs/pago-transf']);
     this.leftSidenav.close();

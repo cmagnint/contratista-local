@@ -260,6 +260,12 @@
         </h3>
         <ul class="sub-menu-list" [class.show]="isGroupOpen('group6')">
 
+
+          <li (click)="navigateToTxtBanco()">
+            <mat-icon>transform</mat-icon>
+            <span class="">Generar TXT</span>
+          </li>
+
           <li *ngIf="puedeAccederSubmodulo('PAGOS', 'TRANSFERENCIA')" (click)="navigateToPagoTransferencia()">
             <mat-icon>credit_card</mat-icon>
             <span class="icon-label">Transferencia</span>

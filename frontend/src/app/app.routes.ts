@@ -59,6 +59,7 @@ import { HistorialPagosComponent } from './pages/mother-layout/tesoreria/histori
 import { ChangePasswordComponent } from './pages/change-password/change-password.component';
 import { MaestroTrabajadoresComponent } from './pages/mother-layout/recursos-humanos/maestro-trabajadores/maestro-trabajadores.component';
 import { FormatosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/formatos/formatos.component';
+import { GenerarTxtBancoComponent } from './pages/mother-layout/pagos/generar-txt-banco/generar-txt-banco.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -122,6 +123,7 @@ export const routes: Routes = [
       { path: 'pago-efect', component: PagoEfectivoComponent },
       { path: 'transf-rlzda', component: TransferenciasRealizadasComponent },
       { path: 'reprcs-pago', component: ReprocesarPagoComponent }, 
+      { path: 'txt-banco', component: GenerarTxtBancoComponent },
       //RUTAS INFORMES
       { path: 'informe-rendimiento', component: InformeRendimientoComponent },
       { path: 'informe-pago', component: InformePagoComponent },
