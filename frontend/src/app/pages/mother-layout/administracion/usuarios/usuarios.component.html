@@ -255,12 +255,20 @@
       </div>
     </div>
   </div>
-    
+   
+  <!-- ============================================ -->
+  <!-- 🎯 MENSAJE SIN USUARIOS -->
+  <!-- ============================================ -->
+  <div *ngIf="usuariosCargados.length === 0" class="no-usuarios-message">
+    <div class="no-usuarios-icon">👥</div>
+    <h3>No hay usuarios disponibles</h3>
+    <p>Comience creando su primer usuario con el botón "CREAR USUARIO"</p>
+  </div>
+
   <!-- ============================================ -->
   <!-- 🎯 TABLA DE USUARIOS -->
   <!-- ============================================ -->
-  <table mat-table [dataSource]="usuariosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
-      
+  <table *ngIf="usuariosCargados.length > 0" mat-table [dataSource]="usuariosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">      
     <ng-container matColumnDef="codigo">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Código</th>
       <td mat-cell *matCellDef="let usuario" class="mat-cell">{{usuario.id}}</td>

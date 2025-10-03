@@ -5,7 +5,6 @@ import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { JwtService } from '../../../../services/jwt.service';
 
-
 @Component({
   selector: 'app-usuarios',
   standalone: true,
@@ -142,18 +141,24 @@ export class UsuariosComponent implements OnInit {
     })
   }
 
-  cargarPersonalDisponible(): void {
+ cargarPersonalDisponible(): void {
     this.apiService.get(`api_personal_for_users/${this.holding}/`).subscribe({
         next: (response) => {
             this.personalDisponible = response;
             console.log('Personal disponible cargado:', this.personalDisponible);
         },
         error: (error) => {
-            this.openErrorModal('Error al cargar personal: ' + error.error.message);
+            // Si es 404 (no se encontró personal), simplemente cargar array vacío
+            if (error.status === 404) {
+                this.personalDisponible = [];
+                console.log('No se encontró personal disponible, cargando lista vacía');
+            } else {
+                // Solo mostrar error si es un error diferente a 404
+                this.openErrorModal('Error al cargar personal: ' + error.error.message);
+            }
         }
     });
   }
-
   onPersonalSelected(personalId: string | number): void {
     // Convertir a número ya que viene como string desde el select
     const id = typeof personalId === 'string' ? parseInt(personalId) : personalId;

@@ -740,6 +740,46 @@ input[type="checkbox"] {
 }
 
 /* ============================================ */
+/* 🎯 MENSAJE SIN USUARIOS */
+/* ============================================ */
+
+.no-usuarios-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  margin: 40px auto;
+  max-width: 600px;
+  text-align: center;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.no-usuarios-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.no-usuarios-message h3 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #6c757d;
+  margin: 0 0 15px 0;
+  letter-spacing: 0.5px;
+}
+
+.no-usuarios-message p {
+  font-size: 16px;
+  color: #868e96;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ============================================ */
 /* 🎯 RESPONSIVE DESIGN */
 /* ============================================ */
 
