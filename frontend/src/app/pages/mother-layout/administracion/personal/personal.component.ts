@@ -16,21 +16,21 @@ import { JwtService } from '../../../../services/jwt.service';
     FormsModule,
     MatTableModule,
     MatIconModule,
-    
   ],
   templateUrl: './personal.component.html',
   styleUrl: './personal.component.css'
 })
 export class PersonalComponent implements OnInit {
-  //VARIABLES
-
+  
   constructor(
     private contratistaApiService: ContratistaApiService,
     private jwtService : JwtService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
-  
+  // ============================================
+  // LISTAS DE NACIONALIDADES
+  // ============================================
   public nacionalidadesFiltradas: string[] = [];
   public todasLasNacionalidades: string[] = [
       'AFGANA', 'ALBANESA', 'ALEMANA', 'ANDORRANA', 'ANGOLEÑA', 'ANTIGUANA', 'ÁRABE', 
@@ -61,7 +61,9 @@ export class PersonalComponent implements OnInit {
       'ZAMBIANA', 'ZIMBABUENSE'
   ];
 
-  // Booleanos para abrir o cerrar ventanas
+  // ============================================
+  // CONTROL DE MODALES
+  // ============================================
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
@@ -76,9 +78,13 @@ export class PersonalComponent implements OnInit {
     saludModal: false,
     bancosModal: false,
     confirmacionModal: false,
+    bancoInfoModal: false,
+    documentosModal: false,
   };
 
-  //Perfil seleccionado
+  // ============================================
+  // VARIABLES GENERALES
+  // ============================================
   public trabajadorSeleccionado: any = {
     nombre_trabajador_seleccionado : '',
     rut_trabajador_seleccionado : '',
@@ -92,7 +98,7 @@ export class PersonalComponent implements OnInit {
     id_afp_trabajador_seleccionado : 0,
   }
 
-  public holding: string = ''; //Variable para guardar el ID del holding al cual pertenece al adminitrador
+  public holding: string = '';
   public nombresTrabajador: string | null = null;
   public apellidosTrabajador:  string | null = null;
   public rutTrabajador: string | null = null;
@@ -105,48 +111,71 @@ export class PersonalComponent implements OnInit {
   public banco: string | null = null;
   public tipoCuenta: string | null = null;
   public numeroCuenta: string | null = null;
+  public nacionalidadTrabajador: string = 'CHILENA';
+  public fechaIngreso: string | null = null;
+
+  // ============================================
+  // NUEVOS CAMPOS AGREGADOS
+  // ============================================
+  public casaTrabajador: number | null = null;
+  public fundoTrabajador: number | null = null;
+  public fechaNacimiento: string | null = null;
+  public estadoCivil: string = 'Soltero';
 
   // Variables para modificación
-  correoTrabajadorNew: string = '';
-  direccionTrabajadorNew: string = '';
-  sexoTrabajadorNew: string = '';
-  telefonoTrabajadorNew: string = '';
-  fechaIngresoNew: string = '';
-  metodoPagoNew: string = '';
-  bancoNew: string = '';
-  tipoCuentaNew: string = '';
-  numeroCuentaNew: string = '';
-  public nacionalidadTrabajador: string = 'CHILENA';
+  public correoTrabajadorNew: string = '';
+  public direccionTrabajadorNew: string = '';
+  public sexoTrabajadorNew: string = '';
+  public telefonoTrabajadorNew: string = '';
+  public fechaIngresoNew: string = '';
+  public metodoPagoNew: string = '';
+  public bancoNew: string = '';
+  public tipoCuentaNew: string = '';
+  public numeroCuentaNew: string = '';
   public nacionalidadTrabajadorNew: string = 'CHILENA';
+  public casaTrabajadorNew: number | null = null;
+  public fundoTrabajadorNew: number | null = null;
+  public fechaNacimientoNew: string | null = null;
+  public estadoCivilNew: string = '';
 
-  //SOCIEDADES CARGADAS
+  // ============================================
+  // LISTAS CARGADAS
+  // ============================================
   public sociedadesCargadas: any[] = []
   public selectedSociedadId: number | null = null;
   
-  //AREAS CARGADAS
   public areasCargadas: any[] = []
   public selectedAreaId: number | null = null;
 
-  //CARGOS CARGADOS
   public cargosCargados: any[] = []
   public selectedCargoId: number | null = null;
 
-  //AFP CARGADOS
   public afpCargadas: any[] = []
   public selectedAfpId: number | null = null;
 
-  //SALUD CARGADOS
   public saludCargadas: any[] = []
   public selectedSaludId: number | null = null;
 
-  //BANCOS CARGADOS
   public bancosCargados: any[] = []
   public selectedBancoId: number | null = null;
-  
-  public fechaIngreso: string | null = null;
 
-  errorMessage!: string; //Variable usada para mostrar los mensajes de error de la API
-  selectedRows: any[] = []; //Array usado para guardar las filas seleccionadas
+  public casasCargadas: any[] = [];
+  public selectedCasaId: number | null = null;
+
+  public fundosCargados: any[] = [];
+  public selectedFundoId: number | null = null;
+
+  // ============================================
+  // VARIABLES PARA MODALES DE INFO
+  // ============================================
+  public trabajadorSeleccionadoBanco: any = null;
+  public trabajadorSeleccionadoDocs: any = null;
+
+  // ============================================
+  // OTRAS VARIABLES
+  // ============================================
+  errorMessage!: string;
+  selectedRows: any[] = [];
   
   public dropdownStates = {
     sociedades: false,
@@ -155,25 +184,28 @@ export class PersonalComponent implements OnInit {
     afps: false,
     salud: false,
     bancos: false,
+    casas: false,
+    fundos: false,
   };
 
-  public todasSeleccionadas: boolean = false; //Booleano para seleccionar todas/ninguna casilla
+  public todasSeleccionadas: boolean = false;
   public trabajadoresCargados: any[] = [];
-  columnasDesplegadas = ['codigo','sociedad','area','cargo','nombre','rut','direccion',
-    'sexo','telefono','nacionalidad','correo','fecha_ingreso','afp','salud','metodo_pago', 'estado'];
+  columnasDesplegadas = [
+    'codigo', 'sociedad', 'area', 'cargo', 'nombre', 'rut', 
+    'direccion', 'sexo', 'telefono', 'nacionalidad', 'correo', 
+    'fecha_ingreso', 'fecha_nacimiento', 'estado_civil', 'afp', 'salud', 
+    'metodo_pago', 'banco_info', 'casa', 'fundo', 'documentos', 'estado'
+  ];
   
   public nombreTrabajadorNew: string = '';
   public rutTrabajadorNew: string = '';
   public emailTrabajadorNew: string = '';
   public deletedRow: any[] = [];
-  
-  //TESTING 
+  public selectedTrabajadorId: number | null = null;
 
-  //------------------------------------------------------------//
-  public selectedTrabajadorId: number | null = null; //GUARDA EL ID DEL TRABAJADOR DE LA FILA SELECCIONADA
-
-  //FUNCIONES
-  
+  // ============================================
+  // INICIALIZACIÓN
+  // ============================================
   ngOnInit():void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT(); 
@@ -184,9 +216,18 @@ export class PersonalComponent implements OnInit {
       this.cargaAfp();
       this.cargarSalud();
       this.cargarBancos();
+      this.cargarCasas();
+      this.cargarFundos();
       this.setDefaultFechaCelebracion();
       this.nacionalidadesFiltradas = [...this.todasLasNacionalidades];
     }
+  }
+
+  tieneImagenReal(path: string): boolean {
+    if (!path) return false;
+    // Si contiene 'dni.jpg' es la imagen por defecto (no existe)
+    if (path.includes('dni.jpg')) return false;
+    return true;
   }
   
   private getHoldingIdFromJWT(): string {
@@ -216,7 +257,9 @@ export class PersonalComponent implements OnInit {
     this.fechaIngreso = `${year}-${month}-${day}`;
   }
 
-  //CARGAR SOCIEDADES
+  // ============================================
+  // CARGAR DATOS DESDE API
+  // ============================================
   cargarSociedades(): void {
     this.contratistaApiService.get(`api_sociedad/?holding=${this.holding}`).subscribe({
       next: (response) => {
@@ -236,7 +279,6 @@ export class PersonalComponent implements OnInit {
     this.contratistaApiService.get(`api_areas_administracion/?holding=${this.holding}`).subscribe({
       next: (response) => {
         this.areasCargadas = response;
-        console.log(this.areasCargadas);
       },
       error: (error) => {
         console.error('Error al recibir las areas:', error);
@@ -290,7 +332,6 @@ export class PersonalComponent implements OnInit {
     this.contratistaApiService.get('api_bancos/').subscribe({
       next: (response) => {
         this.bancosCargados = response;
-        console.log('Bancos cargados:', this.bancosCargados);
       },
       error: (error) => {
         console.error('Error al cargar bancos:', error);
@@ -299,60 +340,81 @@ export class PersonalComponent implements OnInit {
     });
   }
 
-//----------------------------------------------------------------------------//
-
-  //FUNCIONES CRUD DEL MODULO
-
-  crearTrabajador(): void {
-  let data = {
-    holding: this.holding,
-    nombres: this.nombresTrabajador,
-    apellidos: this.apellidosTrabajador,
-    rut: this.rutTrabajador!.replace(/[\.\-]/g, ''),
-    correo: this.correoTrabajador,
-    direccion: this.direccionTrabajador,
-    sexo: this.sexoTrabajador,
-    telefono: this.telefonoTrabajador,
-    nacionalidad: this.nacionalidadTrabajador,
-    sociedad: this.selectedSociedadId,
-    area: this.selectedAreaId,
-    cargo: this.selectedCargoId,
-    afp: this.selectedAfpId,
-    salud: this.selectedSaludId,
-    metodo_pago: this.metodoPago,
-    fecha_ingreso: this.fechaIngreso,
-    banco: this.selectedBancoId,
-    tipo_cuenta_bancaria: this.tipoCuenta,
-    numero_cuenta: this.numeroCuenta
+  cargarCasas(): void {
+    this.contratistaApiService.get(`api_casas_trabajadores/?holding=${this.holding}`).subscribe({
+      next: (response) => {
+        this.casasCargadas = response;
+        console.log('Casas cargadas:', this.casasCargadas);
+      },
+      error: (error) => {
+        console.error('Error al cargar casas:', error);
+      }
+    });
   }
-  
-  this.contratistaApiService.post('api_personal/', data).subscribe({
-    next: (response) => {
-      this.closeModal('crearTrabajador');
-      this.cargarTrabajadores();
-      this.limpiarFormularioCreacion(); // 🎯 AGREGAMOS LA LIMPIEZA DEL FORMULARIO
-      this.openModal('exitoModal');
-    }, 
-    error: (error) => {
-      this.openModal('errorModal')
-    }
-  });
-}
 
-  onMetodoPagoChange(event: Event): void {
-    const selectElement = event.target as HTMLSelectElement;
-    this.metodoPago = selectElement.value;
+  cargarFundos(): void {
+    this.contratistaApiService.get(`api_campos_clientes/?holding_id=${this.holding}`).subscribe({
+      next: (response) => {
+        this.fundosCargados = response;
+        console.log('Fundos cargados:', this.fundosCargados);
+      },
+      error: (error) => {
+        console.error('Error al cargar fundos:', error);
+      }
+    });
   }
 
   cargarTrabajadores():void{
     this.contratistaApiService.get(`api_personal/?holding=${this.holding}`).subscribe({
       next: (response) => {
         this.trabajadoresCargados = response;
-        
+        console.log('Trabajadores cargados:', this.trabajadoresCargados);
       },
       error: (error) => {
         console.error('Error al recibir los trabajadores:', error);
-        
+      }
+    });
+  }
+
+  // ============================================
+  // CRUD OPERACIONES
+  // ============================================
+  crearTrabajador(): void {
+    let data = {
+      holding: this.holding,
+      nombres: this.nombresTrabajador,
+      apellidos: this.apellidosTrabajador,
+      rut: this.rutTrabajador!.replace(/[\.\-]/g, ''),
+      correo: this.correoTrabajador,
+      direccion: this.direccionTrabajador,
+      sexo: this.sexoTrabajador,
+      telefono: this.telefonoTrabajador,
+      nacionalidad: this.nacionalidadTrabajador,
+      sociedad: this.selectedSociedadId,
+      area: this.selectedAreaId,
+      cargo: this.selectedCargoId,
+      afp: this.selectedAfpId,
+      salud: this.selectedSaludId,
+      metodo_pago: this.metodoPago,
+      fecha_ingreso: this.fechaIngreso,
+      banco: this.selectedBancoId,
+      tipo_cuenta_bancaria: this.tipoCuenta,
+      numero_cuenta: this.numeroCuenta,
+      casa: this.selectedCasaId,
+      fundo: this.selectedFundoId,
+      fecha_nacimiento: this.fechaNacimiento,
+      estado_civil: this.estadoCivil
+    }
+    
+    this.contratistaApiService.post('api_personal/', data).subscribe({
+      next: (response) => {
+        this.closeModal('crearTrabajador');
+        this.cargarTrabajadores();
+        this.limpiarFormularioCreacion();
+        this.openModal('exitoModal');
+      }, 
+      error: (error) => {
+        this.openModal('errorModal')
       }
     });
   }
@@ -377,7 +439,11 @@ export class PersonalComponent implements OnInit {
       metodo_pago: this.metodoPagoNew,
       banco: this.selectedBancoId,
       tipo_cuenta_bancaria: this.tipoCuentaNew,
-      numero_cuenta: this.numeroCuentaNew
+      numero_cuenta: this.numeroCuentaNew,
+      casa: this.selectedCasaId,
+      fundo: this.selectedFundoId,
+      fecha_nacimiento: this.fechaNacimientoNew,
+      estado_civil: this.estadoCivilNew
     };
   
     this.contratistaApiService.put('api_personal/', data).subscribe({
@@ -394,8 +460,6 @@ export class PersonalComponent implements OnInit {
     });
   }
 
-
-  
   eliminarTrabajadoresSeleccionados(): void {
     if (this.deletedRow.length > 0) {
         const idsToDelete = this.deletedRow.map(row => row.id);
@@ -404,7 +468,7 @@ export class PersonalComponent implements OnInit {
                 this.closeModal('confirmacionModal')
                 this.cargarTrabajadores();
                 this.openModal('exitoModal');
-                this.deletedRow = []; // Limpiar la selección después de eliminar
+                this.deletedRow = [];
             },
             error: (error) => {
                 this.openModal('errorModal');
@@ -414,157 +478,90 @@ export class PersonalComponent implements OnInit {
     }
   }
 
+  // ============================================
+  // TOGGLE SELECTIONS
+  // ============================================
   toggleSelection(id: number, list: number[], total: any[]): void {
     const index = list.indexOf(id);
     if (index > -1) {
-      list.splice(index, 1); // Deseleccionar
+      list.splice(index, 1);
     } else {
-      list.push(id); // Seleccionar
+      list.push(id);
     }
-    // Esta parte comprueba si todas las opciones están seleccionadas para ajustar la casilla "Seleccionar Todas"
     if (list.length === total.length) {
-      // Si todas las opciones individuales están seleccionadas
       this.todasSeleccionadas = true;
     } else {
-      // Si al menos una opción individual no está seleccionada
       this.todasSeleccionadas = false;
     }
   }
 
   toggleSelectionSociedad(sociedadId: number): void {
     if (this.selectedSociedadId === sociedadId) {
-      this.selectedSociedadId = null;  // Deseleccionar si el mismo perfil es clickeado nuevamente
+      this.selectedSociedadId = null;
     } else {
-      this.selectedSociedadId = sociedadId;  // Seleccionar el nuevo perfil
+      this.selectedSociedadId = sociedadId;
     }
   }
 
   toggleSelectionArea(areaId: number): void {
     if (this.selectedAreaId === areaId) {
-      this.selectedAreaId = null;  // Deseleccionar si el mismo perfil es clickeado nuevamente
+      this.selectedAreaId = null;
     } else {
-      this.selectedAreaId = areaId;  // Seleccionar el nuevo perfil
+      this.selectedAreaId = areaId;
     }
   }
 
   toggleSelectionCargo(cargoId: number): void {
     if (this.selectedCargoId === cargoId) {
-      this.selectedCargoId = null;  // Deseleccionar si el mismo perfil es clickeado nuevamente
+      this.selectedCargoId = null;
     } else {
-      this.selectedCargoId = cargoId;  // Seleccionar el nuevo perfil
+      this.selectedCargoId = cargoId;
     }
   }
 
   toggleSelectionAFP(afpId: number): void {
     if (this.selectedAfpId === afpId) {
-      this.selectedAfpId = null;  // Deseleccionar si el mismo perfil es clickeado nuevamente
+      this.selectedAfpId = null;
     } else {
-      this.selectedAfpId = afpId;  // Seleccionar el nuevo perfil
+      this.selectedAfpId = afpId;
     }
   }
 
   toggleSelectionSalud(saludId: number): void {
     if (this.selectedSaludId === saludId) {
-      this.selectedSaludId = null;  // Deseleccionar si el mismo perfil es clickeado nuevamente
+      this.selectedSaludId = null;
     } else {
-      this.selectedSaludId = saludId;  // Seleccionar el nuevo perfil
+      this.selectedSaludId = saludId;
     }
   }
 
   toggleSelectionBanco(bancoId: number): void {
     if (this.selectedBancoId === bancoId) {
-      this.selectedBancoId = null;  // Deseleccionar si el mismo banco es clickeado nuevamente
+      this.selectedBancoId = null;
     } else {
-      this.selectedBancoId = bancoId;  // Seleccionar el nuevo banco
+      this.selectedBancoId = bancoId;
     }
   }
 
-  isSelected(row: any): boolean {
-    return this.selectedRows.some(r => r.id === row.id);
-  }
-
-
-  formatRUT(event: Event): void {
-    const target = event.target as HTMLInputElement; // Casting seguro
-    if (!target) return; // Verificar que realmente existe un target
-
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-        parts.unshift(rut.slice(-3));
-        rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    target.value = parts.join('.') + '-' + verifier;
-    if (target.value === '-') {
-        target.value = '';
+  toggleSelectionCasa(casaId: number): void {
+    if (this.selectedCasaId === casaId) {
+      this.selectedCasaId = null;
+    } else {
+      this.selectedCasaId = casaId;
     }
   }
 
-  validateNumber(event: KeyboardEvent) {
-    const pattern = /[0-9]/;
-    const inputChar = String.fromCharCode(event.charCode);
-
-    if (!pattern.test(inputChar)) {
-      // Invalid character, prevent input
-      event.preventDefault();
-    }
-  }
-  
-  formatRUTString(value: string): string {
-    let rut = value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-        parts.unshift(rut.slice(-3));
-        rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    return parts.join('.') + '-' + verifier;
-  }
-
-  toggleDropdown(dropdownName: string) {
-    // Cerrar todos los otros dropdowns
-    Object.keys(this.dropdownStates).forEach(key => {
-      if (key !== dropdownName) {
-        this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
-      }
-    });
-    // Toggle el dropdown seleccionado
-    this.dropdownStates[dropdownName as keyof typeof this.dropdownStates] = 
-      !this.dropdownStates[dropdownName as keyof typeof this.dropdownStates];
-  }
-
-  
-
-  deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = [];  // Deselecciona todas las filas
-  }
-
-  openModal(key: string): void {
-    this.modals[key] = true;
-    if(key== 'confirmacionModal'){
-      this.deletedRow = this.selectedRows;
-      console.log(this.deletedRow);
-    }
-
-   
-  }
-
-  closeModal(key: string): void {
-    this.modals[key] = false;
-    if (key === 'exitoModal') {
-      this.cargarTrabajadores();  
+  toggleSelectionFundo(fundoId: number): void {
+    if (this.selectedFundoId === fundoId) {
+      this.selectedFundoId = null;
+    } else {
+      this.selectedFundoId = fundoId;
     }
   }
 
   // ============================================
-  // 🎯 MÉTODOS PARA MOSTRAR NOMBRES EN DROPDOWNS DEL MODAL MODIFICAR
+  // OBTENER NOMBRES SELECCIONADOS
   // ============================================
-
   getNombreSociedadSeleccionada(): string {
     if (this.selectedSociedadId) {
       const sociedad = this.sociedadesCargadas.find(s => s.id === this.selectedSociedadId);
@@ -613,9 +610,88 @@ export class PersonalComponent implements OnInit {
     return '';
   }
 
+  getNombreCasaSeleccionada(): string {
+    if (this.selectedCasaId) {
+      const casa = this.casasCargadas.find(c => c.id === this.selectedCasaId);
+      return casa ? casa.nombre : '';
+    }
+    return '';
+  }
+
+  getNombreFundoSeleccionado(): string {
+    if (this.selectedFundoId) {
+      const fundo = this.fundosCargados.find(f => f.id === this.selectedFundoId);
+      return fundo ? fundo.nombre_campo : '';
+    }
+    return '';
+  }
+
   // ============================================
-  // 🎯 MÉTODO PARA CAMBIO DE MÉTODO DE PAGO EN MODIFICAR
+  // UTILIDADES
   // ============================================
+  isSelected(row: any): boolean {
+    return this.selectedRows.some(r => r.id === row.id);
+  }
+
+  formatRUT(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    if (!target) return;
+
+    let rut = target.value.replace(/\D/g, '');
+    let parts = [];
+    const verifier = rut.slice(-1);
+    rut = rut.slice(0, -1);
+    while (rut.length > 3) {
+        parts.unshift(rut.slice(-3));
+        rut = rut.slice(0, -3);
+    }
+    parts.unshift(rut);
+    target.value = parts.join('.') + '-' + verifier;
+    if (target.value === '-') {
+        target.value = '';
+    }
+  }
+
+  validateNumber(event: KeyboardEvent) {
+    const pattern = /[0-9]/;
+    const inputChar = String.fromCharCode(event.charCode);
+
+    if (!pattern.test(inputChar)) {
+      event.preventDefault();
+    }
+  }
+  
+  formatRUTString(value: string): string {
+    let rut = value.replace(/\D/g, '');
+    let parts = [];
+    const verifier = rut.slice(-1);
+    rut = rut.slice(0, -1);
+    while (rut.length > 3) {
+        parts.unshift(rut.slice(-3));
+        rut = rut.slice(0, -3);
+    }
+    parts.unshift(rut);
+    return parts.join('.') + '-' + verifier;
+  }
+
+  toggleDropdown(dropdownName: string) {
+    Object.keys(this.dropdownStates).forEach(key => {
+      if (key !== dropdownName) {
+        this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
+      }
+    });
+    this.dropdownStates[dropdownName as keyof typeof this.dropdownStates] = 
+      !this.dropdownStates[dropdownName as keyof typeof this.dropdownStates];
+  }
+
+  deseleccionarFila(event: MouseEvent) {
+    this.selectedRows = [];
+  }
+
+  onMetodoPagoChange(event: Event): void {
+    const selectElement = event.target as HTMLSelectElement;
+    this.metodoPago = selectElement.value;
+  }
 
   onMetodoPagoChangeModificar(event: Event): void {
     const selectElement = event.target as HTMLSelectElement;
@@ -623,9 +699,77 @@ export class PersonalComponent implements OnInit {
   }
 
   // ============================================
-  // 🎯 MÉTODO SELECTROW ACTUALIZADO PARA INCLUIR APELLIDOS
+  // GESTIÓN DE MODALES
   // ============================================
+  openModal(key: string): void {
+    this.modals[key] = true;
+    if(key== 'confirmacionModal'){
+      this.deletedRow = this.selectedRows;
+    }
+  }
 
+  closeModal(key: string): void {
+    this.modals[key] = false;
+    if (key === 'exitoModal') {
+      this.cargarTrabajadores();  
+    }
+  }
+
+  // ============================================
+  // ABRIR MODALES DE INFORMACIÓN
+  // ============================================
+  abrirModalBanco(trabajador: any): void {
+    this.trabajadorSeleccionadoBanco = trabajador;
+    this.openModal('bancoInfoModal');
+  }
+
+  abrirModalDocumentos(trabajador: any): void {
+    this.trabajadorSeleccionadoDocs = trabajador;
+    console.log('Documentos del trabajador:', {
+      carnet_front: trabajador.carnet_front_image,
+      carnet_back: trabajador.carnet_back_image,
+      firma: trabajador.firma
+    });
+    this.openModal('documentosModal');
+  }
+
+  // ============================================
+  // MANEJO DE DOCUMENTOS
+  // ============================================
+  descargarDocumento(url: string, nombreArchivo: string): void {
+    if (!url) {
+      alert('No hay documento disponible');
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  getUrlCompleta(path: string): string {
+    if (!path) return '';
+    
+    if (path.startsWith('http')) {
+      return path;
+    }
+    
+    const baseUrl = 'http://localhost:8182';
+    return `${baseUrl}${path}`;
+  }
+
+  onImageError(event: any): void {
+    event.target.src = 'assets/no-image.png';
+    console.error('Error cargando imagen');
+  }
+
+  // ============================================
+  // SELECCIÓN DE FILA
+  // ============================================
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
@@ -638,7 +782,6 @@ export class PersonalComponent implements OnInit {
       const selectedRow = this.selectedRows[0];
       this.selectedTrabajadorId = selectedRow.id;
       
-      // Información personal
       this.nombreTrabajadorNew = selectedRow.nombres;
       this.rutTrabajadorNew = this.formatRUTString(selectedRow.rut);
       this.correoTrabajadorNew = selectedRow.correo;
@@ -647,36 +790,27 @@ export class PersonalComponent implements OnInit {
       this.telefonoTrabajadorNew = selectedRow.telefono;
       this.nacionalidadTrabajadorNew = selectedRow.nacionalidad;
       this.fechaIngresoNew = selectedRow.fecha_ingreso;
+      this.fechaNacimientoNew = selectedRow.fecha_nacimiento;
+      this.estadoCivilNew = selectedRow.estado_civil;
       
-      // Método de pago
       this.metodoPagoNew = selectedRow.metodo_pago;
       this.tipoCuentaNew = selectedRow.tipo_cuenta_bancaria;
       this.numeroCuentaNew = selectedRow.numero_cuenta;
       
-      // IDs para dropdowns - ESTOS SON LOS IMPORTANTES
       this.selectedSociedadId = selectedRow.sociedad;
       this.selectedAreaId = selectedRow.area;
       this.selectedCargoId = selectedRow.cargo;
       this.selectedAfpId = selectedRow.afp;
       this.selectedSaludId = selectedRow.salud;
       this.selectedBancoId = selectedRow.banco;
-      
-      console.log('🔍 Datos cargados para modificar:', {
-        trabajadorId: this.selectedTrabajadorId,
-        sociedadId: this.selectedSociedadId,
-        areaId: this.selectedAreaId,
-        cargoId: this.selectedCargoId,
-        afpId: this.selectedAfpId,
-        saludId: this.selectedSaludId,
-        bancoId: this.selectedBancoId
-      });
+      this.selectedCasaId = selectedRow.casa;
+      this.selectedFundoId = selectedRow.fundo;
     }
   }
 
   // ============================================
-  // 🎯 MÉTODO LIMPIAR FORMULARIO MODIFICACIÓN ACTUALIZADO
+  // LIMPIAR FORMULARIOS
   // ============================================
-
   limpiarFormularioModificacion(): void {
     this.nombreTrabajadorNew = '';
     this.rutTrabajadorNew = '';
@@ -686,26 +820,27 @@ export class PersonalComponent implements OnInit {
     this.telefonoTrabajadorNew = '';
     this.nacionalidadTrabajadorNew = 'CHILENA';
     this.fechaIngresoNew = '';
+    this.fechaNacimientoNew = '';
+    this.estadoCivilNew = '';
     this.metodoPagoNew = '';
     this.tipoCuentaNew = '';
     this.numeroCuentaNew = '';
     
-    // Limpiar selecciones de dropdowns
     this.selectedSociedadId = null;
     this.selectedAreaId = null;
     this.selectedCargoId = null;
     this.selectedAfpId = null;
     this.selectedSaludId = null;
     this.selectedBancoId = null;
+    this.selectedCasaId = null;
+    this.selectedFundoId = null;
     
-    // Cerrar todos los dropdowns
     Object.keys(this.dropdownStates).forEach(key => {
       this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
     });
   }
 
   limpiarFormularioCreacion(): void {
-    // Limpiar campos de información personal
     this.nombresTrabajador = null;
     this.apellidosTrabajador = null;
     this.rutTrabajador = null;
@@ -714,33 +849,27 @@ export class PersonalComponent implements OnInit {
     this.sexoTrabajador = 'Hombre';
     this.telefonoTrabajador = null;
     this.nacionalidadTrabajador = 'CHILENA';
+    this.fechaNacimiento = null;
+    this.estadoCivil = 'Soltero';
     
-    // Limpiar selecciones de dropdowns
     this.selectedSociedadId = null;
     this.selectedAreaId = null;
     this.selectedCargoId = null;
     this.selectedAfpId = null;
     this.selectedSaludId = null;
     this.selectedBancoId = null;
+    this.selectedCasaId = null;
+    this.selectedFundoId = null;
     
-    // Limpiar campos de método de pago
     this.metodoPago = 'Sin Pago';
     this.banco = null;
     this.tipoCuenta = null;
     this.numeroCuenta = null;
     
-    // Resetear fecha de ingreso a la fecha actual
     this.setDefaultFechaCelebracion();
     
-    // Cerrar todos los dropdowns
     Object.keys(this.dropdownStates).forEach(key => {
       this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
     });
-  }
-
-
-  checkValue():void{
-    
-    
   }
 }

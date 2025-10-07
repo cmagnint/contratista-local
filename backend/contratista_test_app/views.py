@@ -2950,25 +2950,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
         data.update(request.FILES)
         
         print(f"Datos recibidos: {list(data.keys())}")
-        print(f"Valores de datos importantes:")
-        print(f"  holding: {data.get('holding')}")
-        print(f"  rut: {data.get('rut')}")
-        print(f"  dni: {data.get('dni')}")
-        print(f"  nombres: {data.get('nombres')}")
-        print(f"  apellidos: {data.get('apellidos')}")
-
-        # Extract contract-specific data
-        contract_data = {
-            'holding_id': data.get('holding'),
-            'sociedad_id': data.get('sociedad'),
-            'folio_id': data.get('folio'),
-            'cliente_id': data.get('cliente'),
-            'fundo_id': data.get('fundo'),
-            'labor_id': data.get('labor'),
-            'empresa_transporte_id': data.get('empresa_transporte'),
-            'vehiculo_id': data.get('vehiculo'),
-            'contrato_firmado': 'Elaboracion Pendiente'
-        }
 
         # Find or create personal
         existing_personal = None
@@ -2986,7 +2967,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
 
             current_data = PersonalTrabajadoresMobileSerializer(existing_personal).data
             merged_data = self.merge_data(current_data, data)
-            print(f"Datos mezclados para actualización: {list(merged_data.keys())}")
             serializer = PersonalTrabajadoresMobileSerializer(
                 existing_personal,
                 data=merged_data,
@@ -3000,6 +2980,26 @@ class PersonalTrabajadoresMobileAPIView(APIView):
         if serializer.is_valid():
             print("✅ Serializer válido")
             personal = serializer.save()
+            
+            # CREAR CONTRATO - SOLO CAMPOS QUE EXISTEN EN EL MODELO
+            try:
+                folio_id = data.get('folio')
+                if folio_id:
+                    folio = FolioComercial.objects.get(id=folio_id)
+                    
+                    contrato = ContratoTrabajador.objects.create(
+                        holding_id=data.get('holding'),
+                        trabajador=personal,
+                        folio_comercial_id=folio_id,  # Nombre correcto del campo
+                        labor_id=data.get('labor'),
+                        fundo_id=data.get('fundo'),
+                        empresa_transporte_id=data.get('transportista'),  # Mapeo correcto
+                        fecha_inicio_contrato=folio.fecha_inicio_contrato,
+                        fecha_termino_contrato=folio.fecha_termino_contrato,
+                    )
+                    print(f"✅ Contrato creado con ID: {contrato.id}")
+            except Exception as e:
+                print(f"❌ Error creando contrato: {e}")
             
             # Delete old images if updated
             if existing_personal:
@@ -3040,8 +3040,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
         else:
             print("❌ Errores de validación del serializer:")
             print(f"Errores: {serializer.errors}")
-            print("=== DATOS QUE LLEGARON AL SERIALIZER ===")
-            print(f"Initial data keys: {list(serializer.initial_data.keys()) if hasattr(serializer, 'initial_data') else 'N/A'}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class EnviarDataProduccionAPIView(APIView):

@@ -144,6 +144,44 @@
           </ng-container>
         </div>
       </div>
+
+      <!-- Dropdown de Casa -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('casas')">
+          SELECCIONAR CASA
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.casas"> 
+          <ng-container *ngFor="let casa of casasCargadas">
+            <label [class.disabled]="selectedCasaId !== null && selectedCasaId !== casa.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedCasaId === casa.id"
+                (change)="toggleSelectionCasa(casa.id)"
+                [disabled]="selectedCasaId !== null && selectedCasaId !== casa.id">
+              {{ casa.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Dropdown de Fundo -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('fundos')">
+          SELECCIONAR FUNDO
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.fundos"> 
+          <ng-container *ngFor="let fundo of fundosCargados">
+            <label [class.disabled]="selectedFundoId !== null && selectedFundoId !== fundo.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedFundoId === fundo.id"
+                (change)="toggleSelectionFundo(fundo.id)"
+                [disabled]="selectedFundoId !== null && selectedFundoId !== fundo.id">
+              {{ fundo.nombre_campo }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
       
       <!-- Campos de información personal -->
       <h4 class="h4-subtitle">Nombres Trabajador:</h4>
@@ -218,20 +256,35 @@
       <h4 class="h4-subtitle">Nacionalidad:</h4>
       <div class="input-container">
         <select class="input-nacionalidad" [(ngModel)]="nacionalidadTrabajador">
-          <!-- Nacionalidades más comunes -->
           <option value="CHILENA">CHILENA</option>
           <option value="BOLIVIANA">BOLIVIANA</option>
           <option value="ARGENTINA">ARGENTINA</option>
           <option value="PERUANA">PERUANA</option>
           <option value="ECUATORIANA">ECUATORIANA</option>
-          <!-- Separador -->
           <option disabled>──────────────────</option>
-          <!-- Lista filtrada de todas las nacionalidades -->
           <option 
             *ngFor="let nacionalidad of nacionalidadesFiltradas" 
             [value]="nacionalidad">
             {{nacionalidad}}
           </option>
+        </select>
+      </div>
+
+      <h4 class="h4-subtitle">Fecha de Nacimiento:</h4>
+      <input 
+        type="date" 
+        class="input-perfil" 
+        [(ngModel)]="fechaNacimiento"
+        placeholder="Fecha de nacimiento">
+
+      <h4 class="h4-subtitle">Estado Civil:</h4>
+      <div class="input-container">
+        <select class="input-perfil" [(ngModel)]="estadoCivil">
+          <option value="Soltero">Soltero</option>
+          <option value="Casado">Casado</option>
+          <option value="Divorciado">Divorciado</option>
+          <option value="Viudo">Viudo</option>
+          <option value="Conviviente">Conviviente</option>
         </select>
       </div>
 
@@ -254,7 +307,6 @@
 
       <!-- Campos adicionales para Transferencia -->
       <div *ngIf="metodoPago === 'Transferencia'" class="contract-fields">
-        <!-- DROPDOWN DE BANCOS -->
         <div class="dropdown">
           <button class="dropdown-button" (click)="toggleDropdown('bancos')">
             SELECCIONAR BANCO
@@ -307,7 +359,7 @@
   </div>
   
   <!-- ============================================ -->
-  <!-- 🎯 MODAL MODIFICAR TRABAJADOR - CON DROPDOWNS -->
+  <!-- 🎯 MODAL MODIFICAR TRABAJADOR -->
   <!-- ============================================ -->
   <div 
     id="modalmodificarTrabajador" 
@@ -421,6 +473,44 @@
         </div>
       </div>
 
+      <!-- Dropdown de Casa -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('casas')">
+          {{ getNombreCasaSeleccionada() || 'SELECCIONAR CASA' }}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.casas"> 
+          <ng-container *ngFor="let casa of casasCargadas">
+            <label [class.disabled]="selectedCasaId !== null && selectedCasaId !== casa.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedCasaId === casa.id"
+                (change)="toggleSelectionCasa(casa.id)"
+                [disabled]="selectedCasaId !== null && selectedCasaId !== casa.id">
+              {{ casa.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Dropdown de Fundo -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('fundos')">
+          {{ getNombreFundoSeleccionado() || 'SELECCIONAR FUNDO' }}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.fundos"> 
+          <ng-container *ngFor="let fundo of fundosCargados">
+            <label [class.disabled]="selectedFundoId !== null && selectedFundoId !== fundo.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedFundoId === fundo.id"
+                (change)="toggleSelectionFundo(fundo.id)"
+                [disabled]="selectedFundoId !== null && selectedFundoId !== fundo.id">
+              {{ fundo.nombre_campo }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
       <h4 class="h4-subtitle">Nombre Trabajador:</h4>
       <input 
         type="text" 
@@ -478,14 +568,30 @@
           <option value="ARGENTINA">ARGENTINA</option>
           <option value="PERUANA">PERUANA</option>
           <option value="ECUATORIANA">ECUATORIANA</option>
-          <!-- Separador -->
           <option disabled>──────────────────</option>
-          <!-- Lista filtrada de todas las nacionalidades -->
           <option 
             *ngFor="let nacionalidad of nacionalidadesFiltradas" 
             [value]="nacionalidad">
             {{nacionalidad}}
           </option>
+        </select>
+      </div>
+
+      <h4 class="h4-subtitle">Fecha de Nacimiento:</h4>
+      <input 
+        type="date" 
+        class="input-perfil" 
+        [(ngModel)]="fechaNacimientoNew"
+        placeholder="Fecha de nacimiento">
+
+      <h4 class="h4-subtitle">Estado Civil:</h4>
+      <div class="input-container">
+        <select class="input-perfil" [(ngModel)]="estadoCivilNew">
+          <option value="Soltero">Soltero</option>
+          <option value="Casado">Casado</option>
+          <option value="Divorciado">Divorciado</option>
+          <option value="Viudo">Viudo</option>
+          <option value="Conviviente">Conviviente</option>
         </select>
       </div>
 
@@ -503,7 +609,6 @@
 
       <!-- Campos adicionales para Transferencia -->
       <div *ngIf="metodoPagoNew === 'Transferencia'" class="contract-fields">
-        <!-- Dropdown de Bancos -->
         <div class="dropdown">
           <button class="dropdown-button" (click)="toggleDropdown('bancos')">
             {{ getNombreBancoSeleccionado() || 'SELECCIONAR BANCO' }}
@@ -615,6 +720,20 @@
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.fecha_ingreso}}</td>
     </ng-container>
 
+    <ng-container matColumnDef="fecha_nacimiento">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">F. Nacimiento</th>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
+        {{trabajador.fecha_nacimiento || 'N/A'}}
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="estado_civil">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Estado Civil</th>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
+        {{trabajador.estado_civil || 'N/A'}}
+      </td>
+    </ng-container>
+
     <ng-container matColumnDef="afp">
       <th mat-header-cell *matHeaderCellDef class="mat-header">AFP</th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nombre_afp}}</td>
@@ -628,6 +747,47 @@
     <ng-container matColumnDef="metodo_pago">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Método Pago</th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.metodo_pago}}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="banco_info">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Info Bancaria</th>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell" style="cursor: pointer;">
+        <div 
+          *ngIf="trabajador.metodo_pago === 'Transferencia'" 
+          (click)="abrirModalBanco(trabajador); $event.stopPropagation()"
+          style="color: #1188c3; text-decoration: underline;">
+          Ver Detalles
+        </div>
+        <div *ngIf="trabajador.metodo_pago !== 'Transferencia'">
+          {{trabajador.metodo_pago || 'Sin Pago'}}
+        </div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="casa">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Casa</th>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
+        {{trabajador.nombre_casa || 'N/A'}}
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="fundo">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Fundo</th>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
+        {{trabajador.nombre_fundo || 'N/A'}}
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="documentos">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Documentos</th>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
+        <button 
+          class="doc-button"
+          (click)="abrirModalDocumentos(trabajador); $event.stopPropagation()"
+          title="Ver documentos">
+          Ver Docs
+        </button>
+      </td>
     </ng-container>
 
     <ng-container matColumnDef="estado">
@@ -692,6 +852,138 @@
     <div class="error-message">{{ errorMessage }}</div>
     <div class="button-container">
       <button class="custom-button" (click)="closeModal('errorModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL INFORMACIÓN BANCARIA -->
+<!-- ============================================ -->
+<div 
+  id="modalBancoInfo" 
+  class="modal-perfiles" 
+  *ngIf="modals['bancoInfoModal']" 
+  (click)="closeModal('bancoInfoModal')">
+  
+  <div class="modal-content mini-modal" (click)="$event.stopPropagation()">
+    <span class="close" (click)="closeModal('bancoInfoModal')">&times;</span>
+    
+    <h2>INFORMACIÓN BANCARIA</h2>
+    
+    <div class="info-bancaria-container">
+      <div class="info-row">
+        <span class="info-label">Banco:</span>
+        <span class="info-value">{{trabajadorSeleccionadoBanco?.nombre_banco || 'N/A'}}</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Tipo de Cuenta:</span>
+        <span class="info-value">{{trabajadorSeleccionadoBanco?.tipo_cuenta_bancaria || 'N/A'}}</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Número de Cuenta:</span>
+        <span class="info-value">{{trabajadorSeleccionadoBanco?.numero_cuenta || 'N/A'}}</span>
+      </div>
+    </div>
+    
+    <div class="button-container">
+      <button class="custom-button" (click)="closeModal('bancoInfoModal')">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL DOCUMENTOS -->
+<!-- ============================================ -->
+<div 
+  id="modalDocumentos" 
+  class="modal-perfiles" 
+  *ngIf="modals['documentosModal']" 
+  (click)="closeModal('documentosModal')">
+  
+  <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 800px;">
+    <span class="close" (click)="closeModal('documentosModal')">&times;</span>
+    
+    <h2>DOCUMENTOS DEL TRABAJADOR</h2>
+    
+    <div class="documentos-grid">
+      <!-- Carnet Frontal -->
+      <div class="documento-card">
+        <h3>Carnet (Frontal)</h3>
+        <div class="imagen-preview">
+          <img 
+            *ngIf="tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)" 
+            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image)"
+            alt="Carnet Frontal">
+          <div *ngIf="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)" class="sin-imagen">
+            <p>Sin imagen disponible</p>
+          </div>
+        </div>
+        <button 
+          class="custom-button-ingreso"
+          [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)"
+          (click)="descargarDocumento(
+            getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image),
+            'carnet_frontal_' + trabajadorSeleccionadoDocs.rut + '.jpg'
+          )">
+          Descargar
+        </button>
+      </div>
+
+      <!-- Carnet Posterior -->
+      <div class="documento-card">
+        <h3>Carnet (Posterior)</h3>
+        <div class="imagen-preview">
+          <img 
+            *ngIf="tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)" 
+            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image)"
+            alt="Carnet Posterior">
+          <div *ngIf="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)" class="sin-imagen">
+            <p>Sin imagen disponible</p>
+          </div>
+        </div>
+        <button 
+          class="custom-button-ingreso"
+          [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)"
+          (click)="descargarDocumento(
+            getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image),
+            'carnet_posterior_' + trabajadorSeleccionadoDocs.rut + '.jpg'
+          )">
+          Descargar
+        </button>
+      </div>
+
+      <!-- Firma -->
+      <div class="documento-card">
+        <h3>Firma</h3>
+        <div class="imagen-preview">
+          <img 
+            *ngIf="trabajadorSeleccionadoDocs?.firma" 
+            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.firma)"
+            alt="Firma">
+          <div *ngIf="!trabajadorSeleccionadoDocs?.firma" class="sin-imagen">
+            <p>Sin firma disponible</p>
+          </div>
+        </div>
+        <button 
+          class="custom-button-ingreso"
+          [disabled]="!trabajadorSeleccionadoDocs?.firma"
+          (click)="descargarDocumento(
+            getUrlCompleta(trabajadorSeleccionadoDocs.firma),
+            'firma_' + trabajadorSeleccionadoDocs.rut + '.png'
+          )">
+          Descargar
+        </button>
+      </div>
+    </div>
+    
+    <div class="button-container" style="margin-top: 30px;">
+      <button class="custom-button" (click)="closeModal('documentosModal')">
+        Cerrar
+      </button>
     </div>
   </div>
 </div>

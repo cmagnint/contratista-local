@@ -1,9 +1,11 @@
 //contratacion.dart; Contratista
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'package:contratista/pages/mother_layout/contratacion/asociar_qr.dart';
 import 'package:contratista/pages/mother_layout/contratacion/enrollment_db.dart';
+import 'package:contratista/services/contratista_api_service.dart';
 import 'package:contratista/services/worker_sinc_service.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -52,14 +54,19 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     'CORREO': TextEditingController(),
     'DIRECCION': TextEditingController(),
   };
+  bool _isCameraInitialized = false;
+
   String _estadoCivil = 'Soltero(a)';
   String _selectedDia = '01';
   String _selectedMes = '01';
   String _selectedAnio = '2000';
   String _metodoPago = 'Efectivo';
-  String _banco = '';
+  String _banco = ''; // Ahora guardará el ID del banco como string
   String _tipoCuenta = '';
   String _numeroCuenta = '';
+  List<Map<String, dynamic>> _bancos = [];
+  Map<String, int> _bancoMap = {};
+  String? _selectedBancoNombre;
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _numeroCuentaController = TextEditingController();
   CameraDescription? _camera;
@@ -70,6 +77,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   String _nic = '';
   Uint8List? _signatureImage;
   String? _associatedQR;
+  bool _isDisposing = false;
 
   @override
   void initState() {
@@ -77,14 +85,67 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _initializeCamera();
     _numeroCuentaController.text = _numeroCuenta;
     _dniController.text = _dni;
+    _fetchBancos();
     loggerGlobal.d('holding: ${userInfo.holding}');
   }
 
   @override
   void dispose() {
+    _isDisposing = true;
     _numeroCuentaController.dispose();
     _dniController.dispose();
+
+    // Liberar la cámara de forma asíncrona sin bloquear
+    _disposeCameraAsync();
+
     super.dispose();
+  }
+
+  Future<void> _disposeCameraAsync() async {
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.dispose();
+      } catch (e) {
+        loggerGlobal.w('Error al liberar cámara: $e');
+      }
+    }
+  }
+
+  Future<void> _fetchBancos() async {
+    try {
+      ApiService apiService = ApiService();
+      final response = await apiService.get('api_bancos/');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        setState(() {
+          _bancos = List<Map<String, dynamic>>.from(responseData);
+          // Crear mapeo: nombre del banco -> ID del banco
+          _bancoMap = Map.fromIterables(
+            responseData.map((banco) => banco['nombre'].toString()).toList(),
+            responseData.map((banco) => banco['id'] as int).toList(),
+          );
+        });
+        loggerGlobal.d('Bancos cargados: ${_bancos.length}');
+        loggerGlobal.d('Mapeo de bancos: $_bancoMap');
+      } else {
+        loggerGlobal.e('Error al cargar bancos: ${response.statusCode}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al cargar bancos: ${response.reasonPhrase}'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      loggerGlobal.e('Error en _fetchBancos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar bancos: $e')));
+      }
+    }
   }
 
   void _openSignaturePad() {
@@ -290,28 +351,76 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final backCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.back,
-    );
-    setState(() {
-      _camera = backCamera;
-      _cameraController = CameraController(
-        _camera!,
-        ResolutionPreset.veryHigh,
-        enableAudio: false,
-      );
-      _cameraController!.initialize().then((_) {
-        if (!mounted) {
+    if (_isDisposing) return; // Evitar inicializar si se está cerrando
+
+    try {
+      final cameras = await availableCameras();
+
+      if (_isDisposing) return; // Verificar nuevamente
+
+      CameraDescription? backCamera;
+      try {
+        backCamera = cameras.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.back,
+        );
+      } catch (e) {
+        if (cameras.isNotEmpty) {
+          backCamera = cameras.first;
+          loggerGlobal.w(
+            'Cámara trasera no encontrada, usando: ${cameras.first.name}',
+          );
+        }
+      }
+
+      if (backCamera != null && !_isDisposing) {
+        final controller = CameraController(
+          backCamera,
+          ResolutionPreset.veryHigh,
+          enableAudio: false,
+        );
+
+        await controller.initialize();
+
+        if (_isDisposing) {
+          // Si se cerró mientras inicializaba, limpiar
+          await controller.dispose();
           return;
         }
-        setState(() {});
-      });
-    });
+
+        if (mounted) {
+          setState(() {
+            _camera = backCamera;
+            _cameraController = controller;
+            _isCameraInitialized = true;
+          });
+        } else {
+          await controller.dispose();
+        }
+      }
+    } catch (e) {
+      loggerGlobal.e('Error inicializando cámara: $e');
+      if (mounted && !_isDisposing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al inicializar cámara: $e')),
+        );
+      }
+    }
   }
 
   void _takePictureAndRecognizeText(bool isFront) async {
-    if (_camera != null) {
+    // Verificar que la cámara esté inicializada
+    if (!_isCameraInitialized || _camera == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'La cámara aún se está inicializando, por favor espera...',
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
       final imagePath = await Navigator.push<String>(
         context,
         MaterialPageRoute(builder: (context) => CameraScreen(camera: _camera!)),
@@ -319,6 +428,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
       if (imagePath != null) {
         _confirmPictureAndRecognizeText(imagePath, isFront);
+      }
+    } catch (e) {
+      loggerGlobal.e('Error al tomar foto: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al tomar foto: $e')));
       }
     }
   }
@@ -928,6 +1044,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'codigo_supervisor': (userInfo.idUsuario).toString(),
           'folio': widget.initialData['folio'] ?? '',
           'fundo': widget.initialData['fundo'] ?? '',
+          'labor': widget.initialData['labor'] ?? '', // ✅ AGREGAR ESTA LÍNEA
+          'transportista':
+              widget.initialData['transportista'] ?? '', // ✅ AGREGAR ESTA LÍNEA
           'casa': widget.initialData['casa'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
               ? _controllers['RUN']!.text
@@ -1269,11 +1388,12 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _selectedAnio = '2000';
       _metodoPago = 'Efectivo';
       _banco = '';
+      _selectedBancoNombre = null; // AGREGAR ESTA LÍNEA
       _tipoCuenta = '';
       _numeroCuenta = '';
       _numeroCuentaController.clear();
       _dni = '';
-      _dniController.clear(); // Añade esta línea
+      _dniController.clear();
       _nic = '';
       _tipoDocumento = 'Cédula Chilena';
       _signatureImage = null;
@@ -1688,6 +1808,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                           _metodoPago = newValue!;
                           if (_metodoPago == 'Efectivo') {
                             _banco = '';
+                            _selectedBancoNombre = null; // ✅ AGREGAR ESTA LÍNEA
                             _tipoCuenta = '';
                             _numeroCuenta = '';
                             _numeroCuentaController.clear();
@@ -1712,38 +1833,27 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: DropdownButtonFormField<String>(
-                        value: _banco.isNotEmpty ? _banco : null,
+                        value: _selectedBancoNombre,
+                        hint: const Text('Seleccione un banco'),
                         onChanged: (String? newValue) {
                           setState(() {
-                            _banco = newValue!;
+                            _selectedBancoNombre = newValue;
+                            _banco = _bancoMap[newValue]?.toString() ?? '';
                           });
+                          loggerGlobal.d(
+                            'Banco seleccionado: $newValue (ID: $_banco)',
+                          );
                         },
                         decoration: const InputDecoration(
                           labelText: 'Banco',
                           border: OutlineInputBorder(),
                         ),
-                        items:
-                            <String>[
-                              'Banco Estado',
-                              'Banco Edwards y CrediChile',
-                              'Banco Internacional',
-                              'Scotiabank Chile',
-                              'Banco de Crédito e Inversiones (BCI)',
-                              'Banco Bice',
-                              'HSBC Bank (Chile)',
-                              'Banco Santander-Chile',
-                              'Itaú Corpbanca',
-                              'Banco Security',
-                              'Banco Falabella',
-                              'Banco Ripley',
-                              'Banco Consorcio',
-                              'Banco BTG Pactual Chile',
-                            ].map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
+                        items: _bancos.map((banco) {
+                          return DropdownMenuItem<String>(
+                            value: banco['nombre'].toString(),
+                            child: Text(banco['nombre'].toString()),
+                          );
+                        }).toList(),
                       ),
                     ),
                     Padding(

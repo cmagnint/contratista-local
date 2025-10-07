@@ -7,10 +7,9 @@ import 'package:logger/logger.dart';
 Logger logger = Logger();
 
 class ApiService {
-  final String baseUrl = 'http://192.168.43.122/contratista_test_api/';
-  //192.168.43.122
-  //192.168.100.15
-  // Obtener el JWT token
+  final String baseUrl = 'http://192.168.1.15:8182/contratista_test_api/';
+  //contratista.terramobile.cl GOOGLE CLOUD
+  //
   Future<String?> getJwtToken() async {
     return await storage.read(key: 'jwt_token');
   }
@@ -116,11 +115,13 @@ class ApiService {
   }
 
   // GET request
-  Future<http.Response> get(String endpoint) async {
+  Future<http.Response> get(
+    String endpoint, {
+    bool allowNotFound = false,
+  }) async {
     try {
       final url = Uri.parse('$baseUrl$endpoint');
       final headers = await _getHeaders(includeAuth: true);
-
       final response = await http
           .get(url, headers: headers)
           .timeout(
@@ -141,10 +142,14 @@ class ApiService {
         }
       }
 
+      // Si es 404 y está permitido, retornar la respuesta en lugar de lanzar excepción
+      if (response.statusCode == 404 && allowNotFound) {
+        return response;
+      }
+
       if (response.statusCode != 200) {
         throw Exception('Error: ${response.statusCode}');
       }
-
       return response;
     } catch (e) {
       logger.e('Error en GET: $e');

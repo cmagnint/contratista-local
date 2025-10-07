@@ -137,6 +137,8 @@ class WorkerSyncService {
         'folio',
         'fundo',
         'casa',
+        'labor', // ✅ AGREGADO
+        'transportista', // ✅ AGREGADO
         'rut',
         'dni',
         'nic',
@@ -164,6 +166,15 @@ class WorkerSyncService {
             entry.key != 'id') {
           fields[entry.key] = entry.value.toString();
         }
+      }
+
+      // ✅ AGREGAR ESTE BLOQUE: Mapear campos con nombres diferentes
+      if (enrollment.containsKey('labor_id')) {
+        fields['labor'] = enrollment['labor_id'].toString();
+      }
+      if (enrollment.containsKey('empresa_transporte_id')) {
+        fields['transportista'] = enrollment['empresa_transporte_id']
+            .toString();
       }
 
       // Corregir el campo supervisor si existe

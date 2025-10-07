@@ -200,23 +200,35 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
   }
 
   Future<void> _fetchJefesCuadrilla(String supervisorId) async {
-    ApiService apiService = ApiService();
-    String? holding = await storage.read(key: 'holding');
-    final response = await apiService.get(
-      'api_jefes_cuadrilla/$holding/?supervisor=$supervisorId',
-    );
+    try {
+      ApiService apiService = ApiService();
+      String? holding = await storage.read(key: 'holding');
+      final response = await apiService.get(
+        'api_jefes_cuadrilla/$holding/?supervisor=$supervisorId',
+        allowNotFound: true,
+      );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> responseData = jsonDecode(response.body);
-      setState(() {
-        _jefesCuadrilla = List<Map<String, dynamic>>.from(responseData);
-        _selectedJefeCuadrilla = null;
-      });
-    } else {
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        setState(() {
+          _jefesCuadrilla = List<Map<String, dynamic>>.from(responseData);
+          _selectedJefeCuadrilla = null;
+        });
+      } else {
+        // Si es 404 u otro error, simplemente dejamos la lista vacía
+        setState(() {
+          _jefesCuadrilla = [];
+          _selectedJefeCuadrilla = null;
+        });
+      }
+    } catch (e) {
+      // Capturamos cualquier excepción (incluyendo el 404)
+      logger.d('ℹ️ No hay jefes de cuadrilla para este supervisor: $e');
       setState(() {
         _jefesCuadrilla = [];
         _selectedJefeCuadrilla = null;
       });
+      // NO mostramos SnackBar de error porque es normal que no haya jefes
     }
   }
 
@@ -407,30 +419,56 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               const SizedBox(height: 30),
 
               // Dropdown de Jefe de Cuadrilla (Nuevo y Condicional)
-              if (_supervisores.isNotEmpty && _selectedSupervisor != null) ...[
+              if (_selectedSupervisor != null) ...[
                 DropdownButton<String>(
                   value: _selectedJefeCuadrilla,
-                  hint: const Text('Seleccione Jefe de Cuadrilla (Opcional)'),
-                  isExpanded: true,
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: '',
-                      child: Text('Sin Jefe de Cuadrilla'),
+                  hint: Text(
+                    _jefesCuadrilla.isEmpty
+                        ? 'No hay jefes de cuadrilla disponibles para este supervisor'
+                        : 'Seleccione Jefe de Cuadrilla (Opcional)',
+                    style: TextStyle(
+                      color: _jefesCuadrilla.isEmpty ? Colors.grey : null,
+                      fontSize: _jefesCuadrilla.isEmpty ? 14 : null,
                     ),
-                    ..._jefesCuadrilla.map((jefe) {
-                      return DropdownMenuItem<String>(
-                        value: jefe['id'].toString(),
-                        child: Text(
-                          '${jefe['usuario_nombre']} - ${jefe['usuario_rut']}',
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedJefeCuadrilla = newValue == '' ? null : newValue;
-                    });
-                  },
+                  ),
+                  isExpanded: true,
+                  items: _jefesCuadrilla.isEmpty
+                      ? [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            enabled: false,
+                            child: Text(
+                              'Sin jefes de cuadrilla registrados',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ]
+                      : [
+                          const DropdownMenuItem<String>(
+                            value: '',
+                            child: Text('Sin Jefe de Cuadrilla'),
+                          ),
+                          ..._jefesCuadrilla.map((jefe) {
+                            return DropdownMenuItem<String>(
+                              value: jefe['id'].toString(),
+                              child: Text(
+                                '${jefe['usuario_nombre']} - ${jefe['usuario_rut']}',
+                              ),
+                            );
+                          }),
+                        ],
+                  onChanged: _jefesCuadrilla.isEmpty
+                      ? null // Deshabilita el dropdown si no hay jefes
+                      : (String? newValue) {
+                          setState(() {
+                            _selectedJefeCuadrilla = newValue == ''
+                                ? null
+                                : newValue;
+                          });
+                        },
                 ),
                 const SizedBox(height: 30),
               ],
