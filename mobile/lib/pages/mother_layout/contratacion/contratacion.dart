@@ -1,4 +1,4 @@
-//contratacion.dart; Contratista
+//contratacion.dart; Contratista - CON FLUJO AUTOMÁTICO
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -22,7 +22,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:path/path.dart' as p;
-//ORIGINAL
 
 class ContratacionScreen extends StatefulWidget {
   final Map<String, String?> initialData;
@@ -54,6 +53,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     'CORREO': TextEditingController(),
     'DIRECCION': TextEditingController(),
   };
+
+  // ✅ AGREGAR FocusNodes para cada campo
+  final Map<String, FocusNode> _focusNodes = {};
   bool _isCameraInitialized = false;
 
   String _estadoCivil = 'Soltero(a)';
@@ -61,7 +63,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   String _selectedMes = '01';
   String _selectedAnio = '2000';
   String _metodoPago = 'Efectivo';
-  String _banco = ''; // Ahora guardará el ID del banco como string
+  String _banco = '';
   String _tipoCuenta = '';
   String _numeroCuenta = '';
   List<Map<String, dynamic>> _bancos = [];
@@ -86,6 +88,12 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _numeroCuentaController.text = _numeroCuenta;
     _dniController.text = _dni;
     _fetchBancos();
+
+    // ✅ INICIALIZAR FocusNodes
+    _controllers.keys.forEach((key) {
+      _focusNodes[key] = FocusNode();
+    });
+
     loggerGlobal.d('holding: ${userInfo.holding}');
   }
 
@@ -95,9 +103,12 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _numeroCuentaController.dispose();
     _dniController.dispose();
 
-    // Liberar la cámara de forma asíncrona sin bloquear
-    _disposeCameraAsync();
+    // ✅ LIBERAR FocusNodes
+    _focusNodes.forEach((key, node) {
+      node.dispose();
+    });
 
+    _disposeCameraAsync();
     super.dispose();
   }
 
@@ -120,14 +131,12 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         final List<dynamic> responseData = jsonDecode(response.body);
         setState(() {
           _bancos = List<Map<String, dynamic>>.from(responseData);
-          // Crear mapeo: nombre del banco -> ID del banco
           _bancoMap = Map.fromIterables(
             responseData.map((banco) => banco['nombre'].toString()).toList(),
             responseData.map((banco) => banco['id'] as int).toList(),
           );
         });
         loggerGlobal.d('Bancos cargados: ${_bancos.length}');
-        loggerGlobal.d('Mapeo de bancos: $_bancoMap');
       } else {
         loggerGlobal.e('Error al cargar bancos: ${response.statusCode}');
         if (mounted) {
@@ -148,6 +157,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     }
   }
 
+  // ✅ MODIFICADO: Ahora enfoca el primer campo vacío después de firmar
   void _openSignaturePad() {
     showDialog(
       context: context,
@@ -186,6 +196,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                             _signatureImage = signature;
                           });
                           Navigator.of(context).pop();
+
+                          // ✅ ENFOCAR EL PRIMER CAMPO VACÍO DESPUÉS DE FIRMAR
+                          _focusFirstEmptyField();
                         },
                       ),
                     ),
@@ -199,7 +212,49 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     );
   }
 
-  Future<void> asociarQR() async {
+  // ✅ NUEVO MÉTODO: Enfocar el primer campo vacío
+  void _focusFirstEmptyField() {
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+
+      // Lista de campos en orden de prioridad para enfocar
+      final fieldsOrder = [
+        'RUN',
+        'NOMBRES',
+        'APELLIDOS',
+        'NACIONALIDAD',
+        'SEXO',
+        'TELEFONO',
+        'CORREO',
+        'DIRECCION',
+      ];
+
+      // Si es documento chileno y falta RUT
+      if (_tipoDocumento == 'Cédula Chilena' &&
+          _controllers['RUN']!.text.isEmpty) {
+        _focusNodes['RUN']?.requestFocus();
+        return;
+      }
+
+      // Buscar el primer campo vacío en orden
+      for (String field in fieldsOrder) {
+        if (_controllers.containsKey(field) &&
+            _controllers[field]!.text.isEmpty) {
+          _focusNodes[field]?.requestFocus();
+
+          // Hacer scroll hasta el campo si es necesario
+          Scrollable.ensureVisible(
+            _focusNodes[field]!.context!,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          return;
+        }
+      }
+    });
+  }
+
+  Future<bool> asociarQR() async {
     try {
       String? scannedCode = await Navigator.push<String>(
         context,
@@ -214,7 +269,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
             ),
           );
         }
-        return;
+        return false;
       }
 
       setState(() {
@@ -225,12 +280,14 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           const SnackBar(content: Text('Código QR asociado temporalmente')),
         );
       }
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al escanear el código QR: $e')),
         );
       }
+      return false;
     }
   }
 
@@ -244,7 +301,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   }
 
   Future<bool> _confirmPhoto(String imagePath, bool isFront) async {
-    _rotationAngle = 0; // Reset rotation angle
+    _rotationAngle = 0;
     return await showDialog<bool>(
           context: context,
           builder: (context) => StatefulBuilder(
@@ -337,9 +394,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     final rotatedImage = img.copyRotate(originalImage, angle: angle * 180 / pi);
     final newPath =
         '${originalFile.parent.path}/rotated_${originalFile.uri.pathSegments.last}';
-    // ignore: unused_local_variable
-    final newFile = File(newPath)
-      ..writeAsBytesSync(img.encodeJpg(rotatedImage));
+    File(newPath).writeAsBytesSync(img.encodeJpg(rotatedImage));
     return newPath;
   }
 
@@ -351,12 +406,11 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    if (_isDisposing) return; // Evitar inicializar si se está cerrando
+    if (_isDisposing) return;
 
     try {
       final cameras = await availableCameras();
-
-      if (_isDisposing) return; // Verificar nuevamente
+      if (_isDisposing) return;
 
       CameraDescription? backCamera;
       try {
@@ -382,7 +436,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         await controller.initialize();
 
         if (_isDisposing) {
-          // Si se cerró mientras inicializaba, limpiar
           await controller.dispose();
           return;
         }
@@ -408,7 +461,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   }
 
   void _takePictureAndRecognizeText(bool isFront) async {
-    // Verificar que la cámara esté inicializada
     if (!_isCameraInitialized || _camera == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -439,6 +491,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     }
   }
 
+  // ✅ MODIFICADO: Flujo automático entre fotos y firma
   void _confirmPictureAndRecognizeText(String imagePath, bool isFront) async {
     final confirm = await _confirmPhoto(imagePath, isFront);
 
@@ -470,8 +523,19 @@ class ContratacionScreenState extends State<ContratacionScreen> {
             }
           });
           _hideLoadingOverlay();
+
+          // ✅ AUTOMÁTICAMENTE IR A LA FOTO TRASERA
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            _takePictureAndRecognizeText(false);
+          }
+        } else {
+          // ✅ DESPUÉS DE LA FOTO TRASERA, IR AUTOMÁTICAMENTE A LA FIRMA
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            _openSignaturePad();
+          }
         }
-        // Para el reverso de la cédula chilena, no hacemos nada más que guardar la imagen
       } else if (_tipoDocumento == 'Cédula Extranjera') {
         _showLoadingOverlay();
         if (isFront) {
@@ -486,6 +550,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
               'Nacionalidad capturada: ${_controllers['NACIONALIDAD']!.text}',
             );
           });
+          _hideLoadingOverlay();
+
+          // ✅ AUTOMÁTICAMENTE IR A LA FOTO TRASERA
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            _takePictureAndRecognizeText(false);
+          }
         } else {
           final backData = await readBackTextFromImageExtranjera(rotatedImage);
           setState(() {
@@ -507,8 +578,14 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
             loggerGlobal.d('Datos del reverso procesados');
           });
+          _hideLoadingOverlay();
+
+          // ✅ DESPUÉS DE LA FOTO TRASERA, IR AUTOMÁTICAMENTE A LA FIRMA
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            _openSignaturePad();
+          }
         }
-        _hideLoadingOverlay();
       }
     }
   }
@@ -531,7 +608,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       }
     }
 
-    return 'Soltero(a)'; // valor por defecto si no se encuentra una coincidencia
+    return 'Soltero(a)';
   }
 
   Future<Map<String, String>> readTextFromImageChilena(String imagePath) async {
@@ -609,7 +686,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       cardData['FECHA_NACIMIENTO'] = fechaNacimientoMatch.group(1)!;
     }
 
-    // Corrección para el campo SEXO
     if (cardData['SEXO'] == 'P') {
       final sexoNearPattern = RegExp(r'sexo\s*([MF])', caseSensitive: false);
       final sexoNearMatch = sexoNearPattern.firstMatch(combinedText);
@@ -620,7 +696,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
     textRecognizer.close();
 
-    // Limpieza y normalización de los datos
     cardData = cardData.map((key, value) {
       return MapEntry(key, normalizeTextFrontalChilena(value));
     });
@@ -631,7 +706,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   }
 
   String normalizeTextFrontalChilena(String text) {
-    // Normaliza los caracteres especiales y acentos
     text = text
         .replaceAll('Á', 'A')
         .replaceAll('É', 'E')
@@ -645,11 +719,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         .replaceAll('ó', 'o')
         .replaceAll('ú', 'u');
     text = text.replaceAll('Ñ', 'N').replaceAll('ñ', 'n');
-
-    // Elimina caracteres no deseados y espacios extra
     text = text.replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '');
     text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-
     return text;
   }
 
@@ -668,7 +739,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         .join('\n');
     loggerGlobal.d('Texto combinado (reverso): $combinedText');
 
-    // Patrones para extraer información
     final nombrePattern = RegExp(
       r'A:\s*([\p{L}\s]+)(?:\n|$|Nacido)',
       unicode: true,
@@ -688,7 +758,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     );
     final sexoPattern = RegExp(r'Sexo\s*([MF])', caseSensitive: false);
 
-    // Extraer nombre completo
     var nombreMatch = nombrePattern.firstMatch(combinedText);
     if (nombreMatch != null) {
       String nombreCompleto = nombreMatch.group(1)!.trim();
@@ -716,47 +785,34 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       loggerGlobal.d('Nombre completo no encontrado');
     }
 
-    // Extraer fecha de nacimiento
     var fechaNacimientoMatch = fechaNacimientoPattern.firstMatch(combinedText);
     if (fechaNacimientoMatch != null) {
       cardData['FECHA_NACIMIENTO'] = fechaNacimientoMatch.group(1)!;
       loggerGlobal.d(
         'Fecha de nacimiento encontrada: ${cardData['FECHA_NACIMIENTO']}',
       );
-    } else {
-      loggerGlobal.d('Fecha de nacimiento no encontrada');
     }
 
-    // Extraer nacionalidad
     var nacionalidadMatch = nacionalidadPattern.firstMatch(combinedText);
     if (nacionalidadMatch != null) {
       cardData['NACIONALIDAD'] = nacionalidadMatch.group(1)!;
       loggerGlobal.d('Nacionalidad encontrada: ${cardData['NACIONALIDAD']}');
-    } else {
-      loggerGlobal.d('Nacionalidad no encontrada');
     }
 
-    // Extraer estado civil
     var estadoCivilMatch = estadoCivilPattern.firstMatch(combinedText);
     if (estadoCivilMatch != null) {
       cardData['ESTADO_CIVIL'] = estadoCivilMatch.group(1)!;
       loggerGlobal.d('Estado civil encontrado: ${cardData['ESTADO_CIVIL']}');
-    } else {
-      loggerGlobal.d('Estado civil no encontrado');
     }
 
-    // Extraer sexo
     var sexoMatch = sexoPattern.firstMatch(combinedText);
     if (sexoMatch != null) {
       cardData['SEXO'] = sexoMatch.group(1)!;
       loggerGlobal.d('Sexo encontrado: ${cardData['SEXO']}');
-    } else {
-      loggerGlobal.d('Sexo no encontrado');
     }
 
     textRecognizer.close();
 
-    // Normalizar los datos
     cardData = cardData.map(
       (key, value) =>
           MapEntry(key, normalizeTextTraseraBolivianoFormatoUno(value)),
@@ -800,16 +856,12 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
     Map<String, String> extractedData = {};
 
-    // Patrón para extraer DNI (número de 7 u 8 dígitos)
     final dniPattern = RegExp(r'\b(\d{7,8})\b');
-
-    // Patrón para detectar "ESTADO PLURINACIONAL DE BOLIVIA"
     final boliviaPattern = RegExp(
       r'ESTADO PLURINACIONAL DE BOLIVIA',
       caseSensitive: false,
     );
 
-    // Buscar DNI
     var dniMatches = dniPattern.allMatches(combinedText);
     if (dniMatches.isNotEmpty) {
       extractedData['DNI'] = dniMatches.first.group(1)!;
@@ -818,7 +870,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       loggerGlobal.d('DNI no encontrado');
     }
 
-    // Buscar nacionalidad
     if (boliviaPattern.hasMatch(combinedText)) {
       extractedData['NACIONALIDAD'] = 'BOLIVIANA';
       loggerGlobal.d(
@@ -833,13 +884,10 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     return extractedData;
   }
 
-  // Agregar este método a la clase ContratacionScreenState
-
   bool _validateFieldsFormat(Map<String, String> fields) {
     loggerGlobal.d('=== VALIDANDO FORMATO DE CAMPOS ===');
 
     try {
-      // Validar campos de texto no vacíos
       final requiredFields = ['nombres', 'apellidos'];
       for (String field in requiredFields) {
         if (fields[field] == null || fields[field]!.isEmpty) {
@@ -852,7 +900,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         }
       }
 
-      // Validar formato de fecha
       if (fields['fecha_nacimiento'] != null) {
         try {
           DateTime.parse(fields['fecha_nacimiento']!);
@@ -867,20 +914,17 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         }
       }
 
-      // Validar holding
       if (fields['holding'] == null || fields['holding']!.isEmpty) {
         loggerGlobal.e('Holding vacío o nulo');
         return false;
       }
 
-      // Validar código supervisor
       if (fields['codigo_supervisor'] == null ||
           fields['codigo_supervisor']!.isEmpty) {
         loggerGlobal.e('Código supervisor vacío o nulo');
         return false;
       }
 
-      // Validar que tenga RUT o DNI
       bool hasRut = fields['rut'] != null && fields['rut']!.isNotEmpty;
       bool hasDni = fields['dni'] != null && fields['dni']!.isNotEmpty;
 
@@ -889,11 +933,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         return false;
       }
 
-      // Validar caracteres especiales en campos críticos
       final textFields = ['nombres', 'apellidos', 'nacionalidad'];
       for (String field in textFields) {
         if (fields[field] != null && fields[field]!.isNotEmpty) {
-          // Verificar que no contenga caracteres extraños que puedan causar problemas
           String value = fields[field]!;
           if (value.contains('\n') ||
               value.contains('\r') ||
@@ -914,7 +956,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     }
   }
 
-  // También agregar este método para verificar archivos
   bool _validateFiles(List<MapEntry<String, File>> files) {
     loggerGlobal.d('=== VALIDANDO ARCHIVOS ===');
 
@@ -922,13 +963,11 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       for (var fileEntry in files) {
         loggerGlobal.d('Validando archivo: ${fileEntry.key}');
 
-        // Verificar que el archivo existe
         if (!fileEntry.value.existsSync()) {
           loggerGlobal.e('Archivo no existe: ${fileEntry.value.path}');
           return false;
         }
 
-        // Verificar tamaño del archivo
         int fileSize = fileEntry.value.lengthSync();
         loggerGlobal.d('Tamaño del archivo ${fileEntry.key}: $fileSize bytes');
 
@@ -937,7 +976,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           return false;
         }
 
-        // Verificar que no sea demasiado grande (10MB límite)
         if (fileSize > 10 * 1024 * 1024) {
           loggerGlobal.e(
             'Archivo demasiado grande: ${fileEntry.key} - ${fileSize} bytes',
@@ -945,7 +983,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           return false;
         }
 
-        // Verificar extensión para imágenes
         String path = fileEntry.value.path.toLowerCase();
         if (fileEntry.key.contains('image') || fileEntry.key == 'firma') {
           if (!path.endsWith('.png') &&
@@ -987,7 +1024,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       }
       loggerGlobal.d('Firma presente');
 
-      // Validación básica de los campos requeridos
       if (_tipoDocumento == 'Cédula Chilena' &&
           (_controllers['RUN']!.text.isEmpty ||
               _controllers['NOMBRES']!.text.isEmpty ||
@@ -1020,33 +1056,21 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       try {
         loggerGlobal.d('=== PREPARANDO DATOS ===');
 
-        // Obtener holding desde storage
         String? holding = await storage.read(key: 'holding');
         loggerGlobal.d('Holding obtenido del storage: $holding');
 
-        // Preparar los campos SOLO con los que acepta el serializer
         String fechaNacimiento = '$_selectedAnio-$_selectedMes-$_selectedDia';
         loggerGlobal.d('Fecha de nacimiento calculada: $fechaNacimiento');
-
-        // Debug de datos iniciales
-        loggerGlobal.d('widget.initialData: ${widget.initialData}');
-        loggerGlobal.d('userInfo.sociedad: ${userInfo.sociedad}');
-        loggerGlobal.d('userInfo.idUsuario: ${userInfo.idUsuario}');
-        loggerGlobal.d('_tipoDocumento: $_tipoDocumento');
-        loggerGlobal.d('_controllers[RUN]: ${_controllers['RUN']?.text}');
-        loggerGlobal.d('_dni: $_dni');
-        loggerGlobal.d('_nic: $_nic');
-        loggerGlobal.d('_associatedQR: $_associatedQR');
 
         final Map<String, String> fields = {
           'holding': holding ?? '',
           'sociedad': userInfo.sociedad,
+          'fecha_ingreso': DateTime.now().toIso8601String().split('T')[0],
           'codigo_supervisor': (userInfo.idUsuario).toString(),
           'folio': widget.initialData['folio'] ?? '',
           'fundo': widget.initialData['fundo'] ?? '',
-          'labor': widget.initialData['labor'] ?? '', // ✅ AGREGAR ESTA LÍNEA
-          'transportista':
-              widget.initialData['transportista'] ?? '', // ✅ AGREGAR ESTA LÍNEA
+          'labor': widget.initialData['labor'] ?? '',
+          'transportista': widget.initialData['transportista'] ?? '',
           'casa': widget.initialData['casa'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
               ? _controllers['RUN']!.text
@@ -1066,7 +1090,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'banco': _banco,
           'tipo_cuenta_bancaria': _tipoCuenta,
           'numero_cuenta': _numeroCuenta,
-          'estado': 'true', // Campo requerido
+          'estado': 'true',
         };
 
         loggerGlobal.d('=== CAMPOS PREPARADOS ===');
@@ -1079,7 +1103,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           loggerGlobal.d('Código QR agregado: $_associatedQR');
         }
 
-        // Preparar los archivos
         loggerGlobal.d('=== PREPARANDO ARCHIVOS ===');
         List<MapEntry<String, File>> files = [];
 
@@ -1148,16 +1171,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
         loggerGlobal.d('Total de archivos preparados: ${files.length}');
 
-        // Validar archivos antes de continuar
         if (!_validateFiles(files)) {
           throw FormatException('Error en validación de archivos');
         }
 
-        // Guardar en la base de datos local con campos adicionales para contexto
         loggerGlobal.d('=== PREPARANDO CAMPOS LOCALES ===');
         Map<String, String> localFields = Map.from(fields);
 
-        // Agregar campos adicionales solo para la BD local (no se envían al servidor)
         Map<String, String> additionalFields = {
           'labor_id': widget.initialData['labor'] ?? '',
           'empresa_transporte_id': widget.initialData['transportista'] ?? '',
@@ -1174,7 +1194,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         loggerGlobal.d('=== TOTAL CAMPOS PARA BD LOCAL ===');
         loggerGlobal.d('Total de campos: ${localFields.length}');
 
-        // Validar formato de campos antes de guardar
         if (!_validateFieldsFormat(localFields)) {
           throw FormatException('Error en validación de formato de campos');
         }
@@ -1183,7 +1202,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         await _db.saveEnrollment(localFields, files);
         loggerGlobal.d('Guardado en BD local exitoso');
 
-        // Programar sincronización
         loggerGlobal.d('=== PROGRAMANDO SINCRONIZACIÓN ===');
         await WorkerSyncService.scheduleSync();
         loggerGlobal.d('Sincronización programada');
@@ -1198,7 +1216,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           );
         }
 
-        // Si se asoció un QR, guardarlo en la base de datos local
         if (_associatedQR != null) {
           loggerGlobal.d('=== GUARDANDO QR LOCAL ===');
           await _saveWorkerQRToLocal(fields, _associatedQR!);
@@ -1208,7 +1225,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         loggerGlobal.d('=== RESETEANDO FORMULARIO ===');
         _resetForm();
 
-        // Limpiar archivos temporales
         loggerGlobal.d('=== LIMPIANDO ARCHIVOS TEMPORALES ===');
         for (var file in files) {
           try {
@@ -1254,7 +1270,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       final Database db = await databaseFactoryIo.openDatabase(dbPath);
       final store = intMapStoreFactory.store('workers');
 
-      // CORRECCIÓN: Cambiar 'run' por 'rut' y agregar validación
       String idString = '';
 
       if (workerData['rut'] != null && workerData['rut']!.isNotEmpty) {
@@ -1268,23 +1283,20 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         idString = '0';
       }
 
-      // Limpiar el string (remover puntos y guiones del RUT)
       idString = idString.replaceAll('.', '').replaceAll('-', '');
 
-      // Extraer solo los números (sin dígito verificador en caso de RUT)
       if (idString.length > 1 &&
           (idString.contains('k') || idString.contains('K'))) {
         idString = idString.substring(0, idString.length - 1);
       }
 
-      // Validar que el string sea un número válido
       int workerId;
       try {
         workerId = int.parse(idString);
         loggerGlobal.d('ID parseado exitosamente: $workerId');
       } catch (e) {
         loggerGlobal.e('Error parseando ID "$idString": $e');
-        workerId = DateTime.now().millisecondsSinceEpoch; // Fallback único
+        workerId = DateTime.now().millisecondsSinceEpoch;
         loggerGlobal.w('Usando timestamp como ID fallback: $workerId');
       }
 
@@ -1359,15 +1371,10 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   }
 
   String _getRutWithoutFormatting(String run) {
-    // Remove dots and hyphens
     String cleanRun = run.replaceAll(RegExp(r'[.\-]'), '');
-
-    // Ensure cleanRun has the correct length
     if (cleanRun.length > 1) {
-      // Remove the last digit (verification digit)
       cleanRun = cleanRun.substring(0, cleanRun.length - 1);
     }
-
     return cleanRun;
   }
 
@@ -1388,7 +1395,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _selectedAnio = '2000';
       _metodoPago = 'Efectivo';
       _banco = '';
-      _selectedBancoNombre = null; // AGREGAR ESTA LÍNEA
+      _selectedBancoNombre = null;
       _tipoCuenta = '';
       _numeroCuenta = '';
       _numeroCuentaController.clear();
@@ -1425,7 +1432,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         setState(() {
                           _resetForm();
                           _tipoDocumento = newValue!;
-                          // Resetear todos los campos al cambiar el tipo de documento
                         });
                       },
                       decoration: const InputDecoration(
@@ -1551,6 +1557,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     ],
                   ),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(width: 60),
                       ElevatedButton(
@@ -1573,6 +1580,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
                         controller: _controllers['RUN'],
+                        focusNode: _focusNodes['RUN'],
                         decoration: const InputDecoration(
                           labelText: 'RUT *',
                           border: OutlineInputBorder(),
@@ -1623,6 +1631,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     padding: const EdgeInsets.all(8.0),
                     child: TextFormField(
                       controller: _controllers['NOMBRES'],
+                      focusNode: _focusNodes['NOMBRES'],
                       decoration: const InputDecoration(
                         labelText: 'Nombres *',
                         border: OutlineInputBorder(),
@@ -1639,6 +1648,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     padding: const EdgeInsets.all(8.0),
                     child: TextFormField(
                       controller: _controllers['APELLIDOS'],
+                      focusNode: _focusNodes['APELLIDOS'],
                       decoration: const InputDecoration(
                         labelText: 'Apellidos *',
                         border: OutlineInputBorder(),
@@ -1662,6 +1672,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
                         controller: _controllers[field],
+                        focusNode: _focusNodes[field],
                         decoration: InputDecoration(
                           labelText: field,
                           border: const OutlineInputBorder(),
@@ -1808,7 +1819,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                           _metodoPago = newValue!;
                           if (_metodoPago == 'Efectivo') {
                             _banco = '';
-                            _selectedBancoNombre = null; // ✅ AGREGAR ESTA LÍNEA
+                            _selectedBancoNombre = null;
                             _tipoCuenta = '';
                             _numeroCuenta = '';
                             _numeroCuentaController.clear();
@@ -2042,7 +2053,7 @@ class __LoadingTextState extends State<_LoadingText> {
         fontWeight: FontWeight.bold,
         decoration: TextDecoration.none,
         fontSize: 18.0,
-        color: Colors.white, // Cambiado a blanco
+        color: Colors.white,
       ),
     );
   }

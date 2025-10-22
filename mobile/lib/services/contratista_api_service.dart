@@ -7,9 +7,11 @@ import 'package:logger/logger.dart';
 Logger logger = Logger();
 
 class ApiService {
-  final String baseUrl = 'http://192.168.1.15:8182/contratista_test_api/';
-  //contratista.terramobile.cl GOOGLE CLOUD
-  //
+  final String baseUrl =
+      'http://contratista.terramobile.cl/contratista_test_api/';
+  //192.168.43.122
+  //192.168.100.15
+  // Obtener el JWT token
   Future<String?> getJwtToken() async {
     return await storage.read(key: 'jwt_token');
   }

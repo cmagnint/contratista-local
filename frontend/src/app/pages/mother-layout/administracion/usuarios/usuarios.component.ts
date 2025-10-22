@@ -62,7 +62,6 @@ export class UsuariosComponent implements OnInit {
   public errorMessage!: string;
   public selectedRows: any[] = [];
   
-  // ✨ NUEVO: Variables para dropdowns directos
   public dropdownOpenPerfiles: boolean = false;
   public dropdownOpenSociedades: boolean = false;
   
@@ -97,13 +96,9 @@ export class UsuariosComponent implements OnInit {
       this.cargarUsuarios();
       this.cargarSupervisores();
       this.cargarPersonalDisponible();
-      
     }
   }
 
-   /**
-   * 🎯 NUEVO MÉTODO: Extrae holding_id del JWT
-   */
   private getHoldingIdFromJWT(): string {
     try {
       const userInfo = this.jwtService.getUserInfo();
@@ -141,26 +136,24 @@ export class UsuariosComponent implements OnInit {
     })
   }
 
- cargarPersonalDisponible(): void {
+  cargarPersonalDisponible(): void {
     this.apiService.get(`api_personal_for_users/${this.holding}/`).subscribe({
         next: (response) => {
             this.personalDisponible = response;
             console.log('Personal disponible cargado:', this.personalDisponible);
         },
         error: (error) => {
-            // Si es 404 (no se encontró personal), simplemente cargar array vacío
             if (error.status === 404) {
                 this.personalDisponible = [];
                 console.log('No se encontró personal disponible, cargando lista vacía');
             } else {
-                // Solo mostrar error si es un error diferente a 404
                 this.openErrorModal('Error al cargar personal: ' + error.error.message);
             }
         }
     });
   }
+
   onPersonalSelected(personalId: string | number): void {
-    // Convertir a número ya que viene como string desde el select
     const id = typeof personalId === 'string' ? parseInt(personalId) : personalId;
     const personalSeleccionado = this.personalDisponible.find(p => p.id === id);
     
@@ -170,7 +163,6 @@ export class UsuariosComponent implements OnInit {
         this.emailUsuario = personalSeleccionado.correo || '';
         this.selectedPersonalId = personalId.toString();
         
-        // Para debug
         console.log('Personal seleccionado:', personalSeleccionado);
         console.log('Campos actualizados:', {
             nombre: this.nombreUsuario,
@@ -178,7 +170,6 @@ export class UsuariosComponent implements OnInit {
             email: this.emailUsuario
         });
     } else {
-        // Limpiar los campos si no se selecciona ninguna persona
         this.nombreUsuario = '';
         this.rutUsuario = '';
         this.emailUsuario = '';
@@ -214,11 +205,26 @@ export class UsuariosComponent implements OnInit {
         }
       },
       error: (error) => {
-        //this.openErrorModal('Error al cargar perfiles: ' + error.error.message);
+        // Error silencioso
       }
     });
   }
 
+  /**
+   * 🧹 Limpia el RUT removiendo puntos y guiones
+   */
+  limpiarRUT(rut: string): string {
+    if (!rut) return '';
+    
+    return rut
+      .replace(/[.\-\s]/g, '')
+      .toUpperCase()
+      .trim();
+  }
+
+  /**
+   * ✅ Crear usuario con RUT limpio
+   */
   crearUsuario(): void {
     if (!this.selectedPersonalId) {
       this.openModal('errorModal');
@@ -232,7 +238,6 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    // ✨ VALIDACIÓN: Solo verificar supervisor si es JEFE DE CUADRILLA (ya debería estar habilitado)
     const selectedPerfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
     if (selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA' && !this.selectedSupervisorId) {
       this.openModal('errorModal');
@@ -240,7 +245,6 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    // Mostrar modal de loading
     this.openModal('loadingModal');
 
     let data = {
@@ -248,20 +252,25 @@ export class UsuariosComponent implements OnInit {
       empresas_asignadas: this.selectedSociedades,
       persona: this.selectedPersonalId,
       nombre: this.nombreUsuario,
-      rut: this.rutUsuario.replace(/\D/g, ''),
+      rut: this.limpiarRUT(this.rutUsuario),
       email: this.emailUsuario,
       perfil: this.selectedPerfilId,
       supervisor: this.selectedSupervisorId,
     }
     
+    console.log('📤 Datos enviados al API:', data);
+    console.log('🧹 RUT limpio enviado:', data.rut);
+    
     this.apiService.post('api_usuarios/', data).subscribe({
       next: (response) => {
+        console.log('✅ Usuario creado exitosamente:', response);
         this.closeModal('loadingModal');
         this.closeModal('crearUsuario');
         this.cargarUsuarios();
         this.openModal('exitoModal');
       },
       error: (error) => {
+        console.error('❌ Error al crear usuario:', error);
         this.closeModal('loadingModal');
         this.openModal('errorModal')
         this.errorMessage = 'Error al crear usuario: ' + error.error.message;
@@ -269,27 +278,9 @@ export class UsuariosComponent implements OnInit {
     })
   }
 
-  // ✨ ARREGLADO: No mostrar error cuando no hay usuarios
-  cargarUsuarios(): void {
-    const url = `api_usuarios/${this.holding}/`;
-    this.apiService.get(url).subscribe({
-      next: (response) => {
-        console.log('Usuarios disponibles: ', response);
-        this.usuariosCargados = response;
-      },
-      error: (error) => {
-        // ✨ CAMBIO: Solo mostrar error si no es "No se encontraron usuarios"
-        if (error.status !== 404) {
-          this.openErrorModal('Error al cargar usuarios: ' + error.error.message);
-        } else {
-          // Si es 404 (no se encontraron usuarios), simplemente cargar array vacío
-          this.usuariosCargados = [];
-          console.log('No se encontraron usuarios, cargando lista vacía');
-        }
-      }
-    });
-  }
-
+  /**
+   * ✅ Modificar usuario con RUT limpio
+   */
   modificarUsuario(): void {
     if (!this.selectedSociedadesNew || this.selectedSociedadesNew.length === 0) {
       this.openModal('errorModal');
@@ -300,22 +291,45 @@ export class UsuariosComponent implements OnInit {
     let data = {
       id: this.selectedUserId,
       nombre: this.nombreUsuarioNew,
-      rut: this.rutUsuarioNew,
-      usuario: this.rutUsuarioNew,
+      rut: this.limpiarRUT(this.rutUsuarioNew),
+      usuario: this.limpiarRUT(this.rutUsuarioNew),
       email: this.emailUsuarioNew,
       perfil: this.selectedPerfilId,
       empresas_asignadas: this.selectedSociedadesNew
     }
 
+    console.log('📤 Datos de modificación enviados:', data);
+    console.log('🧹 RUT limpio enviado:', data.rut);
+
     this.apiService.put('api_usuarios/', data).subscribe({
       next: (response) => {
+        console.log('✅ Usuario modificado exitosamente:', response);
         this.closeModal('modificarUsuario');
         this.cargarUsuarios();
         this.openModal('exitoModal');
       },
       error: (error) => {
+        console.error('❌ Error al modificar usuario:', error);
         this.openModal('errorModal');
         this.errorMessage = error.error.message || 'Error al modificar usuario';
+      }
+    });
+  }
+
+  cargarUsuarios(): void {
+    const url = `api_usuarios/${this.holding}/`;
+    this.apiService.get(url).subscribe({
+      next: (response) => {
+        console.log('Usuarios disponibles: ', response);
+        this.usuariosCargados = response;
+      },
+      error: (error) => {
+        if (error.status !== 404) {
+          this.openErrorModal('Error al cargar usuarios: ' + error.error.message);
+        } else {
+          this.usuariosCargados = [];
+          console.log('No se encontraron usuarios, cargando lista vacía');
+        }
       }
     });
   }
@@ -365,10 +379,8 @@ export class UsuariosComponent implements OnInit {
     }
   }
 
-  // ✨ NUEVO: Métodos para manejar dropdowns directos
   toggleDropdownPerfiles(): void {
     this.dropdownOpenPerfiles = !this.dropdownOpenPerfiles;
-    // Cerrar el otro dropdown si está abierto
     if (this.dropdownOpenPerfiles) {
       this.dropdownOpenSociedades = false;
     }
@@ -376,13 +388,11 @@ export class UsuariosComponent implements OnInit {
 
   toggleDropdownSociedades(): void {
     this.dropdownOpenSociedades = !this.dropdownOpenSociedades;
-    // Cerrar el otro dropdown si está abierto
     if (this.dropdownOpenSociedades) {
       this.dropdownOpenPerfiles = false;
     }
   }
 
-  // ✨ NUEVO: Método getter para resolver el error de binding
   getSelectedPerfilName(): string {
     if (this.selectedPerfilId) {
       const perfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
@@ -391,7 +401,6 @@ export class UsuariosComponent implements OnInit {
     return 'SELECCIONAR PERFIL';
   }
 
-  // ✨ NUEVO: Método para verificar si un perfil está deshabilitado
   isPerfilDisabled(perfil: any): boolean {
     return perfil.nombre_perfil === 'JEFE DE CUADRILLA' && (!this.supervisoresCargados || this.supervisoresCargados.length === 0);
   }
@@ -400,6 +409,9 @@ export class UsuariosComponent implements OnInit {
     return this.selectedRows.some(r => r.id === row.id);
   }
 
+  /**
+   * ✅ CORREGIDO: Seleccionar fila con campos correctos del API
+   */
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
@@ -410,80 +422,95 @@ export class UsuariosComponent implements OnInit {
 
     if (this.selectedRows.length > 0) {
       const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+      
+      console.log('👤 Usuario seleccionado:', lastSelectedRow);
+      
+      // ✅ Usar campos correctos del API
       this.selectedSociedadesNew = lastSelectedRow.empresas_asignadas || [];
       this.usuarioSeleccionado = {
-        nombre_usuario_seleccionado: lastSelectedRow.nombre,
+        nombre_usuario_seleccionado: lastSelectedRow.nombre_persona || lastSelectedRow.nombre,
         rut_usuario_seleccionado: lastSelectedRow.rut,
         email_usuario_seleccionado: lastSelectedRow.email,
         id_perfil_usuario_seleccionado: lastSelectedRow.perfil,
         id_usuario_seleccionado: lastSelectedRow.id,
       };
+      
+      // ✅ Asignar a variables New
       this.selectedPerfilId = this.usuarioSeleccionado.id_perfil_usuario_seleccionado;
       this.nombreUsuarioNew = this.usuarioSeleccionado.nombre_usuario_seleccionado;
       this.rutUsuarioNew = this.formatRUTString(this.usuarioSeleccionado.rut_usuario_seleccionado);
       this.emailUsuarioNew = this.usuarioSeleccionado.email_usuario_seleccionado;
       this.selectedUserId = this.usuarioSeleccionado.id_usuario_seleccionado;
+      
+      console.log('📝 Campos asignados para modificar:');
+      console.log('   Nombre:', this.nombreUsuarioNew);
+      console.log('   RUT:', this.rutUsuarioNew);
+      console.log('   Email:', this.emailUsuarioNew);
+      console.log('   Perfil ID:', this.selectedPerfilId);
     } else {
       this.usuarioSeleccionado = {
         nombre_usuario_seleccionado: '',
         rut_usuario_seleccionado: '',
         email_usuario_seleccionado: '',
       }
+      // Limpiar también las variables New
+      this.nombreUsuarioNew = '';
+      this.rutUsuarioNew = '';
+      this.emailUsuarioNew = '';
+      this.selectedPerfilId = null;
     }
   }
 
+  /**
+   * Formatea RUT en el input mientras el usuario escribe
+   */
   formatRUT(event: Event): void {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-      parts.unshift(rut.slice(-3));
-      rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    target.value = parts.join('.') + '-' + verifier;
-    if (target.value === '-') {
+    let valor = target.value.replace(/[.\-\s]/g, '').toUpperCase();
+    const verificador = valor.slice(-1);
+    let rutNumeros = valor.slice(0, -1);
+    
+    if (rutNumeros.length === 0) {
       target.value = '';
+      return;
     }
+    
+    let parts = [];
+    while (rutNumeros.length > 3) {
+      parts.unshift(rutNumeros.slice(-3));
+      rutNumeros = rutNumeros.slice(0, -3);
+    }
+    parts.unshift(rutNumeros);
+    
+    target.value = parts.join('.') + '-' + verificador;
   }
 
+  /**
+   * Formatea un string de RUT para mostrar
+   */
   formatRUTString(value: string): string {
-    // Si el valor está vacío, retornar cadena vacía
     if (!value) return '';
 
-    // Obtener el último carácter (que podría ser K o k)
-    const lastChar = value.slice(-1).toUpperCase();
+    const rutLimpio = this.limpiarRUT(value);
+    const verificador = rutLimpio.slice(-1);
+    let rutNumeros = rutLimpio.slice(0, -1);
     
-    // Verificar si el último carácter es K
-    const isK = lastChar === 'K';
-    
-    // Obtener solo los números, excluyendo la K si existe
-    let rut = value.slice(0, isK ? -1 : undefined).replace(/\D/g, '');
+    if (rutNumeros.length === 0) return '';
     
     let parts = [];
-    // Si es K, usar K como verificador, si no, usar el último número
-    const verifier = isK ? 'K' : rut.slice(-1);
-    // Si no es K, quitar el último número para procesarlo
-    if (!isK) rut = rut.slice(0, -1);
-    
-    // Formatear los números en grupos de 3
-    while (rut.length > 3) {
-        parts.unshift(rut.slice(-3));
-        rut = rut.slice(0, -3);
+    while (rutNumeros.length > 3) {
+      parts.unshift(rutNumeros.slice(-3));
+      rutNumeros = rutNumeros.slice(0, -3);
     }
-    parts.unshift(rut);
+    parts.unshift(rutNumeros);
     
-    // Unir todo con el verificador (número o K)
-    return parts.join('.') + '-' + verifier;
+    return parts.join('.') + '-' + verificador;
   }
 
   deseleccionarFila(event: MouseEvent) {
     this.selectedRows = [];
-    // Cerrar dropdowns al hacer clic fuera
     this.dropdownOpenPerfiles = false;
     this.dropdownOpenSociedades = false;
   }
@@ -493,15 +520,13 @@ export class UsuariosComponent implements OnInit {
     if (key == 'confirmacionModal') {
       this.deletedRow = this.selectedRows;
     }
-    // ✨ NUEVO: Resetear campos al abrir modal de crear usuario
     if (key === 'crearUsuario') {
       this.resetearCamposCrearUsuario();
     }
   }
 
-  // ✨ NUEVO: Método para resetear campos del modal crear usuario
   resetearCamposCrearUsuario(): void {
-    this.selectedPersonalId = ''; // ✨ ARREGLADO: usar string vacío
+    this.selectedPersonalId = '';
     this.nombreUsuario = '';
     this.rutUsuario = '';
     this.emailUsuario = '';
@@ -517,7 +542,6 @@ export class UsuariosComponent implements OnInit {
     if (key === 'exitoModal') {
       this.cargarPerfiles();
     }
-    // ✨ NUEVO: Cerrar dropdowns al cerrar modales
     if (key === 'crearUsuario' || key === 'modificarUsuario') {
       this.dropdownOpenPerfiles = false;
       this.dropdownOpenSociedades = false;

@@ -157,7 +157,7 @@
   </div>
     
   <!-- ============================================ -->
-  <!-- 🎯 MODAL MODIFICAR USUARIO -->
+  <!-- 🎯 MODAL MODIFICAR USUARIO - CORREGIDO -->
   <!-- ============================================ -->
   <div 
     id="modalmodificarPerfil" 
@@ -176,31 +176,34 @@
       
       <h2>MODIFICAR USUARIO</h2>
       
+      <!-- ✅ CORREGIDO: Usar nombreUsuarioNew -->
       <h3>Nombre Usuario:</h3>
       <input 
         type="text" 
         class="input-usuario" 
-        [(ngModel)]="nombreUsuario" 
+        [(ngModel)]="nombreUsuarioNew" 
         readonly
         placeholder="Nombre del usuario">
                   
+      <!-- ✅ CORREGIDO: Usar rutUsuarioNew -->
       <h3>RUT Usuario:</h3>
       <input 
         type="text" 
         class="input-usuario" 
-        [(ngModel)]="rutUsuario" 
+        [(ngModel)]="rutUsuarioNew" 
         readonly
         placeholder="RUT del usuario">
       
+      <!-- ✅ CORREGIDO: Usar emailUsuarioNew -->
       <h3>Email Usuario:</h3>
       <input 
         type="email" 
         class="input-usuario" 
-        [(ngModel)]="emailUsuario" 
+        [(ngModel)]="emailUsuarioNew" 
         readonly
         placeholder="Email del usuario">
       
-      <!-- ✨ NUEVO: Dropdown directo para perfiles en modificar -->
+      <!-- Dropdown para perfiles -->
       <h3>Modificar Perfil:</h3>
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdownPerfiles()">
@@ -220,7 +223,7 @@
         </div>
       </div>
       
-      <!-- ✨ NUEVO: Dropdown directo para sociedades en modificar -->
+      <!-- Dropdown para sociedades -->
       <h3>Modificar Sociedades:</h3>
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdownSociedades()">

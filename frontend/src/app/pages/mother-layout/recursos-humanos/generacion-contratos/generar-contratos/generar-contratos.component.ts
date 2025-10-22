@@ -1,3 +1,4 @@
+//generar-contratos.component.ts
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -84,21 +85,18 @@ export class GenerarContratosComponent implements OnInit {
     this.filtroForm = this.fb.group({
       sociedad_id: ['', Validators.required],
       cliente_id: [''],
-      fundo_id: [{value: '', disabled: true}], // Inicialmente deshabilitado
+      fundo_id: [{value: '', disabled: true}],
       casa_id: ['']
     });
     
-    // Añadir observador al cambio de cliente para cargar fundos
+    // Observador para cargar fundos cuando cambia el cliente
     this.filtroForm.get('cliente_id')?.valueChanges.subscribe(clienteId => {
       if (clienteId) {
         this.cargandoFundos = true;
-        // Habilitar el control de fundo cuando hay un cliente seleccionado
         this.filtroForm.get('fundo_id')?.enable();
-        
         this.cargarFundosPorCliente(clienteId);
       } else {
         this.fundos = [];
-        // Restablecer y deshabilitar el control de fundo cuando no hay cliente
         this.filtroForm.get('fundo_id')?.setValue('');
         this.filtroForm.get('fundo_id')?.disable();
       }
@@ -107,7 +105,6 @@ export class GenerarContratosComponent implements OnInit {
   
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      // Usar localStorage solo si estamos en el navegador
       this.holding = localStorage.getItem('holding_id') || '';
       if (this.holding) {
         this.cargarDatosIniciales();
@@ -256,7 +253,8 @@ export class GenerarContratosComponent implements OnInit {
     const nacionalidad = this.trabajadoresSeleccionados[0].nacionalidad?.toUpperCase();
     const tipoContrato = nacionalidad === 'CHILENA' || nacionalidad === 'CHILENO' ? 'CHILENO' : 'EXTRANJERO';
     
-    this.apiService.get(`api_listar-documentos/?tipo=${tipoContrato}`).subscribe({
+    // Usar el método GET convencional con query params
+    this.apiService.get(`api_listar-documentos/?tipo=${tipoContrato}&holding=${this.holding}`).subscribe({
       next: (response) => {
         this.formatosDisponibles = response;
         console.log('Formatos disponibles:', this.formatosDisponibles.length);
@@ -283,6 +281,8 @@ export class GenerarContratosComponent implements OnInit {
     this.formatoSeleccionado = formato;
   }
   
+  // Reemplazar solo el método generarContratos() en generar-contratos.component.ts
+
   generarContratos(): void {
     if (!this.formatoSeleccionado || this.trabajadoresSeleccionados.length === 0) {
       this.snackBar.open(
@@ -301,59 +301,117 @@ export class GenerarContratosComponent implements OnInit {
     // Preparar IDs de trabajadores seleccionados
     const trabajadorIds = this.trabajadoresSeleccionados.map(t => t.id);
     
+    console.log('Generando contratos para trabajadores:', trabajadorIds);
+    console.log('Usando formato:', this.formatoSeleccionado.nombre);
+    
     const requestData = {
       documento_id: this.formatoSeleccionado.id,
       trabajador_ids: trabajadorIds
     };
     
+    // Usar el método POST convencional
     this.apiService.post('api_generar-documentos-masivo/', requestData).subscribe({
       next: (response) => {
         this.cargando = false;
         this.contratosGenerados = true;
         
-        // Guardar URLs de los contratos generados
-        if (response.urls && Array.isArray(response.urls)) {
-          this.urlsContratos = response.urls;
-        }
+        console.log('Respuesta del servidor:', response);
         
-        this.snackBar.open(
-          `Se generaron ${this.urlsContratos.length} contratos exitosamente`,
-          'Cerrar',
-          { duration: 3000 }
-        );
+        // ⭐ SIMPLIFICADO: El backend ahora retorna URLs absolutas completas
+        if (response.urls && Array.isArray(response.urls)) {
+          this.urlsContratos = response.urls.map((item: any) => item.url);
+          
+          console.log('✅ URLs de contratos generados:', this.urlsContratos);
+          
+          // Mostrar mensaje de éxito
+          let mensaje = `Se generaron ${response.total_exitosos} contratos exitosamente`;
+          if (response.total_errores > 0) {
+            mensaje += `. ${response.total_errores} errores`;
+          }
+          
+          this.snackBar.open(mensaje, 'Cerrar', { duration: 5000 });
+          
+          // Mostrar errores si los hay
+          if (response.errores && response.errores.length > 0) {
+            console.error('Errores al generar contratos:', response.errores);
+            response.errores.forEach((error: any) => {
+              this.snackBar.open(
+                `Error trabajador ID ${error.trabajador_id}: ${error.error}`,
+                'Cerrar',
+                { duration: 5000 }
+              );
+            });
+          }
+        } else {
+          console.warn('Respuesta sin URLs:', response);
+          this.mensajeError = 'No se recibieron URLs de contratos';
+        }
       },
       error: (error) => {
         this.cargando = false;
         console.error('Error al generar contratos:', error);
-        this.mensajeError = error.error?.error || 'Error al generar contratos';
+        
+        // Extraer mensaje de error
+        let mensajeError = 'Error al generar contratos';
+        if (error.error?.error) {
+          mensajeError = error.error.error;
+        } else if (error.message) {
+          mensajeError = error.message;
+        }
+        
+        this.mensajeError = mensajeError;
+        this.snackBar.open(mensajeError, 'Cerrar', { duration: 5000 });
       }
     });
   }
   
   descargarContrato(url: string, indice: number): void {
+    console.log('Descargando contrato desde:', url);
+    
     const a = document.createElement('a');
     a.href = url;
-    a.download = `contrato_${this.trabajadoresSeleccionados[indice]?.nombre_completo || indice}.pdf`;
+    
+    // Construir nombre del archivo
+    const trabajador = this.trabajadoresSeleccionados[indice];
+    const nombreTrabajador = this.getNombreTrabajador(trabajador)
+      .replace(/\s+/g, '_')  // Reemplazar espacios con guiones bajos
+      .replace(/[^\w\-]/g, '');  // Eliminar caracteres especiales
+    
+    a.download = `contrato_${nombreTrabajador}.pdf`;
+    a.target = '_blank';  // Abrir en nueva pestaña
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   }
   
   descargarTodos(): void {
-    // Si hay muchos contratos, hacer esto secuencialmente para evitar bloqueos
-    if (this.urlsContratos.length > 0) {
-      let index = 0;
-      
-      const descargaSiguiente = () => {
-        if (index < this.urlsContratos.length) {
-          this.descargarContrato(this.urlsContratos[index], index);
-          index++;
-          setTimeout(descargaSiguiente, 300); // Esperar 300ms entre descargas
-        }
-      };
-      
-      descargaSiguiente();
+    if (this.urlsContratos.length === 0) {
+      this.snackBar.open('No hay contratos para descargar', 'Cerrar', { duration: 3000 });
+      return;
     }
+    
+    console.log(`Descargando ${this.urlsContratos.length} contratos...`);
+    
+    // Descargar secuencialmente con delay
+    let index = 0;
+    
+    const descargaSiguiente = () => {
+      if (index < this.urlsContratos.length) {
+        console.log(`Descargando contrato ${index + 1}/${this.urlsContratos.length}`);
+        this.descargarContrato(this.urlsContratos[index], index);
+        index++;
+        setTimeout(descargaSiguiente, 500); // Esperar 500ms entre descargas
+      } else {
+        this.snackBar.open(
+          `Se iniciaron ${this.urlsContratos.length} descargas`,
+          'Cerrar',
+          { duration: 3000 }
+        );
+      }
+    };
+    
+    descargaSiguiente();
   }
   
   limpiarFiltros(): void {
@@ -373,6 +431,7 @@ export class GenerarContratosComponent implements OnInit {
     this.formatoSeleccionado = null;
     this.contratosGenerados = false;
     this.urlsContratos = [];
+    this.mensajeError = '';
   }
   
   estaSeleccionado(trabajador: any): boolean {

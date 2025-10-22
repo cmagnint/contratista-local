@@ -191,7 +191,7 @@ export class PersonalComponent implements OnInit {
   public todasSeleccionadas: boolean = false;
   public trabajadoresCargados: any[] = [];
   columnasDesplegadas = [
-    'codigo', 'sociedad', 'area', 'cargo', 'nombre', 'rut', 
+    'codigo', 'sociedad', 'area', 'cargo', 'nombre', 'apellidos', 'rut', 
     'direccion', 'sexo', 'telefono', 'nacionalidad', 'correo', 
     'fecha_ingreso', 'fecha_nacimiento', 'estado_civil', 'afp', 'salud', 
     'metodo_pago', 'banco_info', 'casa', 'fundo', 'documentos', 'estado'
@@ -365,16 +365,34 @@ export class PersonalComponent implements OnInit {
   }
 
   cargarTrabajadores():void{
-    this.contratistaApiService.get(`api_personal/?holding=${this.holding}`).subscribe({
-      next: (response) => {
-        this.trabajadoresCargados = response;
-        console.log('Trabajadores cargados:', this.trabajadoresCargados);
-      },
-      error: (error) => {
-        console.error('Error al recibir los trabajadores:', error);
-      }
-    });
-  }
+  this.contratistaApiService.get(`api_personal/?holding=${this.holding}`).subscribe({
+    next: (response) => {
+      // Ordenar alfabéticamente por apellidos, luego por nombres
+      this.trabajadoresCargados = response.sort((a: any, b: any) => {
+        // Primero comparar por apellidos
+        const apellidoA = (a.apellidos || '').toUpperCase();
+        const apellidoB = (b.apellidos || '').toUpperCase();
+        
+        if (apellidoA < apellidoB) return -1;
+        if (apellidoA > apellidoB) return 1;
+        
+        // Si los apellidos son iguales, comparar por nombres
+        const nombreA = (a.nombres || '').toUpperCase();
+        const nombreB = (b.nombres || '').toUpperCase();
+        
+        if (nombreA < nombreB) return -1;
+        if (nombreA > nombreB) return 1;
+        
+        return 0;
+      });
+      
+      console.log('Trabajadores cargados y ordenados:', this.trabajadoresCargados);
+    },
+    error: (error) => {
+      console.error('Error al recibir los trabajadores:', error);
+    }
+  });
+}
 
   // ============================================
   // CRUD OPERACIONES
@@ -750,7 +768,9 @@ export class PersonalComponent implements OnInit {
     link.click();
     document.body.removeChild(link);
   }
-
+  //IMPORTANTE, Para contratista-docker-cloud usar baseUrl : http://contratista.terramobile.cl
+  //Para contratista usar http://localhost
+  
   getUrlCompleta(path: string): string {
     if (!path) return '';
     
@@ -758,7 +778,7 @@ export class PersonalComponent implements OnInit {
       return path;
     }
     
-    const baseUrl = 'http://localhost:8182';
+    const baseUrl = 'http://localhost';
     return `${baseUrl}${path}`;
   }
 

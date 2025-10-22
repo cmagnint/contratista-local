@@ -20,9 +20,9 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 20px;
-  height: calc(100vh - 90px); /* Altura fija basada en el viewport */
-  overflow-y: auto; /* Habilita scroll vertical independiente */
-  overflow-x: hidden; /* Previene scroll horizontal */
+  height: calc(100vh - 90px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .variables-panel h3, .variables-panel h4 {
@@ -88,7 +88,7 @@
   color: #2c7a2c;
 }
 
-/* NUEVO: Estilos para preview de valores de ejemplo */
+/* Estilos para preview de valores de ejemplo */
 .variable-preview {
   background-color: #f8f9fa;
   border: 1px solid #e9ecef;
@@ -108,8 +108,8 @@
 }
 
 .preview-value {
-  font-family: Arial, sans-serif; /* SINCRONIZADO con el backend */
-  font-size: 10px; /* SINCRONIZADO con BASE_FONT_SIZE del backend */
+  font-family: Arial, sans-serif;
+  font-size: 10px;
   font-weight: normal;
   color: #333;
   background-color: white;
@@ -124,7 +124,6 @@
   text-align: center;
 }
 
-/* NUEVO: Estilos para el texto de preview en modo colocación */
 .preview-text {
   font-size: 0.9rem;
   color: #0050b3;
@@ -132,7 +131,6 @@
   font-style: italic;
 }
 
-/* NUEVO: Hint para campos centrados en modal */
 .field-hint {
   font-size: 0.75rem;
   color: #6c757d;
@@ -141,7 +139,7 @@
   display: block;
 }
 
-/* NUEVO: Estilos para indicador de cambios pendientes */
+/* Estilos para indicador de cambios pendientes */
 .changes-indicator {
   background-color: #fff3cd;
   border-left: 4px solid #ffc107;
@@ -161,10 +159,9 @@
   color: #856404;
 }
 
-/* Ajustes para el diseño sin campos de valor */
 .variable-input-group {
   display: flex;
-  justify-content: space-between; /* Alinea botones en extremos */
+  justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -242,7 +239,6 @@
   background-color: #419544;
 }
 
-/* Styles for the new save button */
 .save-btn {
   background-color: #007bff;
   color: white;
@@ -253,7 +249,6 @@
   background-color: #0069d9;
 }
 
-/* Nuevos estilos para la sección de PDF de prueba */
 .test-pdf-section, .calibration-actions {
   margin-top: 20px;
   padding-top: 10px;
@@ -314,7 +309,7 @@
   background-color: #e09200;
 }
 
-/* Container del PDF modificado para ajustarse al layout */
+/* Container del PDF */
 .pdf-container {
   flex: 1;
   display: flex;
@@ -460,7 +455,7 @@ h2 {
   border: 1px solid #ddd;
   border-radius: 4px;
   overflow: hidden;
-  background-color: #e5e5e5; /* Darker background to contrast with pages */
+  background-color: #e5e5e5;
   padding: 0;
   margin: 0 auto;
   display: flex;
@@ -580,56 +575,69 @@ h2 {
   background-color: white;
 }
 
-/* Variable on PDF - SINCRONIZADO CON BACKEND */
+/* ⭐ CORRECCIÓN PRINCIPAL: Variable on PDF - SINCRONIZADO CON BACKEND */
 .pdf-variable {
   position: absolute;
-  background-color: rgba(74, 128, 245, 0.1);
-  border: 2px dashed #4a80f5;
-  border-radius: 4px;
-  padding: 4px 8px;
+  background-color: rgba(74, 128, 245, 0.08);
+  border: 1px dashed #4a80f5; /* ✅ CORREGIDO: 1px para rectángulo más compacto */
+  border-radius: 3px;
+  padding: 3px 6px; /* ✅ REDUCIDO: padding más compacto */
   
-  /* SINCRONIZACIÓN CRÍTICA CON BACKEND */
-  font-family: Arial, sans-serif !important; /* Igual al backend */
-  font-size: 14px !important; /* Igual al BASE_FONT_SIZE del backend */
+  /* ✅ SINCRONIZACIÓN CRÍTICA CON BACKEND */
+  font-family: Arial, sans-serif !important;
+  font-size: 12px !important;
   font-weight: normal !important;
+  line-height: 1.2 !important;
   
   z-index: 100;
   color: #333;
   backdrop-filter: blur(1px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   pointer-events: all;
   cursor: move;
   user-select: none;
   transition: box-shadow 0.2s ease, background-color 0.2s ease;
   
-  /* Evitar problemas de renderizado */
   white-space: nowrap;
   max-width: none;
   overflow: visible;
 }
 
 .pdf-variable:hover {
-  background-color: rgba(74, 128, 245, 0.2);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  background-color: rgba(74, 128, 245, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  border-color: #3a6ad4;
 }
 
 .pdf-variable.dragging {
-  background-color: rgba(74, 128, 245, 0.3);
-  border: 2px solid #4a80f5;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  opacity: 0.9;
+  background-color: rgba(74, 128, 245, 0.25);
+  border: 1px solid #4a80f5;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  opacity: 0.95;
   z-index: 200;
 }
 
-/* NUEVO: Estilos para variables en modo edición */
+/* ⭐ CORREGIDO: Estilos para modo edición - EXACTAMENTE IGUALES EN TAMAÑO */
 .pdf-variable.edit-mode {
-  border-color: #28a745;
-  background-color: rgba(40, 167, 69, 0.1);
+  /* ✅ CRÍTICO: MISMO tamaño que modo creación, solo cambia el color */
+  border: 1px dashed #28a745; /* ✅ 1px igual que modo creación */
+  background-color: rgba(40, 167, 69, 0.08);
   position: relative;
+  
+  /* ✅ TODOS los estilos IDÉNTICOS al modo creación */
+  font-family: Arial, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: normal !important;
+  line-height: 1.2 !important;
+  padding: 3px 6px !important; /* ✅ MISMO padding que .pdf-variable */
+  border-radius: 3px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
 }
 
 .pdf-variable.edit-mode:hover {
-  background-color: rgba(40, 167, 69, 0.2);
+  background-color: rgba(40, 167, 69, 0.15);
+  border-color: #218838;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* Botón de eliminar en modo edición */
@@ -645,16 +653,19 @@ h2 {
   border-radius: 50%;
   cursor: pointer;
   font-size: 12px;
+  line-height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 101;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  padding: 0;
 }
 
 .delete-btn:hover {
   background-color: #c82333;
+  transform: scale(1.1);
 }
 
 /* Mobile responsive styles */
@@ -770,17 +781,16 @@ h2 {
   font-size: 9px !important;
   line-height: 1.2;
   color: #ff0000 !important;
-  pointer-events: none; /* Para que no interfiera con los clicks */
+  pointer-events: none;
   white-space: nowrap;
-  z-index: 110 !important; /* Asegurar que siempre esté por encima */
-  transform: translateY(0); /* Ayuda a mantener la posición correcta */
+  z-index: 110 !important;
+  transform: translateY(0);
 }
 
-/* Estilo específico para cuando está en modo edición */
 .edit-mode + .debug-info {
   bottom: -18px !important;
   left: 0 !important;
-  top: auto !important; /* Asegura que 'top' no anule la propiedad 'bottom' */
+  top: auto !important;
   position: absolute !important;
 }
 
@@ -1038,7 +1048,7 @@ h2 {
   font-style: italic;
 }
 
-/* Animación sutil para elementos importantes */
+/* Animaciones */
 @keyframes pulse-success {
   0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
   70% { box-shadow: 0 0 0 6px rgba(40, 167, 69, 0); }
@@ -1055,12 +1065,7 @@ h2 {
   animation: pulse-warning 2s infinite;
 }
 
-/* Tooltip mejorado */
-[title] {
-  position: relative;
-}
-
-/* Mejoras de accesibilidad y UX */
+/* Mejoras de accesibilidad */
 .action-btn:focus {
   outline: 2px solid #4a80f5;
   outline-offset: 2px;

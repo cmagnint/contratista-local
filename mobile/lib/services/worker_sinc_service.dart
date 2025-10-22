@@ -79,7 +79,7 @@ class WorkerSyncService {
 
   static Future<void> scheduleSync() async {
     _syncTimer?.cancel();
-    _syncTimer = Timer(const Duration(minutes: 1), () async {
+    _syncTimer = Timer(const Duration(seconds: 10), () async {
       if (!_isSyncing) {
         await _performSync();
       }

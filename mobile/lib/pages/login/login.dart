@@ -493,6 +493,8 @@ class LoginScreenState extends State<LoginScreen>
 
         userInfo.idUsuario = responseData['user_id'];
         userInfo.holding = responseData['holding_id']?.toString() ?? '';
+        userInfo.sociedad =
+            responseData['sociedad_id']?.toString() ?? ''; // ✅ AGREGADO
 
         await storage.write(
           key: 'user_id',
@@ -509,6 +511,10 @@ class LoginScreenState extends State<LoginScreen>
         await storage.write(
           key: 'holding',
           value: responseData['holding_id']?.toString() ?? '',
+        );
+        await storage.write(
+          key: 'sociedad', // ✅ AGREGADO
+          value: responseData['sociedad_id']?.toString() ?? '',
         );
         await storage.write(key: 'rut', value: rutNumber);
         await storage.write(key: 'session', value: 'ON');

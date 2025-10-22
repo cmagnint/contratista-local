@@ -79,14 +79,7 @@ from .views import (
     AsignarHaberesAPIView,
     AsignarDescuentosAPIView,
     GenerarLiquidacionesAPIView,
-    GuardarContratoVariablesView,
-    GenerarDocumentoView,
-    CalibracionesListCreateView,
-    CalibracionDetailView,
-    GenerarPDFConCalibracionView,
-    AjustarCalibracionView,
     LibroRemuneracionesElectronicoAPIView,
-    GenerarDocumentosMasivoView,
     GenerarArchivoPreviewAPIView,
     FacturasCompraDistribucion,
     SociedadesUsuarioAPIView,
@@ -117,6 +110,8 @@ from .views import (
     PasswordResetAPIView,
     DocumentoVariablesNativasAPIView,
     GenerarTxtBancoAPIView,
+    GenerarDocumentosMasivoAPIView,
+    ListarDocumentosAPIView,
 )
 
 app_name = 'contratista_test'
@@ -242,17 +237,7 @@ urlpatterns = [
     path('api_asignar_haberes/', AsignarHaberesAPIView.as_view(), name='asignar-haberes'),
     path('api_asignar_descuentos/', AsignarDescuentosAPIView.as_view(), name='asignar-descuentos'),
     path('generar-liquidaciones/', GenerarLiquidacionesAPIView.as_view(), name='generar-liquidaciones'),
-    path('api_guardar-documento-variables/', GuardarContratoVariablesView.as_view(), name='guardar_documento_variables'),
-    path('api_generar-documento/', GenerarDocumentoView.as_view(), name='generar_documento'),
-    path('api_calibraciones/<int:documento_id>/', CalibracionesListCreateView.as_view(), name='calibraciones_list'),
-    path('api_calibraciones/', CalibracionesListCreateView.as_view(), name='calibracion_create'),
-    path('api_calibracion/<int:calibracion_id>/', CalibracionDetailView.as_view(), name='calibracion_detail'),
-    path('api_generar_pdf_calibrado/', GenerarPDFConCalibracionView.as_view(), name='generar_pdf_calibrado'),
-    path('api_ajustar_calibracion/', AjustarCalibracionView.as_view(), name='ajustar_calibracion'),
-    path('api_obtener-documento/<int:documento_id>/', GuardarContratoVariablesView.as_view(), name='obtener_documento'),
-    path('api_listar-documentos/', GuardarContratoVariablesView.as_view(), name='listar_documentos'),
     path('generar-libro-remuneraciones/', LibroRemuneracionesElectronicoAPIView.as_view(), name='generar-libro-remuneraciones'),
-    path('api_generar-documentos-masivo/', GenerarDocumentosMasivoView.as_view(), name='generar_documentos_masivo'),
     path('generar-archivo-previred/', GenerarArchivoPreviewAPIView.as_view(), name='generar-archivo-previred'),
     path('api_sociedades_usuario/<int:usuario_id>/', SociedadesUsuarioAPIView.as_view(), name='sociedades_usuario'),
     path('api_cuentas/', CuentasAPIView.as_view(), name='api_cuentas'),
@@ -291,6 +276,9 @@ urlpatterns = [
     # URLs para historial de pagos CSV
     path('historial/<str:tipo>/<str:estado>/csv/', HistorialPagosAPIView.as_view(), {'formato': 'csv'}, name='historial-pagos-csv'),
     path('generar_txt_banco/', GenerarTxtBancoAPIView.as_view(), name='generar_txt_banco'),
+    path('api_listar-documentos/', ListarDocumentosAPIView.as_view(), name='listar-documentos'),
+    path('api_generar-documentos-masivo/', GenerarDocumentosMasivoAPIView.as_view(), name='generar-documentos-masivo'),
+
 ]   
 
 

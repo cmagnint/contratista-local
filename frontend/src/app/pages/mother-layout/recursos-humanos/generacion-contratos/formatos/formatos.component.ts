@@ -144,7 +144,7 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * NUEVA FUNCIÓN: Obtener valor de ejemplo realista para cada variable
+   * Obtener valor de ejemplo realista para cada variable
    */
   obtenerValorEjemplo(nombreVariable: string): string {
     const ejemplos: {[key: string]: string} = {
@@ -172,11 +172,50 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * NUEVA FUNCIÓN: Determinar si una variable debería estar centrada
+   * Determinar si una variable debería estar centrada
    */
   esCampocentrado(nombreVariable: string): boolean {
     const camposCentrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 'nacionalidad', 'f_ingreso', 'f_termino'];
     return camposCentrados.includes(nombreVariable);
+  }
+
+  /**
+   * ⭐ NUEVO: Inicializa las dimensiones nativas del PDF sin renderizarlo
+   * Esto es necesario para calcular correctamente las posiciones cuando se carga un documento existente
+   * CORRECCIÓN: Clonar el buffer internamente para evitar detachment
+   */
+  private async inicializarDimensionesPDF(pdfArrayBuffer: ArrayBuffer): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        if (!(window as any).pdfjsLib) {
+          await this.loadPdfJsScript();
+        }
+        
+        const pdfjsLib = (window as any).pdfjsLib;
+        const workerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+        
+        // ⭐ Crear una copia del buffer para esta operación
+        const bufferCopy = pdfArrayBuffer.slice(0);
+        
+        const loadingTask = pdfjsLib.getDocument({ data: bufferCopy });
+        const pdf = await loadingTask.promise;
+        
+        // Obtener dimensiones de la primera página
+        const firstPage = await pdf.getPage(1);
+        const nativeViewport = firstPage.getViewport({ scale: 1.0 });
+        
+        this.pdfNativeWidth = nativeViewport.width;
+        this.pdfNativeHeight = nativeViewport.height;
+        
+        console.log(`✅ Dimensiones nativas inicializadas: ${this.pdfNativeWidth} x ${this.pdfNativeHeight}`);
+        
+        resolve();
+      } catch (error) {
+        console.error('Error al inicializar dimensiones del PDF:', error);
+        reject(error);
+      }
+    });
   }
 
   /**
@@ -189,7 +228,6 @@ export class FormatosComponent implements OnInit {
     this.documentoSeleccionado = null;
     this.modoModificacion = false;
     
-    // CAMBIO: Nueva API unificada
     this.apiService.get('api_documento_nativo/')
       .subscribe({
         next: (response: any) => {
@@ -210,18 +248,32 @@ export class FormatosComponent implements OnInit {
    * Seleccionar un documento existente de la lista
    */
   seleccionarDocumentoExistente(documento: any): void {
+    console.log('📂 Seleccionando documento:', documento.nombre);
+    
     this.documentoSeleccionado = documento;
     this.documentoGuardadoId = documento.id;
     
     this.isLoading = true;
-    // CAMBIO: Nueva API unificada
     this.apiService.get(`api_documento_nativo/${documento.id}/`)
       .subscribe({
         next: (response: any) => {
+          console.log('📦 Respuesta del backend:', response);
+          
           this.documentoSeleccionado = response;
           
           if (response.variables && Array.isArray(response.variables)) {
+            console.log(`📋 Cargando ${response.variables.length} variables desde el backend...`);
             this.cargarVariablesDesdeDocumento(response.variables);
+            
+            // ⭐ DEBUG: Verificar qué se cargó
+            console.log('🗂️ Variables en memoria después de cargar:', {
+              totalVariablesColocadas: this.variables.filter(v => v.colocada).length,
+              variablesPorPagina: Array.from(this.variablesPorPagina.entries()).map(([pagina, vars]) => ({
+                pagina,
+                cantidad: vars.length,
+                variables: vars.map(v => ({ nombre: v.nombre, posX: v.posX, posY: v.posY }))
+              }))
+            });
           }
           
           this.cargarPDFDesdeURL(response.archivo_pdf_url);
@@ -275,7 +327,8 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * Carga el PDF desde una URL
+   * ⭐ MODIFICADO: Carga el PDF desde una URL e inicializa dimensiones SIEMPRE
+   * CORRECCIÓN: Crear copias separadas del ArrayBuffer para evitar detachment
    */
   cargarPDFDesdeURL(pdfUrl: string): void {
     if (!pdfUrl) {
@@ -292,11 +345,19 @@ export class FormatosComponent implements OnInit {
         }
         return response.arrayBuffer();
       })
-      .then(arrayBuffer => {
-        const clonedBuffer = arrayBuffer.slice(0);
-        this.pdfSrc = clonedBuffer;
+      .then(async arrayBuffer => {
+        // ⭐ CORRECCIÓN CRÍTICA: Crear COPIAS SEPARADAS del ArrayBuffer
+        // PDF.js puede "detach" el buffer, por lo que necesitamos copias independientes
+        const bufferParaDimensiones = arrayBuffer.slice(0);  // Copia 1: para inicializar dimensiones
+        const bufferParaRender = arrayBuffer.slice(0);       // Copia 2: para renderizar
+        
+        this.pdfSrc = bufferParaRender;
+        
+        // ⭐ Usar la copia 1 para inicializar dimensiones (puede quedar detached)
+        await this.inicializarDimensionesPDF(bufferParaDimensiones);
         
         if (!this.modoDocumentoExistente || this.modoModificacion) {
+          // ⭐ this.pdfSrc (copia 2) está intacta para renderizar
           this.renderPdf().then(() => {
             if (this.modoModificacion) {
               console.log('PDF renderizado, actualizando interfaz de modificación...');
@@ -305,6 +366,7 @@ export class FormatosComponent implements OnInit {
           });
         } else {
           this.isLoading = false;
+          console.log('✅ Documento existente cargado con dimensiones inicializadas');
         }
       })
       .catch(error => {
@@ -336,7 +398,10 @@ export class FormatosComponent implements OnInit {
       
       const reader = new FileReader();
       reader.onload = () => {
-        this.pdfSrc = reader.result;
+        // ⭐ CORRECCIÓN: Crear copia del buffer para almacenamiento
+        const originalBuffer = reader.result as ArrayBuffer;
+        this.pdfSrc = originalBuffer.slice(0);
+        
         console.log('PDF cargado como ArrayBuffer, tamaño:', (this.pdfSrc as ArrayBuffer).byteLength);
         this.renderPdf();
       };
@@ -465,7 +530,6 @@ export class FormatosComponent implements OnInit {
         }
       }
       
-      // NUEVO: Marcar que hay cambios pendientes
       this.haycambiosPendientes = true;
     }
     
@@ -563,8 +627,12 @@ export class FormatosComponent implements OnInit {
           }
 
           console.log('Cargando documento PDF...');
+          
+          // ⭐ CORRECCIÓN: Crear una copia del buffer para renderizar
+          const bufferForRender = (this.pdfSrc as ArrayBuffer).slice(0);
+          
           const loadingTask = pdfjsLib.getDocument({
-            data: this.pdfSrc,
+            data: bufferForRender,
             cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/cmaps/',
             cMapPacked: true
           });
@@ -685,6 +753,9 @@ export class FormatosComponent implements OnInit {
     const containerWidth = pagesContainer.clientWidth || 800;
     const pixelRatio = window.devicePixelRatio || 1;
     
+    console.log(`📄 Renderizando páginas ${startPage}-${endPage}...`);
+    console.log(`📐 Dimensiones nativas disponibles: ${this.pdfNativeWidth} x ${this.pdfNativeHeight}`);
+    
     for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
       const pageDiv = document.createElement('div');
       pageDiv.className = 'pdf-page-container';
@@ -727,13 +798,39 @@ export class FormatosComponent implements OnInit {
         renderInteractiveForms: true
       }).promise;
       
+      console.log(`✅ Canvas de página ${pageNum} renderizado`);
+      
+      // ⭐ CRÍTICO: Esperar a que el DOM se actualice completamente
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // ⭐ Verificar dimensiones del pageElement antes de renderizar variables
+      const pageRect = pageContentDiv.getBoundingClientRect();
+      console.log(`📏 Dimensiones de página ${pageNum} en DOM:`, {
+        width: pageRect.width,
+        height: pageRect.height,
+        left: pageRect.left,
+        top: pageRect.top
+      });
+      
       this.ngZone.run(() => {
         const variables = this.variablesPorPagina.get(pageNum) || [];
+        console.log(`🔍 Página ${pageNum} tiene ${variables.length} variables para renderizar`);
+        
+        if (variables.length > 0) {
+          console.log(`📋 Variables en página ${pageNum}:`, variables.map(v => ({
+            nombre: v.nombre,
+            posX: v.posX,
+            posY: v.posY
+          })));
+        }
+        
         variables.forEach(variable => {
           this.mostrarVariableEnPdf(variable, pageContentDiv);
         });
       });
     }
+    
+    console.log(`✅ Todas las páginas (${startPage}-${endPage}) renderizadas completamente`);
   }
   
   private loadPdfJsScript(): Promise<void> {
@@ -812,14 +909,40 @@ export class FormatosComponent implements OnInit {
     }
   }
 
+  /**
+   * ⭐ MODIFICADO: Validaciones mejoradas y debugging completo
+   */
   mostrarVariableEnPdf(variable: VariablePosicionada, pageElement: HTMLElement): void {
+    console.log(`🔄 Intentando renderizar variable "${variable.nombre}"...`);
+    
+    // ⭐ VALIDACIÓN CRÍTICA: Verificar dimensiones nativas
+    if (this.pdfNativeWidth === 0 || this.pdfNativeHeight === 0) {
+      console.error('❌ ERROR: Dimensiones nativas no inicializadas. No se puede renderizar la variable.');
+      console.error('pdfNativeWidth:', this.pdfNativeWidth, 'pdfNativeHeight:', this.pdfNativeHeight);
+      return;
+    }
+    
+    // ⭐ VALIDACIÓN: Verificar que el pageElement tiene dimensiones
+    const pageRect = pageElement.getBoundingClientRect();
+    if (pageRect.width === 0 || pageRect.height === 0) {
+      console.error(`❌ ERROR: pageElement no tiene dimensiones válidas:`, pageRect);
+      console.error('Esperando a que el elemento tenga dimensiones...');
+      
+      // Reintentar después de un breve delay
+      setTimeout(() => {
+        console.log(`🔁 Reintentando renderizar "${variable.nombre}"...`);
+        this.mostrarVariableEnPdf(variable, pageElement);
+      }, 100);
+      return;
+    }
+    
     const variableElement = document.createElement('div');
     variableElement.className = 'pdf-variable';
     if (this.modoModificacion) {
       variableElement.classList.add('edit-mode');
     }
     
-    // CAMBIO PRINCIPAL: Mostrar valor de ejemplo en lugar del nombre de variable
+    // Mostrar valor de ejemplo en lugar del nombre de variable
     variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
     
     variableElement.id = variable.elementId;
@@ -828,34 +951,50 @@ export class FormatosComponent implements OnInit {
     variableElement.style.position = 'absolute';
     
     // Convertir coordenadas nativas a píxeles para mostrar en pantalla
-    const pageRect = pageElement.getBoundingClientRect();
     const scaleX = pageRect.width / this.pdfNativeWidth;
     const scaleY = pageRect.height / this.pdfNativeHeight;
     
     const displayX = variable.posX * scaleX;
     const displayY = variable.posY * scaleY;
     
+    // 🐛 DEBUG COMPLETO: Log para verificar todo el proceso
+    console.log(`📍 Variable "${variable.nombre}" - COMPLETO:`, {
+      '1_coordenadas_nativas': { x: variable.posX, y: variable.posY },
+      '2_dimensiones_pdf': { width: this.pdfNativeWidth, height: this.pdfNativeHeight },
+      '3_dimensiones_page': { width: pageRect.width, height: pageRect.height },
+      '4_scale': { scaleX: scaleX, scaleY: scaleY },
+      '5_coordenadas_display': { x: displayX, y: displayY },
+      '6_modo_modificacion': this.modoModificacion
+    });
+    
+    // ⭐ VALIDACIÓN: Verificar que las coordenadas calculadas son válidas
+    if (isNaN(displayX) || isNaN(displayY) || !isFinite(displayX) || !isFinite(displayY)) {
+      console.error(`❌ ERROR: Coordenadas display inválidas para "${variable.nombre}":`, { displayX, displayY });
+      return;
+    }
+    
     variableElement.style.left = `${displayX}px`;
     variableElement.style.top = `${displayY}px`;
     
-    // ESTILOS SINCRONIZADOS CON EL BACKEND
-    variableElement.style.fontFamily = 'Arial, sans-serif'; // Cambiar de system font a Arial/Helvetica
-    variableElement.style.fontSize = '12px'; // Igual al BASE_FONT_SIZE del backend
+    // ⭐ ESTILOS SINCRONIZADOS Y COMPACTOS
+    variableElement.style.fontFamily = 'Arial, sans-serif';
+    variableElement.style.fontSize = '12px';
     variableElement.style.fontWeight = 'normal';
-    variableElement.style.padding = '4px 8px';
-    variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.1)';
-    variableElement.style.border = `1px dashed #4a80f5`;
+    variableElement.style.padding = '3px 6px'; // ✅ REDUCIDO: más compacto
+    variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.08)';
+    variableElement.style.border = `1px dashed #4a80f5`; // ✅ REDUCIDO: 1px
     variableElement.style.borderRadius = `3px`;
     variableElement.style.zIndex = '100';
-    variableElement.style.whiteSpace = 'nowrap'; // Evitar salto de línea
-    variableElement.style.maxWidth = 'none'; // Sin restricciones de ancho
+    variableElement.style.whiteSpace = 'nowrap';
+    variableElement.style.maxWidth = 'none';
     
     // Aplicar alineación según el tipo de campo
     if (this.esCampocentrado(variable.nombre)) {
       variableElement.style.textAlign = 'center';
-      variableElement.style.transform = 'translateX(-50%)'; // Centrar visualmente
+      variableElement.style.transform = 'translateX(-50%)';
     } else {
       variableElement.style.textAlign = 'left';
+      variableElement.style.transform = 'none'; // ⭐ Asegurar sin transform si no es centrado
     }
     
     variableElement.style.pointerEvents = 'all';
@@ -864,23 +1003,48 @@ export class FormatosComponent implements OnInit {
     pageElement.style.position = 'relative';
     pageElement.appendChild(variableElement);
     
+    console.log(`✅ Variable "${variable.nombre}" renderizada exitosamente en (${displayX}, ${displayY})`);
+    
     variableElement.addEventListener('mousedown', (event) => {
       this.handleVariableMouseDown(event, variable, variableElement, pageElement);
     });
     
-    if (this.modoModificacion) {
-      const deleteBtn = document.createElement('div');
-      deleteBtn.className = 'delete-btn';
-      deleteBtn.innerHTML = '×';
-      deleteBtn.title = 'Eliminar variable';
-      
-      deleteBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        this.eliminarVariable(variable.elementId, variable.variableIndex);
-      });
-      
-      variableElement.appendChild(deleteBtn);
-    }
+    // ⭐ CRÍTICO: Botón de eliminar SIEMPRE disponible (en creación y modificación)
+    console.log(`🔘 Creando botón de eliminar para "${variable.nombre}"...`);
+    
+    const deleteBtn = document.createElement('div');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '×';
+    deleteBtn.title = 'Eliminar variable';
+    deleteBtn.style.cssText = `
+      position: absolute !important;
+      top: -6px !important;
+      right: -6px !important;
+      width: 16px !important;
+      height: 16px !important;
+      background-color: #dc3545 !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 50% !important;
+      cursor: pointer !important;
+      font-size: 11px !important;
+      line-height: 16px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 101 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+      opacity: 0.9 !important;
+    `;
+    
+    deleteBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      console.log(`🗑️ Eliminando variable "${variable.nombre}"...`);
+      this.eliminarVariable(variable.elementId, variable.variableIndex);
+    });
+    
+    variableElement.appendChild(deleteBtn);
+    console.log(`✅ Botón de eliminar agregado para "${variable.nombre}"`);
   }
 
   actualizarInterfazModoModificacion(): void {
@@ -981,11 +1145,13 @@ export class FormatosComponent implements OnInit {
         }
       }
       
-      // NUEVO: Marcar cambios pendientes
       this.haycambiosPendientes = true;
     }
   }
 
+  /**
+   * ⭐ MODIFICADO: Mejor manejo del estado y limpieza
+   */
   modificarDocumentoSeleccionado(): void {
     if (!this.documentoSeleccionado || !this.documentoGuardadoId) {
       this.errorMessage = 'No hay un documento seleccionado para modificar';
@@ -997,12 +1163,24 @@ export class FormatosComponent implements OnInit {
       return;
     }
     
+    console.log('📝 Iniciando modificación de documento:', this.documentoSeleccionado.nombre);
+    console.log('Variables cargadas en memoria:', this.variablesPorPagina.size, 'páginas');
+    
     const pdfUrl = this.documentoSeleccionado.archivo_pdf_url;
     
+    // Cambiar modos
     this.modoDocumentoExistente = false;
     this.modoModificacion = true;
     
+    // ⭐ Limpiar el contenedor para evitar duplicados
+    const pdfContainer = document.getElementById('pdf-container');
+    if (pdfContainer) {
+      pdfContainer.innerHTML = '';
+    }
+    
+    // Pequeño delay para que Angular actualice el DOM
     setTimeout(() => {
+      console.log('🔄 Cargando PDF para modificación...');
       this.cargarPDFDesdeURL(pdfUrl);
     }, 100);
   }
@@ -1024,7 +1202,6 @@ export class FormatosComponent implements OnInit {
     
     this.isLoading = true;
     
-    // CAMBIO: Nueva API unificada
     this.apiService.put(`api_documento_nativo/${this.documentoGuardadoId}/`, datosActualizados)
       .subscribe({
         next: (response: any) => {
@@ -1033,7 +1210,7 @@ export class FormatosComponent implements OnInit {
           
           this.modoModificacion = false;
           this.modoDocumentoExistente = true;
-          this.haycambiosPendientes = false; // Resetear cambios pendientes
+          this.haycambiosPendientes = false;
           alert('Documento actualizado exitosamente');
         },
         error: (error) => {
@@ -1049,7 +1226,7 @@ export class FormatosComponent implements OnInit {
       const confirmar = confirm('¿Desea guardar los cambios antes de salir?');
       if (confirmar && this.documentoSeleccionado) {
         this.guardarCambiosDocumento();
-        return; // El método guardarCambiosDocumento ya maneja el cambio de modo
+        return;
       }
     }
     
@@ -1111,14 +1288,13 @@ export class FormatosComponent implements OnInit {
     formData.append('variables', JSON.stringify(variables));
     
     this.isLoading = true;
-    // CAMBIO: Nueva API unificada
     this.apiService.postFormData('api_documento_nativo/', formData)
       .subscribe({
         next: (response: any) => {
           console.log('Formato guardado exitosamente', response);
           this.documentoGuardadoId = response.id;
           this.isLoading = false;
-          this.haycambiosPendientes = false; // Resetear cambios pendientes
+          this.haycambiosPendientes = false;
           alert('Formato guardado exitosamente con coordenadas nativas');
           this.cerrarModal();
         },
@@ -1183,24 +1359,30 @@ export class FormatosComponent implements OnInit {
     });
     
     this.isLoading = true;
-    // CAMBIO: Nueva API unificada con action
-    this.apiService.post('api_documento_nativo/', {
+    
+    this.apiService.postBlob('api_documento_nativo/', {
       action: 'generar_prueba',
       documento_id: this.documentoGuardadoId,
       datos_variables: datosVariables
     }).subscribe({
-      next: (response: any) => {
-        console.log('PDF generado con éxito:', response);
+      next: (blob: Blob) => {
+        console.log('PDF generado con éxito');
+        console.log('Tamaño del blob:', blob.size, 'bytes');
+        console.log('Tipo:', blob.type);
         
-        this.pdfPreviewUrl = response.url;
-        window.open(response.url, '_blank');
+        const blobUrl = URL.createObjectURL(blob);
+        this.pdfPreviewUrl = blobUrl;
+        
+        window.open(blobUrl, '_blank');
         
         this.isLoading = false;
         this.mostrarModalDatosPrueba = false;
+        
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       },
       error: (error) => {
         console.error('Error al generar PDF:', error);
-        alert(`Error: ${error.error?.error || 'No se pudo generar el PDF'}`);
+        alert(`Error: No se pudo generar el PDF`);
         this.isLoading = false;
       }
     });
@@ -1217,9 +1399,6 @@ export class FormatosComponent implements OnInit {
     document.body.removeChild(a);
   }
 
-  /**
-   * NUEVO: Guardar posiciones modificadas al backend sin salir del modo edición
-   */
   guardarPosicionesModificadas(): void {
     if (!this.documentoGuardadoId) {
       alert('No se puede identificar el documento');
@@ -1250,4 +1429,3 @@ export class FormatosComponent implements OnInit {
     });
   }
 }
-

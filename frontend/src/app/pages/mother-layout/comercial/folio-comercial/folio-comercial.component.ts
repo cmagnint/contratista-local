@@ -86,6 +86,7 @@ export class FolioComercialComponent implements OnInit {
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT();
+      console.log('HOLDING:', this.holding);
       this.cargarFolio();
       this.cargarClientes();
       this.cargarFundos();
@@ -168,7 +169,8 @@ export class FolioComercialComponent implements OnInit {
     // Crear el objeto con la estructura correcta
     const data = {
       id: this.folioSeleccionado.id_folio_seleccionadoNew,
-      cliente: this.selectedClienteId, // Asegúrate de que este es el ID del cliente
+      holding: parseInt(this.holding), // ✅ AGREGAR holding aquí
+      cliente: this.selectedClienteId,
       fundos_ids: this.selectedFundosNew,
       labores_ids: this.selectedLaboresNew,
       transportistas_data: this.selectedTransportistasNew.map(transportistaId => ({
@@ -187,9 +189,9 @@ export class FolioComercialComponent implements OnInit {
       valor_pago_trabajador: this.folioSeleccionado.valor_pago_trabajadorNew,
       valor_facturacion: this.folioSeleccionado.valor_facturacionNew
     };
-  
+
     console.log('Datos a enviar:', data); // Para depuración
-  
+
     this.apiService.put('folio_comercial/', data).subscribe({
       next: (response) => {
         console.log('Respuesta exitosa:', response);

@@ -181,7 +181,6 @@ class UserSerializer(serializers.ModelSerializer):
     nombre_empresas_asignadas = serializers.SerializerMethodField(read_only=True)
     empresas_asignadas = serializers.PrimaryKeyRelatedField(queryset=Sociedad.objects.all(), many=True, required=False)
     
-    # ✅ CAMPO OPCIONAL PARA CONTROLAR ENVÍO DE EMAIL
     enviar_credenciales = serializers.BooleanField(write_only=True, required=False, default=True)
     
     class Meta:
@@ -194,6 +193,59 @@ class UserSerializer(serializers.ModelSerializer):
             'estado': {'default': True},
         }
 
+    # ========================================
+    # ✅ NUEVO: VALIDACIÓN DE RUT
+    # ========================================
+    def validate_rut(self, value):
+        """
+        🧹 Limpia el RUT en el backend como medida de seguridad
+        Remueve puntos, guiones, espacios y convierte a mayúsculas
+        
+        Ejemplos:
+        - "18.287.999-5" → "182879995"
+        - "18.287.999-K" → "18287999K"
+        - "18287999-k" → "18287999K"
+        """
+        if not value:
+            return value
+        
+        # Guardar valor original para logging
+        valor_original = value
+        
+        # Limpiar RUT: remover puntos, guiones y espacios
+        rut_limpio = (value
+            .replace('.', '')
+            .replace('-', '')
+            .replace(' ', '')
+            .strip()
+            .upper())
+        
+        # Logging para debug
+        if valor_original != rut_limpio:
+            print(f"🧹 RUT limpiado en backend:")
+            print(f"   Antes: '{valor_original}'")
+            print(f"   Después: '{rut_limpio}'")
+        
+        # Validar que tenga al menos 7 caracteres (RUT mínimo: 1.000.000-0)
+        if len(rut_limpio) < 7:
+            raise serializers.ValidationError("RUT inválido: debe tener al menos 7 dígitos")
+        
+        # Validar que el último caracter sea un dígito o K
+        verificador = rut_limpio[-1]
+        if not (verificador.isdigit() or verificador == 'K'):
+            raise serializers.ValidationError("RUT inválido: el dígito verificador debe ser un número o K")
+        
+        # Validar que todo excepto el último caracter sean números
+        cuerpo = rut_limpio[:-1]
+        if not cuerpo.isdigit():
+            raise serializers.ValidationError("RUT inválido: debe contener solo números y dígito verificador")
+        
+        return rut_limpio
+
+    # ========================================
+    # MÉTODOS EXISTENTES (sin cambios)
+    # ========================================
+    
     def get_nombre_perfil(self, obj):
         if obj.perfil:
             return obj.perfil.nombre_perfil
@@ -208,47 +260,36 @@ class UserSerializer(serializers.ModelSerializer):
         return [empresa.nombre for empresa in obj.empresas_asignadas.all()]
 
     def generate_random_password(self, length=10):
-        """
-        ✅ Genera una contraseña random segura
-        Formato: Al menos 1 mayúscula, 1 minúscula, 1 número, 1 símbolo
-        """
+        """Genera una contraseña random segura"""
         print(f"🔐 Generando contraseña de {length} caracteres...")
         
-        # Caracteres seguros
         uppercase = string.ascii_uppercase
         lowercase = string.ascii_lowercase  
         digits = string.digits
         symbols = "!@#$%&*"
         all_chars = uppercase + lowercase + digits + symbols
         
-        # Garantizar al menos uno de cada tipo
         password = [
-            random.choice(uppercase),   # Al menos 1 mayúscula
-            random.choice(lowercase),   # Al menos 1 minúscula
-            random.choice(digits),      # Al menos 1 número
-            random.choice(symbols)      # Al menos 1 símbolo
+            random.choice(uppercase),
+            random.choice(lowercase),
+            random.choice(digits),
+            random.choice(symbols)
         ]
         
-        # Completar con caracteres aleatorios
         for _ in range(length - 4):
             password.append(random.choice(all_chars))
         
-        # Mezclar para que no sea predecible
         random.shuffle(password)
-        
         password_str = ''.join(password)
-        print(f"✅ Contraseña generada exitosamente: {password_str}")
+        print(f"✅ Contraseña generada exitosamente")
         
         return password_str
 
     def send_credentials_email(self, usuario, password):
-        """
-        ✅ Envía credenciales por email con formato profesional
-        """
+        """Envía credenciales por email con formato profesional"""
         print(f"📧 Intentando enviar credenciales a: {usuario.email}")
         
         try:
-            # Obtener datos del usuario
             nombre_usuario = "Usuario"
             if usuario.persona and usuario.persona.nombres:
                 nombre_completo = f"{usuario.persona.nombres}"
@@ -264,53 +305,51 @@ class UserSerializer(serializers.ModelSerializer):
             if usuario.holding:
                 holding_nombre = usuario.holding.nombre
             
-            # Configurar email
             subject = f'🔐 Credenciales de acceso - {holding_nombre}'
             
             message = f"""
-¡Hola {nombre_usuario}!
+                ¡Hola {nombre_usuario}!
 
-Se ha creado tu cuenta de usuario en el sistema {holding_nombre}. 
+                Se ha creado tu cuenta de usuario en el sistema {holding_nombre}. 
 
-📋 DETALLES DE TU CUENTA:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                📋 DETALLES DE TU CUENTA:
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-👤 Nombre: {nombre_usuario}
-🆔 RUT: {usuario.rut}
-📧 Email: {usuario.email}
-🎭 Perfil: {perfil_nombre}
+                👤 Nombre: {nombre_usuario}
+                🆔 RUT: {usuario.rut}
+                📧 Email: {usuario.email}
+                🎭 Perfil: {perfil_nombre}
 
-🔐 CREDENCIALES DE ACCESO:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Usuario: {usuario.rut}
-Contraseña: {password}
+                🔐 CREDENCIALES DE ACCESO:
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                Usuario: {usuario.rut}
+                Contraseña: {password}
 
-⚠️ IMPORTANTE - SEGURIDAD:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Esta es una contraseña TEMPORAL
-• Te recomendamos cambiarla en tu primer inicio de sesión
-• Puedes cambiarla usando la opción "¿Olvidaste tu contraseña?" 
-• No compartas estas credenciales con nadie
-• Guarda esta información en un lugar seguro
+                ⚠️ IMPORTANTE - SEGURIDAD:
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                • Esta es una contraseña TEMPORAL
+                • Te recomendamos cambiarla en tu primer inicio de sesión
+                • Puedes cambiarla usando la opción "¿Olvidaste tu contraseña?" 
+                • No compartas estas credenciales con nadie
+                • Guarda esta información en un lugar seguro
 
-🌐 CÓMO ACCEDER:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Ve http://contratista.
-2. Ingresa tu RUT: {usuario.rut}
-3. Ingresa tu contraseña temporal
-4. Cambia tu contraseña por una personal
+                🌐 CÓMO ACCEDER:
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                1. Ve a http://contratista.terramobile.cl/
+                2. Ingresa tu RUT: {usuario.rut}
+                3. Ingresa tu contraseña temporal
+                4. Cambia tu contraseña por una personal
 
-Si tienes problemas para acceder, contacta al administrador del sistema.
+                Si tienes problemas para acceder, contacta al administrador del sistema.
 
-¡Bienvenido/a al equipo!
+                ¡Bienvenido/a al equipo!
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Este es un mensaje automático del sistema.
-Terrasoft © 2025
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                Este es un mensaje automático del sistema.
+                Terrasoft © 2025
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             """
             
-            # Enviar email
             send_mail(
                 subject=subject,
                 message=message,
@@ -328,12 +367,12 @@ Terrasoft © 2025
             return False
 
     def create(self, validated_data):
-        """
-        ✅ Crea usuario con contraseña random y envío automático de credenciales
-        """
-        print(f"🚀 Iniciando creación de usuario...")
+        """Crea usuario con contraseña random y envío automático de credenciales"""
+        print(f"\n🚀 === CREANDO USUARIO ===")
+        print(f"📥 Datos validados recibidos:")
+        print(f"   RUT: {validated_data.get('rut')}")
+        print(f"   Email: {validated_data.get('email')}")
         
-        # Extraer datos
         empresas_asignadas_data = validated_data.pop('empresas_asignadas', [])
         enviar_credenciales = validated_data.pop('enviar_credenciales', True)
         
@@ -341,13 +380,15 @@ Terrasoft © 2025
         password_temporal = self.generate_random_password()
         
         # Crear usuario
-        print(f"👤 Creando usuario con RUT: {validated_data.get('rut')}")
         usuario = Usuarios.objects.create(**validated_data)
         
         # Establecer contraseña hasheada
         usuario.set_password(password_temporal)
         usuario.save()
-        print(f"✅ Usuario creado con ID: {usuario.id}")
+        
+        print(f"✅ Usuario guardado en base de datos:")
+        print(f"   ID: {usuario.id}")
+        print(f"   RUT guardado: '{usuario.rut}' (longitud: {len(usuario.rut)})")
         
         # Asignar empresas
         if empresas_asignadas_data:
@@ -361,33 +402,33 @@ Terrasoft © 2025
                 print(f"📧 Credenciales enviadas exitosamente")
             else:
                 print(f"⚠️ No se pudieron enviar las credenciales por email")
-        elif not enviar_credenciales:
-            print(f"📧 Envío de credenciales deshabilitado por configuración")
-        else:
-            print(f"⚠️ Usuario sin email, no se pueden enviar credenciales")
         
-        print(f"🎉 Usuario creado completamente: {usuario.rut}")
+        print(f"🎉 Usuario creado completamente\n")
         return usuario
 
     def update(self, instance, validated_data):
-        """
-        ✅ Actualizar usuario (sin modificar contraseña)
-        """
-        print(f"✏️ Actualizando usuario ID: {instance.id}")
+        """Actualizar usuario (sin modificar contraseña)"""
+        print(f"\n✏️ === ACTUALIZANDO USUARIO ===")
+        print(f"📥 Datos para actualizar:")
+        print(f"   ID: {instance.id}")
+        print(f"   RUT nuevo: {validated_data.get('rut', instance.rut)}")
         
         empresas_asignadas_data = validated_data.pop('empresas_asignadas', [])
-        validated_data.pop('enviar_credenciales', None)  # No aplicable en update
+        validated_data.pop('enviar_credenciales', None)
         
         # Actualizar campos
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         
+        print(f"✅ Usuario actualizado:")
+        print(f"   RUT guardado: '{instance.rut}' (longitud: {len(instance.rut)})")
+        
         # Actualizar empresas
         if 'empresas_asignadas' in validated_data or empresas_asignadas_data:
             instance.empresas_asignadas.set(empresas_asignadas_data)
         
-        print(f"✅ Usuario actualizado: {instance.rut}")
+        print(f"🎉 Actualización completada\n")
         return instance
 
 class SupervisorSerializer(serializers.ModelSerializer):
@@ -1067,6 +1108,58 @@ class LaborSimpleSerializer(serializers.ModelSerializer):
         model = Labores
         fields = ['id', 'nombre']
 
+class FolioComercialPreContratacionSerializer(serializers.ModelSerializer):
+    """
+    Serializer específico para la pantalla de pre-contratación en el móvil.
+    Devuelve los transportistas con su lista completa de vehículos.
+    """
+    nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
+    fundos = FundoSimpleSerializer(many=True, read_only=True)
+    labores = LaborSimpleSerializer(many=True, read_only=True)
+    transportistas = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FolioComercial
+        fields = [
+            'id', 
+            'cliente', 
+            'nombre_cliente',
+            'holding',
+            'fundos', 
+            'labores', 
+            'transportistas',
+            'fecha_inicio_contrato', 
+            'fecha_termino_contrato',
+            'valor_pago_trabajador', 
+            'valor_facturacion',
+            'estado'
+        ]
+
+    def get_transportistas(self, obj):
+        """
+        Retorna cada transportista del folio con sus vehículos correspondientes
+        """
+        transportistas_list = []
+        for transportista in obj.transportistas.all():
+            # Filtrar solo los vehículos de este transportista que están en el folio
+            vehiculos = obj.vehiculos.filter(empresa=transportista)
+            
+            transportistas_list.append({
+                'id': transportista.id,
+                'nombre': transportista.nombre,
+                'vehiculos': [
+                    {
+                        'id': vehiculo.id,
+                        'patente': vehiculo.ppu,
+                        'modelo': vehiculo.modelo,
+                        'nombre': f"{vehiculo.modelo} ({vehiculo.ppu})"
+                    }
+                    for vehiculo in vehiculos
+                ]
+            })
+        
+        return transportistas_list
+    
 class FolioComercialSerializer(serializers.ModelSerializer):
     # Campos de lectura
     cliente = serializers.PrimaryKeyRelatedField(queryset=Clientes.objects.all())

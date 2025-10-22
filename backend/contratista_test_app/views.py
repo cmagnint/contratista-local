@@ -53,7 +53,6 @@ import tempfile
 import calendar
 import zipfile
 import random
-import base64
 import uuid
 import time
 import json
@@ -122,7 +121,6 @@ from .models import (
     TrabajadorHaber,
     TrabajadorDescuento,
     ContratoVariables,
-    CalibrationSettings,
     ContratoTrabajador,
     LicenciaMedica,
     Vacaciones,
@@ -7599,923 +7597,6 @@ class GenerarLiquidacionesAPIView(APIView):
             # Fallback in case of any error
             print(f"Error converting number to text: {e}")
             return f"{int(numero)} PESOS"
-
-class GuardarContratoVariablesView(APIView):
-    
-    def get(self, request, documento_id=None, *args, **kwargs):
-        # If a document_id is provided in the URL, return that specific document
-        if documento_id:
-            try:
-                documento = ContratoVariables.objects.get(id=documento_id)
-                return Response({
-                    'id': documento.id,
-                    'nombre': documento.nombre,
-                    'tipo': documento.tipo,
-                    'archivo_pdf_url': request.build_absolute_uri(documento.archivo_pdf.url),
-                    'variables': documento.variables,
-                    'fecha_creacion': documento.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
-                    'activo': documento.activo
-                })
-            except ContratoVariables.DoesNotExist:
-                return Response({"error": f"No se encontró el documento con ID {documento_id}"}, 
-                            status=status.HTTP_404_NOT_FOUND)
-        else:
-            # Otherwise, list all documents for the current user's holding
-            documentos = ContratoVariables.objects.filter(holding=request.user.holding)
-            documentos_list = []
-            
-            for doc in documentos:
-                documentos_list.append({
-                    'id': doc.id,
-                    'nombre': doc.nombre,
-                    'tipo': doc.tipo,
-                    'fecha_creacion': doc.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
-                    'activo': doc.activo
-                })
-            
-            return Response(documentos_list)
-    
-    def post(self, request, *args, **kwargs):
-        try:
-            # Get PDF file from request
-            pdf_file = request.FILES.get('archivo_pdf')
-            
-            # Debug file info
-            if pdf_file:
-                print(f"File received: {pdf_file.name}, size: {pdf_file.size} bytes")
-            else:
-                print("No file received in request")
-                return Response({"error": "El archivo PDF es obligatorio"}, status=400)
-            
-            if pdf_file.size == 0:
-                return Response({"error": "El archivo PDF está vacío (0 bytes)"}, status=400)
-                
-            # Get other form data
-            nombre = request.data.get('nombre', 'Documento sin nombre')
-            tipo = request.data.get('tipo', 'CHILENO')
-            
-            # Get variables data
-            variables_data = request.data.get('variables')
-            if isinstance(variables_data, str):
-                variables_json = json.loads(variables_data)
-            else:
-                variables_json = variables_data
-            
-            # Save document with variables
-            documento = ContratoVariables.objects.create(
-                holding=request.user.holding,
-                nombre=nombre,
-                tipo=tipo,
-                archivo_pdf=pdf_file,
-                variables=variables_json
-            )
-            
-            return Response({
-                "id": documento.id,
-                "mensaje": "Documento guardado exitosamente"
-            }, status=201)
-            
-        except Exception as e:
-            print(f"Error saving document: {str(e)}")
-            return Response({
-                "error": f"Error al guardar el documento: {str(e)}"
-            }, status=500)
-    
-    def put(self, request, documento_id, *args, **kwargs):
-        """Actualizar variables de un documento existente"""
-        try:
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
-            
-            # Verificar que el usuario tiene permisos (misma holding)
-            if documento.holding != request.user.holding:
-                return Response(
-                    {"error": "No tienes permisos para modificar este documento"}, 
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-            # Actualizar variables si se proporcionan
-            if 'variables' in request.data:
-                # Validar formato de las variables
-                variables_data = request.data['variables']
-                
-                if isinstance(variables_data, str):
-                    # Si las variables vienen como string JSON, convertir a objeto
-                    try:
-                        variables_json = json.loads(variables_data)
-                    except json.JSONDecodeError:
-                        return Response(
-                            {"error": "Formato de variables inválido"}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                else:
-                    variables_json = variables_data
-                
-                # Verificar estructura de variables
-                for variable in variables_json:
-                    if 'nombre' not in variable:
-                        return Response(
-                            {"error": "Todas las variables deben tener un nombre"}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                    if 'ubicaciones' not in variable:
-                        return Response(
-                            {"error": "Todas las variables deben tener una lista de ubicaciones"}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                # Guardar las variables actualizadas
-                documento.variables = variables_json
-                documento.save()
-                
-                return Response({
-                    "mensaje": "Variables actualizadas correctamente",
-                    "id": documento.id,
-                    "variables_count": len(variables_json)
-                })
-            else:
-                return Response({
-                    "error": "No se proporcionaron variables para actualizar"
-                }, status=status.HTTP_400_BAD_REQUEST)
-                
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-class GenerarDocumentoView(APIView):
-    
-    def post(self, request, *args, **kwargs):
-        try:
-            # Validar parámetros de entrada
-            trabajador_id = request.data.get('trabajador_id')
-            documento_id = request.data.get('documento_id')
-            
-            if not trabajador_id:
-                return Response({"error": "El ID del trabajador es obligatorio"}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            
-            if not documento_id:
-                return Response({"error": "El ID del documento es obligatorio"}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            
-            # Obtener el documento y verificar que exista
-            try:
-                documento = get_object_or_404(ContratoVariables, id=documento_id)
-                if not documento.activo:
-                    return Response({"error": "El documento seleccionado no está activo"}, 
-                                   status=status.HTTP_400_BAD_REQUEST)
-            except:
-                return Response({"error": f"No se encontró el documento con ID {documento_id}"}, 
-                               status=status.HTTP_404_NOT_FOUND)
-            
-            # Obtener el trabajador y verificar que exista
-            try:
-                trabajador = get_object_or_404(PersonalTrabajadores, id=trabajador_id)
-            except:
-                return Response({"error": f"No se encontró el trabajador con ID {trabajador_id}"}, 
-                               status=status.HTTP_404_NOT_FOUND)
-            
-            # Preparar los datos para las variables
-            datos_variables = {
-                'nombre': f"{trabajador.nombres} {trabajador.apellidos if trabajador.apellidos else ''}",
-                'rut': trabajador.rut or "",
-                'dni': trabajador.dni or "",
-                'f_inicio': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
-                'f_ingreso': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
-                'f_termino': trabajador.fecha_termino.strftime('%d/%m/%Y') if hasattr(trabajador, 'fecha_termino') and trabajador.fecha_termino else "",
-                'nacionalidad': trabajador.nacionalidad or "",
-                'f_nacmnto': trabajador.fecha_nacimiento.strftime('%d/%m/%Y') if trabajador.fecha_nacimiento else "",
-                'e_civil': trabajador.estado_civil or "",
-                'domicilio': trabajador.direccion or "",
-                'campo_cliente': getattr(trabajador, 'campo_cliente', "") or "",
-                'banco': trabajador.banco.nombre if hasattr(trabajador, 'banco') and trabajador.banco else "",
-                'cuenta': str(trabajador.numero_cuenta) if hasattr(trabajador, 'numero_cuenta') and trabajador.numero_cuenta else "",
-                'firma_empleador': "",  # Definir según lógica de negocio
-                'afp': trabajador.afp.nombre if hasattr(trabajador, 'afp') and trabajador.afp else "",
-                'salud': trabajador.salud.nombre if hasattr(trabajador, 'salud') and trabajador.salud else "",
-                'telefono': trabajador.telefono or "",
-                'correo': trabajador.correo or ""
-            }
-            
-            # Añadir datos de contrato si están disponibles
-            if hasattr(trabajador, 'contrato') and trabajador.contrato:
-                contrato = trabajador.contrato
-                if hasattr(contrato, 'fundo') and contrato.fundo:
-                    datos_variables['campo_cliente'] = contrato.fundo.nombre_campo
-                if hasattr(contrato, 'fecha_termino') and contrato.fecha_termino:
-                    datos_variables['f_termino'] = contrato.fecha_termino.strftime('%d/%m/%Y')
-            
-            # Generar el PDF
-            try:
-                pdf_path = generar_documento_con_datos(documento_id, datos_variables, debug=False)
-            except Exception as e:
-                return Response({
-                    "error": f"Error al generar el documento: {str(e)}"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            # Crear una URL para el archivo
-            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
-            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-            
-            # Detalle del documento generado
-            response_data = {
-                "mensaje": "Documento generado exitosamente",
-                "url": pdf_url,
-                "datos": {
-                    "trabajador": f"{trabajador.nombres} {trabajador.apellidos}",
-                    "documento": documento.nombre,
-                    "fecha_generacion": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                }
-            }
-            
-            return Response(response_data, status=status.HTTP_200_OK)
-        
-        except Exception as e:
-            # Log del error para debugging
-            import traceback
-            print(f"Error inesperado: {str(e)}")
-            print(traceback.format_exc())
-            
-            return Response({
-                "error": f"Error inesperado: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class CalibracionesListCreateView(APIView):
-    """Vista para listar y crear calibraciones para un documento"""
-
-    def get(self, request, documento_id=None):
-        """Obtener todas las calibraciones para un documento específico"""
-        try:
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
-            calibraciones = CalibrationSettings.objects.filter(documento=documento)
-            
-            # Formatear respuesta
-            result = []
-            for cal in calibraciones:
-                result.append({
-                    'id': cal.id,
-                    'nombre': cal.nombre,
-                    'activo': cal.activo,
-                    'fecha_creacion': cal.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
-                    'escala_x': cal.escala_x,
-                    'escala_y': cal.escala_y,
-                    'offset_x': cal.offset_x,
-                    'offset_y': cal.offset_y,
-                    'invertir_y': cal.invertir_y,
-                    'tamaño_pdf_ancho': cal.tamaño_pdf_ancho,
-                    'tamaño_pdf_alto': cal.tamaño_pdf_alto
-                })
-            
-            return Response(result)
-        except Exception as e:
-            print(f"Error al obtener calibraciones: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def post(self, request):
-        """Crear una nueva calibración"""
-        try:
-            documento_id = request.data.get('documento_id')
-            nombre = request.data.get('nombre', f"Calibración {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-            
-            # Parámetros de calibración
-            escala_x = float(request.data.get('escala_x', 0.72))
-            escala_y = float(request.data.get('escala_y', 0.72))
-            offset_x = int(request.data.get('offset_x', 0))
-            offset_y = int(request.data.get('offset_y', 0))
-            invertir_y = request.data.get('invertir_y', True)
-            if isinstance(invertir_y, str):
-                invertir_y = invertir_y.lower() == 'true'
-            
-            # Metadatos opcionales
-            tamaño_pdf_ancho = request.data.get('tamaño_pdf_ancho')
-            tamaño_pdf_alto = request.data.get('tamaño_pdf_alto')
-            
-            # Validar datos requeridos
-            if not documento_id:
-                return Response({"error": "El ID del documento es obligatorio"}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            
-            # Verificar que el documento existe
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
-            
-            # Si marcaremos esta calibración como activa, desactivamos las demás
-            if request.data.get('activo', True):
-                CalibrationSettings.objects.filter(documento=documento, activo=True).update(activo=False)
-            
-            # Crear la calibración
-            calibracion = CalibrationSettings.objects.create(
-                documento=documento,
-                nombre=nombre,
-                activo=request.data.get('activo', True),
-                escala_x=escala_x,
-                escala_y=escala_y,
-                offset_x=offset_x,
-                offset_y=offset_y,
-                invertir_y=invertir_y,
-                tamaño_pdf_ancho=tamaño_pdf_ancho,
-                tamaño_pdf_alto=tamaño_pdf_alto
-            )
-            
-            # Registro para depuración
-            print(f"Calibración creada: ID={calibracion.id}, escala_x={escala_x}, escala_y={escala_y}, offset_x={offset_x}, offset_y={offset_y}, invertir_y={invertir_y}")
-            
-            return Response({
-                "id": calibracion.id,
-                "mensaje": "Calibración creada exitosamente",
-                "nombre": calibracion.nombre,
-                "activo": calibracion.activo
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            print(f"Error al crear calibración: {str(e)}")
-            return Response({
-                "error": f"Error al crear calibración: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class CalibracionDetailView(APIView):
-    """Vista para obtener, actualizar o eliminar una calibración específica"""
-    
-    def get(self, request, calibracion_id):
-        """Obtener detalle de una calibración"""
-        try:
-            calibracion = get_object_or_404(CalibrationSettings, id=calibracion_id)
-            
-            return Response({
-                'id': calibracion.id,
-                'documento_id': calibracion.documento.id,
-                'nombre': calibracion.nombre,
-                'activo': calibracion.activo,
-                'fecha_creacion': calibracion.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
-                'escala_x': calibracion.escala_x,
-                'escala_y': calibracion.escala_y,
-                'offset_x': calibracion.offset_x,
-                'offset_y': calibracion.offset_y,
-                'invertir_y': calibracion.invertir_y,
-                'tamaño_pdf_ancho': calibracion.tamaño_pdf_ancho,
-                'tamaño_pdf_alto': calibracion.tamaño_pdf_alto
-            })
-        except Exception as e:
-            print(f"Error al obtener calibración: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def put(self, request, calibracion_id):
-        """Actualizar una calibración existente"""
-        try:
-            calibracion = get_object_or_404(CalibrationSettings, id=calibracion_id)
-            
-            # Actualizar campos
-            if 'nombre' in request.data:
-                calibracion.nombre = request.data.get('nombre')
-                
-            if 'activo' in request.data:
-                nuevo_activo = request.data.get('activo')
-                if isinstance(nuevo_activo, str):
-                    nuevo_activo = nuevo_activo.lower() == 'true'
-                
-                # Si activamos esta calibración, desactivamos las demás
-                if nuevo_activo and not calibracion.activo:
-                    CalibrationSettings.objects.filter(
-                        documento=calibracion.documento, 
-                        activo=True
-                    ).exclude(id=calibracion.id).update(activo=False)
-                
-                calibracion.activo = nuevo_activo
-            
-            # Parámetros de calibración
-            if 'escala_x' in request.data:
-                calibracion.escala_x = float(request.data.get('escala_x'))
-            
-            if 'escala_y' in request.data:
-                calibracion.escala_y = float(request.data.get('escala_y'))
-            
-            if 'offset_x' in request.data:
-                calibracion.offset_x = int(request.data.get('offset_x'))
-            
-            if 'offset_y' in request.data:
-                calibracion.offset_y = int(request.data.get('offset_y'))
-            
-            if 'invertir_y' in request.data:
-                invertir_y = request.data.get('invertir_y')
-                if isinstance(invertir_y, str):
-                    invertir_y = invertir_y.lower() == 'true'
-                calibracion.invertir_y = invertir_y
-            
-            # Metadatos
-            if 'tamaño_pdf_ancho' in request.data:
-                calibracion.tamaño_pdf_ancho = request.data.get('tamaño_pdf_ancho')
-            
-            if 'tamaño_pdf_alto' in request.data:
-                calibracion.tamaño_pdf_alto = request.data.get('tamaño_pdf_alto')
-            
-            # Guardar cambios
-            calibracion.save()
-            
-            return Response({
-                "id": calibracion.id,
-                "mensaje": "Calibración actualizada exitosamente",
-                "nombre": calibracion.nombre,
-                "activo": calibracion.activo
-            })
-            
-        except Exception as e:
-            print(f"Error al actualizar calibración: {str(e)}")
-            return Response({
-                "error": f"Error al actualizar calibración: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def delete(self, request, calibracion_id):
-        """Eliminar una calibración"""
-        try:
-            calibracion = get_object_or_404(CalibrationSettings, id=calibracion_id)
-            nombre = calibracion.nombre
-            calibracion.delete()
-            
-            return Response({
-                "mensaje": f"Calibración '{nombre}' eliminada exitosamente"
-            })
-            
-        except Exception as e:
-            print(f"Error al eliminar calibración: {str(e)}")
-            return Response({
-                "error": f"Error al eliminar calibración: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class GenerarPDFConCalibracionView(APIView):
-    """Vista para generar un PDF aplicando una calibración específica"""
-    
-    def post(self, request):
-        try:
-            # Obtener parámetros necesarios
-            documento_id = request.data.get('documento_id')
-            calibracion_id = request.data.get('calibracion_id')
-            
-            if not documento_id:
-                return Response({"error": "El ID del documento es obligatorio"}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            
-            # Obtener el documento
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
-            
-            # Obtener calibración
-            calibracion = None
-            if calibracion_id:
-                calibracion = get_object_or_404(CalibrationSettings, id=calibracion_id)
-            else:
-                # Si no se especifica calibración, intentamos obtener la activa
-                try:
-                    calibracion = CalibrationSettings.objects.get(
-                        documento=documento,
-                        activo=True
-                    )
-                except CalibrationSettings.DoesNotExist:
-                    # Si no hay calibración activa, usamos parámetros por defecto
-                    pass
-            
-            # Datos de prueba para las variables
-            datos_variables = {}
-            
-            # Crear datos de prueba para cada variable
-            for variable_data in documento.variables:
-                nombre_variable = variable_data.get('nombre')
-                
-                # Si es una variable de fecha, crear un valor de fecha para que se vea realista
-                if 'fecha' in nombre_variable or 'f_' in nombre_variable:
-                    datos_variables[nombre_variable] = "01/01/2023"
-                # Si es RUT o DNI, crear un valor similar
-                elif nombre_variable in ['rut', 'dni']:
-                    datos_variables[nombre_variable] = "12.345.678-9"
-                # Para otras variables, usar un texto descriptivo
-                else:
-                    datos_variables[nombre_variable] = f"Prueba-{nombre_variable}"
-            
-            # Generar el PDF usando la calibración
-            pdf_path = generar_documento_con_calibracion(
-                documento_id=documento_id,
-                calibracion=calibracion,
-                datos_variables=datos_variables,
-                debug=True
-            )
-            
-            # Crear una URL para el archivo
-            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
-            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-            
-            # Construir respuesta
-            respuesta = {
-                "mensaje": "PDF generado exitosamente con calibración",
-                "url": pdf_url,
-                "documento": documento.nombre
-            }
-            
-            if calibracion:
-                respuesta["calibracion"] = {
-                    "id": calibracion.id,
-                    "nombre": calibracion.nombre,
-                    "escala_x": calibracion.escala_x,
-                    "escala_y": calibracion.escala_y,
-                    "offset_x": calibracion.offset_x,
-                    "offset_y": calibracion.offset_y,
-                    "invertir_y": calibracion.invertir_y
-                }
-            else:
-                respuesta["calibracion"] = "Usando parámetros por defecto (sin calibración activa)"
-            
-            return Response(respuesta)
-            
-        except Exception as e:
-            print(f"Error al generar PDF con calibración: {str(e)}")
-            import traceback
-            print(traceback.format_exc())
-            
-            return Response({
-                "error": f"Error al generar PDF con calibración: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class AjustarCalibracionView(APIView):
-    """Vista para ajustar parámetros de calibración y generar PDF de prueba"""
-    
-    def post(self, request):
-        try:
-            # Obtener datos de calibración temporal
-            documento_id = request.data.get('documento_id')
-            
-            # Parámetros de calibración a probar
-            escala_x = float(request.data.get('escala_x', 0.72))
-            escala_y = float(request.data.get('escala_y', 0.72))
-            offset_x = int(request.data.get('offset_x', 0))
-            offset_y = int(request.data.get('offset_y', 0))
-            invertir_y = request.data.get('invertir_y', True)
-            if isinstance(invertir_y, str):
-                invertir_y = invertir_y.lower() == 'true'
-            
-            # Crear calibración temporal (no guardar en DB)
-            calibracion_temp = CalibrationSettings(
-                documento_id=documento_id,
-                nombre="Calibración Temporal",
-                escala_x=escala_x,
-                escala_y=escala_y,
-                offset_x=offset_x,
-                offset_y=offset_y,
-                invertir_y=invertir_y
-            )
-            
-            # Datos para generar el PDF
-            datos_variables = {}
-            
-            # Si se proporciona una variable específica para calibrar
-            variable_nombre = request.data.get('variable_nombre')
-            if variable_nombre:
-                # Generar valor de prueba según el tipo de variable
-                if 'fecha' in variable_nombre or 'f_' in variable_nombre:
-                    datos_variables[variable_nombre] = "01/01/2023"
-                elif variable_nombre in ['rut', 'dni']:
-                    datos_variables[variable_nombre] = "12.345.678-9"
-                else:
-                    datos_variables[variable_nombre] = f"Prueba-{variable_nombre}"
-            else:
-                # Si se pasan datos de variables directamente, los usamos
-                if 'datos_variables' in request.data:
-                    if isinstance(request.data['datos_variables'], str):
-                        datos_variables = json.loads(request.data['datos_variables'])
-                    else:
-                        datos_variables = request.data['datos_variables']
-                else:
-                    # Obtener documento para generar valores de prueba para todas las variables
-                    documento = get_object_or_404(ContratoVariables, id=documento_id)
-                    for variable_data in documento.variables:
-                        nombre_var = variable_data.get('nombre')
-                        if 'fecha' in nombre_var or 'f_' in nombre_var:
-                            datos_variables[nombre_var] = "01/01/2023"
-                        elif nombre_var in ['rut', 'dni']:
-                            datos_variables[nombre_var] = "12.345.678-9"
-                        else:
-                            datos_variables[nombre_var] = f"Prueba-{nombre_var}"
-            
-            # Generar PDF con calibración temporal
-            pdf_path = generar_documento_con_calibracion(
-                documento_id=documento_id,
-                calibracion=calibracion_temp,
-                datos_variables=datos_variables,
-                debug=True
-            )
-            
-            # Crear URL para el PDF
-            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
-            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-            
-            return Response({
-                "mensaje": "PDF generado con parámetros de calibración temporales",
-                "url": pdf_url,
-                "parametros_calibracion": {
-                    "escala_x": escala_x,
-                    "escala_y": escala_y,
-                    "offset_x": offset_x,
-                    "offset_y": offset_y,
-                    "invertir_y": invertir_y
-                }
-            })
-            
-        except Exception as e:
-            print(f"Error al ajustar calibración: {str(e)}")
-            import traceback
-            print(traceback.format_exc())
-            
-            return Response({
-                "error": f"Error al ajustar calibración: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# utils.py function for generating PDFs with variable positioning
-
-def generar_documento_con_calibracion(documento_id, calibracion=None, datos_variables=None, debug=False):
-    """
-    Genera un PDF con datos de variables posicionadas correctamente, aplicando parámetros
-    de calibración específicos.
-    
-    Args:
-        documento_id (int): ID del documento a generar
-        calibracion (CalibrationSettings, optional): Configuración de calibración a aplicar.
-            Si no se proporciona, se utilizará la calibración activa del documento o los valores por defecto.
-        datos_variables (dict, optional): Diccionario con los valores para cada variable.
-        debug (bool, optional): Si es True, se dibujarán elementos de depuración en el PDF.
-        
-    Returns:
-        str: Ruta del archivo PDF generado
-    """
-    from .models import ContratoVariables, CalibrationSettings
-
-    # Obtener el documento con las variables
-    documento = ContratoVariables.objects.get(id=documento_id)
-    
-    # Si no se proporcionó una calibración, intentar obtener la activa
-    if calibracion is None:
-        try:
-            calibracion = CalibrationSettings.objects.get(documento=documento, activo=True)
-            print(f"Usando calibración activa del documento: {calibracion.nombre}")
-        except CalibrationSettings.DoesNotExist:
-            # Crear una calibración temporal con valores por defecto
-            print("No hay calibración activa, usando valores por defecto")
-            calibracion = CalibrationSettings(
-                documento=documento,
-                nombre="Calibración Temporal",
-                escala_x=0.72,
-                escala_y=0.72,
-                offset_x=0,
-                offset_y=0,
-                invertir_y=True
-            )
-    
-    # Ruta al PDF plantilla
-    input_pdf_path = documento.archivo_pdf.path
-    
-    # Crear un nombre de archivo único para el PDF de salida
-    filename = f"documento_generado_{uuid.uuid4().hex}.pdf"
-    output_dir = os.path.join(settings.MEDIA_ROOT, 'contratos_variables_posicionadas')
-    
-    # Asegurar que el directorio exista
-    os.makedirs(output_dir, exist_ok=True)
-    
-    output_pdf_path = os.path.join(output_dir, filename)
-    
-    # Abrir el PDF plantilla
-    reader = PdfReader(open(input_pdf_path, "rb"))
-    writer = PdfWriter()
-    
-    # CONFIGURACIÓN SEGÚN TIPO DE DOCUMENTO
-    # Esta configuración permite ajustar los parámetros según el tipo de contrato
-    BASE_FONT_SIZE = 10  # Tamaño de fuente base
-    
-    # Parámetros de transformación desde la calibración proporcionada
-    params = {
-        'escala_x': calibracion.escala_x,
-        'escala_y': calibracion.escala_y,
-        'offset_x': calibracion.offset_x,
-        'offset_y': calibracion.offset_y,
-        'invertir_y': calibracion.invertir_y
-    }
-    
-    # Función para transformar coordenadas
-    def transform_coordinates(x, y, page_height, page_width=None):
-        # Aplicar escala
-        pdf_x = x * params['escala_x'] + params['offset_x']
-        
-        # Aplicar escala e invertir Y si es necesario
-        if params['invertir_y']:
-            pdf_y = page_height - (y * params['escala_y']) + params['offset_y']
-        else:
-            pdf_y = y * params['escala_y'] + params['offset_y']
-        
-        # Logging
-        print(f"Transformación: ({x}, {y}) -> ({pdf_x}, {pdf_y})")
-        
-        return pdf_x, pdf_y
-    
-    # Organizar variables por página
-    variables_por_pagina = {}
-    for variable_data in documento.variables:
-        nombre_variable = variable_data.get('nombre')
-        for ubicacion in variable_data.get('ubicaciones', []):
-            pagina = ubicacion.get('pagina', 1)
-            if pagina not in variables_por_pagina:
-                variables_por_pagina[pagina] = []
-            
-            # Almacenar todas las propiedades de la ubicación para tener toda la información
-            variable_info = {
-                'nombre': nombre_variable,
-                'posX': ubicacion.get('posX', 0),
-                'posY': ubicacion.get('posY', 0)
-            }
-            
-            # Registrar la información en logs para análisis
-            print(f"Variable '{nombre_variable}' en página {pagina}: posición original = ({variable_info['posX']}, {variable_info['posY']})")
-            
-            variables_por_pagina[pagina].append(variable_info)
-    
-    # Procesar cada página del PDF
-    for page_num in range(len(reader.pages)):
-        ui_page_num = page_num + 1
-        page = reader.pages[page_num]
-        
-        if ui_page_num in variables_por_pagina:
-            # Crear un canvas para esta página
-            packet = io.BytesIO()
-            page_width = float(page.mediabox.width)
-            page_height = float(page.mediabox.height)
-            can = canvas.Canvas(packet, pagesize=(page_width, page_height))
-            
-            # Log dimensions for debugging
-            print(f"Procesando página {ui_page_num}: ancho={page_width}, alto={page_height}")
-            
-            # Añadir cada variable a la página
-            for variable in variables_por_pagina[ui_page_num]:
-                nombre = variable['nombre']
-                if nombre in datos_variables and datos_variables[nombre]:
-                    # Coordenadas del frontend
-                    frontend_x = variable['posX']
-                    frontend_y = variable['posY']
-                    
-                    # Transformar coordenadas
-                    pdf_x, pdf_y = transform_coordinates(frontend_x, frontend_y, page_height)
-                    
-                    # Valor a imprimir
-                    valor = str(datos_variables[nombre])
-                    
-                    # Configurar fuente
-                    can.setFont("Helvetica", BASE_FONT_SIZE)
-                    
-                    # Campos que deben centrarse
-                    campos_centrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 'nacionalidad',
-                                    'f_ingreso', 'f_termino']
-
-                    is_centered = nombre in campos_centrados
-                    if is_centered:
-                        # Centrar texto en la posición
-                        text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
-                        can.drawString(pdf_x - (text_width/2), pdf_y, valor)
-                        print(f"Campo centrado: {nombre} en ({pdf_x}, {pdf_y}) valor: {valor}")
-                    else:
-                        # Alinear a la izquierda (comportamiento estándar)
-                        can.drawString(pdf_x, pdf_y, valor)
-                        print(f"Campo normal: {nombre} en ({pdf_x}, {pdf_y}) valor: {valor}")
-
-                    # Modo debug: dibujar indicadores visuales para las variables
-                    if debug:
-                        # Guardar estado actual para no afectar el resto del documento
-                        can.saveState()
-                        
-                        # Dibujar cruz como indicador de posición exacta
-                        can.setStrokeColorRGB(1, 0, 0)  # Rojo
-                        can.setLineWidth(0.5)
-                        can.line(pdf_x-5, pdf_y, pdf_x+5, pdf_y)  # Línea horizontal
-                        can.line(pdf_x, pdf_y-5, pdf_x, pdf_y+5)  # Línea vertical
-                        
-                        # Añadir rectángulo semitransparente para mejor visibilidad
-                        can.setFillColorRGB(1, 0.8, 0.8, alpha=0.3)  # Rojo claro semitransparente
-                        can.rect(pdf_x-10, pdf_y-10, 20, 20, fill=True, stroke=False)
-                        
-                        # Mostrar las coordenadas originales y transformadas como texto
-                        can.setFont("Helvetica", 6)
-                        can.setFillColorRGB(1, 0, 0)  # Rojo
-                        can.drawString(
-                            pdf_x + 8,
-                            pdf_y - 3,
-                            f"O:({int(variable['posX'])},{int(variable['posY'])})->T:({int(pdf_x)},{int(pdf_y)})"
-                        )
-                        
-                        # Restaurar estado para continuar normalmente
-                        can.restoreState()
-            
-            can.save()
-            packet.seek(0)
-            
-            # Crear un nuevo PDF con nuestro canvas
-            overlay = PdfReader(packet)
-            
-            # Combinar la página original con nuestras variables
-            page.merge_page(overlay.pages[0])
-        
-        # Añadir la página al documento final
-        writer.add_page(page)
-    
-    # Guardar el PDF final
-    with open(output_pdf_path, "wb") as output_file:
-        writer.write(output_file)
-    
-    return output_pdf_path
-
-class GenerarDocumentosMasivoView(APIView):
-    
-    def post(self, request, *args, **kwargs):
-        try:
-            # Validar parámetros de entrada
-            trabajador_ids = request.data.get('trabajador_ids', [])
-            documento_id = request.data.get('documento_id')
-            
-            if not trabajador_ids or not isinstance(trabajador_ids, list):
-                return Response({"error": "Se requiere una lista de IDs de trabajadores"}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            
-            if not documento_id:
-                return Response({"error": "El ID del documento es obligatorio"}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            
-            # Obtener el documento y verificar que exista
-            try:
-                documento = get_object_or_404(ContratoVariables, id=documento_id)
-                if not documento.activo:
-                    return Response({"error": "El documento seleccionado no está activo"}, 
-                                   status=status.HTTP_400_BAD_REQUEST)
-            except:
-                return Response({"error": f"No se encontró el documento con ID {documento_id}"}, 
-                               status=status.HTTP_404_NOT_FOUND)
-            
-            # Procesar cada trabajador
-            urls_generadas = []
-            
-            for trabajador_id in trabajador_ids:
-                try:
-                    # Obtener el trabajador
-                    trabajador = get_object_or_404(PersonalTrabajadores, id=trabajador_id)
-                    
-                    # Preparar los datos para las variables
-                    datos_variables = {
-                        'nombre': f"{trabajador.nombres} {trabajador.apellidos if trabajador.apellidos else ''}",
-                        'rut': trabajador.rut or "",
-                        'dni': trabajador.dni or "",
-                        'f_inicio': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
-                        'f_ingreso': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
-                        'f_termino': trabajador.fecha_termino.strftime('%d/%m/%Y') if hasattr(trabajador, 'fecha_termino') and trabajador.fecha_termino else "",
-                        'nacionalidad': trabajador.nacionalidad or "",
-                        'f_nacmnto': trabajador.fecha_nacimiento.strftime('%d/%m/%Y') if trabajador.fecha_nacimiento else "",
-                        'e_civil': trabajador.estado_civil or "",
-                        'domicilio': trabajador.direccion or "",
-                        'campo_cliente': getattr(trabajador, 'campo_cliente', "") or "",
-                        'banco': trabajador.banco.nombre if hasattr(trabajador, 'banco') and trabajador.banco else "",
-                        'cuenta': str(trabajador.numero_cuenta) if hasattr(trabajador, 'numero_cuenta') and trabajador.numero_cuenta else "",
-                        'firma_empleador': "",  # Definir según lógica de negocio
-                        'afp': trabajador.afp.nombre if hasattr(trabajador, 'afp') and trabajador.afp else "",
-                        'salud': trabajador.salud.nombre if hasattr(trabajador, 'salud') and trabajador.salud else "",
-                        'telefono': trabajador.telefono or "",
-                        'correo': trabajador.correo or ""
-                    }
-                    
-                    # Añadir datos de contrato si están disponibles
-                    if hasattr(trabajador, 'contratos') and trabajador.contratos.exists():
-                        contrato = trabajador.contratos.first()
-                        if hasattr(contrato, 'fundo') and contrato.fundo:
-                            datos_variables['campo_cliente'] = contrato.fundo.nombre_campo
-                        if hasattr(contrato, 'fecha_termino') and contrato.fecha_termino:
-                            datos_variables['f_termino'] = contrato.fecha_termino.strftime('%d/%m/%Y')
-                    
-                    # Generar el PDF
-                    pdf_path = generar_documento_con_datos(documento_id, datos_variables, debug=False)
-                    
-                    # Crear una URL para el archivo
-                    relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
-                    pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-                    
-                    urls_generadas.append(pdf_url)
-                    
-                except Exception as e:
-                    print(f"Error procesando trabajador {trabajador_id}: {str(e)}")
-                    # Continuar con el siguiente trabajador
-            
-            if not urls_generadas:
-                return Response({
-                    "error": "No se pudo generar ningún documento"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
-            return Response({
-                "mensaje": f"Documentos generados exitosamente: {len(urls_generadas)} de {len(trabajador_ids)}",
-                "urls": urls_generadas
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            # Log del error para debugging
-            import traceback
-            print(f"Error inesperado: {str(e)}")
-            print(traceback.format_exc())
-            
-            return Response({
-                "error": f"Error inesperado: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LibroRemuneracionesElectronicoAPIView(APIView):
     """
@@ -18340,6 +17421,10 @@ class HistorialPagosAPIView(APIView):
         
         return response
     
+#============================================================================
+#===================== CONTRATOS [FORMATOS/GENERAR CONTRATO] ================
+#============================================================================
+
 class DocumentoVariablesNativasAPIView(APIView):
     """
     Vista unificada para manejo de documentos con variables usando coordenadas nativas.
@@ -18387,13 +17472,11 @@ class DocumentoVariablesNativasAPIView(APIView):
     def post(self, request, *args, **kwargs):
         """
         POST /api_documento_nativo/ - Crear nuevo documento
-        POST /api_documento_nativo/generar/ - Generar PDF con datos
+        POST /api_documento_nativo/ (action: 'generar_prueba') - Generar PDF de prueba
         """
         action = request.data.get('action', 'create')
         
-        if action == 'generar':
-            return self._generar_pdf_con_datos(request)
-        elif action == 'generar_prueba':
+        if action == 'generar_prueba':
             return self._generar_pdf_prueba(request)
         else:
             return self._crear_documento(request)
@@ -18499,26 +17582,18 @@ class DocumentoVariablesNativasAPIView(APIView):
                         variables_json = json.loads(variables_data)
                     except json.JSONDecodeError:
                         return Response(
-                            {"error": "Formato de variables inválido"}, 
+                            {"error": "El formato de variables no es válido"}, 
                             status=status.HTTP_400_BAD_REQUEST
                         )
                 else:
                     variables_json = variables_data
                 
-                # Validar estructura
-                for variable in variables_json:
-                    if 'nombre' not in variable or 'ubicaciones' not in variable:
-                        return Response(
-                            {"error": "Estructura de variables inválida"}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
                 documento.variables = variables_json
                 documento.save()
                 
                 return Response({
-                    "mensaje": "Variables actualizadas correctamente",
-                    "id": documento.id,
+                    "mensaje": "Variables actualizadas exitosamente",
+                    "documento_id": documento.id,
                     "variables_count": len(variables_json)
                 })
             else:
@@ -18529,69 +17604,13 @@ class DocumentoVariablesNativasAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    def _generar_pdf_con_datos(self, request):
-        """Generar PDF usando datos de un trabajador"""
-        try:
-            trabajador_id = request.data.get('trabajador_id')
-            documento_id = request.data.get('documento_id')
-            
-            if not trabajador_id or not documento_id:
-                return Response({
-                    "error": "Se requieren trabajador_id y documento_id"
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
-            trabajador = get_object_or_404(PersonalTrabajadores, id=trabajador_id)
-            
-            # Preparar datos del trabajador
-            datos_variables = {
-                'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
-                'rut': trabajador.rut or "",
-                'dni': trabajador.dni or "",
-                'f_inicio': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
-                'f_ingreso': trabajador.fecha_ingreso.strftime('%d/%m/%Y') if trabajador.fecha_ingreso else "",
-                'f_termino': trabajador.fecha_termino.strftime('%d/%m/%Y') if hasattr(trabajador, 'fecha_termino') and trabajador.fecha_termino else "",
-                'nacionalidad': trabajador.nacionalidad or "",
-                'f_nacmnto': trabajador.fecha_nacimiento.strftime('%d/%m/%Y') if trabajador.fecha_nacimiento else "",
-                'e_civil': trabajador.estado_civil or "",
-                'domicilio': trabajador.direccion or "",
-                'campo_cliente': getattr(trabajador, 'campo_cliente', "") or "",
-                'banco': trabajador.banco.nombre if hasattr(trabajador, 'banco') and trabajador.banco else "",
-                'cuenta': str(trabajador.numero_cuenta) if hasattr(trabajador, 'numero_cuenta') and trabajador.numero_cuenta else "",
-                'firma_empleador': "",
-                'afp': trabajador.afp.nombre if hasattr(trabajador, 'afp') and trabajador.afp else "",
-                'salud': trabajador.salud.nombre if hasattr(trabajador, 'salud') and trabajador.salud else "",
-                'telefono': trabajador.telefono or "",
-                'correo': trabajador.correo or ""
-            }
-            
-            # Generar PDF usando coordenadas nativas
-            pdf_path = self._generar_documento_coordenadas_nativas(documento_id, datos_variables)
-            
-            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
-            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-            
-            return Response({
-                "mensaje": "Documento generado exitosamente",
-                "url": pdf_url,
-                "datos": {
-                    "trabajador": f"{trabajador.nombres} {trabajador.apellidos}",
-                    "documento": documento.nombre,
-                    "fecha_generacion": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                }
-            })
-            
-        except Exception as e:
-            return Response({
-                "error": f"Error al generar documento: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+    # ========== CAMBIO 1: MODIFICAR ESTE MÉTODO ==========
     def _generar_pdf_prueba(self, request):
-        """Generar PDF con datos de prueba"""
+        """Generar PDF con datos de prueba EN MEMORIA"""
         try:
             documento_id = request.data.get('documento_id')
             datos_variables = request.data.get('datos_variables', {})
-            debug = request.data.get('debug', False)  # ACTIVAR DEBUG POR DEFECTO
+            debug = request.data.get('debug', False)
             
             if not documento_id:
                 return Response({
@@ -18600,50 +17619,38 @@ class DocumentoVariablesNativasAPIView(APIView):
             
             documento = get_object_or_404(ContratoVariables, id=documento_id)
             
-            # Generar PDF con datos de prueba Y DEBUG ACTIVADO
-            pdf_path = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=debug)
+            # CAMBIO: Generar PDF en memoria
+            pdf_buffer = self._generar_documento_coordenadas_nativas(
+                documento_id, 
+                datos_variables, 
+                debug=debug
+            )
             
-            relative_path = os.path.relpath(pdf_path, settings.MEDIA_ROOT)
-            pdf_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-            
-            return Response({
-                "mensaje": "PDF de prueba generado exitosamente con indicadores de debug",
-                "url": pdf_url,
-                "documento": documento.nombre,
-                "debug_enabled": debug
-            })
+            # CAMBIO: Retornar PDF directamente como HttpResponse
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="vista_previa.pdf"'
+            return response
             
         except Exception as e:
             return Response({
                 "error": f"Error al generar PDF de prueba: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    # ========== CAMBIO 2: MODIFICAR ESTE MÉTODO ==========
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """
         Genera un PDF usando directamente las coordenadas nativas con transformación escalable.
-        Funciona con cualquier dimensión de PDF.
-        
-        Args:
-            documento_id: ID del documento base
-            datos_variables: Diccionario con valores para cada variable
-            debug: Si es True, dibuja indicadores visuales para calibración
+        CAMBIO: Ahora retorna BytesIO en lugar de guardar en disco.
         """
         from PyPDF2 import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import letter
         import io
-        import uuid
-        import os
         
         # Obtener documento
         documento = ContratoVariables.objects.get(id=documento_id)
         
-        # Configuración de archivos
+        # CAMBIO: Ya no necesitamos rutas de archivo
         input_pdf_path = documento.archivo_pdf.path
-        filename = f"documento_nativo_{uuid.uuid4().hex}.pdf"
-        output_dir = os.path.join(settings.MEDIA_ROOT, 'contratos_nativas')
-        os.makedirs(output_dir, exist_ok=True)
-        output_pdf_path = os.path.join(output_dir, filename)
         
         # Procesar PDF
         reader = PdfReader(open(input_pdf_path, "rb"))
@@ -18663,7 +17670,7 @@ class DocumentoVariablesNativasAPIView(APIView):
             
             # Offsets originales que funcionan bien en PDF carta
             BASE_OFFSET_X = -8
-            BASE_OFFSET_Y = -15.2  # Cambiado de -10 a +15 para corregir posición Y
+            BASE_OFFSET_Y = -15.2
             
             # Calcular offsets proporcionales
             offset_x = (page_width / REFERENCE_WIDTH) * BASE_OFFSET_X
@@ -18731,52 +17738,49 @@ class DocumentoVariablesNativasAPIView(APIView):
                         
                         # Ajustes específicos por tipo de campo (opcionales)
                         if nombre == 'rut':
-                            # RUT necesita un ajuste adicional hacia la izquierda
-                            pdf_x += offsets['offset_x'] * 0.5  # 50% de offset adicional
+                            pdf_x += offsets['offset_x'] * 0.5
                         elif nombre == 'nombre':
-                            # Nombre puede necesitar ajuste mínimo
                             pdf_x += offsets['offset_x'] * 0.1
                         
+                        # Valor a imprimir
                         valor = str(datos_variables[nombre])
-                        
-                        print(f"Variable '{nombre}': Frontend({frontend_x:.1f}, {frontend_y:.1f}) -> PDF({pdf_x:.1f}, {pdf_y:.1f}) = '{valor}'")
                         
                         # Configurar fuente
                         can.setFont("Helvetica", BASE_FONT_SIZE)
                         
-                        # Aplicar centrado si corresponde
-                        if nombre in campos_centrados:
+                        # Determinar si el campo debe centrarse
+                        is_centered = nombre in campos_centrados
+                        if is_centered:
+                            # Centrar texto en la posición
                             text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
-                            final_x = pdf_x - (text_width / 2)
-                            can.drawString(final_x, pdf_y, valor)
-                            print(f"  Campo centrado: ancho={text_width:.1f}, posición final X={final_x:.1f}")
+                            can.drawString(pdf_x - (text_width/2), pdf_y, valor)
                         else:
+                            # Alinear a la izquierda (comportamiento estándar)
                             can.drawString(pdf_x, pdf_y, valor)
-                            print(f"  Campo izquierda: posición final X={pdf_x:.1f}")
                         
-                        # MODO DEBUG: Indicadores visuales escalables
+                        # Modo debug
                         if debug:
                             can.saveState()
                             
-                            # Calcular tamaños de debug proporcionales al PDF
-                            debug_line_length = min(page_width, page_height) * 0.02  # 2% del menor dimension
-                            debug_rect_size = debug_line_length * 1.5
+                            # Tamaño del rectángulo de debug proporcional
+                            debug_rect_size = BASE_FONT_SIZE * 2
                             
-                            # Cruz roja en la posición exacta
-                            can.setStrokeColorRGB(1, 0, 0)  # Rojo
+                            # Dibujar cruz roja en la posición exacta
+                            can.setStrokeColorRGB(1, 0, 0)
                             can.setLineWidth(1)
-                            can.line(pdf_x - debug_line_length, pdf_y, pdf_x + debug_line_length, pdf_y)  # Horizontal
-                            can.line(pdf_x, pdf_y - debug_line_length, pdf_x, pdf_y + debug_line_length)  # Vertical
+                            cross_size = debug_rect_size / 2
+                            can.line(pdf_x - cross_size, pdf_y, pdf_x + cross_size, pdf_y)
+                            can.line(pdf_x, pdf_y - cross_size, pdf_x, pdf_y + cross_size)
                             
                             # Rectángulo semitransparente
-                            can.setFillColorRGB(1, 0.8, 0.8, alpha=0.3)  # Rosa claro
+                            can.setFillColorRGB(1, 0.8, 0.8, alpha=0.3)
                             can.rect(pdf_x - debug_rect_size/2, pdf_y - debug_rect_size/2, 
                                     debug_rect_size, debug_rect_size, fill=True, stroke=False)
                             
                             # Texto con información de debug
                             debug_font_size = max(6, BASE_FONT_SIZE - 2)
                             can.setFont("Helvetica", debug_font_size)
-                            can.setFillColorRGB(1, 0, 0)  # Rojo
+                            can.setFillColorRGB(1, 0, 0)
                             
                             # Posicionar texto debug para que no se sobreponga
                             debug_text_x = pdf_x + debug_rect_size
@@ -18799,16 +17803,17 @@ class DocumentoVariablesNativasAPIView(APIView):
             # Añadir página al documento final
             writer.add_page(page)
         
-        # Guardar PDF final
-        with open(output_pdf_path, "wb") as output_file:
-            writer.write(output_file)
+        # CAMBIO PRINCIPAL: En lugar de guardar en disco, escribir en buffer
+        buffer = io.BytesIO()
+        writer.write(buffer)
+        buffer.seek(0)
         
-        print(f"PDF generado exitosamente: {output_pdf_path}")
-        return output_pdf_path
+        print("PDF generado exitosamente EN MEMORIA")
+        return buffer  # ← RETORNAR BUFFER EN LUGAR DE PATH
     
-# ===================================================================
-# ===================== GENERADOR TXT BANCO DE CHILE ================
-# ===================================================================
+#===================================================================
+#===================== GENERADOR TXT BANCO DE CHILE ================
+#===================================================================
 
 class GenerarTxtBancoAPIView(APIView):
     """
@@ -19116,6 +18121,7 @@ class GenerarTxtBancoAPIView(APIView):
         return formatted[-length:]
     
     def _format_text(self, value, length):
+
         """
         Formatea un campo de texto: alineado a la izquierda, relleno con espacios
         
@@ -19134,3 +18140,348 @@ class GenerarTxtBancoAPIView(APIView):
         
         # Truncar si es más largo que el requerido
         return formatted[:length]
+
+class GenerarDocumentosMasivoAPIView(APIView):
+    """
+    Vista para generar contratos masivos para múltiples trabajadores
+    """
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Genera contratos para múltiples trabajadores
+        """
+        try:
+            documento_id = request.data.get('documento_id')
+            trabajador_ids = request.data.get('trabajador_ids', [])
+            
+            if not documento_id:
+                return Response({
+                    "error": "Se requiere documento_id"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not trabajador_ids or len(trabajador_ids) == 0:
+                return Response({
+                    "error": "Se requiere al menos un trabajador_id"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verificar que el documento existe
+            documento = get_object_or_404(ContratoVariables, id=documento_id)
+            
+            # Verificar permisos
+            if documento.holding != request.user.holding:
+                return Response({
+                    "error": "No tienes permisos para usar este documento"
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Generar contratos para cada trabajador
+            urls_generadas = []
+            errores = []
+            
+            for trabajador_id in trabajador_ids:
+                try:
+                    trabajador = PersonalTrabajadores.objects.get(
+                        id=trabajador_id,
+                        holding=request.user.holding
+                    )
+                    
+                    # Mapear datos del trabajador
+                    datos_variables = self._mapear_datos_trabajador(trabajador)
+                    
+                    # Generar PDF
+                    pdf_buffer = self._generar_documento_coordenadas_nativas(
+                        documento_id,
+                        datos_variables,
+                        debug=False
+                    )
+                    
+                    # ⭐ CAMBIO: Pasar el request al método
+                    pdf_url = self._guardar_contrato_generado(
+                        pdf_buffer,
+                        trabajador,
+                        documento,
+                        request  # ← Pasar request
+                    )
+                    
+                    urls_generadas.append({
+                        'trabajador_id': trabajador.id,
+                        'trabajador_nombre': f"{trabajador.nombres} {trabajador.apellidos}",
+                        'url': pdf_url,
+                        'success': True
+                    })
+                    
+                except PersonalTrabajadores.DoesNotExist:
+                    errores.append({
+                        'trabajador_id': trabajador_id,
+                        'error': 'Trabajador no encontrado'
+                    })
+                except Exception as e:
+                    print(f"❌ Error procesando trabajador {trabajador_id}: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    errores.append({
+                        'trabajador_id': trabajador_id,
+                        'error': str(e)
+                    })
+            
+            return Response({
+                'mensaje': f'Se generaron {len(urls_generadas)} contratos exitosamente',
+                'urls': urls_generadas,
+                'errores': errores,
+                'total_exitosos': len(urls_generadas),
+                'total_errores': len(errores)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"❌ Error en GenerarDocumentosMasivoAPIView: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            return Response({
+                "error": f"Error al generar contratos: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _mapear_datos_trabajador(self, trabajador):
+        """
+        Mapea los datos del trabajador a las variables del contrato
+        """
+        def formatear_fecha(fecha):
+            if not fecha:
+                return ''
+            if isinstance(fecha, str):
+                return fecha
+            return fecha.strftime('%d/%m/%Y')
+        
+        def formatear_rut(rut):
+            if not rut:
+                return ''
+            rut = rut.replace('.', '').replace('-', '')
+            if len(rut) < 2:
+                return ''
+            rut_num = rut[:-1]
+            dv = rut[-1]
+            rut_formateado = ''
+            for i, digit in enumerate(reversed(rut_num)):
+                if i > 0 and i % 3 == 0:
+                    rut_formateado = '.' + rut_formateado
+                rut_formateado = digit + rut_formateado
+            return f"{rut_formateado}-{dv}"
+        
+        datos = {
+            'nombre': f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
+            'rut': formatear_rut(trabajador.rut) if trabajador.rut else '',
+            'dni': trabajador.dni or '',
+            'nacionalidad': trabajador.nacionalidad or '',
+            'fecha_nacimiento': formatear_fecha(trabajador.fecha_nacimiento),
+            'f_nacmnto': formatear_fecha(trabajador.fecha_nacimiento),
+            'estado_civil': trabajador.estado_civil or '',
+            'e_civil': trabajador.estado_civil or '',
+            'sexo': trabajador.sexo or '',
+            'domicilio': trabajador.direccion or '',
+            'telefono': trabajador.telefono or '',
+            'correo': trabajador.correo or '',
+            'fecha_ingreso': formatear_fecha(trabajador.fecha_ingreso),
+            'f_ingreso': formatear_fecha(trabajador.fecha_ingreso),
+            'fecha_inicio': formatear_fecha(trabajador.fecha_ingreso),
+            'f_inicio': formatear_fecha(trabajador.fecha_ingreso),
+            'fecha_termino': formatear_fecha(trabajador.fecha_finiquito),
+            'f_termino': formatear_fecha(trabajador.fecha_finiquito),
+            'banco': trabajador.banco.nombre if trabajador.banco else '',
+            'tipo_cuenta': trabajador.tipo_cuenta_bancaria or '',
+            'cuenta': str(trabajador.numero_cuenta) if trabajador.numero_cuenta else '',
+            'afp': trabajador.afp.nombre if trabajador.afp else '',
+            'salud': trabajador.salud.nombre if trabajador.salud else '',
+            'casa': trabajador.casa.nombre if trabajador.casa else '',
+            'campo_cliente': trabajador.fundo.nombre_campo if trabajador.fundo else '',
+            'cliente': trabajador.fundo.cliente.nombre if trabajador.fundo and trabajador.fundo.cliente else '',
+            'transportista': trabajador.transportista.nombre if trabajador.transportista else '',
+            'vehiculo': f"{trabajador.vehiculo.ppu} - {trabajador.vehiculo.modelo}" if trabajador.vehiculo else '',
+            'area': trabajador.area.nombre if trabajador.area else '',
+            'cargo': trabajador.cargo.nombre if trabajador.cargo else '',
+            'firma_empleador': '[FIRMA DIGITAL]',
+            'firma_trabajador': '[FIRMA TRABAJADOR]',
+        }
+        
+        return datos
+    
+    def _guardar_contrato_generado(self, pdf_buffer, trabajador, documento, request):
+        """
+        Guarda el PDF generado y retorna la URL ABSOLUTA
+        """
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        rut_limpio = (trabajador.rut or trabajador.dni or str(trabajador.id)).replace('.', '').replace('-', '')
+        nombre_archivo = f"contrato_{documento.tipo}_{rut_limpio}_{timestamp}.pdf"
+        
+        # Ruta relativa desde MEDIA_ROOT
+        ruta_relativa = f'contratos_generados/{trabajador.holding.id}/{documento.tipo.lower()}/'
+        ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta_relativa)
+        
+        # Crear directorio si no existe
+        os.makedirs(ruta_completa, exist_ok=True)
+        
+        # Guardar archivo
+        ruta_archivo = os.path.join(ruta_completa, nombre_archivo)
+        with open(ruta_archivo, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        # ⭐ Construir URL absoluta completa
+        url_relativa = f"{ruta_relativa}{nombre_archivo}".replace('\\', '/')
+        url_absoluta = request.build_absolute_uri(f"{settings.MEDIA_URL}{url_relativa}")
+        
+        print(f"✅ Contrato guardado: {ruta_archivo}")
+        print(f"🔗 URL generada: {url_absoluta}")
+        
+        return url_absoluta
+    
+    def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
+        """
+        Genera un PDF usando coordenadas nativas con transformación escalable
+        """
+        documento = ContratoVariables.objects.get(id=documento_id)
+        input_pdf_path = documento.archivo_pdf.path
+        
+        reader = PdfReader(open(input_pdf_path, "rb"))
+        writer = PdfWriter()
+        
+        BASE_FONT_SIZE = 9
+        
+        def calcular_offsets_escalables(page_width, page_height, font_size):
+            REFERENCE_WIDTH = 612.0
+            REFERENCE_HEIGHT = 792.0
+            BASE_OFFSET_X = -8
+            BASE_OFFSET_Y = -15.2
+            
+            offset_x = (page_width / REFERENCE_WIDTH) * BASE_OFFSET_X
+            offset_y = (page_height / REFERENCE_HEIGHT) * BASE_OFFSET_Y
+            font_baseline = font_size * 0.3
+            
+            return {
+                'offset_x': offset_x,
+                'offset_y': offset_y,
+                'font_baseline': font_baseline
+            }
+        
+        variables_por_pagina = {}
+        for variable_data in documento.variables:
+            nombre_variable = variable_data.get('nombre')
+            for ubicacion in variable_data.get('ubicaciones', []):
+                pagina = ubicacion.get('pagina', 1)
+                if pagina not in variables_por_pagina:
+                    variables_por_pagina[pagina] = []
+                
+                variable_info = {
+                    'nombre': nombre_variable,
+                    'posX': ubicacion.get('posX', 0),
+                    'posY': ubicacion.get('posY', 0)
+                }
+                variables_por_pagina[pagina].append(variable_info)
+        
+        for page_num in range(len(reader.pages)):
+            ui_page_num = page_num + 1
+            page = reader.pages[page_num]
+            
+            if ui_page_num in variables_por_pagina:
+                packet = io.BytesIO()
+                page_width = float(page.mediabox.width)
+                page_height = float(page.mediabox.height)
+                
+                offsets = calcular_offsets_escalables(page_width, page_height, BASE_FONT_SIZE)
+                can = canvas.Canvas(packet, pagesize=(page_width, page_height))
+                
+                campos_centrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 
+                                'nacionalidad', 'f_ingreso', 'f_termino']
+                
+                for variable in variables_por_pagina[ui_page_num]:
+                    nombre = variable['nombre']
+                    if nombre in datos_variables and datos_variables[nombre]:
+                        frontend_x = variable['posX']
+                        frontend_y = variable['posY']
+                        
+                        pdf_x = frontend_x + offsets['offset_x']
+                        pdf_y = page_height - frontend_y + offsets['offset_y'] + offsets['font_baseline']
+                        
+                        if nombre == 'rut':
+                            pdf_x += offsets['offset_x'] * 0.5
+                        elif nombre == 'nombre':
+                            pdf_x += offsets['offset_x'] * 0.1
+                        
+                        valor = str(datos_variables[nombre])
+                        can.setFont("Helvetica", BASE_FONT_SIZE)
+                        
+                        is_centered = nombre in campos_centrados
+                        if is_centered:
+                            text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
+                            can.drawString(pdf_x - (text_width/2), pdf_y, valor)
+                        else:
+                            can.drawString(pdf_x, pdf_y, valor)
+                
+                can.save()
+                packet.seek(0)
+                
+                overlay = PdfReader(packet)
+                page.merge_page(overlay.pages[0])
+            
+            writer.add_page(page)
+        
+        buffer = io.BytesIO()
+        writer.write(buffer)
+        buffer.seek(0)
+        
+        return buffer
+
+class ListarDocumentosAPIView(APIView):
+    """
+    Vista para listar documentos de contrato filtrados por tipo
+    """
+    
+    def get(self, request, *args, **kwargs):
+        """
+        GET /api_listar-documentos/?tipo=CHILENO
+        GET /api_listar-documentos/?tipo=EXTRANJERO
+        """
+        try:
+            tipo = request.query_params.get('tipo', None)
+            holding_id = request.query_params.get('holding', None)
+            
+            if not tipo:
+                return Response({
+                    "error": "Se requiere el parámetro 'tipo' (CHILENO o EXTRANJERO)"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if tipo not in ['CHILENO', 'EXTRANJERO']:
+                return Response({
+                    "error": "El tipo debe ser 'CHILENO' o 'EXTRANJERO'"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Filtrar documentos
+            queryset = ContratoVariables.objects.filter(
+                tipo=tipo,
+                activo=True
+            )
+            
+            # Si se proporciona holding_id, filtrar por holding
+            if holding_id:
+                queryset = queryset.filter(holding_id=holding_id)
+            else:
+                # Si no, usar el holding del usuario autenticado
+                queryset = queryset.filter(holding=request.user.holding)
+            
+            # Serializar resultados
+            documentos = []
+            for doc in queryset:
+                documentos.append({
+                    'id': doc.id,
+                    'nombre': doc.nombre,
+                    'tipo': doc.tipo,
+                    'fecha_creacion': doc.fecha_creacion.strftime('%Y-%m-%d'),
+                    'activo': doc.activo,
+                    'cantidad_variables': len(doc.variables) if doc.variables else 0
+                })
+            
+            return Response(documentos, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error al listar documentos: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

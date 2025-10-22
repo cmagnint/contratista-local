@@ -41,14 +41,17 @@ class MotherLayoutState extends State<MotherLayout> {
   void goToPreContratacion() async {
     try {
       String? holding = await storage.read(key: 'holding');
+      // CAMBIO: Agregar parámetro pre_contratacion=true
       final response = await ApiService().get(
-        'folio_comercial/?holding=$holding',
+        'folio_comercial/?holding=$holding&pre_contratacion=true',
       );
       final folios = (jsonDecode(response.body) as List)
           .map((e) => e as Map<String, dynamic>)
           .toList();
       loggerGlobal.d(folios);
+
       if (mounted) {
+        // IMPORTANTE: Verificar si no hay folios y mostrar diálogo
         if (folios.isEmpty) {
           _showNoFoliosDialog();
         } else {

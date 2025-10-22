@@ -1,3 +1,4 @@
+//afp.component.ts
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';

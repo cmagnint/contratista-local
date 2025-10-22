@@ -1159,48 +1159,6 @@ class HoraExtraordinaria(models.Model):
             models.Index(fields=['trabajador', 'fecha']),  # Optimiza consultas por trabajador y fecha
         ]
 
-#----------------MODELOS PARA EL LIBRO DE REMUNERACION ELECTRONICO------------------------------------------
-
-class CalibrationSettings(models.Model):
-    # Relaciones
-    documento = models.ForeignKey(ContratoVariables, on_delete=models.CASCADE, related_name='calibraciones')
-    
-    # Identificación
-    nombre = models.CharField(max_length=100)
-    activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    
-    # Parámetros de transformación
-    escala_x = models.FloatField(default=0.72)
-    escala_y = models.FloatField(default=0.72)
-    offset_x = models.IntegerField(default=0)
-    offset_y = models.IntegerField(default=0)
-    invertir_y = models.BooleanField(default=True)
-    
-    # Metadatos
-    tamaño_pdf_ancho = models.IntegerField(null=True, blank=True)
-    tamaño_pdf_alto = models.IntegerField(null=True, blank=True)
-    
-    class Meta:
-        db_table = 'calibraciones_pdf'
-        unique_together = [['documento', 'nombre']]
-    
-    def __str__(self):
-        return f"Calibración de {self.documento.nombre}: {self.nombre}"
-    
-    def aplicar_transformacion(self, x, y, altura_pagina):
-        """
-        Aplica la transformación de coordenadas usando los parámetros guardados
-        """
-        pdf_x = x * self.escala_x + self.offset_x
-        
-        if self.invertir_y:
-            pdf_y = altura_pagina - (y * self.escala_y) + self.offset_y
-        else:
-            pdf_y = y * self.escala_y + self.offset_y
-            
-        return pdf_x, pdf_y
-    
 class CausalFiniquito(models.Model):
     id = models.AutoField(primary_key=True)
     codigo = models.CharField(max_length=10)

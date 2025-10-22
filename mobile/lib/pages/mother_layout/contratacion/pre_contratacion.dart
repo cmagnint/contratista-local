@@ -58,7 +58,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
       );
 
       setState(() {
-        // Los fundos y labores sí llegan como arrays
+        // Los fundos y labores llegan correctamente como arrays
         _fundos = folio['fundos'] != null
             ? List<Map<String, dynamic>>.from(folio['fundos'])
             : <Map<String, dynamic>>[];
@@ -67,47 +67,34 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
             ? List<Map<String, dynamic>>.from(folio['labores'])
             : <Map<String, dynamic>>[];
 
-        // Para transportistas, crear una lista falsa basada en el string
-        // Esto es temporal hasta que el backend envíe la estructura correcta
-        _transportistas = [];
-        if (folio['nombres_transportistas'] != null &&
-            folio['nombres_transportistas'].isNotEmpty) {
-          _transportistas = [
-            {
-              'id': 1, // ID temporal
-              'nombre': folio['nombres_transportistas'],
-              'vehiculos': [],
-            },
-          ];
-
-          // Si hay vehículos, agregarlos
-          if (folio['nombres_vehiculos'] != null &&
-              folio['nombres_vehiculos'].isNotEmpty) {
-            _transportistas[0]['vehiculos'] = [
-              {
-                'id': 1, // ID temporal
-                'patente': folio['nombres_vehiculos']
-                    .split(' ')
-                    .last
-                    .replaceAll(RegExp(r'[()]'), ''), // Extraer patente
-                'modelo': folio['nombres_vehiculos']
-                    .split(' ')
-                    .first, // Extraer modelo
-                'nombre': folio['nombres_vehiculos'],
-              },
-            ];
-          }
-        }
+        // NUEVA LÓGICA: Los transportistas ahora llegan correctamente estructurados
+        _transportistas = folio['transportistas'] != null
+            ? List<Map<String, dynamic>>.from(folio['transportistas'])
+            : <Map<String, dynamic>>[];
 
         // Reset selections
         _selectedFundo = null;
         _selectedLabor = null;
         _selectedTransportista = null;
         _selectedVehiculo = null;
-        _selectedCasa = null;
 
         // Reset vehiculos list
         _vehiculos = [];
+
+        // ✨ AUTO-SELECCIÓN: Si solo hay 1 opción, seleccionarla automáticamente
+        if (_fundos.length == 1) {
+          _selectedFundo = _fundos[0]['id'].toString();
+        }
+
+        if (_labores.length == 1) {
+          _selectedLabor = _labores[0]['id'].toString();
+        }
+
+        if (_transportistas.length == 1) {
+          _selectedTransportista = _transportistas[0]['id'].toString();
+          // Cargar vehículos del transportista auto-seleccionado
+          _updateVehiculos();
+        }
       });
     } else {
       setState(() {
@@ -135,6 +122,11 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
             ? List<Map<String, dynamic>>.from(transportista['vehiculos'])
             : <Map<String, dynamic>>[];
         _selectedVehiculo = null;
+
+        // ✨ AUTO-SELECCIÓN: Si solo hay 1 vehículo, seleccionarlo automáticamente
+        if (_vehiculos.length == 1) {
+          _selectedVehiculo = _vehiculos[0]['id'].toString();
+        }
       });
     } else {
       setState(() {
@@ -161,6 +153,11 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
           _casas,
           responseData.map((casa) => casa['id'] as int).toList(),
         );
+
+        // ✨ AUTO-SELECCIÓN: Si solo hay 1 casa, seleccionarla automáticamente
+        if (_casas.length == 1) {
+          _selectedCasa = _casas[0];
+        }
       });
     } else {
       if (mounted) {
@@ -185,6 +182,13 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
       final List<dynamic> responseData = jsonDecode(response.body);
       setState(() {
         _supervisores = List<Map<String, dynamic>>.from(responseData);
+
+        // ✨ AUTO-SELECCIÓN: Si solo hay 1 supervisor, seleccionarlo automáticamente
+        if (_supervisores.length == 1) {
+          _selectedSupervisor = _supervisores[0]['id'].toString();
+          // Cargar jefes de cuadrilla del supervisor auto-seleccionado
+          _fetchJefesCuadrilla(_selectedSupervisor!);
+        }
       });
     } else {
       if (mounted) {
@@ -213,6 +217,11 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         setState(() {
           _jefesCuadrilla = List<Map<String, dynamic>>.from(responseData);
           _selectedJefeCuadrilla = null;
+
+          // ✨ AUTO-SELECCIÓN: Si solo hay 1 jefe de cuadrilla, seleccionarlo automáticamente
+          if (_jefesCuadrilla.length == 1) {
+            _selectedJefeCuadrilla = _jefesCuadrilla[0]['id'].toString();
+          }
         });
       } else {
         // Si es 404 u otro error, simplemente dejamos la lista vacía
