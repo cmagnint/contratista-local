@@ -119,6 +119,33 @@
         </div>
       </div>
 
+      <!-- ✅ NUEVO - Dropdown de Horarios -->
+      <div class="dropdown-container">
+        <h3>Horarios del Folio:</h3>
+        <div class="dropdown">
+          <button 
+            type="button"
+            class="dropdown-button" 
+            (click)="toggleDropdownHorarios(); $event.stopPropagation()">
+            SELECCIONAR HORARIOS
+          </button>
+          <div 
+            class="dropdown-content" 
+            [class.show]="dropdownOpenHorarios"
+            (click)="$event.stopPropagation()">
+            <ng-container *ngFor="let horario of horariosCargados">
+              <label>
+                <input 
+                  type="checkbox"
+                  [checked]="selectedHorariosNew.includes(horario.id)"
+                  (change)="toggleSelection(horario.id, selectedHorariosNew, horariosCargados)">
+                {{ horario.nombre }} ({{ horario.jornada }} hrs)
+              </label>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+
       <!-- Selección de Transportista -->
       <div class="dropdown-container">
         <h3>Seleccionar Transportista:</h3>
@@ -300,6 +327,33 @@
         </div>
       </div>
 
+      <!-- ✅ NUEVO - Dropdown de Horarios en MODIFICAR -->
+      <div class="dropdown-container">
+        <h3>Horarios del Folio:</h3>
+        <div class="dropdown">
+          <button 
+            type="button"
+            class="dropdown-button" 
+            (click)="toggleDropdownHorarios(); $event.stopPropagation()">
+            SELECCIONAR HORARIOS
+          </button>
+          <div 
+            class="dropdown-content" 
+            [class.show]="dropdownOpenHorarios"
+            (click)="$event.stopPropagation()">
+            <ng-container *ngFor="let horario of horariosCargados">
+              <label>
+                <input 
+                  type="checkbox"
+                  [checked]="selectedHorariosNew.includes(horario.id)"
+                  (change)="toggleSelection(horario.id, selectedHorariosNew, horariosCargados)">
+                {{ horario.nombre }} ({{ horario.jornada }} hrs)
+              </label>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+
       <!-- Selección de Transportista -->
       <div class="dropdown-container">
         <h3>Seleccionar Transportista:</h3>
@@ -437,6 +491,13 @@
     <ng-container matColumnDef="fecha_termino_contrato">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Fecha Término Contrato</th>
       <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.fecha_termino_contrato }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="horarios">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Horarios</th>
+      <td mat-cell *matCellDef="let folio" class="mat-cell">
+        {{ folio.nombres_horarios || 'Sin horarios' }}
+      </td>
     </ng-container>
 
     <ng-container matColumnDef="valor_pago_trabajador">

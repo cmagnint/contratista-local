@@ -25,19 +25,17 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
   String? _selectedTransportista;
   String? _selectedVehiculo;
   String? _selectedCasa;
-
-  // Nuevas variables para supervisión
   String? _selectedSupervisor;
   String? _selectedJefeCuadrilla;
+  String? _selectedHorario; // ✅ NUEVO
 
   // Listas existentes
   List<Map<String, dynamic>> _fundos = [];
   List<Map<String, dynamic>> _labores = [];
   List<Map<String, dynamic>> _transportistas = [];
   List<Map<String, dynamic>> _vehiculos = [];
+  List<Map<String, dynamic>> _horarios = []; // ✅ NUEVO
   List<String> _casas = [];
-
-  // Nuevas listas para supervisión
   List<Map<String, dynamic>> _supervisores = [];
   List<Map<String, dynamic>> _jefesCuadrilla = [];
 
@@ -50,7 +48,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
     _fetchSupervisores();
   }
 
-  // Métodos existentes
   void _updateSelections() {
     if (_selectedFolio != null) {
       final folio = widget.folios.firstWhere(
@@ -58,7 +55,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
       );
 
       setState(() {
-        // Los fundos y labores llegan correctamente como arrays
         _fundos = folio['fundos'] != null
             ? List<Map<String, dynamic>>.from(folio['fundos'])
             : <Map<String, dynamic>>[];
@@ -67,9 +63,14 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
             ? List<Map<String, dynamic>>.from(folio['labores'])
             : <Map<String, dynamic>>[];
 
-        // NUEVA LÓGICA: Los transportistas ahora llegan correctamente estructurados
         _transportistas = folio['transportistas'] != null
             ? List<Map<String, dynamic>>.from(folio['transportistas'])
+            : <Map<String, dynamic>>[];
+
+        _horarios =
+            folio['horarios'] !=
+                null // ✅ NUEVO
+            ? List<Map<String, dynamic>>.from(folio['horarios'])
             : <Map<String, dynamic>>[];
 
         // Reset selections
@@ -77,11 +78,11 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         _selectedLabor = null;
         _selectedTransportista = null;
         _selectedVehiculo = null;
+        _selectedHorario = null; // ✅ NUEVO
 
-        // Reset vehiculos list
         _vehiculos = [];
 
-        // ✨ AUTO-SELECCIÓN: Si solo hay 1 opción, seleccionarla automáticamente
+        // Auto-selección
         if (_fundos.length == 1) {
           _selectedFundo = _fundos[0]['id'].toString();
         }
@@ -92,8 +93,12 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
 
         if (_transportistas.length == 1) {
           _selectedTransportista = _transportistas[0]['id'].toString();
-          // Cargar vehículos del transportista auto-seleccionado
           _updateVehiculos();
+        }
+
+        if (_horarios.length == 1) {
+          // ✅ NUEVO
+          _selectedHorario = _horarios[0]['id'].toString();
         }
       });
     } else {
@@ -102,10 +107,12 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         _labores = [];
         _transportistas = [];
         _vehiculos = [];
+        _horarios = []; // ✅ NUEVO
         _selectedFundo = null;
         _selectedLabor = null;
         _selectedTransportista = null;
         _selectedVehiculo = null;
+        _selectedHorario = null; // ✅ NUEVO
         _selectedCasa = null;
       });
     }
@@ -117,13 +124,11 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         (t) => t['id'].toString() == _selectedTransportista,
       );
       setState(() {
-        // Verificar si 'vehiculos' existe y no es nulo
         _vehiculos = transportista['vehiculos'] != null
             ? List<Map<String, dynamic>>.from(transportista['vehiculos'])
             : <Map<String, dynamic>>[];
         _selectedVehiculo = null;
 
-        // ✨ AUTO-SELECCIÓN: Si solo hay 1 vehículo, seleccionarlo automáticamente
         if (_vehiculos.length == 1) {
           _selectedVehiculo = _vehiculos[0]['id'].toString();
         }
@@ -154,7 +159,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
           responseData.map((casa) => casa['id'] as int).toList(),
         );
 
-        // ✨ AUTO-SELECCIÓN: Si solo hay 1 casa, seleccionarla automáticamente
         if (_casas.length == 1) {
           _selectedCasa = _casas[0];
         }
@@ -172,7 +176,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
     }
   }
 
-  // Nuevos métodos para supervisión
   Future<void> _fetchSupervisores() async {
     ApiService apiService = ApiService();
     String? holding = await storage.read(key: 'holding');
@@ -183,10 +186,8 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
       setState(() {
         _supervisores = List<Map<String, dynamic>>.from(responseData);
 
-        // ✨ AUTO-SELECCIÓN: Si solo hay 1 supervisor, seleccionarlo automáticamente
         if (_supervisores.length == 1) {
           _selectedSupervisor = _supervisores[0]['id'].toString();
-          // Cargar jefes de cuadrilla del supervisor auto-seleccionado
           _fetchJefesCuadrilla(_selectedSupervisor!);
         }
       });
@@ -218,26 +219,21 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
           _jefesCuadrilla = List<Map<String, dynamic>>.from(responseData);
           _selectedJefeCuadrilla = null;
 
-          // ✨ AUTO-SELECCIÓN: Si solo hay 1 jefe de cuadrilla, seleccionarlo automáticamente
           if (_jefesCuadrilla.length == 1) {
             _selectedJefeCuadrilla = _jefesCuadrilla[0]['id'].toString();
           }
         });
       } else {
-        // Si es 404 u otro error, simplemente dejamos la lista vacía
         setState(() {
           _jefesCuadrilla = [];
           _selectedJefeCuadrilla = null;
         });
       }
     } catch (e) {
-      // Capturamos cualquier excepción (incluyendo el 404)
-      logger.d('ℹ️ No hay jefes de cuadrilla para este supervisor: $e');
       setState(() {
         _jefesCuadrilla = [];
         _selectedJefeCuadrilla = null;
       });
-      // NO mostramos SnackBar de error porque es normal que no haya jefes
     }
   }
 
@@ -248,7 +244,9 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         _selectedTransportista != null &&
         _selectedVehiculo != null &&
         _selectedCasa != null &&
-        _selectedSupervisor != null) {
+        _selectedSupervisor != null &&
+        _selectedHorario != null) {
+      // ✅ NUEVO - Validación obligatoria
       widget.onContinue({
         'folio': _selectedFolio,
         'fundo': _selectedFundo,
@@ -257,7 +255,8 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         'vehiculo': _selectedVehiculo,
         'casa': _casaMap[_selectedCasa].toString(),
         'supervisor': _selectedSupervisor,
-        'jefe_cuadrilla': _selectedJefeCuadrilla, // Opcional, puede ser null
+        'jefe_cuadrilla': _selectedJefeCuadrilla,
+        'horario': _selectedHorario, // ✅ NUEVO
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -338,6 +337,27 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ✅ NUEVO - Dropdown de Horario
+              DropdownButton<String>(
+                value: _selectedHorario,
+                hint: const Text('Seleccione Horario (Obligatorio)'),
+                isExpanded: true,
+                items: _horarios.map((horario) {
+                  return DropdownMenuItem<String>(
+                    value: horario['id'].toString(),
+                    child: Text(
+                      '${horario['nombre']} (${horario['jornada']} hrs)',
+                    ),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedHorario = newValue;
+                  });
+                },
+              ),
+              const SizedBox(height: 30),
+
               // Dropdown de Transportista
               DropdownButton<String>(
                 value: _selectedTransportista,
@@ -400,7 +420,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
-              // Dropdown de Supervisor (Nuevo)
+              // Dropdown de Supervisor
               DropdownButton<String>(
                 value: _selectedSupervisor,
                 hint: const Text('Seleccione Supervisor (Obligatorio)'),
@@ -427,13 +447,13 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
-              // Dropdown de Jefe de Cuadrilla (Nuevo y Condicional)
+              // Dropdown de Jefe de Cuadrilla
               if (_selectedSupervisor != null) ...[
                 DropdownButton<String>(
                   value: _selectedJefeCuadrilla,
                   hint: Text(
                     _jefesCuadrilla.isEmpty
-                        ? 'No hay jefes de cuadrilla disponibles para este supervisor'
+                        ? 'No hay jefes de cuadrilla disponibles'
                         : 'Seleccione Jefe de Cuadrilla (Opcional)',
                     style: TextStyle(
                       color: _jefesCuadrilla.isEmpty ? Colors.grey : null,
@@ -470,7 +490,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                           }),
                         ],
                   onChanged: _jefesCuadrilla.isEmpty
-                      ? null // Deshabilita el dropdown si no hay jefes
+                      ? null
                       : (String? newValue) {
                           setState(() {
                             _selectedJefeCuadrilla = newValue == ''

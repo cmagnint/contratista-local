@@ -31,6 +31,7 @@ export class FolioComercialComponent implements OnInit {
     laboresModal: false,
     transportistasModal: false,
     vehiculosModal: false,
+    horariosModal: false,
   };
 
   public holding: string = ''; 
@@ -42,6 +43,7 @@ export class FolioComercialComponent implements OnInit {
     ids_fundos_seleccionadosNew: [],
     ids_transportistas_seleccionadosNew: [],
     ids_vehiculos_seleccionadosNew: [],
+    ids_horarios_seleccionadosNew: [],
     fecha_inicio_contratoNew: new Date(),
     fecha_termino_contratoNew: new Date(),
     valor_pago_trabajadorNew: 0,
@@ -54,6 +56,7 @@ export class FolioComercialComponent implements OnInit {
   selectedLaboresNew: any[] = [];
   selectedTransportistasNew: any[] = [];
   selectedVehiculosNew: any[] = [];
+  selectedHorariosNew: any[] = [];
 
   errorMessage!: string;
   selectedRows: any[] = [];
@@ -61,6 +64,7 @@ export class FolioComercialComponent implements OnInit {
   dropdownOpenLabores: boolean = false;
   dropdownOpenTransportistas: boolean = false;
   dropdownOpenVehiculos: boolean = false;
+  dropdownOpenHorarios: boolean = false;
   public todasSeleccionadas: boolean = false;
   public dropdownOpenCliente: boolean = false;
 
@@ -71,8 +75,9 @@ export class FolioComercialComponent implements OnInit {
   public transportistasCargados: any[] = [];
   public vehiculosCargados: any[] = [];
   public choferesCargados: any[] = [];
+  public horariosCargados: any[] = [];
 
-  columnasDesplegadas = ['codigo','cliente', 'fundos', 'labores', 'transportistas', 'vehiculos', 'fecha_inicio_contrato', 
+  columnasDesplegadas = ['codigo','cliente', 'fundos', 'labores', 'transportistas', 'vehiculos',  'horarios','fecha_inicio_contrato', 
   'fecha_termino_contrato', 'valor_pago_trabajador', 'valor_facturacion','estado'];
   
   public deletedRow: any[] = [];
@@ -94,6 +99,7 @@ export class FolioComercialComponent implements OnInit {
       this.cargarEmpresas();
       this.cargarChoferes();
       this.cargarVehiculos();
+      this.cargarHorarios();
     }
   }
 
@@ -120,8 +126,9 @@ export class FolioComercialComponent implements OnInit {
     let data = {
       holding: parseInt(this.holding),
       cliente: this.selectedClienteId,
-      fundos_ids: this.selectedFundosNew,   // Changed from fundos
-      labores_ids: this.selectedLaboresNew, // Changed from labores
+      fundos_ids: this.selectedFundosNew,
+      labores_ids: this.selectedLaboresNew,
+      horarios_ids: this.selectedHorariosNew, 
       
       // Format transportistas data properly
       transportistas_data: this.selectedTransportistasNew.map(transportistaId => ({
@@ -166,13 +173,13 @@ export class FolioComercialComponent implements OnInit {
   }
 
   modificarFolio(): void {
-    // Crear el objeto con la estructura correcta
     const data = {
       id: this.folioSeleccionado.id_folio_seleccionadoNew,
-      holding: parseInt(this.holding), // ✅ AGREGAR holding aquí
+      holding: parseInt(this.holding),
       cliente: this.selectedClienteId,
       fundos_ids: this.selectedFundosNew,
       labores_ids: this.selectedLaboresNew,
+      horarios_ids: this.selectedHorariosNew, // ✅ NUEVO
       transportistas_data: this.selectedTransportistasNew.map(transportistaId => ({
         id: transportistaId,
         vehiculos: this.selectedVehiculosNew
@@ -190,7 +197,7 @@ export class FolioComercialComponent implements OnInit {
       valor_facturacion: this.folioSeleccionado.valor_facturacionNew
     };
 
-    console.log('Datos a enviar:', data); // Para depuración
+    console.log('Datos a enviar:', data);
 
     this.apiService.put('folio_comercial/', data).subscribe({
       next: (response) => {
@@ -338,6 +345,21 @@ export class FolioComercialComponent implements OnInit {
     });
   }
 
+  cargarHorarios(): void {
+  this.apiService.get(`horarios/?holding=${this.holding}`).subscribe({
+    next: (response) => {
+      this.horariosCargados = response.map((horario: any) => ({
+        id: horario.id,
+        nombre: horario.nombre,
+        jornada: horario.jornada
+      }));
+    },
+    error: (error) => {
+      console.error('Error al recibir los horarios:', error);
+    }
+  });
+}
+
   isSelected(row: any): boolean {
     return this.selectedRows.some(r => r.id === row.id);
   }
@@ -383,6 +405,9 @@ export class FolioComercialComponent implements OnInit {
         } else {
             this.selectedVehiculosNew = [];
         }
+
+        this.selectedHorariosNew = lastSelectedRow.horarios ? 
+        lastSelectedRow.horarios.map((horario: any) => horario.id) : [];
         
         // Actualizar el resto de datos del folio
         this.folioSeleccionado = {
@@ -409,21 +434,22 @@ export class FolioComercialComponent implements OnInit {
     this.selectedLaboresNew = [];
     this.selectedTransportistasNew = [];
     this.selectedVehiculosNew = [];
+    this.selectedHorariosNew = []; // ✅ NUEVO
     
-    // Reset folio selection object
     this.folioSeleccionado = {
-        id_folio_seleccionadoNew: 0,
-        id_cliente_seleccionadoNew: 0,
-        ids_labores_seleccionadasNew: [],
-        ids_fundos_seleccionadosNew: [],
-        ids_transportistas_seleccionadosNew: [],
-        ids_vehiculos_seleccionadosNew: [],
-        fecha_inicio_contratoNew: new Date(),
-        fecha_termino_contratoNew: new Date(),
-        valor_pago_trabajadorNew: 0,
-        valor_facturacionNew: 0,
-        estado_folio_seleccionado: true,
-    };
+      id_folio_seleccionadoNew: 0,
+      id_cliente_seleccionadoNew: 0,
+      ids_labores_seleccionadasNew: [],
+      ids_fundos_seleccionadosNew: [],
+      ids_transportistas_seleccionadosNew: [],
+      ids_vehiculos_seleccionadosNew: [],
+      ids_horarios_seleccionadosNew: [], // ✅ NUEVO
+      fecha_inicio_contratoNew: new Date(),
+      fecha_termino_contratoNew: new Date(),
+      valor_pago_trabajadorNew: 0,
+      valor_facturacionNew: 0,
+      estado_folio_seleccionado: true,
+    }
 
     // Reset all dropdown states
     this.dropdownOpen = false;
@@ -468,6 +494,10 @@ export class FolioComercialComponent implements OnInit {
 
   toggleDropdownVehiculos() {
     this.dropdownOpenVehiculos = !this.dropdownOpenVehiculos;
+  }
+
+  toggleDropdownHorarios() {
+    this.dropdownOpenHorarios = !this.dropdownOpenHorarios;
   }
 
   formatNumber(event: Event): void {

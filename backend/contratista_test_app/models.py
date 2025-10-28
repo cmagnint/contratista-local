@@ -418,6 +418,18 @@ class Labores(models.Model):
     class Meta:
         db_table = 'labores'
 
+class Horarios(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    nombre = models.CharField(max_length=100, blank=True, null=True) 
+    jornada = models.FloatField()
+
+    class Meta:
+        db_table = 'horarios'
+    
+    def __str__(self):
+        return f"{self.nombre} - {self.jornada} hrs"
+    
 class FolioComercial(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
@@ -426,6 +438,7 @@ class FolioComercial(models.Model):
     labores = models.ManyToManyField(Labores, blank=True)
     transportistas = models.ManyToManyField(EmpresasTransporte, related_name='transportistas_folio', blank=True)
     vehiculos = models.ManyToManyField(VehiculosTransporte, related_name='vehiculos_folio', blank=True)
+    horarios = models.ManyToManyField(Horarios, related_name='folios', blank=True)
     fecha_inicio_contrato = models.DateField()
     fecha_termino_contrato = models.DateField()
     valor_pago_trabajador = models.IntegerField()
@@ -581,18 +594,6 @@ class JefesDeCuadrilla(models.Model):
         
     def __str__(self):
         return f"Jefe de Cuadrilla: {self.usuario.rut if self.usuario else 'Sin usuario'}"
-
-class Horarios(models.Model):
-    id = models.AutoField(primary_key=True)
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    nombre = models.CharField(max_length=100, blank=True, null=True) 
-    jornada = models.FloatField()
-
-    class Meta:
-        db_table = 'horarios'
-    
-    def __str__(self):
-        return f"{self.nombre} - {self.jornada} hrs"
 
 class CodigoQR(models.Model):
     id = models.AutoField(primary_key=True)
