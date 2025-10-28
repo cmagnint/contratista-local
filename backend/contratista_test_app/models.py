@@ -585,10 +585,14 @@ class JefesDeCuadrilla(models.Model):
 class Horarios(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    nombre = models.CharField(max_length=100, blank=True, null=True) 
     jornada = models.FloatField()
 
     class Meta:
         db_table = 'horarios'
+    
+    def __str__(self):
+        return f"{self.nombre} - {self.jornada} hrs"
 
 class CodigoQR(models.Model):
     id = models.AutoField(primary_key=True)
@@ -2453,3 +2457,36 @@ class RegistroEgreso(models.Model):
         self.monto_neto_cubierto = (self.monto_distribuido * self.porcentaje_neto) / 100
         self.monto_iva_cubierto = (self.monto_distribuido * self.porcentaje_iva) / 100
         super().save(*args, **kwargs)
+
+class RegistroAsistencia(models.Model):
+    """
+    Modelo para registrar la asistencia diaria de los trabajadores.
+    """
+    ESTADO_CHOICES = [
+        ('A', 'Asistente'),
+        ('F', 'Falta'),
+        ('PN', 'Permiso No Pagado'),
+        ('PR', 'Permiso Remunerado'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.CASCADE, related_name='registros_asistencia')
+    supervisor = models.ForeignKey(Supervisores, on_delete=models.SET_NULL, null=True, related_name='asistencias_registradas')
+    fecha_asistencia = models.DateField()
+    estado = models.CharField(max_length=2, choices=ESTADO_CHOICES, default='A')
+    horas_registradas = models.DecimalField(max_digits=4, decimal_places=2, default=0.0)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    modificado_por = models.ForeignKey(Usuarios, on_delete=models.SET_NULL, null=True, related_name='asistencias_modificadas')
+    observaciones = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'registro_asistencia'
+        unique_together = [['trabajador', 'fecha_asistencia']]
+        indexes = [
+            models.Index(fields=['trabajador', 'fecha_asistencia']),
+            models.Index(fields=['holding', 'fecha_asistencia']),
+        ]
+        
+    def __str__(self):
+        return f"{self.trabajador.nombres} - {self.fecha_asistencia} - {self.estado}"

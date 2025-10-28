@@ -4,6 +4,7 @@ import 'package:contratista/pages/mother_layout/contratacion/pre_contratacion.da
 import 'package:contratista/pages/mother_layout/contratacion/asociar_qr.dart';
 import 'package:contratista/pages/mother_layout/cosecha/ingresar_produccion.dart';
 import 'package:contratista/pages/mother_layout/formar_cuadrillas.dart';
+import 'package:contratista/pages/mother_layout/mano_obra/asistencia.dart'; // ✅ AGREGADO
 import 'package:contratista/services/contratista_api_service.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +29,8 @@ class MotherLayoutState extends State<MotherLayout> {
     const WorkerQRAssociationScreen(), // _selectedIndex = 2 ASIGNAR QR
     const WorkerProductionScreen(), // _selectedIndex = 3 INGRESAR PRODUCCION
     const AdministrarCuadrillas(), // _selectedIndex = 4 ADMINISTRAR CUADRILLAS
-    const PendingEnrollmentsScreen(), // _selectedIndex = 5
+    const PendingEnrollmentsScreen(), // _selectedIndex = 5 ENROLAMIENTOS PENDIENTES
+    Container(), // _selectedIndex = 6 ASISTENCIA ✅ AGREGADO
   ];
 
   @override
@@ -37,11 +39,9 @@ class MotherLayoutState extends State<MotherLayout> {
   }
 
   //CONTRATACION
-
   void goToPreContratacion() async {
     try {
       String? holding = await storage.read(key: 'holding');
-      // CAMBIO: Agregar parámetro pre_contratacion=true
       final response = await ApiService().get(
         'folio_comercial/?holding=$holding&pre_contratacion=true',
       );
@@ -51,7 +51,6 @@ class MotherLayoutState extends State<MotherLayout> {
       loggerGlobal.d(folios);
 
       if (mounted) {
-        // IMPORTANTE: Verificar si no hay folios y mostrar diálogo
         if (folios.isEmpty) {
           _showNoFoliosDialog();
         } else {
@@ -63,7 +62,7 @@ class MotherLayoutState extends State<MotherLayout> {
                   _pages[1] = ContratacionScreen(
                     initialData: initialData,
                     onBack: () {
-                      goToPreContratacion(); // Vuelve a la pantalla de precontratación
+                      goToPreContratacion();
                     },
                   );
                 });
@@ -77,6 +76,99 @@ class MotherLayoutState extends State<MotherLayout> {
       if (mounted) {
         _showDialogWithMessage(context, 'Error al obtener los folios: $e');
       }
+    }
+  }
+
+  // ✅ NUEVA FUNCIÓN PARA ASISTENCIA
+  void goToAsistencia() async {
+    try {
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // ✅ CAMBIO: Usar supervisor_id en lugar de rut
+      if (userInfo.idSupervisor == null || userInfo.idSupervisor == 0) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          _showDialogWithMessage(
+            context,
+            'No tienes permisos de supervisor. Contacta al administrador.',
+          );
+        }
+        return;
+      }
+
+      String? holding = await storage.read(key: 'holding');
+
+      // ✅ CAMBIO: Enviar supervisor_id
+      final response = await apiService.get(
+        'gestion_asistencia/?supervisor_id=${userInfo.idSupervisor}&holding=$holding',
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Cerrar loading
+      }
+
+      final data = jsonDecode(response.body);
+
+      if (mounted) {
+        if (data['acceso_asistencia'] == false) {
+          _showDialogWithMessage(
+            context,
+            'No tienes acceso a la funcionalidad de asistencia. Contacta al administrador.',
+          );
+        } else if (data['workers'] == null ||
+            (data['workers'] as List).isEmpty) {
+          _showDialogWithMessage(
+            context,
+            'No hay trabajadores pendientes de asistencia para el día de hoy.',
+          );
+        } else {
+          // Procesar datos de trabajadores
+          var workers = data['workers'] as List;
+
+          List<dynamic> workerNames = workers.map((w) => w['nombre']).toList();
+
+          Map<String, int> workerRuts = {
+            for (var worker in workers)
+              worker['nombre'] as String:
+                  int.tryParse(worker['rut']?.toString() ?? '0') ?? 0,
+          };
+
+          Map<String, double> workerHours = {
+            for (var worker in workers)
+              worker['nombre'] as String:
+                  (worker['horas_registradas_hoy'] as num).toDouble(),
+          };
+
+          Map<String, int> workerIds = {
+            for (var worker in workers)
+              worker['nombre'] as String: worker['id'] as int,
+          };
+
+          setState(() {
+            _pages[6] = Asistencia(
+              workerNames: workerNames,
+              workerRuts: workerRuts,
+              workerHours: workerHours,
+              workerIds: workerIds,
+            );
+            _selectedIndex = 6;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Cerrar loading si hay error
+        _showDialogWithMessage(
+          context,
+          'Error al obtener los trabajadores: ${e.toString()}',
+        );
+      }
+      loggerGlobal.e('Error en goToAsistencia: $e');
     }
   }
 
@@ -154,11 +246,11 @@ class MotherLayoutState extends State<MotherLayout> {
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Color.fromRGBO(0, 32, 63, 1), // Azul marino oscuro
-                Color.fromRGBO(0, 74, 105, 1), // Azul petróleo
-                Color.fromRGBO(0, 119, 126, 1), // Verde azulado medio
-                Color.fromRGBO(29, 162, 133, 1), // Verde esmeralda
-                Color.fromRGBO(152, 251, 152, 1), // Verde menta claro
+                Color.fromRGBO(0, 32, 63, 1),
+                Color.fromRGBO(0, 74, 105, 1),
+                Color.fromRGBO(0, 119, 126, 1),
+                Color.fromRGBO(29, 162, 133, 1),
+                Color.fromRGBO(152, 251, 152, 1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -169,8 +261,7 @@ class MotherLayoutState extends State<MotherLayout> {
           'CONTRATISTA',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
-        automaticallyImplyLeading:
-            false, // Quitar el ícono de lista de la barra superior
+        automaticallyImplyLeading: false,
       ),
       drawer: Drawer(
         child: ListView(
@@ -180,11 +271,11 @@ class MotherLayoutState extends State<MotherLayout> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color.fromRGBO(0, 32, 63, 1), // Azul marino oscuro
-                    Color.fromRGBO(0, 74, 105, 1), // Azul petróleo
-                    Color.fromRGBO(0, 119, 126, 1), // Verde azulado medio
-                    Color.fromRGBO(29, 162, 133, 1), // Verde esmeralda
-                    Color.fromRGBO(152, 251, 152, 1), // Verde menta claro
+                    Color.fromRGBO(0, 32, 63, 1),
+                    Color.fromRGBO(0, 74, 105, 1),
+                    Color.fromRGBO(0, 119, 126, 1),
+                    Color.fromRGBO(29, 162, 133, 1),
+                    Color.fromRGBO(152, 251, 152, 1),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -253,6 +344,15 @@ class MotherLayoutState extends State<MotherLayout> {
               leading: const Icon(Icons.assignment_ind),
               title: const Text('Mano de Obra'),
               children: <Widget>[
+                // ✅ AGREGADO: ListTile de Asistencia
+                ListTile(
+                  leading: const Icon(Icons.how_to_reg),
+                  title: const Text('Asistencia'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    goToAsistencia(); // ✅ Llamar a la función
+                  },
+                ),
                 ExpansionTile(
                   leading: const Icon(Icons.person_2),
                   title: const Text('Por Persona'),
@@ -360,11 +460,11 @@ class MotherLayoutState extends State<MotherLayout> {
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color.fromRGBO(0, 32, 63, 1), // Azul marino oscuro
-                    Color.fromRGBO(0, 74, 105, 1), // Azul petróleo
-                    Color.fromRGBO(0, 119, 126, 1), // Verde azulado medio
-                    Color.fromRGBO(29, 162, 133, 1), // Verde esmeralda
-                    Color.fromRGBO(152, 251, 152, 1), // Verde menta claro
+                    Color.fromRGBO(0, 32, 63, 1),
+                    Color.fromRGBO(0, 74, 105, 1),
+                    Color.fromRGBO(0, 119, 126, 1),
+                    Color.fromRGBO(29, 162, 133, 1),
+                    Color.fromRGBO(152, 251, 152, 1),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,

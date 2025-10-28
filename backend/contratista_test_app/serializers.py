@@ -69,6 +69,7 @@ from .models import (
     RegistroEgreso,
     DocumentosChofer,
     DocumentosVehiculo,
+    RegistroAsistencia,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -1482,10 +1483,10 @@ class HorarioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Horarios
-        fields = ['id', 'holding','jornada']
+        fields = ['id', 'holding', 'nombre', 'jornada']  # ✅ AGREGADO 'nombre'
         extra_kwargs = {
-            'holding': {'write_only' : True},
-            'id':{'read_only' : True},
+            'holding': {'write_only': True},
+            'id': {'read_only': True},
         }
 
 class ProduccionTrabajadorSerializer(serializers.ModelSerializer):
@@ -3242,3 +3243,74 @@ class CartolaMovimientoSerializer(serializers.ModelSerializer):
             'banco_nombre': obj.cuenta_origen.banco.nombre,
             'tipo_cuenta': obj.cuenta_origen.tipo_cuenta
         }
+
+class RegistroAsistenciaSerializer(serializers.ModelSerializer):
+    nombre_trabajador = serializers.CharField(source='trabajador.nombres', read_only=True)
+    rut_trabajador = serializers.CharField(source='trabajador.rut', read_only=True)
+    nombre_supervisor = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = RegistroAsistencia
+        fields = [
+            'id', 'holding', 'trabajador', 'supervisor', 'fecha_asistencia',
+            'estado', 'horas_registradas', 'fecha_registro', 'modificado_por',
+            'observaciones', 'nombre_trabajador', 'rut_trabajador', 'nombre_supervisor'
+        ]
+        extra_kwargs = {
+            'holding': {'write_only': True},
+            'id': {'read_only': True},
+            'fecha_registro': {'read_only': True},
+        }
+    
+    def get_nombre_supervisor(self, obj):
+        if obj.supervisor and obj.supervisor.usuario and obj.supervisor.usuario.persona:
+            return obj.supervisor.usuario.persona.nombres
+        return None
+
+
+class TrabajadorAsistenciaSerializer(serializers.ModelSerializer):
+    """
+    Serializer para retornar trabajadores con información de asistencia del día.
+    """
+    horas_registradas_hoy = serializers.SerializerMethodField()
+    tiene_asistencia_hoy = serializers.SerializerMethodField()
+    estado_asistencia_hoy = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PersonalTrabajadores
+        fields = [
+            'id', 'nombres', 'apellidos', 'rut', 'horas_registradas_hoy',
+            'tiene_asistencia_hoy', 'estado_asistencia_hoy'
+        ]
+    
+    def get_horas_registradas_hoy(self, obj):
+        """Retorna las horas registradas hoy para este trabajador"""
+        fecha_hoy = self.context.get('fecha_hoy', timezone.now().date())
+        try:
+            asistencia = RegistroAsistencia.objects.get(
+                trabajador=obj,
+                fecha_asistencia=fecha_hoy
+            )
+            return float(asistencia.horas_registradas)
+        except RegistroAsistencia.DoesNotExist:
+            return 0.0
+    
+    def get_tiene_asistencia_hoy(self, obj):
+        """Verifica si el trabajador ya tiene asistencia registrada hoy"""
+        fecha_hoy = self.context.get('fecha_hoy', timezone.now().date())
+        return RegistroAsistencia.objects.filter(
+            trabajador=obj,
+            fecha_asistencia=fecha_hoy
+        ).exists()
+    
+    def get_estado_asistencia_hoy(self, obj):
+        """Retorna el estado de asistencia si existe"""
+        fecha_hoy = self.context.get('fecha_hoy', timezone.now().date())
+        try:
+            asistencia = RegistroAsistencia.objects.get(
+                trabajador=obj,
+                fecha_asistencia=fecha_hoy
+            )
+            return asistencia.estado
+        except RegistroAsistencia.DoesNotExist:
+            return None

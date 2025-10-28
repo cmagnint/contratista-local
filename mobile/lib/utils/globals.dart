@@ -53,6 +53,8 @@ class UserInfo {
     bodega = false;
     maquinaria = false;
     manoObra = false;
+    idSupervisor = 0; // ✅ AGREGAR AQUÍ
+    idJefeCuadrilla = 0;
   }
 }
 

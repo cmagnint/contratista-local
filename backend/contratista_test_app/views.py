@@ -137,6 +137,8 @@ from .models import (
     RegistroEgreso,
     DocumentosChofer,
     DocumentosVehiculo,
+    RegistroAsistencia,
+    
 
 )
 
@@ -571,7 +573,6 @@ class LoginAPIView(APIView):
     def _handle_jwt_authentication(self, user, request):
         """
         Genera JWT tokens y respuesta exitosa
-        ✅ Mismo código que antes
         """
         try:
             # Generar JWT tokens
@@ -583,6 +584,22 @@ class LoginAPIView(APIView):
                 redirect_to = '/super-admin'
             else:
                 redirect_to = '/fs/home'
+            
+            # ✅ BUSCAR SI EL USUARIO ES SUPERVISOR O JEFE DE CUADRILLA
+            supervisor_id = None
+            jefe_cuadrilla_id = None
+            
+            try:
+                supervisor = Supervisores.objects.get(usuario=user)
+                supervisor_id = supervisor.id
+            except Supervisores.DoesNotExist:
+                pass
+            
+            try:
+                jefe = JefesDeCuadrilla.objects.get(usuario=user)
+                jefe_cuadrilla_id = jefe.id
+            except JefesDeCuadrilla.DoesNotExist:
+                pass
             
             # Respuesta exitosa
             response_data = {
@@ -597,9 +614,19 @@ class LoginAPIView(APIView):
                 'user_type': 'SUPERADMIN' if user.is_superuser else 'ADMIN_HOLDING' if user.is_admin else 'USER_NORMAL',
                 'nombre': self._get_user_display_name(user),
                 'holding_id': user.holding.id if user.holding else None,
+                'sociedad_id': user.empresas_asignadas.first().id if user.empresas_asignadas.exists() else None,  # ✅ AGREGADO
+                
+                # ✅ NUEVOS CAMPOS PARA SUPERVISOR Y JEFE DE CUADRILLA
+                'supervisor_id': supervisor_id,
+                'jefe_cuadrilla_id': jefe_cuadrilla_id,
             }
             
             print(f"✅ Login exitoso para usuario {user.id}")
+            if supervisor_id:
+                print(f"   🎯 Supervisor ID: {supervisor_id}")
+            if jefe_cuadrilla_id:
+                print(f"   👥 Jefe de Cuadrilla ID: {jefe_cuadrilla_id}")
+            
             return Response(response_data, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -2988,16 +3015,55 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
-                        folio_comercial_id=folio_id,  # Nombre correcto del campo
+                        folio_comercial_id=folio_id,
                         labor_id=data.get('labor'),
                         fundo_id=data.get('fundo'),
-                        empresa_transporte_id=data.get('transportista'),  # Mapeo correcto
+                        empresa_transporte_id=data.get('transportista'),
                         fecha_inicio_contrato=folio.fecha_inicio_contrato,
                         fecha_termino_contrato=folio.fecha_termino_contrato,
                     )
                     print(f"✅ Contrato creado con ID: {contrato.id}")
             except Exception as e:
                 print(f"❌ Error creando contrato: {e}")
+            
+            # ====== NUEVO: REGISTRAR ASISTENCIA AUTOMÁTICA AL ENROLLAR ======
+            try:
+                if not existing_personal:  # Solo si es un trabajador nuevo (enrollamiento)
+                    fecha_hoy = timezone.now().date()
+                    
+                    # Buscar supervisor del trabajador
+                    supervisor = personal.supervisor_directo.first()
+                    
+                    # Obtener horas de jornada del holding
+                    try:
+                        horario = Horarios.objects.get(holding_id=data.get('holding'))
+                        horas_jornada = float(horario.jornada)
+                    except Horarios.DoesNotExist:
+                        horas_jornada = 9.0  # Default
+                    
+                    # Crear registro de asistencia automático
+                    asistencia, created = RegistroAsistencia.objects.get_or_create(
+                        trabajador=personal,
+                        fecha_asistencia=fecha_hoy,
+                        defaults={
+                            'holding_id': data.get('holding'),
+                            'supervisor': supervisor,
+                            'estado': 'A',  # Asistente
+                            'horas_registradas': horas_jornada,
+                            'modificado_por': request.user,
+                            'observaciones': 'Asistencia automática por enrollamiento'
+                        }
+                    )
+                    
+                    if created:
+                        print(f"✅ Asistencia automática creada para {personal.nombres}")
+                    else:
+                        print(f"ℹ️ Ya existía asistencia para {personal.nombres} en la fecha {fecha_hoy}")
+                        
+            except Exception as e:
+                print(f"❌ Error creando asistencia automática: {e}")
+                # No falla la transacción si falla la asistencia
+            # ================================================================
             
             # Delete old images if updated
             if existing_personal:
@@ -3007,38 +3073,30 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     self.delete_old_file(old_back_image)
                 if 'firma' in request.FILES:
                     self.delete_old_file(old_signature)
-
-            # Handle QR code
-            codigo_qr = data.get('codigo_qr')
-            if codigo_qr:
-                existing_qr = CodigoQR.objects.filter(trabajador=personal).first()
-                if existing_qr:
-                    existing_qr.codigo_qr = codigo_qr
-                    existing_qr.save()
-                    codigo_qr_id = existing_qr.id
-                else:
-                    codigo_qr_serializer = CodigoQRSerializer(data={
-                        'trabajador': personal.id,
-                        'codigo_qr': codigo_qr,
-                    })
-                    if codigo_qr_serializer.is_valid():
-                        codigo_qr_asociacion = codigo_qr_serializer.save()
-                        codigo_qr_id = codigo_qr_asociacion.id
-                    else:
-                        return Response(codigo_qr_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-                return Response({
-                    'codigo_qr_id': codigo_qr_id,
-                    'message': 'Trabajador'
-                }, status=status.HTTP_201_CREATED)
             
+            # Generate QR code
+            try:
+                codigo_qr_value = data.get('codigo_qr') or f"QR-{personal.id}"
+                CodigoQR.objects.update_or_create(
+                    trabajador=personal,
+                    defaults={
+                        'codigo_qr': codigo_qr_value,
+                        'holding_id': data.get('holding')
+                    }
+                )
+                print(f"✅ QR creado/actualizado")
+            except Exception as e:
+                print(f"❌ Error con QR: {e}")
+            
+            print("=== POST EXITOSO ===")
             return Response({
-                'message': 'Trabajador'
+                'message': 'Trabajador guardado exitosamente',
+                'id': personal.id,
+                'asistencia_creada': not existing_personal  # Indica si se creó asistencia
             }, status=status.HTTP_201_CREATED)
-        else:
-            print("❌ Errores de validación del serializer:")
-            print(f"Errores: {serializer.errors}")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        print(f"❌ Errores: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -18484,4 +18542,246 @@ class ListarDocumentosAPIView(APIView):
                 "error": f"Error al listar documentos: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
+class GestionAsistenciaAPIView(APIView):
+    """
+    Vista unificada para gestionar la asistencia de trabajadores.
+    
+    GET: Obtiene trabajadores sin asistencia registrada (para tomar asistencia)
+    POST: Registra o actualiza asistencia de uno o múltiples trabajadores
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Obtiene trabajadores asignados a un supervisor que NO tienen asistencia 
+        registrada en la fecha especificada.
+        
+        Query params:
+        - supervisor_id: ID del supervisor (REQUERIDO)
+        - holding_id: ID del holding (REQUERIDO)
+        - fecha: Fecha de consulta (opcional, default: hoy)
+        """
+        try:
+            supervisor_id = request.query_params.get('supervisor_id')
+            holding_id = request.query_params.get('holding')
+            fecha_consulta_str = request.query_params.get('fecha')
+            
+            # Validar parámetros obligatorios
+            if not supervisor_id:
+                return Response(
+                    {'error': 'supervisor_id es obligatorio', 'acceso_asistencia': False},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not holding_id:
+                return Response(
+                    {'error': 'holding_id es obligatorio', 'acceso_asistencia': False},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Parsear fecha (si no se proporciona, usar hoy)
+            if fecha_consulta_str:
+                try:
+                    fecha_consulta = datetime.strptime(fecha_consulta_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return Response(
+                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD', 'acceso_asistencia': False},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                fecha_consulta = timezone.now().date()
+            
+            # Buscar el supervisor directamente por ID
+            try:
+                supervisor = Supervisores.objects.select_related('usuario', 'holding').get(
+                    id=supervisor_id, 
+                    holding_id=holding_id
+                )
+            except Supervisores.DoesNotExist:
+                return Response(
+                    {
+                        'error': 'Supervisor no encontrado o no pertenece al holding especificado',
+                        'acceso_asistencia': False
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Obtener trabajadores del supervisor que NO tienen asistencia en la fecha
+            trabajadores_sin_asistencia = supervisor.trabajadores.filter(
+                estado=True
+            ).exclude(
+                registros_asistencia__fecha_asistencia=fecha_consulta
+            ).order_by('nombres', 'apellidos')
+            
+            # Obtener horario para establecer horas máximas
+            try:
+                horario = Horarios.objects.get(holding_id=holding_id)
+                horas_maximas = float(horario.jornada)
+            except Horarios.DoesNotExist:
+                horas_maximas = 9.0  # Default si no hay horario configurado
+            
+            # Formatear respuesta
+            workers_data = []
+            for trabajador in trabajadores_sin_asistencia:
+                workers_data.append({
+                    'id': trabajador.id,
+                    'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
+                    'rut': trabajador.rut or trabajador.dni or '',
+                    'horas_registradas_hoy': 0.0,
+                    'horas_maximas': horas_maximas
+                })
+            
+            return Response({
+                'acceso_asistencia': True,
+                'workers': workers_data,
+                'fecha_consulta': fecha_consulta.isoformat(),
+                'total_trabajadores': len(workers_data),
+                'supervisor_nombre': supervisor.usuario.persona.nombres if supervisor.usuario and supervisor.usuario.persona else 'N/A'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error en GET GestionAsistenciaAPIView: {str(e)}")
+            traceback.print_exc()
+            return Response(
+                {
+                    'error': f'Error interno del servidor: {str(e)}',
+                    'acceso_asistencia': False
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request):
+        """
+        Registra o actualiza la asistencia de uno o múltiples trabajadores.
+        
+        Body:
+        {
+            "supervisor_id": 3,
+            "asistencias": [
+                {
+                    "trabajador_id": 1,
+                    "nombre_registrado": "Juan Pérez",
+                    "horas_registradas": 9.0,
+                    "estado": "A"
+                },
+                ...
+            ],
+            "fecha": "2025-10-27" (opcional)
+        }
+        """
+        try:
+            supervisor_id = request.data.get('supervisor_id')
+            asistencias = request.data.get('asistencias', [])
+            fecha_str = request.data.get('fecha')
+            
+            # Validaciones
+            if not supervisor_id:
+                return Response(
+                    {'status': 'error', 'message': 'supervisor_id es requerido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not asistencias:
+                return Response(
+                    {'status': 'error', 'message': 'Se requiere al menos una asistencia'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Parsear fecha
+            if fecha_str:
+                try:
+                    fecha_asistencia = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return Response(
+                        {'status': 'error', 'message': 'Formato de fecha inválido'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                fecha_asistencia = timezone.now().date()
+            
+            # Buscar supervisor
+            try:
+                supervisor = Supervisores.objects.select_related('usuario').get(id=supervisor_id)
+            except Supervisores.DoesNotExist:
+                return Response(
+                    {'status': 'error', 'message': 'Supervisor no encontrado'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Procesar asistencias en transacción
+            registros_creados = []
+            registros_actualizados = []
+            errores = []
+            
+            with transaction.atomic():
+                for asist_data in asistencias:
+                    try:
+                        trabajador_id = asist_data.get('trabajador_id')
+                        horas = asist_data.get('horas_registradas', 0.0)
+                        estado = asist_data.get('estado', 'A')
+                        
+                        # Buscar trabajador
+                        trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
+                        
+                        # Verificar que el trabajador esté asignado al supervisor
+                        if not supervisor.trabajadores.filter(id=trabajador_id).exists():
+                            errores.append({
+                                'trabajador_id': trabajador_id,
+                                'error': 'Trabajador no asignado a este supervisor'
+                            })
+                            continue
+                        
+                        # Crear o actualizar registro de asistencia
+                        asistencia, created = RegistroAsistencia.objects.update_or_create(
+                            trabajador=trabajador,
+                            fecha_asistencia=fecha_asistencia,
+                            defaults={
+                                'holding': trabajador.holding,
+                                'supervisor': supervisor,
+                                'estado': estado,
+                                'horas_registradas': horas,
+                                'modificado_por': request.user
+                            }
+                        )
+                        
+                        if created:
+                            registros_creados.append(trabajador_id)
+                        else:
+                            registros_actualizados.append(trabajador_id)
+                            
+                    except PersonalTrabajadores.DoesNotExist:
+                        errores.append({
+                            'trabajador_id': trabajador_id,
+                            'error': 'Trabajador no encontrado'
+                        })
+                    except Exception as e:
+                        errores.append({
+                            'trabajador_id': trabajador_id,
+                            'error': str(e)
+                        })
+            
+            # Verificar si hay más trabajadores pendientes
+            trabajadores_restantes = supervisor.trabajadores.filter(
+                estado=True
+            ).exclude(
+                registros_asistencia__fecha_asistencia=fecha_asistencia
+            ).count()
+            
+            return Response({
+                'status': 'success',
+                'message': 'Proceso de asistencia completado',
+                'registros_creados': len(registros_creados),
+                'registros_actualizados': len(registros_actualizados),
+                'errores': errores,
+                'remaining_workers': trabajadores_restantes > 0,
+                'trabajadores_pendientes': trabajadores_restantes
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error en POST GestionAsistenciaAPIView: {str(e)}")
+            traceback.print_exc()
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

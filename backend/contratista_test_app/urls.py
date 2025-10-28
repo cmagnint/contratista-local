@@ -112,6 +112,7 @@ from .views import (
     GenerarTxtBancoAPIView,
     GenerarDocumentosMasivoAPIView,
     ListarDocumentosAPIView,
+    GestionAsistenciaAPIView,
 )
 
 app_name = 'contratista_test'
@@ -278,6 +279,7 @@ urlpatterns = [
     path('generar_txt_banco/', GenerarTxtBancoAPIView.as_view(), name='generar_txt_banco'),
     path('api_listar-documentos/', ListarDocumentosAPIView.as_view(), name='listar-documentos'),
     path('api_generar-documentos-masivo/', GenerarDocumentosMasivoAPIView.as_view(), name='generar-documentos-masivo'),
+    path('gestion_asistencia/', GestionAsistenciaAPIView.as_view(), name='gestion_asistencia'),
 
 ]   
 

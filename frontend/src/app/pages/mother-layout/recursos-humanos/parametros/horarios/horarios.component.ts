@@ -1,3 +1,5 @@
+// horarios.component.ts - VERSIÓN MODIFICADA CON CAMPO NOMBRE
+
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
@@ -34,34 +36,34 @@ export class HorariosComponent implements OnInit {
     eliminarModal: false,
   };
 
-  //Unidad Contrl  seleccionado
-
+  //Horario seleccionado
   public horarioSeleccionado: any = {
-    id_horario_seleccionado : 0,
-    jornada_horario_seleccionado : 0.0,
+    id_horario_seleccionado: 0,
+    nombre_horario_seleccionado: '',  // ✅ NUEVO
+    jornada_horario_seleccionado: 0.0,
   }
 
   
-  public holding: string = ''; //Variable para guardar el ID del holding al cual pertenece al adminitrador
+  public holding: string = ''; //Variable para guardar el ID del holding
+  public nombreHorario: string = '';  // ✅ NUEVO
   public jornadaHorario: number | null = null;
  
-  errorMessage!: string; //Variable usada para mostrar los mensajes de error de la API
-  selectedRows: any[] = []; //Array usado para guardar las filas seleccionadas
-  dropdownOpen: boolean = false; //Booleano usado para abrir los dropdownmenus 
+  errorMessage!: string;
+  selectedRows: any[] = [];
+  dropdownOpen: boolean = false;
 
-  public todasSeleccionadas: boolean = false; //Booleano para seleccionar todas/ninguna casilla
+  public todasSeleccionadas: boolean = false;
 
   public horariosCargados: any[] = [];
 
-  columnasDesplegadas = ['codigo','jornada'];
+  columnasDesplegadas = ['codigo', 'nombre', 'jornada'];  // ✅ AGREGADA COLUMNA 'nombre'
   
   public deletedRow: any[] = [];
-  //TESTING 
-
-  //------------------------------------------------------------//
 
   public selectedHorarioId: number | null = null;
+  public nombreHorarioNew: string = '';  // ✅ NUEVO
   public jornadaHorarioNew: number | null = null;
+  
   //FUNCIONES
   
   ngOnInit(): void {
@@ -70,11 +72,13 @@ export class HorariosComponent implements OnInit {
       this.cargarHorarios();
     }
   }
+
   //FUNCIONES CRUD
 
-  crearHorario():void{
+  crearHorario(): void {
     let data = {
       holding: this.holding,
+      nombre: this.nombreHorario,  // ✅ NUEVO
       jornada: this.jornadaHorario,
     }
     this.apiService.post('horarios/', data).subscribe({
@@ -84,35 +88,36 @@ export class HorariosComponent implements OnInit {
         this.cargarHorarios();
         this.openModal('exitoModal');
         
-      }, error:(error) => {
+      }, error: (error) => {
         this.openModal('errorModal');
       }
     })
   }
 
-  cargarHorarios():void{
+  cargarHorarios(): void {
     this.apiService.get(`horarios/?holding=${this.holding}`).subscribe({
       next: (response) => {
         this.horariosCargados = response;
       },
       error: (error) => {
-        console.error('Error al recibir las sociedades:', error);
+        console.error('Error al recibir los horarios:', error);
       }
     });
   }
 
-  modificarHorario():void{
+  modificarHorario(): void {
     let data = {
       holding: this.holding,
-      id : this.selectedHorarioId,
+      id: this.selectedHorarioId,
+      nombre: this.nombreHorarioNew,  // ✅ NUEVO
       jornada: this.jornadaHorarioNew,
     }
     this.apiService.put('horarios/', data).subscribe({
-      next:(response) => {
+      next: (response) => {
         this.closeModal('modificarHorario');
         this.cargarHorarios();
         this.openModal('exitoModal');
-      }, error:(error) => {
+      }, error: (error) => {
         console.log(error);
         this.openModal('errorModal');
       }
@@ -121,19 +126,19 @@ export class HorariosComponent implements OnInit {
   
   eliminarHorariosSeleccionadas(): void {
     if (this.deletedRow.length > 0) {
-        const idsToDelete = this.deletedRow.map(row => row.id);
-        this.apiService.delete('horarios/', {ids: idsToDelete}).subscribe({
-            next: () => {
-                this.closeModal('confirmacionModal')
-                this.cargarHorarios();
-                this.openModal('exitoModal');
-                this.deletedRow = []; // Limpiar la selección después de eliminar
-            },
-            error: (error) => {
-                this.openModal('errorModal');
-                console.error('Error al eliminar perfiles:', error);
-            }
-        });
+      const idsToDelete = this.deletedRow.map(row => row.id);
+      this.apiService.delete('horarios/', {ids: idsToDelete}).subscribe({
+        next: () => {
+          this.closeModal('confirmacionModal')
+          this.cargarHorarios();
+          this.openModal('exitoModal');
+          this.deletedRow = [];
+        },
+        error: (error) => {
+          this.openModal('errorModal');
+          console.error('Error al eliminar horarios:', error);
+        }
+      });
     }
   }
 
@@ -141,9 +146,9 @@ export class HorariosComponent implements OnInit {
 
   toggleSelection(horarioId: number): void {
     if (this.selectedHorarioId === horarioId) {
-      this.selectedHorarioId = null;  // Deseleccionar si el mismo perfil es clickeado nuevamente
+      this.selectedHorarioId = null;
     } else {
-      this.selectedHorarioId = horarioId;  // Seleccionar el nuevo perfil
+      this.selectedHorarioId = horarioId;
     }
   }
 
@@ -154,74 +159,28 @@ export class HorariosComponent implements OnInit {
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
-        // Si la fila ya está seleccionada, deseleccionarla
-        this.selectedRows.splice(index, 1);
+      this.selectedRows.splice(index, 1);
     } else {
-        // Agregar fila a las seleccionadas
-        this.selectedRows.push(row);
+      this.selectedRows.push(row);
     }
 
-    if (this.selectedRows.length > 0){
-        const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
-        this.horarioSeleccionado = {
-        id_horario_seleccionado : lastSelectedRow.id,
-        jornada_horario_seleccionado : lastSelectedRow.jornada,
+    if (this.selectedRows.length > 0) {
+      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+      this.horarioSeleccionado = {
+        id_horario_seleccionado: lastSelectedRow.id,
+        nombre_horario_seleccionado: lastSelectedRow.nombre,  // ✅ NUEVO
+        jornada_horario_seleccionado: lastSelectedRow.jornada,
       };
       this.selectedHorarioId = this.horarioSeleccionado.id_horario_seleccionado;
+      this.nombreHorarioNew = this.horarioSeleccionado.nombre_horario_seleccionado;  // ✅ NUEVO
       this.jornadaHorarioNew = this.horarioSeleccionado.jornada_horario_seleccionado;
     } else {
-      // Limpiar perfilSeleccionado si no hay filas seleccionadas
       this.horarioSeleccionado = {
-        id_horario_seleccionado : 0,
-        jornada_horario_seleccionado : 0.0,
+        id_horario_seleccionado: 0,
+        nombre_horario_seleccionado: '',  // ✅ NUEVO
+        jornada_horario_seleccionado: 0.0,
       }
     }
-  }
-
-  estadoUnidadControl: boolean = true; // Inicializa el estado
-
-  toggleEstadoUnidadControl() {
-    this.estadoUnidadControl = !this.estadoUnidadControl;
-  }
-
-  formatNumber(event: Event): void {
-    const target = event.target as HTMLInputElement; // Casting seguro
-    if (!target) return; // Verificar que realmente existe un target
-
-    // Mantener solo caracteres numéricos
-    target.value = target.value.replace(/[^\d]/g, '');
-  }
-
-  formatRUT(event: Event): void {
-    const target = event.target as HTMLInputElement; // Casting seguro
-    if (!target) return; // Verificar que realmente existe un target
-
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-        parts.unshift(rut.slice(-3));
-        rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    target.value = parts.join('.') + '-' + verifier;
-    if (target.value === '-') {
-        target.value = '';
-    }
-  }
-  
-  formatRUTString(value: string): string {
-    let rut = value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-        parts.unshift(rut.slice(-3));
-        rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    return parts.join('.') + '-' + verifier;
   }
 
   toggleDropdown() {
@@ -229,17 +188,15 @@ export class HorariosComponent implements OnInit {
   }
 
   deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = [];  // Deselecciona todas las filas
+    this.selectedRows = [];
   }
 
   openModal(key: string): void {
     this.modals[key] = true;
-    if(key== 'confirmacionModal'){
+    if (key == 'confirmacionModal') {
       this.deletedRow = this.selectedRows;
       console.log(this.deletedRow);
     }
-
-   
   }
 
   closeModal(key: string): void {
@@ -247,10 +204,5 @@ export class HorariosComponent implements OnInit {
     if (key === 'exitoModal') {
       this.cargarHorarios();  
     }
-  }
-
-  checkValue():void{
-    
-    
   }
 }

@@ -492,6 +492,7 @@ class LoginScreenState extends State<LoginScreen>
         );
 
         userInfo.idUsuario = responseData['user_id'];
+        userInfo.idSupervisor = responseData['supervisor_id'];
         userInfo.holding = responseData['holding_id']?.toString() ?? '';
         userInfo.sociedad =
             responseData['sociedad_id']?.toString() ?? ''; // ✅ AGREGADO
