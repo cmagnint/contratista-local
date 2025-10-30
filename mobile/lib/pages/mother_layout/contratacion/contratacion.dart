@@ -1182,6 +1182,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'labor_id': widget.initialData['labor'] ?? '',
           'empresa_transporte_id': widget.initialData['transportista'] ?? '',
           'vehiculo_id': widget.initialData['vehiculo'] ?? '',
+          'horario_id': widget.initialData['horario'] ?? '',
         };
 
         loggerGlobal.d('Campos adicionales para BD local:');

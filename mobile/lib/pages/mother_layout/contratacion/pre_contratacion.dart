@@ -244,6 +244,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         _selectedTransportista != null &&
         _selectedVehiculo != null &&
         _selectedCasa != null &&
+        _selectedHorario != null &&
         _selectedSupervisor != null &&
         _selectedHorario != null) {
       // ✅ NUEVO - Validación obligatoria

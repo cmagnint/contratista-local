@@ -1,3 +1,4 @@
+#contratista-local
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
@@ -1281,6 +1282,13 @@ class ContratoTrabajador(models.Model):
     # Campos relacionados
     labor = models.ForeignKey(Labores, on_delete=models.SET_NULL, null=True, blank=True)
     folio_comercial = models.ForeignKey(FolioComercial, on_delete=models.SET_NULL, null=True, blank=True)
+    horario = models.ForeignKey(
+        Horarios, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name="Horario asignado",
+    )
     fundo = models.ForeignKey(CamposClientes, on_delete=models.SET_NULL, null=True, blank=True)
     cliente = models.ForeignKey(Clientes, on_delete=models.SET_NULL, null=True, blank=True)
     empresa_transporte = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True, blank=True)

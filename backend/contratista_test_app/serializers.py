@@ -1,4 +1,4 @@
-# serializers.py
+#contratista-local
 from rest_framework import serializers
 from datetime import date
 from datetime import datetime
@@ -1146,7 +1146,19 @@ class FolioComercialPreContratacionSerializer(serializers.ModelSerializer):
                 'vehiculos': VehiculoSerializer(vehiculos, many=True).data
             })
         return transportistas_data
+
+class VehiculoSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehiculosTransporte  # o el nombre de tu modelo
+        fields = ['id', 'modelo', 'ppu', 'capacidad', 'estado']
+
+class TransportistaNestedSerializer(serializers.ModelSerializer):
+    vehiculos = VehiculoSimpleSerializer(many=True, read_only=True)
     
+    class Meta:
+        model = EmpresasTransporte  # o el nombre de tu modelo
+        fields = ['id', 'nombre', 'rut', 'vehiculos', 'estado']
+
 class FolioComercialSerializer(serializers.ModelSerializer):
     # Campos de lectura
     cliente = serializers.PrimaryKeyRelatedField(queryset=Clientes.objects.all())
@@ -1159,6 +1171,8 @@ class FolioComercialSerializer(serializers.ModelSerializer):
     nombres_horarios = serializers.SerializerMethodField()
     nombres_transportistas = serializers.SerializerMethodField()
     nombres_vehiculos = serializers.SerializerMethodField()
+    transportistas = TransportistaNestedSerializer(many=True, read_only=True)
+
     
     # Campos para escritura
     fundos_ids = serializers.PrimaryKeyRelatedField(
@@ -1340,13 +1354,18 @@ class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
     rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     nic = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    
+    horario = serializers.IntegerField(
+        required=False, 
+        allow_null=True,
+        help_text="ID del horario seleccionado"
+    )
     class Meta:
         model = PersonalTrabajadores
         fields = [
             # Campos básicos que SÍ existen en el modelo
             'id', 'holding', 'sociedad', 'fundo', 'area', 'cargo', 
             'afp', 'salud', 'banco', 'casa', 'transportista', 'vehiculo',
+            'horario',
             
             # Información personal
             'nombres', 'apellidos', 'rut', 'dni', 'nic', 

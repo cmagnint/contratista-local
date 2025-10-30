@@ -137,7 +137,8 @@ class WorkerSyncService {
         'folio',
         'fundo',
         'casa',
-        'labor', // ✅ AGREGADO
+        'labor',
+        'horario', // ✅ AGREGADO
         'transportista', // ✅ AGREGADO
         'rut',
         'dni',

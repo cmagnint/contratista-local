@@ -118,6 +118,7 @@ class PendingEnrollmentsScreenState extends State<PendingEnrollmentsScreen> {
               'supervisor_contratador',
               'empresa_transporte',
               'vehiculo',
+              'horario',
               'labor',
             ].contains(key),
           );

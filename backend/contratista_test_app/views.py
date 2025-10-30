@@ -1,3 +1,4 @@
+#contratista-local
 from selenium.common.exceptions import (
     TimeoutException, 
     
@@ -3017,6 +3018,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                         trabajador=personal,
                         folio_comercial_id=folio_id,
                         labor_id=data.get('labor'),
+                        horario_id=data.get('horario'),
                         fundo_id=data.get('fundo'),
                         empresa_transporte_id=data.get('transportista'),
                         fecha_inicio_contrato=folio.fecha_inicio_contrato,
@@ -3028,37 +3030,42 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             
             # ====== NUEVO: REGISTRAR ASISTENCIA AUTOMÁTICA AL ENROLLAR ======
             try:
-                if not existing_personal:  # Solo si es un trabajador nuevo (enrollamiento)
+                if not existing_personal:
                     fecha_hoy = timezone.now().date()
-                    
-                    # Buscar supervisor del trabajador
                     supervisor = personal.supervisor_directo.first()
                     
-                    # Obtener horas de jornada del holding
-                    try:
-                        horario = Horarios.objects.get(holding_id=data.get('holding'))
-                        horas_jornada = float(horario.jornada)
-                    except Horarios.DoesNotExist:
-                        horas_jornada = 9.0  # Default
+                    # ✅ COPIAR DESDE AQUÍ - CALCULAR HORAS
+                    horas_jornada = 9.0  # Default
                     
-                    # Crear registro de asistencia automático
+                    if contrato and contrato.horario:
+                        horas_jornada = float(contrato.horario.jornada)
+                        print(f"✅ Usando horas del contrato: {horas_jornada}h")
+                    else:
+                        try:
+                            horario = Horarios.objects.get(holding_id=data.get('holding'))
+                            horas_jornada = float(horario.jornada)
+                            print(f"⚠️ Usando horas del holding: {horas_jornada}h")
+                        except Horarios.DoesNotExist:
+                            print(f"⚠️ Usando horas default: {horas_jornada}h")
+                    # ✅ HASTA AQUÍ
+                    
                     asistencia, created = RegistroAsistencia.objects.get_or_create(
                         trabajador=personal,
                         fecha_asistencia=fecha_hoy,
                         defaults={
                             'holding_id': data.get('holding'),
                             'supervisor': supervisor,
-                            'estado': 'A',  # Asistente
-                            'horas_registradas': horas_jornada,
+                            'estado': 'A',
+                            'horas_registradas': horas_jornada,  # ✅ Horas del contrato
                             'modificado_por': request.user,
-                            'observaciones': 'Asistencia automática por enrollamiento'
+                            'observaciones': f'Asistencia automática por enrollamiento ({horas_jornada}h)'
                         }
                     )
                     
                     if created:
-                        print(f"✅ Asistencia automática creada para {personal.nombres}")
+                        print(f"✅ Asistencia automática creada: {horas_jornada}h")
                     else:
-                        print(f"ℹ️ Ya existía asistencia para {personal.nombres} en la fecha {fecha_hoy}")
+                        print(f"ℹ️ Ya existía asistencia para {personal.nombres}")
                         
             except Exception as e:
                 print(f"❌ Error creando asistencia automática: {e}")
