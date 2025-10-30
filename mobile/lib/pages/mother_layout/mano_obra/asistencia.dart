@@ -220,7 +220,7 @@ class AsistenciaState extends State<Asistencia> {
       // Enviar todas las asistencias en una sola petición
       // CORRECCIÓN 1: Usar userInfo.idUsuario en lugar de supervisorCode
       final response = await apiService.post('gestion_asistencia/', {
-        'codigo_supervisor': userInfo.idUsuario.toString(),
+        'codigo_supervisor': userInfo.idSupervisor.toString(),
         'asistencias': asistencias,
       });
 
@@ -285,14 +285,9 @@ class AsistenciaState extends State<Asistencia> {
 
   Future<void> refreshWorkerList() async {
     try {
-      String rutSinUltimoDigito = userInfo.rut.substring(
-        0,
-        userInfo.rut.length - 1,
-      );
-
       // CORRECCIÓN 3: Decodificar el response.body
       final response = await apiService.get(
-        'gestion_asistencia/?rut=$rutSinUltimoDigito&holding=${userInfo.holding}',
+        'gestion_asistencia/?supervisor_id=${userInfo.idSupervisor}&holding=${userInfo.holding}',
       );
 
       final data = jsonDecode(response.body);
@@ -312,21 +307,18 @@ class AsistenciaState extends State<Asistencia> {
 
           workerHours = {
             for (var worker in workers)
-              worker['nombre'] as String:
-                  (worker['horas_registradas_hoy'] as num).toDouble(),
+              worker['nombre'] as String: (worker['horas_maximas'] as num)
+                  .toDouble(),
           };
 
           workerCategories.clear();
+
           workerMaxHours = {
             for (var worker in workers)
               worker['nombre'] as String: (worker['horas_maximas'] as num)
                   .toDouble(),
           };
         });
-      } else {
-        throw Exception(
-          'No se recibieron datos de trabajadores o acceso restringido',
-        );
       }
     } catch (e) {
       logger.e('Error refreshing worker list: $e');
@@ -624,13 +616,12 @@ class AsistenciaState extends State<Asistencia> {
   Widget _buildRegisterHoursButton() {
     return IconButton(
       icon: const Icon(Icons.timer, color: Colors.white),
-      tooltip: 'Registrar 9 horas a todos',
+      tooltip: 'Registrar horas máximas a todos',
       onPressed: () {
         setState(() {
           for (var name in workerNames) {
-            double currentHours = workerHours[name] ?? 0;
-            double remainingHours = 9 - currentHours;
-            workerHours[name] = (currentHours + remainingHours).clamp(0, 9);
+            double maxHours = workerMaxHours[name] ?? 9.0;
+            workerHours[name] = maxHours;
           }
         });
       },

@@ -6,6 +6,7 @@ import 'package:contratista/pages/mother_layout/contratacion/asociar_qr.dart';
 import 'package:contratista/pages/mother_layout/cosecha/ingresar_produccion.dart';
 import 'package:contratista/pages/mother_layout/formar_cuadrillas.dart';
 import 'package:contratista/pages/mother_layout/mano_obra/asistencia.dart'; // ✅ AGREGADO
+import 'package:contratista/pages/mother_layout/mano_obra/informe_asistencia.dart';
 import 'package:contratista/services/contratista_api_service.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,7 @@ class MotherLayoutState extends State<MotherLayout> {
     const AdministrarCuadrillas(), // _selectedIndex = 4 ADMINISTRAR CUADRILLAS
     const PendingEnrollmentsScreen(), // _selectedIndex = 5 ENROLAMIENTOS PENDIENTES
     Container(), // _selectedIndex = 6 ASISTENCIA ✅ AGREGADO
+    Container(), // _selectedIndex = 7 INFORME ASISTENCIA ✅ AGREGADO
   ];
 
   @override
@@ -78,6 +80,13 @@ class MotherLayoutState extends State<MotherLayout> {
         _showDialogWithMessage(context, 'Error al obtener los folios: $e');
       }
     }
+  }
+
+  void goToInformeAsistencia() async {
+    setState(() {
+      _pages[7] = const InformeAsistenciaScreen();
+      _selectedIndex = 7;
+    });
   }
 
   // ✅ NUEVA FUNCIÓN PARA ASISTENCIA
@@ -141,8 +150,8 @@ class MotherLayoutState extends State<MotherLayout> {
 
           Map<String, double> workerHours = {
             for (var worker in workers)
-              worker['nombre'] as String:
-                  (worker['horas_registradas_hoy'] as num).toDouble(),
+              worker['nombre'] as String: (worker['horas_maximas'] as num)
+                  .toDouble(),
           };
 
           Map<String, int> workerIds = {
@@ -352,6 +361,15 @@ class MotherLayoutState extends State<MotherLayout> {
                   onTap: () {
                     Navigator.pop(context);
                     goToAsistencia(); // ✅ Llamar a la función
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(Icons.how_to_reg),
+                  title: const Text('Informe Asistencia'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    goToInformeAsistencia(); // ✅ Llamar a la función
                   },
                 ),
                 ExpansionTile(

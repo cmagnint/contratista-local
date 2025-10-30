@@ -222,6 +222,7 @@ from .serializers import (
     FacturaVentaSIIDistribuidaMultipleSerializer,
     DistribucionMultipleFacturaVentaSIISerializer,
     CartolaMovimientoSerializer,
+    FolioComercialPreContratacionSerializer,
 )
 
 from .tasks import (
@@ -3069,8 +3070,30 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                         fecha_termino_contrato=folio.fecha_termino_contrato,
                     )
                     print(f"✅ Contrato creado con ID: {contrato.id}")
+                    
+                    # ✅ CREAR ASISTENCIA AUTOMÁTICA
+                    fecha_hoy = timezone.now().date()
+                    supervisor = personal.codigo_supervisor  # Suponiendo que existe esta relación
+                    
+                    if supervisor:
+                        asistencia, created = RegistroAsistencia.objects.get_or_create(
+                            trabajador=personal,
+                            fecha_asistencia=fecha_hoy,
+                            defaults={
+                                'holding_id': data.get('holding'),
+                                'supervisor': supervisor,
+                                'estado': 'A',
+                                'horas_registradas': 0.0,
+                                'modificado_por': request.user
+                            }
+                        )
+                        if created:
+                            print(f"✅ Asistencia creada automáticamente para {personal.nombres}")
+                        else:
+                            print(f"ℹ️ Ya existe asistencia para {personal.nombres} hoy")
+                    
             except Exception as e:
-                print(f"❌ Error creando contrato: {e}")
+                print(f"❌ Error creando contrato/asistencia: {e}")
             
             # Delete old images if updated
             if existing_personal:
@@ -18598,28 +18621,53 @@ class GestionAsistenciaAPIView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Obtener trabajadores del supervisor que NO tienen asistencia en la fecha
-            trabajadores_sin_asistencia = supervisor.trabajadores.filter(
-                estado=True
-            ).exclude(
-                registros_asistencia__fecha_asistencia=fecha_consulta
-            ).order_by('nombres', 'apellidos')
-            
-            # Obtener horario para establecer horas máximas
-            try:
-                horario = Horarios.objects.get(holding_id=holding_id)
-                horas_maximas = float(horario.jornada)
-            except Horarios.DoesNotExist:
-                horas_maximas = 9.0  # Default si no hay horario configurado
-            
+            # Obtener trabajadores del supervisor con contrato vigente
+            trabajadores_con_contrato = supervisor.trabajadores.filter(
+                estado=True,
+                contratos__fecha_inicio_contrato__lte=fecha_consulta,
+                contratos__fecha_termino_contrato__gte=fecha_consulta
+            ).distinct().order_by('nombres', 'apellidos')
+
             # Formatear respuesta
             workers_data = []
-            for trabajador in trabajadores_sin_asistencia:
+            for trabajador in trabajadores_con_contrato:
+                try:
+                    # Obtener contrato vigente
+                    contrato = trabajador.contratos.filter(
+                        fecha_inicio_contrato__lte=fecha_consulta,
+                        fecha_termino_contrato__gte=fecha_consulta
+                    ).select_related('horario').first()
+                    
+                    if contrato and contrato.horario:
+                        horas_maximas = float(contrato.horario.jornada)
+                    else:
+                        horas_maximas = 9.0
+                    
+                    # Verificar si ya tiene asistencia registrada hoy
+                    asistencia_hoy = trabajador.registros_asistencia.filter(
+                        fecha_asistencia=fecha_consulta
+                    ).first()
+                    
+                    if asistencia_hoy:
+                        horas_registradas = float(asistencia_hoy.horas_registradas)
+                        # Si ya completó sus horas, no lo incluir
+                        if horas_registradas >= horas_maximas:
+                            continue
+                        # Tiene horas parciales, ajustar máximo a lo que le falta
+                        horas_maximas = horas_maximas - horas_registradas
+                        horas_registradas_hoy = horas_registradas
+                    else:
+                        horas_registradas_hoy = 0.0
+                    
+                except Exception:
+                    horas_maximas = 9.0
+                    horas_registradas_hoy = 0.0
+                
                 workers_data.append({
                     'id': trabajador.id,
                     'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
                     'rut': trabajador.rut or trabajador.dni or '',
-                    'horas_registradas_hoy': 0.0,
+                    'horas_registradas_hoy': horas_registradas_hoy,
                     'horas_maximas': horas_maximas
                 })
             
@@ -18662,18 +18710,22 @@ class GestionAsistenciaAPIView(APIView):
         }
         """
         try:
-            supervisor_id = request.data.get('supervisor_id')
+            
+            supervisor_id = request.data.get('codigo_supervisor')
+            print('EL id del supervisor es:', supervisor_id)
             asistencias = request.data.get('asistencias', [])
             fecha_str = request.data.get('fecha')
             
             # Validaciones
             if not supervisor_id:
+                print('supervisor_id es requerido')
                 return Response(
                     {'status': 'error', 'message': 'supervisor_id es requerido'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             if not asistencias:
+                print('Se requiere al menos una asistencia')
                 return Response(
                     {'status': 'error', 'message': 'Se requiere al menos una asistencia'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -18684,6 +18736,7 @@ class GestionAsistenciaAPIView(APIView):
                 try:
                     fecha_asistencia = datetime.strptime(fecha_str, '%Y-%m-%d').date()
                 except ValueError:
+                    print('Formato de fecha inválido')
                     return Response(
                         {'status': 'error', 'message': 'Formato de fecha inválido'},
                         status=status.HTTP_400_BAD_REQUEST
@@ -18693,8 +18746,9 @@ class GestionAsistenciaAPIView(APIView):
             
             # Buscar supervisor
             try:
-                supervisor = Supervisores.objects.select_related('usuario').get(id=supervisor_id)
+                supervisor = Supervisores.objects.get(id=supervisor_id)
             except Supervisores.DoesNotExist:
+                print('Supervisor no encontrado')
                 return Response(
                     {'status': 'error', 'message': 'Supervisor no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
@@ -18777,3 +18831,87 @@ class GestionAsistenciaAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class InformeAsistenciaAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method in ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']:
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        try:
+            fecha = request.query_params.get('fecha')
+            is_admin = request.query_params.get('is_admin', 'false').lower() == 'true'
+            supervisor_id = request.query_params.get('supervisor_id')
+            estado_filtro = request.query_params.get('estado')
+            holding_id = request.user.holding.id
+
+            # Query base
+            registros = RegistroAsistencia.objects.filter(
+                holding_id=holding_id,
+                fecha_asistencia=fecha
+            ).select_related(
+                'trabajador__sociedad',
+                'trabajador__fundo',
+                'supervisor__usuario__persona'
+            )
+
+            # Filtro supervisor
+            if not is_admin and supervisor_id:
+                registros = registros.filter(supervisor_id=supervisor_id)
+
+            # Filtro estado
+            if estado_filtro:
+                registros = registros.filter(estado=estado_filtro)
+
+            # Agrupaciones
+            sociedades = {}
+            fundos = {}
+            supervisores = {}
+            reporte_detallado = []
+
+            for reg in registros:
+                # Sociedad
+                soc_nombre = reg.trabajador.sociedad.nombre if reg.trabajador.sociedad else 'Sin Sociedad'
+                sociedades[soc_nombre] = sociedades.get(soc_nombre, 0) + 1
+
+                # Fundo
+                fundo_nombre = reg.trabajador.fundo.nombre_campo if reg.trabajador.fundo else 'Sin Fundo'
+                fundos[fundo_nombre] = fundos.get(fundo_nombre, 0) + 1
+
+                # Supervisor
+                if reg.supervisor and reg.supervisor.usuario and reg.supervisor.usuario.persona:
+                    sup_nombre = f"{reg.supervisor.usuario.persona.nombres} {reg.supervisor.usuario.persona.apellidos}"
+                else:
+                    sup_nombre = 'Sin Supervisor'
+                supervisores[sup_nombre] = supervisores.get(sup_nombre, 0) + 1
+
+                # Detalle
+                reporte_detallado.append({
+                    'nombretrabajador': f"{reg.trabajador.nombres} {reg.trabajador.apellidos or ''}".strip(),
+                    'sociedad': soc_nombre,
+                    'fundo': fundo_nombre,
+                    'supervisor': sup_nombre,
+                    'estado': reg.estado,
+                    'horas_registradas': float(reg.horas_registradas)
+                })
+
+            return Response({
+                'sociedades': sociedades,
+                'fundos': fundos,
+                'supervisores': supervisores,
+                'reporte_detallado': reporte_detallado
+            })
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )

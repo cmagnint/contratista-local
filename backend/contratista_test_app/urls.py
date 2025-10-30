@@ -114,6 +114,7 @@ from .views import (
     GenerarDocumentosMasivoAPIView,
     ListarDocumentosAPIView,
     GestionAsistenciaAPIView,
+    InformeAsistenciaAPIView,
 )
 
 app_name = 'contratista_test'
@@ -281,6 +282,7 @@ urlpatterns = [
     path('api_listar-documentos/', ListarDocumentosAPIView.as_view(), name='listar-documentos'),
     path('api_generar-documentos-masivo/', GenerarDocumentosMasivoAPIView.as_view(), name='generar-documentos-masivo'),
     path('gestion_asistencia/', GestionAsistenciaAPIView.as_view(), name='gestion_asistencia'),
+    path('informe_asistencia/', InformeAsistenciaAPIView.as_view(), name='informe_asistencia'),
 
 ]   
 

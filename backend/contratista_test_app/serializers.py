@@ -138,6 +138,53 @@ class AdminSerializer(serializers.ModelSerializer):
         
         return data
 
+class HorarioSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Horarios
+        fields = ['id', 'nombre', 'jornada']
+class FundoSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CamposClientes
+        fields = ['id', 'nombre_campo']
+
+class LaborSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Labores
+        fields = ['id', 'nombre']
+
+class FolioComercialPreContratacionSerializer(serializers.ModelSerializer):
+    """
+    Serializer específico para la pantalla de pre-contratación en el móvil.
+    Devuelve los transportistas con su lista completa de vehículos.
+    """
+    nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
+    fundos = FundoSimpleSerializer(many=True, read_only=True)
+    labores = LaborSimpleSerializer(many=True, read_only=True)
+    horarios = HorarioSimpleSerializer(many=True, read_only=True)  # ✅ NUEVO
+    transportistas = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FolioComercial
+        fields = [
+            'id', 'cliente', 'nombre_cliente',
+            'fundos', 'labores', 'horarios',  
+            'transportistas',
+            'fecha_inicio_contrato', 'fecha_termino_contrato',
+            'valor_pago_trabajador', 'valor_facturacion',
+            'estado'
+        ]
+    
+    def get_transportistas(self, obj):
+        transportistas_data = []
+        for transportista in obj.transportistas.all():
+            vehiculos = obj.vehiculos.filter(empresa=transportista)
+            transportistas_data.append({
+                'id': transportista.id,
+                'nombre': transportista.nombre,
+                'vehiculos': VehiculoSerializer(vehiculos, many=True).data
+            })
+        return transportistas_data
+
 class PerfilesSerializer(serializers.ModelSerializer):
     modulos_web = serializers.SerializerMethodField()
     submodulos_web = serializers.SerializerMethodField()
