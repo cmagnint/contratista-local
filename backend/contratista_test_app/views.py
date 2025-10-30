@@ -2884,8 +2884,17 @@ class FolioComercialAPIView(APIView):
     # Método GET
     def get(self, request, holding_id=None, format=None):
         holding_id = request.query_params.get('holding')
+        # Verificar si se solicita el formato para pre-contratación
+        pre_contratacion = request.query_params.get('pre_contratacion', 'false').lower() == 'true'
+        
         folios = FolioComercial.objects.filter(holding_id=holding_id) if holding_id else FolioComercial.objects.all()
-        serializer = FolioComercialSerializer(folios, many=True)
+        
+        # Usar el serializer apropiado según el parámetro
+        if pre_contratacion:
+            serializer = FolioComercialPreContratacionSerializer(folios, many=True)
+        else:
+            serializer = FolioComercialSerializer(folios, many=True)
+            
         print('Data del folio comercial: ', serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -2957,10 +2966,20 @@ class PersonalTrabajadoresMobileAPIView(APIView):
         return super().dispatch(request, *args, **kwargs)
 
     def merge_data(self, old_data, new_data):
+        """
+        Merge data manejando listas y archivos correctamente
+        """
         merged = old_data.copy()
+        
         for key, new_value in new_data.items():
+            # Extraer valor de lista si es necesario
+            if isinstance(new_value, list) and len(new_value) > 0:
+                new_value = new_value[0]
+            
+            # Solo actualizar si el valor no está vacío
             if new_value not in (None, '', 'null', 'undefined'):
                 merged[key] = new_value
+        
         return merged
 
     def delete_old_file(self, file_path):
@@ -2972,10 +2991,36 @@ class PersonalTrabajadoresMobileAPIView(APIView):
     @transaction.atomic
     def post(self, request, format=None):
         print("=== DEBUG: INICIO POST ===")
-        data = request.data.copy()
-        data.update(request.FILES)
+        
+        # ✅ SOLUCIÓN: Extraer valores de listas y manejar archivos correctamente
+        data = {}
+        
+        # Procesar campos de request.data (pueden venir como listas)
+        for key, value in request.data.items():
+            # Si es una lista, extraer el primer elemento
+            if isinstance(value, list) and len(value) > 0:
+                data[key] = value[0]
+            elif not isinstance(value, list):
+                data[key] = value
+        
+        # Agregar archivos desde request.FILES
+        for key, file in request.FILES.items():
+            data[key] = file
+        
+        # Convertir booleano 'estado' si viene como string
+        if 'estado' in data:
+            if isinstance(data['estado'], str):
+                data['estado'] = data['estado'].lower() in ('true', '1', 'yes')
+        
+        # Convertir numero_cuenta a int si viene como string
+        if 'numero_cuenta' in data and data['numero_cuenta']:
+            try:
+                data['numero_cuenta'] = int(data['numero_cuenta'])
+            except (ValueError, TypeError):
+                pass
         
         print(f"Datos recibidos: {list(data.keys())}")
+        print(f"Tipos de datos - holding: {type(data.get('holding'))}, nombres: {type(data.get('nombres'))}")
 
         # Find or create personal
         existing_personal = None
@@ -3018,7 +3063,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                         trabajador=personal,
                         folio_comercial_id=folio_id,
                         labor_id=data.get('labor'),
-                        horario_id=data.get('horario'),
                         fundo_id=data.get('fundo'),
                         empresa_transporte_id=data.get('transportista'),
                         fecha_inicio_contrato=folio.fecha_inicio_contrato,
@@ -3028,50 +3072,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             except Exception as e:
                 print(f"❌ Error creando contrato: {e}")
             
-            # ====== NUEVO: REGISTRAR ASISTENCIA AUTOMÁTICA AL ENROLLAR ======
-            try:
-                if not existing_personal:
-                    fecha_hoy = timezone.now().date()
-                    supervisor = personal.supervisor_directo.first()
-                    
-                    # ✅ COPIAR DESDE AQUÍ - CALCULAR HORAS
-                    horas_jornada = 9.0  # Default
-                    
-                    if contrato and contrato.horario:
-                        horas_jornada = float(contrato.horario.jornada)
-                        print(f"✅ Usando horas del contrato: {horas_jornada}h")
-                    else:
-                        try:
-                            horario = Horarios.objects.get(holding_id=data.get('holding'))
-                            horas_jornada = float(horario.jornada)
-                            print(f"⚠️ Usando horas del holding: {horas_jornada}h")
-                        except Horarios.DoesNotExist:
-                            print(f"⚠️ Usando horas default: {horas_jornada}h")
-                    # ✅ HASTA AQUÍ
-                    
-                    asistencia, created = RegistroAsistencia.objects.get_or_create(
-                        trabajador=personal,
-                        fecha_asistencia=fecha_hoy,
-                        defaults={
-                            'holding_id': data.get('holding'),
-                            'supervisor': supervisor,
-                            'estado': 'A',
-                            'horas_registradas': horas_jornada,  # ✅ Horas del contrato
-                            'modificado_por': request.user,
-                            'observaciones': f'Asistencia automática por enrollamiento ({horas_jornada}h)'
-                        }
-                    )
-                    
-                    if created:
-                        print(f"✅ Asistencia automática creada: {horas_jornada}h")
-                    else:
-                        print(f"ℹ️ Ya existía asistencia para {personal.nombres}")
-                        
-            except Exception as e:
-                print(f"❌ Error creando asistencia automática: {e}")
-                # No falla la transacción si falla la asistencia
-            # ================================================================
-            
             # Delete old images if updated
             if existing_personal:
                 if 'carnet_front_image' in request.FILES:
@@ -3080,30 +3080,13 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     self.delete_old_file(old_back_image)
                 if 'firma' in request.FILES:
                     self.delete_old_file(old_signature)
-            
-            # Generate QR code
-            try:
-                codigo_qr_value = data.get('codigo_qr') or f"QR-{personal.id}"
-                CodigoQR.objects.update_or_create(
-                    trabajador=personal,
-                    defaults={
-                        'codigo_qr': codigo_qr_value,
-                        'holding_id': data.get('holding')
-                    }
-                )
-                print(f"✅ QR creado/actualizado")
-            except Exception as e:
-                print(f"❌ Error con QR: {e}")
-            
-            print("=== POST EXITOSO ===")
-            return Response({
-                'message': 'Trabajador guardado exitosamente',
-                'id': personal.id,
-                'asistencia_creada': not existing_personal  # Indica si se creó asistencia
-            }, status=status.HTTP_201_CREATED)
-        
-        print(f"❌ Errores: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            response_data = PersonalTrabajadoresMobileSerializer(personal).data
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        else:
+            print("❌ Errores de validación:")
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -3317,6 +3300,7 @@ class PersonalTrabajadoresAPIView(APIView):
         )
         
         serializer = PersonalTrabajadoresSerializer(trabajadores, many=True)
+        print(serializer.data)
         return Response(serializer.data)
 
     def post(self, request, format=None):
@@ -18792,3 +18776,4 @@ class GestionAsistenciaAPIView(APIView):
                 {'status': 'error', 'message': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
