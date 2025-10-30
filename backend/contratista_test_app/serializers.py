@@ -1204,7 +1204,8 @@ class TransportistaNestedSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = EmpresasTransporte  # o el nombre de tu modelo
-        fields = ['id', 'nombre', 'rut', 'vehiculos', 'estado']
+        fields = ['id', 'nombre', 'rut', 'direccion', 'vehiculos']  # ✅ Solo campos que existen
+
 
 class FolioComercialSerializer(serializers.ModelSerializer):
     # Campos de lectura
@@ -1256,7 +1257,7 @@ class FolioComercialSerializer(serializers.ModelSerializer):
             'fundos', 'fundos_ids', 'nombres_fundos',
             'labores', 'labores_ids', 'nombres_labores',
             'horarios', 'horarios_ids', 'nombres_horarios',  
-            'transportistas_data', 'nombres_transportistas',
+            'transportistas', 'transportistas_data', 'nombres_transportistas',
             'nombres_vehiculos',
             'fecha_inicio_contrato', 'fecha_termino_contrato',
             'valor_pago_trabajador', 'valor_facturacion',
