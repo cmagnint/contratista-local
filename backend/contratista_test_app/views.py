@@ -139,6 +139,7 @@ from .models import (
     DocumentosChofer,
     DocumentosVehiculo,
     RegistroAsistencia,
+    RegistroManoObraPersona,
     
 
 )
@@ -223,6 +224,7 @@ from .serializers import (
     DistribucionMultipleFacturaVentaSIISerializer,
     CartolaMovimientoSerializer,
     FolioComercialPreContratacionSerializer,
+    RegistroManoObraPersonaSerializer,
 )
 
 from .tasks import (
@@ -18914,4 +18916,392 @@ class InformeAsistenciaAPIView(APIView):
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+class GestionManoObraPersonaAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method in ['GET', 'POST']:
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        try:
+            supervisor_id = request.query_params.get('supervisor_id')
+            holding = request.query_params.get('holding')
+            
+            print(f"🔍 supervisor_id: {supervisor_id}, holding: {holding}")
+            
+            if not all([supervisor_id, holding]):
+                return Response(
+                    {'error': 'Faltan parámetros requeridos'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Obtener asistencias del día actual
+            hoy = date.today()
+            print(f"📅 Fecha de hoy: {hoy}")
+            
+            asistencias = RegistroAsistencia.objects.filter(
+                fecha_asistencia=hoy,
+                supervisor_id=supervisor_id,
+                holding=holding,
+                estado='A'
+            ).select_related('trabajador')
+            
+            print(f"✅ Asistencias encontradas: {asistencias.count()}")
+            
+            if not asistencias.exists():  
+                print('❌ No hay trabajadores con asistencia registrada hoy')  
+                return Response(
+                    {'error': 'No hay trabajadores con asistencia registrada hoy'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Obtener el contrato del primer trabajador para determinar folio y labor
+            primer_trabajador = asistencias.first().trabajador
+            print(f"👤 Primer trabajador: ID={primer_trabajador.id}, Nombre={primer_trabajador.nombres}")
+            print(f"   - Fundo ID: {primer_trabajador.fundo.id if primer_trabajador.fundo else None}")
+            print(f"   - Sociedad ID: {primer_trabajador.sociedad.id if primer_trabajador.sociedad else None}")
+            
+            # Buscar contrato activo del trabajador
+            try:
+                contrato = ContratoTrabajador.objects.select_related(
+                    'folio_comercial',
+                    'folio_comercial__cliente',
+                    'labor'
+                ).get(
+                    trabajador=primer_trabajador,
+                    holding=holding,
+                    fecha_inicio_contrato__lte=hoy,
+                    fecha_termino_contrato__gte=hoy
+                )
+                print(f"📋 Contrato encontrado: ID={contrato.id}")
+                print(f"   - Folio ID: {contrato.folio_comercial.id if contrato.folio_comercial else None}")
+                print(f"   - Labor ID: {contrato.labor.id if contrato.labor else None}")
+                print(f"   - Fecha inicio: {contrato.fecha_inicio_contrato}")
+                print(f"   - Fecha término: {contrato.fecha_termino_contrato}")
+                
+            except ContratoTrabajador.DoesNotExist:
+                print(f"❌ El trabajador {primer_trabajador.id} no tiene un contrato activo")
+                print(f"   Buscando contratos para este trabajador...")
+                
+                todos_contratos = ContratoTrabajador.objects.filter(
+                    trabajador=primer_trabajador,
+                    holding=holding
+                )
+                print(f"   Total contratos encontrados: {todos_contratos.count()}")
+                for c in todos_contratos:
+                    print(f"   - Contrato ID={c.id}: {c.fecha_inicio_contrato} a {c.fecha_termino_contrato}")
+                
+                return Response(
+                    {'error': 'El trabajador no tiene un contrato activo'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            folio = contrato.folio_comercial
+            labor = contrato.labor
+            
+            print(f"🏢 Folio: {folio.id if folio else None}")
+            print(f"🔧 Labor: {labor.id if labor else None} - {labor.nombre if labor else None}")
+            
+            if not folio:
+                print('❌ El contrato no tiene folio asociado')
+                return Response(
+                    {'error': 'El contrato no tiene folio asociado'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            if not labor:
+                print('❌ El contrato no tiene labor asociada')
+                print('   Intentando buscar labor en el folio...')
+                
+                # Buscar labor en el folio
+                labor = folio.labores.first()
+                if labor:
+                    print(f'   ✅ Labor encontrada en folio: ID={labor.id}, Nombre={labor.nombre}')
+                else:
+                    print('   ❌ El folio no tiene labores asociadas')
+                    return Response(
+                        {'error': 'El contrato y el folio no tienen labor asociada'}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            
+            # Procesar trabajadores
+            trabajadores = []
+            print(f"\n👥 Procesando {asistencias.count()} trabajadores...")
+            
+            for asistencia in asistencias:
+                print(f"\n  Procesando trabajador: {asistencia.trabajador.id} - {asistencia.trabajador.nombres}")
+                
+                # Verificar que el trabajador tenga contrato activo
+                try:
+                    contrato_trabajador = ContratoTrabajador.objects.get(
+                        trabajador=asistencia.trabajador,
+                        holding=holding,
+                        fecha_inicio_contrato__lte=hoy,
+                        fecha_termino_contrato__gte=hoy
+                    )
+                    print(f"    ✅ Tiene contrato activo: ID={contrato_trabajador.id}")
+                except ContratoTrabajador.DoesNotExist:
+                    print(f"    ❌ No tiene contrato activo, saltando...")
+                    continue
+                
+                # Calcular horas ya registradas hoy
+                horas_registradas = RegistroManoObraPersona.objects.filter(
+                    trabajador=asistencia.trabajador,
+                    fecha_ingreso=hoy
+                ).aggregate(total=Sum('horas'))['total'] or Decimal('0')
+                
+                print(f"    Horas asistencia: {asistencia.horas_registradas}")
+                print(f"    Horas registradas: {horas_registradas}")
+                
+                # Horas disponibles = horas de asistencia - horas ya registradas
+                horas_disponibles = asistencia.horas_registradas - horas_registradas
+                print(f"    Horas disponibles: {horas_disponibles}")
+                
+                # Solo incluir si tiene horas disponibles
+                if horas_disponibles > 0:
+                    trabajadores.append({
+                        'id': asistencia.trabajador.id,
+                        'nombre': f"{asistencia.trabajador.nombres} {asistencia.trabajador.apellidos or ''}".strip(),
+                        'horas_disponibles': float(horas_disponibles),
+                        'horas_asistencia': float(asistencia.horas_registradas),
+                        'horas_registradas': float(horas_registradas),
+                        'sociedad_id': asistencia.trabajador.sociedad.id if asistencia.trabajador.sociedad else None,
+                        'fundo_id': asistencia.trabajador.fundo.id if asistencia.trabajador.fundo else None
+                    })
+                    print(f"    ✅ Agregado a la lista")
+                else:
+                    print(f"    ⏭️  Saltado (sin horas disponibles)")
+            
+            print(f"\n📊 Total trabajadores con horas disponibles: {len(trabajadores)}")
+            
+            if not trabajadores:
+                print('❌ No hay trabajadores con horas disponibles o sin contrato activo')
+                return Response(
+                    {'mensaje': 'No hay trabajadores con horas disponibles o sin contrato activo'}, 
+                   status=status.HTTP_200_OK
+                )
+            
+            # Obtener unidades de control
+            unidades = UnidadControl.objects.filter(holding=holding, estado=True)
+            print(f"🔧 Unidades de control encontradas: {unidades.count()}")
+            
+            response_data = {
+                'trabajadores': trabajadores,
+                'folio': {
+                    'id': folio.id,
+                    'cliente': folio.cliente.nombre if folio.cliente else 'Sin cliente',
+                    'fecha_inicio': folio.fecha_inicio_contrato,
+                    'fecha_termino': folio.fecha_termino_contrato
+                },
+                'labor': {
+                    'id': labor.id,
+                    'nombre': labor.nombre
+                },
+                'unidades_control': [
+                    {'id': u.id, 'descripcion': u.nombre} 
+                    for u in unidades
+                ]
+            }
+            
+            print(f"\n✅ Respuesta exitosa enviada")
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"\n❌ Error en gestion_mano_obra_persona GET: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request):
+        try:
+            data = request.data
+            print("Datos recibidos:", data)
+            
+            # Validar que el trabajador aún tiene horas disponibles
+            trabajador_id = data.get('trabajador')
+            horas_a_registrar = Decimal(str(data.get('horas', 0)))
+            hoy = date.today()
+            
+            # Obtener asistencia del trabajador
+            try:
+                asistencia = RegistroAsistencia.objects.get(
+                    trabajador_id=trabajador_id,
+                    fecha_asistencia=hoy
+                )
+            except RegistroAsistencia.DoesNotExist:
+                return Response(
+                    {'error': 'El trabajador no tiene asistencia registrada hoy'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Calcular horas ya registradas
+            horas_registradas = RegistroManoObraPersona.objects.filter(
+                trabajador_id=trabajador_id,
+                fecha_ingreso=hoy
+            ).aggregate(total=Sum('horas'))['total'] or Decimal('0')
+            
+            # Validar que no exceda las horas disponibles
+            horas_disponibles = asistencia.horas_registradas - horas_registradas
+            
+            if horas_a_registrar > horas_disponibles:
+                return Response(
+                    {
+                        'error': f'Las horas a registrar ({horas_a_registrar}) exceden las horas disponibles ({horas_disponibles})'
+                    }, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Guardar registro
+            serializer = RegistroManoObraPersonaSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+            print("Errores de validación:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            print(f"Error en gestion_mano_obra_persona POST: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class InformeManoObraAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == 'GET':
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        try:
+            supervisor_id = request.query_params.get('supervisor_id')
+            holding = request.query_params.get('holding')
+            fecha_inicio = request.query_params.get('fecha_inicio')  # Formato: YYYY-MM-DD
+            fecha_fin = request.query_params.get('fecha_fin')  # Formato: YYYY-MM-DD
+            
+            print(f"🔍 Params: supervisor={supervisor_id}, holding={holding}")
+            print(f"   Fechas: {fecha_inicio} a {fecha_fin}")
+            
+            if not all([supervisor_id, holding]):
+                return Response(
+                    {'error': 'Faltan parámetros requeridos'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Construir filtros
+            filtros = {
+                'supervisor_id': supervisor_id,
+                'holding': holding
+            }
+            
+            # Filtros de fecha
+            if fecha_inicio and fecha_fin:
+                try:
+                    fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                    fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                    filtros['fecha_ingreso__range'] = [fecha_inicio_obj, fecha_fin_obj]
+                    print(f"✅ Rango de fechas aplicado: {fecha_inicio_obj} a {fecha_fin_obj}")
+                except ValueError as e:
+                    print(f"❌ Error en formato de fechas: {e}")
+                    return Response(
+                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            elif fecha_inicio:
+                try:
+                    fecha_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                    filtros['fecha_ingreso'] = fecha_obj
+                    print(f"✅ Fecha única aplicada: {fecha_obj}")
+                except ValueError:
+                    return Response(
+                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                # Si no hay fechas, usar hoy
+                hoy = date.today()
+                filtros['fecha_ingreso'] = hoy
+                print(f"✅ Usando fecha de hoy: {hoy}")
+            
+            # Obtener registros
+            registros = RegistroManoObraPersona.objects.filter(**filtros).select_related(
+                'labor',
+                'supervisor',
+                'supervisor__usuario',
+                'supervisor__usuario__persona',
+                'trabajador',
+                'unidad_control',
+                'folio',
+                'folio__cliente'
+            ).order_by('-produccion')
+            
+            print(f"📊 Registros encontrados: {registros.count()}")
+            
+            if not registros.exists():
+                return Response({
+                    'registros': [],
+                    'mensaje': 'No hay registros para los filtros aplicados'
+                }, status=status.HTTP_200_OK)
+            
+            # Formatear datos
+            registros_data = []
+            for registro in registros:
+                # Nombre del supervisor
+                if registro.supervisor and registro.supervisor.usuario and registro.supervisor.usuario.persona:
+                    nombre_supervisor = f"{registro.supervisor.usuario.persona.nombres} {registro.supervisor.usuario.persona.apellidos or ''}".strip()
+                else:
+                    nombre_supervisor = "Sin Supervisor"
+                
+                # Nombre del cliente (equivalente al "centro de costo")
+                nombre_cliente = registro.folio.cliente.nombre if registro.folio and registro.folio.cliente else "Sin Cliente"
+                
+                registros_data.append({
+                    'id': registro.id,
+                    'nombre_labor': registro.labor.nombre if registro.labor else 'Sin Labor',
+                    'nombre_supervisor': nombre_supervisor,
+                    'unidad_control': registro.unidad_control.nombre if registro.unidad_control else 'Sin U.Control',
+                    'horas_trabajadas': float(registro.horas),
+                    'produccion': float(registro.produccion),
+                    'nombre_trabajador': f"{registro.trabajador.nombres} {registro.trabajador.apellidos or ''}".strip() if registro.trabajador else 'Sin Trabajador',
+                    'nombre_centro_costo': nombre_cliente,  # Cliente como "centro de costo"
+                    'fecha_ingreso': registro.fecha_ingreso.strftime('%Y-%m-%d'),
+                    'folio_id': registro.folio.id if registro.folio else None,
+                })
+            
+            print(f"✅ Devolviendo {len(registros_data)} registros")
+            
+            return Response({
+                'registros': registros_data,
+                'total': len(registros_data)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"❌ Error en informe_mano_obra GET: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

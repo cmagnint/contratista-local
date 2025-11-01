@@ -7,6 +7,8 @@ import 'package:contratista/pages/mother_layout/cosecha/ingresar_produccion.dart
 import 'package:contratista/pages/mother_layout/formar_cuadrillas.dart';
 import 'package:contratista/pages/mother_layout/mano_obra/asistencia.dart'; // ✅ AGREGADO
 import 'package:contratista/pages/mother_layout/mano_obra/informe_asistencia.dart';
+import 'package:contratista/pages/mother_layout/mano_obra/por_persona/informe_mano_obra.dart';
+import 'package:contratista/pages/mother_layout/mano_obra/por_persona/ingreso_mano_obra.dart';
 import 'package:contratista/services/contratista_api_service.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +36,8 @@ class MotherLayoutState extends State<MotherLayout> {
     const PendingEnrollmentsScreen(), // _selectedIndex = 5 ENROLAMIENTOS PENDIENTES
     Container(), // _selectedIndex = 6 ASISTENCIA ✅ AGREGADO
     Container(), // _selectedIndex = 7 INFORME ASISTENCIA ✅ AGREGADO
+    Container(), // _selectedIndex = 8 INGRESO MANO OBRA
+    Container(),
   ];
 
   @override
@@ -80,6 +84,100 @@ class MotherLayoutState extends State<MotherLayout> {
         _showDialogWithMessage(context, 'Error al obtener los folios: $e');
       }
     }
+  }
+
+  void goToIngresarRendimientoPersona() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      if (userInfo.idSupervisor == null) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          _showDialogWithMessage(context, 'No tienes permisos de supervisor.');
+        }
+        return;
+      }
+
+      String? holding = await storage.read(key: 'holding');
+
+      final response = await apiService.get(
+        'gestion_mano_obra_persona/?supervisor_id=${userInfo.idSupervisor}&holding=$holding',
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      final data = jsonDecode(response.body);
+
+      // Verificar si hay error
+      if (data['mensaje'] != null) {
+        if (mounted) {
+          _showDialogWithMessage(context, data['mensaje']);
+        }
+        return;
+      }
+
+      if (data['trabajadores'] == null ||
+          (data['trabajadores'] as List).isEmpty) {
+        if (mounted) {
+          _showDialogWithMessage(
+            context,
+            'No hay trabajadores disponibles o todos ya tienen sus horas completas registradas.',
+          );
+        }
+        return;
+      }
+
+      List<Trabajador> trabajadores = (data['trabajadores'] as List)
+          .map(
+            (w) => Trabajador(
+              nombre: w['nombre'],
+              id: w['id'],
+              horasRegistradas: (w['horas_disponibles'] as num).toDouble(),
+              estado: 'A',
+              fundo: w['fundo_id'],
+              sociedad: w['sociedad_id'],
+              produccion: 0.0,
+            ),
+          )
+          .toList();
+
+      List<UnidadControl> unidades = (data['unidades_control'] as List)
+          .map((u) => UnidadControl.fromJson(u))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _pages[8] = IngresoManoObraScreen(
+            trabajadores: trabajadores,
+            unidadesControl: unidades,
+            cliente: data['folio']['cliente'],
+            labor: data['labor']['nombre'],
+            laborId: data['labor']['id'],
+            folioId: data['folio']['id'],
+          );
+          _selectedIndex = 8;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        _showDialogWithMessage(context, 'Error: ${e.toString()}');
+      }
+      loggerGlobal.e('Error en goToIngresarRendimientoPersona: $e');
+    }
+  }
+
+  void goToInformeRendimientoPersona() {
+    setState(() {
+      _pages[9] = const InformeManoObraScreen();
+      _selectedIndex = 9;
+    });
   }
 
   void goToInformeAsistencia() async {
@@ -381,13 +479,15 @@ class MotherLayoutState extends State<MotherLayout> {
                       title: const Text('Ingresar Rendimiento'),
                       onTap: () {
                         Navigator.pop(context);
+                        goToIngresarRendimientoPersona();
                       },
                     ),
                     ListTile(
                       leading: const Icon(Icons.summarize),
-                      title: const Text('Informes'),
+                      title: const Text('Informe Rendimiento'),
                       onTap: () {
                         Navigator.pop(context);
+                        goToInformeRendimientoPersona();
                       },
                     ),
                   ],

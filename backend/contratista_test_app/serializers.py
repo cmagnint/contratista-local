@@ -70,6 +70,7 @@ from .models import (
     DocumentosChofer,
     DocumentosVehiculo,
     RegistroAsistencia,
+    RegistroManoObraPersona,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -3416,3 +3417,8 @@ class TrabajadorAsistenciaSerializer(serializers.ModelSerializer):
             return asistencia.estado
         except RegistroAsistencia.DoesNotExist:
             return None
+        
+class RegistroManoObraPersonaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegistroManoObraPersona
+        fields = '__all__'

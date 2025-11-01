@@ -1,6 +1,5 @@
 #contratista-local
 from django.urls import path
-
 from .views import (
     LoginAPIView,
     HoldingAPIView,
@@ -115,6 +114,8 @@ from .views import (
     ListarDocumentosAPIView,
     GestionAsistenciaAPIView,
     InformeAsistenciaAPIView,
+    GestionManoObraPersonaAPIView,
+    InformeManoObraAPIView,
 )
 
 app_name = 'contratista_test'
@@ -283,6 +284,9 @@ urlpatterns = [
     path('api_generar-documentos-masivo/', GenerarDocumentosMasivoAPIView.as_view(), name='generar-documentos-masivo'),
     path('gestion_asistencia/', GestionAsistenciaAPIView.as_view(), name='gestion_asistencia'),
     path('informe_asistencia/', InformeAsistenciaAPIView.as_view(), name='informe_asistencia'),
+    path('gestion_mano_obra_persona/', GestionManoObraPersonaAPIView.as_view()),
+    path('informe_mano_obra/', InformeManoObraAPIView.as_view()),
+
 
 ]   
 

@@ -2499,3 +2499,23 @@ class RegistroAsistencia(models.Model):
         
     def __str__(self):
         return f"{self.trabajador.nombres} - {self.fecha_asistencia} - {self.estado}"
+
+class RegistroManoObraPersona(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    sociedad = models.ForeignKey(Sociedad, on_delete=models.SET_NULL, null=True, blank=True)
+    supervisor = models.ForeignKey(Supervisores, on_delete=models.SET_NULL, null=True, related_name='registros_mano_obra')
+    fecha_ingreso = models.DateField(auto_now_add=True)
+    folio = models.ForeignKey(FolioComercial, on_delete=models.SET_NULL, null=True, blank=True)
+    labor = models.ForeignKey(Labores, on_delete=models.SET_NULL, null=True, blank=True)
+    unidad_control = models.ForeignKey(UnidadControl, on_delete=models.SET_NULL, null=True, blank=True)
+    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.SET_NULL, null=True, related_name='registros_mano_obra')
+    produccion = models.DecimalField(max_digits=10, decimal_places=2)
+    horas = models.DecimalField(max_digits=5, decimal_places=2)
+    
+    class Meta:
+        db_table = 'registro_mano_obra_persona'
+        indexes = [
+            models.Index(fields=['trabajador', 'fecha_ingreso']),
+            models.Index(fields=['holding', 'fecha_ingreso']),
+        ]
