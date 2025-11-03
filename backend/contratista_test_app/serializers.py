@@ -1403,18 +1403,14 @@ class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
     rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     nic = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    horario = serializers.IntegerField(
-        required=False, 
-        allow_null=True,
-        help_text="ID del horario seleccionado"
-    )
+    
     class Meta:
         model = PersonalTrabajadores
         fields = [
             # Campos básicos que SÍ existen en el modelo
             'id', 'holding', 'sociedad', 'fundo', 'area', 'cargo', 
             'afp', 'salud', 'banco', 'casa', 'transportista', 'vehiculo',
-            'horario',
+            
             
             # Información personal
             'nombres', 'apellidos', 'rut', 'dni', 'nic', 

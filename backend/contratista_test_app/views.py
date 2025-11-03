@@ -3048,6 +3048,10 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             )
         else:
             print("Creando nuevo trabajador")
+            # ⭐ AGREGAR FECHA_INGRESO SI NO EXISTE
+            if 'fecha_ingreso' not in data or not data['fecha_ingreso']:
+                data['fecha_ingreso'] = timezone.now().date()
+                print(f"✅ Fecha de ingreso asignada: {data['fecha_ingreso']}")
             serializer = PersonalTrabajadoresMobileSerializer(data=data)
 
         print("=== VALIDANDO SERIALIZER ===")
@@ -3055,11 +3059,47 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             print("✅ Serializer válido")
             personal = serializer.save()
             
-            # CREAR CONTRATO - SOLO CAMPOS QUE EXISTEN EN EL MODELO
+            # ✅ DEBUG SUPERVISOR
+            supervisor_id = data.get('codigo_supervisor')
+            print(f"🔍 supervisor_id recibido: {supervisor_id} (tipo: {type(supervisor_id)})")
+            
+            try:
+                if supervisor_id:
+                    supervisor = Supervisores.objects.filter(id=supervisor_id).first()
+                    print(f"🔍 Supervisor encontrado: {supervisor}")
+                    if supervisor:
+                        supervisor.trabajadores.add(personal)
+                        supervisor.save()  # ⭐ AGREGAR SAVE EXPLÍCITO
+                        print(f"✅ Trabajador {personal.id} asignado al supervisor {supervisor.id}")
+                        print(f"🔍 Total trabajadores del supervisor: {supervisor.trabajadores.count()}")
+                    else:
+                        print(f"❌ Supervisor ID {supervisor_id} no encontrado en BD")
+                else:
+                    print(f"⚠️ No se recibió supervisor_id")
+            except Exception as e:
+                print(f"❌ Error asignando supervisor: {e}")
+                import traceback
+                print(traceback.format_exc())
+            
+            # ✅ DEBUG HORARIO
             try:
                 folio_id = data.get('folio')
+                horario_id = data.get('horario')
+                print(f"🔍 folio_id: {folio_id}, horario_id: {horario_id}")
+                
                 if folio_id:
                     folio = FolioComercial.objects.get(id=folio_id)
+                    print(f"🔍 Folio encontrado: {folio.id}")
+                    
+                    # ✅ BUSCAR HORARIO
+                    horario = None
+                    if horario_id:
+                        horario = Horarios.objects.filter(id=horario_id).first()
+                        print(f"🔍 Horario buscado - ID: {horario_id}, Encontrado: {horario}")
+                        if horario:
+                            print(f"✅ Horario: {horario.nombre} - {horario.jornada}h")
+                    else:
+                        print(f"⚠️ No se recibió horario_id")
                     
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
@@ -3068,34 +3108,55 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                         labor_id=data.get('labor'),
                         fundo_id=data.get('fundo'),
                         empresa_transporte_id=data.get('transportista'),
+                        horario=horario,
                         fecha_inicio_contrato=folio.fecha_inicio_contrato,
                         fecha_termino_contrato=folio.fecha_termino_contrato,
                     )
-                    print(f"✅ Contrato creado con ID: {contrato.id}")
+                    print(f"✅ Contrato ID: {contrato.id}, horario_id: {contrato.horario_id}")
                     
                     # ✅ CREAR ASISTENCIA AUTOMÁTICA
-                    fecha_hoy = timezone.now().date()
-                    supervisor = personal.codigo_supervisor  # Suponiendo que existe esta relación
+                    # Usar fecha_ingreso si existe, sino fecha actual
+                    if personal.fecha_ingreso:
+                        fecha_asistencia = personal.fecha_ingreso
+                    else:
+                        fecha_asistencia = timezone.now().date()
+                    
+                    # ✅ USAR EL SUPERVISOR ENVIADO DESDE EL FRONT
+                    supervisor = None
+                    if supervisor_id:
+                        supervisor = Supervisores.objects.filter(id=supervisor_id).first()
+                    
+                    # Si no viene supervisor del front, buscar cualquier supervisor del holding
+                    if not supervisor:
+                        supervisor = Supervisores.objects.filter(
+                            holding_id=data.get('holding')
+                        ).first()
                     
                     if supervisor:
                         asistencia, created = RegistroAsistencia.objects.get_or_create(
                             trabajador=personal,
-                            fecha_asistencia=fecha_hoy,
+                            fecha_asistencia=fecha_asistencia,
                             defaults={
                                 'holding_id': data.get('holding'),
                                 'supervisor': supervisor,
                                 'estado': 'A',
-                                'horas_registradas': 0.0,
+                                'horas_registradas': horario.jornada if horario else 9.0,
                                 'modificado_por': request.user
                             }
                         )
                         if created:
-                            print(f"✅ Asistencia creada automáticamente para {personal.nombres}")
+                            print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horario.jornada if horario else 9.0}h - Supervisor: {supervisor.id}")
                         else:
-                            print(f"ℹ️ Ya existe asistencia para {personal.nombres} hoy")
+                            print(f"ℹ️ Ya existe asistencia para {personal.nombres}")
+                    else:
+                        print(f"⚠️ No hay supervisor en holding {data.get('holding')}")
                     
+            except FolioComercial.DoesNotExist:
+                print(f"❌ Folio ID {folio_id} no encontrado")
             except Exception as e:
                 print(f"❌ Error creando contrato/asistencia: {e}")
+                import traceback
+                print(traceback.format_exc())
             
             # Delete old images if updated
             if existing_personal:
@@ -3112,6 +3173,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             print("❌ Errores de validación:")
             print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -18625,6 +18687,7 @@ class GestionAsistenciaAPIView(APIView):
             
             # Obtener trabajadores del supervisor con contrato vigente
             trabajadores_con_contrato = supervisor.trabajadores.filter(
+                holding_id=holding_id,
                 estado=True,
                 contratos__fecha_inicio_contrato__lte=fecha_consulta,
                 contratos__fecha_termino_contrato__gte=fecha_consulta

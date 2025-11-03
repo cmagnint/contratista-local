@@ -141,6 +141,7 @@ class WorkerSyncService {
         'horario', // ✅ AGREGADO
         'transportista', // ✅ AGREGADO
         'rut',
+        'codigo_supervisor',
         'dni',
         'nic',
         'apellidos',
@@ -236,9 +237,10 @@ class WorkerSyncService {
       }
 
       // Debug: Mostrar campos que se enviarán
-      loggerGlobal.d(
-        'Campos que se enviarán al servidor: ${fields.keys.toList()}',
-      );
+      loggerGlobal.d('=== CAMPOS QUE SE ENVÍAN ===');
+      loggerGlobal.d('codigo_supervisor: ${fields['codigo_supervisor']}');
+      loggerGlobal.d('horario: ${fields['horario']}');
+      loggerGlobal.d('Todos los campos: ${fields.keys.toList()}');
 
       // Enviar al servidor
       final response = await _apiService.postMultipart(

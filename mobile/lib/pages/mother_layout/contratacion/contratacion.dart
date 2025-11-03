@@ -1066,7 +1066,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'holding': holding ?? '',
           'sociedad': userInfo.sociedad,
           'fecha_ingreso': DateTime.now().toIso8601String().split('T')[0],
-          'codigo_supervisor': (userInfo.idUsuario).toString(),
+          'codigo_supervisor': widget.initialData['supervisor'] ?? '',
           'folio': widget.initialData['folio'] ?? '',
           'fundo': widget.initialData['fundo'] ?? '',
           'labor': widget.initialData['labor'] ?? '',
@@ -1182,7 +1182,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'labor_id': widget.initialData['labor'] ?? '',
           'empresa_transporte_id': widget.initialData['transportista'] ?? '',
           'vehiculo_id': widget.initialData['vehiculo'] ?? '',
-          'horario_id': widget.initialData['horario'] ?? '',
+          'horario': widget.initialData['horario'] ?? '',
+          'codigo_supervisor':
+              widget.initialData['supervisor'] ?? '', // ⭐ AGREGAR
         };
 
         loggerGlobal.d('Campos adicionales para BD local:');
