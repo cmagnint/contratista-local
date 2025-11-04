@@ -421,35 +421,24 @@ class VerifyJWTAPIView(APIView):
         jwt_token = request.data.get('jwt_token')
         
         if not jwt_token:
-            return Response({
-                'valid': False, 
-                'error': 'Token requerido'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'valid': False, 'error': 'Token requerido'}, status=400)
         
-        # Decodificar y validar JWT
         payload = JWTService.decode_jwt(jwt_token)
         
         if not payload:
-            return Response({
-                'valid': False,
-                'error': 'Token inválido o expirado'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'valid': False, 'error': 'Token inválido'}, status=401)
         
-        # Token válido - retornar información útil
         return Response({
             'valid': True,
-            'user_info': {
-                'user_id': payload.get('user_id'),
-                'user_type': payload.get('user_type'),
-                'holding_id': payload.get('holding_id'),
-                'is_superuser': payload.get('is_superuser', False),
-                'is_admin': payload.get('is_admin', False),
-                'permissions': payload.get('permissions', []),
-                'allowed_routes': payload.get('allowed_routes', []),
-                'nombre_completo': payload.get('nombre_completo'),
-                'expires_at': payload.get('exp')
-            }
-        }, status=status.HTTP_200_OK)
+            'user_id': payload.get('user_id'),
+            'holding_id': payload.get('holding_id'),
+            'sociedad_id': payload.get('sociedad'),
+            'supervisor_id': payload.get('supervisor_id'),
+            'jefe_cuadrilla_id': payload.get('jefe_cuadrilla_id'),
+            'nombre': payload.get('nombre_completo'),
+            'rut': payload.get('rut'),
+            'is_admin': payload.get('is_admin', False),
+        }, status=200)
 
 class RefreshJWTAPIView(APIView):
     """
@@ -1362,12 +1351,72 @@ class UsuarioAPIViews(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, format=None):
+        """
+        ✅ Modificar usuario con validaciones completas:
+        1. Validar supervisor requerido al cambiar a JEFE DE CUADRILLA
+        2. Validar que JEFE DE CUADRILLA no tenga trabajadores antes de cambiar perfil
+        3. Validar que SUPERVISOR no tenga jefes de cuadrilla antes de cambiar perfil
+        """
         with transaction.atomic():
             perfil_id = request.data.get('id')
             try:
                 usuario = Usuarios.objects.get(id=perfil_id)
                 old_perfil = usuario.perfil
+                old_perfil_nombre = old_perfil.nombre_perfil if old_perfil else None
                 
+                # ✅ VALIDACIÓN 1: Si cambia a JEFE DE CUADRILLA, validar supervisor
+                new_perfil_id = request.data.get('perfil')
+                if new_perfil_id:
+                    new_perfil = Perfiles.objects.get(id=new_perfil_id)
+                    new_perfil_nombre = new_perfil.nombre_perfil
+                    
+                    # Validar cambio a JEFE DE CUADRILLA
+                    if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
+                        supervisor_id = request.data.get('supervisor')
+                        if not supervisor_id:
+                            return Response(
+                                {"message": "Se requiere un supervisor para asignar el perfil de Jefe de Cuadrilla"}, 
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
+                        # Validar que el supervisor exista
+                        try:
+                            Supervisores.objects.get(usuario_id=supervisor_id)
+                        except Supervisores.DoesNotExist:
+                            return Response(
+                                {"message": "Supervisor no encontrado"}, 
+                                status=status.HTTP_404_NOT_FOUND
+                            )
+                    
+                    # ✅ VALIDACIÓN 2: Si cambia desde JEFE DE CUADRILLA, validar que no tenga trabajadores
+                    if old_perfil_nombre == 'JEFE DE CUADRILLA' and new_perfil_nombre != 'JEFE DE CUADRILLA':
+                        try:
+                            jefe = JefesDeCuadrilla.objects.get(usuario=usuario)
+                            trabajadores_count = jefe.trabajadores.count()
+                            
+                            if trabajadores_count > 0:
+                                return Response(
+                                    {"message": f"No puede cambiar el perfil. El Jefe de Cuadrilla tiene {trabajadores_count} trabajador(es) asignado(s). Debe reasignarlos primero."}, 
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except JefesDeCuadrilla.DoesNotExist:
+                            pass  # No tiene registro de jefe, puede continuar
+                    
+                    # ✅ VALIDACIÓN 3: Si cambia desde SUPERVISOR, validar que no tenga jefes de cuadrilla
+                    if old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
+                        try:
+                            supervisor = Supervisores.objects.get(usuario=usuario)
+                            jefes_count = JefesDeCuadrilla.objects.filter(supervisor=supervisor).count()
+                            
+                            if jefes_count > 0:
+                                return Response(
+                                    {"message": f"No puede cambiar el perfil. El Supervisor tiene {jefes_count} Jefe(s) de Cuadrilla asignado(s). Debe reasignarlos primero."}, 
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except Supervisores.DoesNotExist:
+                            pass  # No tiene registro de supervisor, puede continuar
+                
+                # Continuar con la actualización normal
                 serializer = UserSerializer(usuario, data=request.data)
                 if serializer.is_valid():
                     usuario = serializer.save()
@@ -1376,7 +1425,7 @@ class UsuarioAPIViews(APIView):
                         new_perfil_nombre = usuario.perfil.nombre_perfil if usuario.perfil else None
                         old_perfil_nombre = old_perfil.nombre_perfil if old_perfil else None
 
-                        # Handle Supervisor changes
+                        # Crear/eliminar registro de Supervisor
                         if new_perfil_nombre == 'SUPERVISOR' and old_perfil_nombre != 'SUPERVISOR':
                             Supervisores.objects.create(
                                 holding_id=usuario.holding_id,
@@ -1385,7 +1434,7 @@ class UsuarioAPIViews(APIView):
                         elif old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
                             Supervisores.objects.filter(usuario=usuario).delete()
 
-                        # Handle Jefe de Cuadrilla changes
+                        # Crear/eliminar registro de Jefe de Cuadrilla
                         if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
                             supervisor_id = request.data.get('supervisor')
                             if supervisor_id:
@@ -1402,9 +1451,11 @@ class UsuarioAPIViews(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             except Usuarios.DoesNotExist:
                 return Response({"message": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            except Perfiles.DoesNotExist:
+                return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
             except Supervisores.DoesNotExist:
                 return Response({"message": "Supervisor no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
+    
     def delete(self, request, format=None):
         with transaction.atomic():
             user_ids = request.data.get('ids', [])
@@ -17564,7 +17615,7 @@ class HistorialPagosAPIView(APIView):
 class DocumentoVariablesNativasAPIView(APIView):
     """
     Vista unificada para manejo de documentos con variables usando coordenadas nativas.
-    Elimina toda la complejidad de calibración.
+    MODIFICADO: Normaliza todos los PDFs a 612x792 puntos para consistencia absoluta.
     """
     
     def get(self, request, documento_id=None, *args, **kwargs):
@@ -17646,21 +17697,173 @@ class DocumentoVariablesNativasAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    def _crear_documento(self, request):
-        """Crear un nuevo documento con variables posicionadas"""
+    def _normalizar_pdf_a_carta(self, pdf_file):
+        """
+        Convierte cualquier PDF a tamaño carta (612x792 puntos) FORZADO.
+        Usa transformaciones matriciales para garantizar dimensiones exactas.
+        """
+        from PyPDF2 import PdfReader, PdfWriter, Transformation
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        import io
+        
+        # Dimensiones objetivo (Letter/Carta)
+        TARGET_WIDTH = 612.0
+        TARGET_HEIGHT = 792.0
+        
         try:
-            pdf_file = request.FILES.get('archivo_pdf')
+            # Leer PDF original
+            if hasattr(pdf_file, 'read'):
+                pdf_file.seek(0)
+                reader = PdfReader(pdf_file)
+            else:
+                reader = PdfReader(open(pdf_file, "rb"))
             
-            if not pdf_file:
-                return Response({"error": "El archivo PDF es obligatorio"}, status=400)
+            writer = PdfWriter()
             
-            if pdf_file.size == 0:
-                return Response({"error": "El archivo PDF está vacío"}, status=400)
+            print(f"📄 Normalizando PDF: {len(reader.pages)} páginas")
+            
+            for page_num, page in enumerate(reader.pages):
+                # Obtener dimensiones originales
+                original_width = float(page.mediabox.width)
+                original_height = float(page.mediabox.height)
+                
+                print(f"  Página {page_num + 1}: {original_width}x{original_height} → {TARGET_WIDTH}x{TARGET_HEIGHT}")
+                
+                # Si ya tiene las dimensiones correctas
+                if abs(original_width - TARGET_WIDTH) < 1 and abs(original_height - TARGET_HEIGHT) < 1:
+                    print(f"  ✓ Ya está en 612x792")
+                    writer.add_page(page)
+                    continue
+                
+                # ⭐ CREAR PÁGINA BASE DE 612x792 CON REPORTLAB
+                packet = io.BytesIO()
+                can = canvas.Canvas(packet, pagesize=letter)  # letter = (612, 792)
+                can.showPage()  # Página en blanco
+                can.save()
+                packet.seek(0)
+                
+                # Leer la página base
+                base_page = PdfReader(packet).pages[0]
+                
+                # ⭐ CALCULAR ESCALA PARA FORZAR AJUSTE
+                scale_x = TARGET_WIDTH / original_width
+                scale_y = TARGET_HEIGHT / original_height
+                
+                print(f"  📐 Escalas: X={scale_x:.4f}, Y={scale_y:.4f}")
+                
+                # ⭐ APLICAR TRANSFORMACIÓN DE ESCALA A LA PÁGINA ORIGINAL
+                # Matriz de transformación: [sx, 0, 0, sy, tx, ty]
+                # sx, sy = factores de escala
+                # tx, ty = traslación (0,0 en este caso)
+                transformation = Transformation().scale(sx=scale_x, sy=scale_y)
+                page.add_transformation(transformation)
+                
+                # ⭐ FORZAR MEDIABOX DE LA PÁGINA ESCALADA
+                page.mediabox.lower_left = (0, 0)
+                page.mediabox.upper_right = (TARGET_WIDTH, TARGET_HEIGHT)
+                page.cropbox.lower_left = (0, 0)
+                page.cropbox.upper_right = (TARGET_WIDTH, TARGET_HEIGHT)
+                
+                # Agregar la página modificada
+                writer.add_page(page)
+                
+                # Verificar dimensiones finales
+                final_width = float(page.mediabox.width)
+                final_height = float(page.mediabox.height)
+                print(f"  ✅ Dimensiones finales: {final_width}x{final_height}")
+            
+            # Escribir en buffer
+            output = io.BytesIO()
+            writer.write(output)
+            output.seek(0)
+            
+            # ⭐ VERIFICACIÓN FINAL
+            verification_reader = PdfReader(output)
+            output.seek(0)  # Reset para retornar
+            
+            print(f"\n🔍 VERIFICACIÓN FINAL:")
+            for i, vpage in enumerate(verification_reader.pages):
+                vwidth = float(vpage.mediabox.width)
+                vheight = float(vpage.mediabox.height)
+                print(f"  Página {i+1}: {vwidth}x{vheight}")
+                
+                if abs(vwidth - TARGET_WIDTH) > 1 or abs(vheight - TARGET_HEIGHT) > 1:
+                    print(f"  ⚠️ ADVERTENCIA: Dimensiones no coinciden con 612x792")
+            
+            print(f"✅ PDF normalizado completo")
+            return output
+            
+        except Exception as e:
+            print(f"❌ Error normalizando PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
+    def _crear_documento(self, request):
+        """Crear un nuevo documento con variables posicionadas (soporta merge de PDFs)"""
+        try:
+            from PyPDF2 import PdfMerger
+            from django.core.files.base import ContentFile
+            import io
             
             nombre = request.data.get('nombre', 'Documento sin nombre')
             tipo = request.data.get('tipo', 'CHILENO')
+            requiere_merge = request.data.get('requiere_merge', 'false') == 'true'
             
-            # Procesar variables
+            # ========== MANEJO DE PDF (SIMPLE O FUSIONADO) ==========
+            if requiere_merge:
+                # Fusionar múltiples PDFs
+                num_partes = int(request.data.get('num_partes', 1))
+                print(f"🔀 Fusionando {num_partes} PDFs...")
+                
+                merger = PdfMerger()
+                
+                # ⭐ Normalizar cada parte ANTES de fusionar
+                for i in range(num_partes):
+                    parte_file = request.FILES.get(f'pdf_parte_{i}')
+                    if parte_file:
+                        print(f"  📄 Parte {i+1}: {parte_file.size} bytes")
+                        
+                        # Normalizar a 612x792
+                        parte_normalizada = self._normalizar_pdf_a_carta(parte_file)
+                        merger.append(parte_normalizada)
+                    else:
+                        print(f"  ⚠️ No se encontró pdf_parte_{i}")
+                
+                # Crear archivo fusionado en memoria
+                merged_buffer = io.BytesIO()
+                merger.write(merged_buffer)
+                merger.close()
+                merged_buffer.seek(0)
+                
+                print(f"✅ PDF fusionado: {len(merged_buffer.getvalue())} bytes")
+                
+                # Crear archivo Django desde el buffer
+                nombre_archivo = f"{nombre.lower().replace(' ', '_')}.pdf"
+                pdf_file = ContentFile(merged_buffer.read(), name=nombre_archivo)
+            else:
+                # ⭐ Normalizar archivo único
+                pdf_file_original = request.FILES.get('archivo_pdf')
+                
+                if not pdf_file_original:
+                    return Response({
+                        "error": "El archivo PDF es obligatorio"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if pdf_file_original.size == 0:
+                    return Response({
+                        "error": "El archivo PDF está vacío"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Normalizar a 612x792
+                pdf_normalizado = self._normalizar_pdf_a_carta(pdf_file_original)
+                
+                # Convertir a ContentFile para Django
+                nombre_archivo = pdf_file_original.name
+                pdf_file = ContentFile(pdf_normalizado.read(), name=nombre_archivo)
+            
+            # ========== PROCESAR VARIABLES ==========
             variables_data = request.data.get('variables')
             if isinstance(variables_data, str):
                 variables_json = json.loads(variables_data)
@@ -17680,7 +17883,7 @@ class DocumentoVariablesNativasAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Crear documento
+            # ========== CREAR DOCUMENTO ==========
             documento = ContratoVariables.objects.create(
                 holding=request.user.holding,
                 nombre=nombre,
@@ -17689,15 +17892,21 @@ class DocumentoVariablesNativasAPIView(APIView):
                 variables=variables_json
             )
             
+            print(f"✅ Documento guardado: ID {documento.id}, {len(variables_json)} variables, PDF normalizado a 612x792")
+            
             return Response({
                 "id": documento.id,
-                "mensaje": "Documento guardado exitosamente con coordenadas nativas"
-            }, status=201)
+                "mensaje": "Documento guardado exitosamente (PDF normalizado a 612x792)",
+                "num_paginas": num_partes if requiere_merge else 1
+            }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            print(f"❌ Error al guardar el documento: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({
                 "error": f"Error al guardar el documento: {str(e)}"
-            }, status=500)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _actualizar_documento(self, request, documento_id):
         """Actualizar variables de un documento existente"""
@@ -17740,7 +17949,6 @@ class DocumentoVariablesNativasAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    # ========== CAMBIO 1: MODIFICAR ESTE MÉTODO ==========
     def _generar_pdf_prueba(self, request):
         """Generar PDF con datos de prueba EN MEMORIA"""
         try:
@@ -17755,14 +17963,14 @@ class DocumentoVariablesNativasAPIView(APIView):
             
             documento = get_object_or_404(ContratoVariables, id=documento_id)
             
-            # CAMBIO: Generar PDF en memoria
+            # Generar PDF en memoria
             pdf_buffer = self._generar_documento_coordenadas_nativas(
                 documento_id, 
                 datos_variables, 
                 debug=debug
             )
             
-            # CAMBIO: Retornar PDF directamente como HttpResponse
+            # Retornar PDF directamente como HttpResponse
             response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = 'inline; filename="vista_previa.pdf"'
             return response
@@ -17772,54 +17980,25 @@ class DocumentoVariablesNativasAPIView(APIView):
                 "error": f"Error al generar PDF de prueba: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    # ========== CAMBIO 2: MODIFICAR ESTE MÉTODO ==========
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """
-        Genera un PDF usando directamente las coordenadas nativas con transformación escalable.
-        CAMBIO: Ahora retorna BytesIO en lugar de guardar en disco.
+        Genera PDF con coordenadas nativas.
+        SIMPLIFICADO: Todos los PDFs guardados YA están en 612x792.
         """
         from PyPDF2 import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
         import io
         
-        # Obtener documento
         documento = ContratoVariables.objects.get(id=documento_id)
-        
-        # CAMBIO: Ya no necesitamos rutas de archivo
         input_pdf_path = documento.archivo_pdf.path
         
-        # Procesar PDF
         reader = PdfReader(open(input_pdf_path, "rb"))
         writer = PdfWriter()
         
-        # CONFIGURACIÓN ESCALABLE
         BASE_FONT_SIZE = 9
-        
-        def calcular_offsets_escalables(page_width, page_height, font_size):
-            """
-            Calcula offsets proporcionales al tamaño del PDF para que funcione
-            con cualquier dimensión de documento.
-            """
-            # Ratios basados en PDF estándar carta (612 x 792 puntos)
-            REFERENCE_WIDTH = 612.0
-            REFERENCE_HEIGHT = 792.0
-            
-            # Offsets originales que funcionan bien en PDF carta
-            BASE_OFFSET_X = -8
-            BASE_OFFSET_Y = -15.2
-            
-            # Calcular offsets proporcionales
-            offset_x = (page_width / REFERENCE_WIDTH) * BASE_OFFSET_X
-            offset_y = (page_height / REFERENCE_HEIGHT) * BASE_OFFSET_Y
-            
-            # Ajuste baseline del texto (aproximadamente 30% del font size)
-            font_baseline = font_size * 0.3
-            
-            return {
-                'offset_x': offset_x,
-                'offset_y': offset_y,
-                'font_baseline': font_baseline
-            }
+        BASE_OFFSET_X = -8
+        BASE_OFFSET_Y = -15.2
+        FONT_BASELINE = BASE_FONT_SIZE * 0.3
         
         # Organizar variables por página
         variables_por_pagina = {}
@@ -17830,12 +18009,18 @@ class DocumentoVariablesNativasAPIView(APIView):
                 if pagina not in variables_por_pagina:
                     variables_por_pagina[pagina] = []
                 
-                variable_info = {
+                variables_por_pagina[pagina].append({
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
                     'posY': ubicacion.get('posY', 0)
-                }
-                variables_por_pagina[pagina].append(variable_info)
+                })
+        
+        # Campos centrados
+        campos_centrados = [
+                                'rut', 'dni', 'nic', 'estado_civil', 
+                                'fecha_nacimiento', 'fecha_emision', 
+                                'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
+                            ]
         
         # Procesar cada página
         for page_num in range(len(reader.pages)):
@@ -17843,109 +18028,62 @@ class DocumentoVariablesNativasAPIView(APIView):
             page = reader.pages[page_num]
             
             if ui_page_num in variables_por_pagina:
-                # Crear overlay para esta página
                 packet = io.BytesIO()
                 page_width = float(page.mediabox.width)
                 page_height = float(page.mediabox.height)
                 
-                # Calcular offsets escalables para esta página específica
-                offsets = calcular_offsets_escalables(page_width, page_height, BASE_FONT_SIZE)
-                
                 can = canvas.Canvas(packet, pagesize=(page_width, page_height))
                 
-                print(f"Página {ui_page_num}: {page_width} x {page_height} puntos")
-                print(f"Offsets calculados: X={offsets['offset_x']:.1f}, Y={offsets['offset_y']:.1f}, Baseline={offsets['font_baseline']:.1f}")
+                print(f"Página {ui_page_num}: {page_width} x {page_height}")
                 
-                # Definir campos que deben centrarse
-                campos_centrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 
-                                'nacionalidad', 'f_ingreso', 'f_termino']
-                
-                # Agregar variables usando coordenadas nativas con transformación escalable
                 for variable in variables_por_pagina[ui_page_num]:
                     nombre = variable['nombre']
                     if nombre in datos_variables and datos_variables[nombre]:
-                        # Coordenadas del frontend (nativas del PDF)
                         frontend_x = variable['posX']
                         frontend_y = variable['posY']
                         
-                        # TRANSFORMACIÓN ESCALABLE CORREGIDA
-                        pdf_x = frontend_x + offsets['offset_x']
-                        pdf_y = page_height - frontend_y + offsets['offset_y'] + offsets['font_baseline']
+                        # Transformación directa (sin escalas)
+                        pdf_x = frontend_x + BASE_OFFSET_X
+                        pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
                         
-                        # Ajustes específicos por tipo de campo (opcionales)
+                        # Ajustes específicos
                         if nombre == 'rut':
-                            pdf_x += offsets['offset_x'] * 0.5
+                            pdf_x += BASE_OFFSET_X * 0.5
                         elif nombre == 'nombre':
-                            pdf_x += offsets['offset_x'] * 0.1
+                            pdf_x += BASE_OFFSET_X * 0.1
                         
-                        # Valor a imprimir
                         valor = str(datos_variables[nombre])
-                        
-                        # Configurar fuente
                         can.setFont("Helvetica", BASE_FONT_SIZE)
                         
-                        # Determinar si el campo debe centrarse
-                        is_centered = nombre in campos_centrados
-                        if is_centered:
-                            # Centrar texto en la posición
+                        if nombre in campos_centrados:
                             text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
                             can.drawString(pdf_x - (text_width/2), pdf_y, valor)
                         else:
-                            # Alinear a la izquierda (comportamiento estándar)
                             can.drawString(pdf_x, pdf_y, valor)
                         
-                        # Modo debug
                         if debug:
+                            # Debug visual
                             can.saveState()
-                            
-                            # Tamaño del rectángulo de debug proporcional
-                            debug_rect_size = BASE_FONT_SIZE * 2
-                            
-                            # Dibujar cruz roja en la posición exacta
                             can.setStrokeColorRGB(1, 0, 0)
                             can.setLineWidth(1)
-                            cross_size = debug_rect_size / 2
-                            can.line(pdf_x - cross_size, pdf_y, pdf_x + cross_size, pdf_y)
-                            can.line(pdf_x, pdf_y - cross_size, pdf_x, pdf_y + cross_size)
-                            
-                            # Rectángulo semitransparente
-                            can.setFillColorRGB(1, 0.8, 0.8, alpha=0.3)
-                            can.rect(pdf_x - debug_rect_size/2, pdf_y - debug_rect_size/2, 
-                                    debug_rect_size, debug_rect_size, fill=True, stroke=False)
-                            
-                            # Texto con información de debug
-                            debug_font_size = max(6, BASE_FONT_SIZE - 2)
-                            can.setFont("Helvetica", debug_font_size)
-                            can.setFillColorRGB(1, 0, 0)
-                            
-                            # Posicionar texto debug para que no se sobreponga
-                            debug_text_x = pdf_x + debug_rect_size
-                            debug_text_y = pdf_y + debug_font_size
-                            
-                            can.drawString(debug_text_x, debug_text_y, f"F:({int(frontend_x)},{int(frontend_y)})")
-                            can.drawString(debug_text_x, debug_text_y - debug_font_size, f"P:({int(pdf_x)},{int(pdf_y)})")
-                            can.drawString(debug_text_x, debug_text_y - debug_font_size * 2, f"{nombre}")
-                            can.drawString(debug_text_x, debug_text_y - debug_font_size * 3, f"Dims:{int(page_width)}x{int(page_height)}")
-                            
+                            can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
+                            can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
                             can.restoreState()
                 
                 can.save()
                 packet.seek(0)
                 
-                # Combinar con página original
                 overlay = PdfReader(packet)
                 page.merge_page(overlay.pages[0])
             
-            # Añadir página al documento final
             writer.add_page(page)
         
-        # CAMBIO PRINCIPAL: En lugar de guardar en disco, escribir en buffer
         buffer = io.BytesIO()
         writer.write(buffer)
         buffer.seek(0)
         
-        print("PDF generado exitosamente EN MEMORIA")
-        return buffer  # ← RETORNAR BUFFER EN LUGAR DE PATH
+        print("✅ PDF generado")
+        return buffer
     
 #===================================================================
 #===================== GENERADOR TXT BANCO DE CHILE ================
@@ -18377,9 +18515,8 @@ class GenerarDocumentosMasivoAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _mapear_datos_trabajador(self, trabajador):
-        """
-        Mapea los datos del trabajador a las variables del contrato
-        """
+        """Mapea datos correctos desde PersonalTrabajadores + ContratoTrabajador"""
+        
         def formatear_fecha(fecha):
             if not fecha:
                 return ''
@@ -18402,42 +18539,61 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 rut_formateado = digit + rut_formateado
             return f"{rut_formateado}-{dv}"
         
-        datos = {
-            'nombre': f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
+        # ⭐ OBTENER CONTRATO ACTIVO
+        from datetime import date
+        from django.db import models
+
+        contrato_activo = trabajador.contratos.filter(
+            fecha_inicio_contrato__lte=date.today()
+        ).filter(
+            models.Q(fecha_termino_contrato__gte=date.today()) | 
+            models.Q(fecha_termino_contrato__isnull=True)
+        ).order_by('-fecha_inicio_contrato').first()
+        
+        return {
+            # Fechas
+            'fecha_emision': formatear_fecha(date.today()),
+            'fecha_ingreso': formatear_fecha(trabajador.fecha_ingreso),
+            'fecha_inicio_contrato': formatear_fecha(contrato_activo.fecha_inicio_contrato) if contrato_activo else '',
+            'fecha_termino': formatear_fecha(contrato_activo.fecha_termino_contrato) if contrato_activo else '',
+            
+            # Identidad
+            'nombre_completo': f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
             'rut': formatear_rut(trabajador.rut) if trabajador.rut else '',
             'dni': trabajador.dni or '',
+            'nic': '',
             'nacionalidad': trabajador.nacionalidad or '',
             'fecha_nacimiento': formatear_fecha(trabajador.fecha_nacimiento),
-            'f_nacmnto': formatear_fecha(trabajador.fecha_nacimiento),
             'estado_civil': trabajador.estado_civil or '',
-            'e_civil': trabajador.estado_civil or '',
-            'sexo': trabajador.sexo or '',
+            
+            # Contacto
             'domicilio': trabajador.direccion or '',
             'telefono': trabajador.telefono or '',
             'correo': trabajador.correo or '',
-            'fecha_ingreso': formatear_fecha(trabajador.fecha_ingreso),
-            'f_ingreso': formatear_fecha(trabajador.fecha_ingreso),
-            'fecha_inicio': formatear_fecha(trabajador.fecha_ingreso),
-            'f_inicio': formatear_fecha(trabajador.fecha_ingreso),
-            'fecha_termino': formatear_fecha(trabajador.fecha_finiquito),
-            'f_termino': formatear_fecha(trabajador.fecha_finiquito),
-            'banco': trabajador.banco.nombre if trabajador.banco else '',
-            'tipo_cuenta': trabajador.tipo_cuenta_bancaria or '',
-            'cuenta': str(trabajador.numero_cuenta) if trabajador.numero_cuenta else '',
+            
+            # Trabajo (desde ContratoTrabajador)
+            'lugar_trabajo': contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
+            'cargo': trabajador.cargo.nombre if trabajador.cargo else '',
+            'area': trabajador.area.nombre if trabajador.area else '',
+            
+            # Previsión
             'afp': trabajador.afp.nombre if trabajador.afp else '',
             'salud': trabajador.salud.nombre if trabajador.salud else '',
-            'casa': trabajador.casa.nombre if trabajador.casa else '',
-            'campo_cliente': trabajador.fundo.nombre_campo if trabajador.fundo else '',
-            'cliente': trabajador.fundo.cliente.nombre if trabajador.fundo and trabajador.fundo.cliente else '',
-            'transportista': trabajador.transportista.nombre if trabajador.transportista else '',
-            'vehiculo': f"{trabajador.vehiculo.ppu} - {trabajador.vehiculo.modelo}" if trabajador.vehiculo else '',
-            'area': trabajador.area.nombre if trabajador.area else '',
-            'cargo': trabajador.cargo.nombre if trabajador.cargo else '',
+            
+            # Bancarios
+            'tipo_pago': 'Transferencia bancaria',
+            'banco': trabajador.banco.nombre if trabajador.banco else '',
+            'tipo_cuenta': trabajador.tipo_cuenta_bancaria or '',
+            'numero_cuenta': str(trabajador.numero_cuenta) if trabajador.numero_cuenta else '',
+            
+            # Otros
+            'elementos_proteccion': '',  # Por definir
+            'contacto_emergencia_nombre': '',  # Por definir
+            'contacto_emergencia_telefono': '',  # Por definir
             'firma_empleador': '[FIRMA DIGITAL]',
-            'firma_trabajador': '[FIRMA TRABAJADOR]',
+            'firma': '[FIRMA TRABAJADOR]',
+            'huella': '[HUELLA DIGITAL]',
         }
-        
-        return datos
     
     def _guardar_contrato_generado(self, pdf_buffer, trabajador, documento, request):
         """
@@ -18469,9 +18625,10 @@ class GenerarDocumentosMasivoAPIView(APIView):
         return url_absoluta
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
-        """
-        Genera un PDF usando coordenadas nativas con transformación escalable
-        """
+        from PyPDF2 import PdfReader, PdfWriter
+        from reportlab.pdfgen import canvas
+        import io
+        
         documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
         
@@ -18479,23 +18636,11 @@ class GenerarDocumentosMasivoAPIView(APIView):
         writer = PdfWriter()
         
         BASE_FONT_SIZE = 9
+        BASE_OFFSET_X = -8
+        BASE_OFFSET_Y = -15.2
+        FONT_BASELINE = BASE_FONT_SIZE * 0.3
         
-        def calcular_offsets_escalables(page_width, page_height, font_size):
-            REFERENCE_WIDTH = 612.0
-            REFERENCE_HEIGHT = 792.0
-            BASE_OFFSET_X = -8
-            BASE_OFFSET_Y = -15.2
-            
-            offset_x = (page_width / REFERENCE_WIDTH) * BASE_OFFSET_X
-            offset_y = (page_height / REFERENCE_HEIGHT) * BASE_OFFSET_Y
-            font_baseline = font_size * 0.3
-            
-            return {
-                'offset_x': offset_x,
-                'offset_y': offset_y,
-                'font_baseline': font_baseline
-            }
-        
+        # Organizar variables por página
         variables_por_pagina = {}
         for variable_data in documento.variables:
             nombre_variable = variable_data.get('nombre')
@@ -18504,27 +18649,29 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 if pagina not in variables_por_pagina:
                     variables_por_pagina[pagina] = []
                 
-                variable_info = {
+                variables_por_pagina[pagina].append({
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
                     'posY': ubicacion.get('posY', 0)
-                }
-                variables_por_pagina[pagina].append(variable_info)
+                })
         
+        campos_centrados = ['rut', 'dni', 'nic', 'estado_civil', 'fecha_nacimiento', 
+                            'fecha_emision', 'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino']
+        
+        # Procesar cada página
         for page_num in range(len(reader.pages)):
             ui_page_num = page_num + 1
             page = reader.pages[page_num]
             
             if ui_page_num in variables_por_pagina:
-                packet = io.BytesIO()
                 page_width = float(page.mediabox.width)
                 page_height = float(page.mediabox.height)
                 
-                offsets = calcular_offsets_escalables(page_width, page_height, BASE_FONT_SIZE)
+                packet = io.BytesIO()
                 can = canvas.Canvas(packet, pagesize=(page_width, page_height))
                 
-                campos_centrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 
-                                'nacionalidad', 'f_ingreso', 'f_termino']
+                # ⭐ Contador de textos escritos
+                textos_escritos = 0
                 
                 for variable in variables_por_pagina[ui_page_num]:
                     nombre = variable['nombre']
@@ -18532,29 +18679,47 @@ class GenerarDocumentosMasivoAPIView(APIView):
                         frontend_x = variable['posX']
                         frontend_y = variable['posY']
                         
-                        pdf_x = frontend_x + offsets['offset_x']
-                        pdf_y = page_height - frontend_y + offsets['offset_y'] + offsets['font_baseline']
+                        pdf_x = frontend_x + BASE_OFFSET_X
+                        pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
                         
                         if nombre == 'rut':
-                            pdf_x += offsets['offset_x'] * 0.5
+                            pdf_x += BASE_OFFSET_X * 0.5
                         elif nombre == 'nombre':
-                            pdf_x += offsets['offset_x'] * 0.1
+                            pdf_x += BASE_OFFSET_X * 0.1
                         
                         valor = str(datos_variables[nombre])
                         can.setFont("Helvetica", BASE_FONT_SIZE)
                         
-                        is_centered = nombre in campos_centrados
-                        if is_centered:
+                        if nombre in campos_centrados:
                             text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
                             can.drawString(pdf_x - (text_width/2), pdf_y, valor)
                         else:
                             can.drawString(pdf_x, pdf_y, valor)
+                        
+                        textos_escritos += 1
+                        
+                        if debug:
+                            can.saveState()
+                            can.setStrokeColorRGB(1, 0, 0)
+                            can.setLineWidth(1)
+                            can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
+                            can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
+                            can.restoreState()
                 
                 can.save()
                 packet.seek(0)
                 
-                overlay = PdfReader(packet)
-                page.merge_page(overlay.pages[0])
+                # ⭐ SOLO hacer merge si se escribieron textos
+                if textos_escritos > 0:
+                    try:
+                        overlay = PdfReader(packet)
+                        if overlay.pages:  # Verificar que tenga páginas
+                            page.merge_page(overlay.pages[0])
+                            print(f"✅ Página {ui_page_num}: {textos_escritos} textos aplicados")
+                    except Exception as e:
+                        print(f"⚠️ Error merge página {ui_page_num}: {e}")
+                else:
+                    print(f"⚠️ Página {ui_page_num}: sin datos para escribir")
             
             writer.add_page(page)
         
@@ -18562,6 +18727,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
         writer.write(buffer)
         buffer.seek(0)
         
+        print(f"✅ PDF generado: {len(reader.pages)} páginas")
         return buffer
 
 class ListarDocumentosAPIView(APIView):
@@ -18691,6 +18857,10 @@ class GestionAsistenciaAPIView(APIView):
                 estado=True,
                 contratos__fecha_inicio_contrato__lte=fecha_consulta,
                 contratos__fecha_termino_contrato__gte=fecha_consulta
+            ).exclude(
+                id__in=Usuarios.objects.filter(
+                    jefesdecuadrilla__isnull=False
+                ).values_list('persona_id', flat=True)
             ).distinct().order_by('nombres', 'apellidos')
 
             # Formatear respuesta

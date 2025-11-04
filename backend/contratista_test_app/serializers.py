@@ -229,13 +229,15 @@ class UserSerializer(serializers.ModelSerializer):
     nombre_persona = serializers.SerializerMethodField(read_only=True)
     nombre_empresas_asignadas = serializers.SerializerMethodField(read_only=True)
     empresas_asignadas = serializers.PrimaryKeyRelatedField(queryset=Sociedad.objects.all(), many=True, required=False)
-    
+    supervisor_id = serializers.SerializerMethodField(read_only=True)
+    supervisor_nombre = serializers.SerializerMethodField(read_only=True)
     enviar_credenciales = serializers.BooleanField(write_only=True, required=False, default=True)
     
     class Meta:
         model = Usuarios
         fields = ['id', 'holding', 'empresas_asignadas', 'nombre_persona', 'persona', 'rut', 'email', 
-                  'perfil', 'nombre_perfil', 'nombre_empresas_asignadas', 'estado', 'enviar_credenciales']
+                  'perfil', 'nombre_perfil', 'nombre_empresas_asignadas', 'estado', 'enviar_credenciales',
+                  'supervisor_id', 'supervisor_nombre']
         extra_kwargs = {
             'holding': {'write_only': True},
             'is_admin': {'default': False},
@@ -295,6 +297,22 @@ class UserSerializer(serializers.ModelSerializer):
     # MÉTODOS EXISTENTES (sin cambios)
     # ========================================
     
+    def get_supervisor_id(self, obj):
+        if obj.perfil and obj.perfil.nombre_perfil == 'JEFE DE CUADRILLA':
+            jefe = JefesDeCuadrilla.objects.get(usuario=obj)
+            return jefe.supervisor.usuario.id
+        return None
+
+    def get_supervisor_nombre(self, obj):
+        if obj.perfil and obj.perfil.nombre_perfil == 'JEFE DE CUADRILLA':
+            jefe = JefesDeCuadrilla.objects.get(usuario=obj)
+            nombre = jefe.supervisor.usuario.persona.nombres
+            apellido = jefe.supervisor.usuario.persona.apellidos
+            nombre_completo = nombre+''+apellido
+            return nombre_completo
+        return None
+
+
     def get_nombre_perfil(self, obj):
         if obj.perfil:
             return obj.perfil.nombre_perfil

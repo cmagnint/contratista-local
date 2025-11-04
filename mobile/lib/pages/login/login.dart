@@ -491,34 +491,51 @@ class LoginScreenState extends State<LoginScreen>
           responseData['refresh_token'],
         );
 
-        userInfo.idUsuario = responseData['user_id'];
-        userInfo.idSupervisor = responseData['supervisor_id'];
+        // Cargar en memoria
+        userInfo.idUsuario =
+            int.tryParse(responseData['user_id']?.toString() ?? '0') ?? 0;
         userInfo.holding = responseData['holding_id']?.toString() ?? '';
-        userInfo.sociedad =
-            responseData['sociedad_id']?.toString() ?? ''; // ✅ AGREGADO
+        userInfo.sociedad = responseData['sociedad_id']?.toString() ?? '';
+        userInfo.idSupervisor = int.tryParse(
+          responseData['supervisor_id']?.toString() ?? '0',
+        );
+        userInfo.idJefeCuadrilla = int.tryParse(
+          responseData['jefe_cuadrilla_id']?.toString() ?? '0',
+        );
+        userInfo.name = responseData['nombre']?.toString() ?? '';
+        userInfo.rut = responseData['rut']?.toString() ?? '';
+        userInfo.isAdmin = responseData['is_admin'] ?? false;
 
+        // Después del login exitoso:
         await storage.write(
           key: 'user_id',
           value: responseData['user_id'].toString(),
-        );
-        await storage.write(
-          key: 'user_type',
-          value: responseData['user_type']?.toString() ?? '',
-        );
-        await storage.write(
-          key: 'nombre',
-          value: responseData['nombre']?.toString() ?? '',
         );
         await storage.write(
           key: 'holding',
           value: responseData['holding_id']?.toString() ?? '',
         );
         await storage.write(
-          key: 'sociedad', // ✅ AGREGADO
+          key: 'sociedad',
           value: responseData['sociedad_id']?.toString() ?? '',
         );
+        await storage.write(
+          key: 'supervisor_id',
+          value: responseData['supervisor_id']?.toString() ?? '',
+        );
+        await storage.write(
+          key: 'jefe_cuadrilla_id',
+          value: responseData['jefe_cuadrilla_id']?.toString() ?? '',
+        );
+        await storage.write(
+          key: 'nombre',
+          value: responseData['nombre']?.toString() ?? '',
+        );
         await storage.write(key: 'rut', value: rutNumber);
-        await storage.write(key: 'session', value: 'ON');
+        await storage.write(
+          key: 'is_admin',
+          value: responseData['is_admin']?.toString() ?? 'false',
+        );
 
         logger.i('Login exitoso');
 

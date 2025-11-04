@@ -10,6 +10,8 @@ interface Ubicacion {
   posX: number;
   posY: number;
   id: string;
+  pageWidth: number;   // ← NUEVO
+  pageHeight: number;  // ← NUEVO
 }
 
 interface VariableDocumento {
@@ -56,11 +58,20 @@ export class FormatosComponent implements OnInit {
   
   // Store the original File object
   originalPdfFile: File | null = null;
+  // Array para almacenar múltiples PDFs
+  pdfDocuments: any[] = [];
+  pdfBuffers: ArrayBuffer[] = [];
+  pdfFiles: File[] = []; // ← NUEVA PROPIEDAD
+  totalPages: number = 0;
+  pdfPages: any[] = [];
+  totalPagesAcumuladas: number[] = []; // Páginas acumuladas por cada PDF
   
   // Modal properties
   mostrarModal = false;
   nombreFormato = '';
   tipoContrato = 'CHILENO';
+  mostrarModalTipoContrato = false;
+
   documentoGuardadoId: number | null = null;
 
   // Modal para datos de prueba
@@ -79,24 +90,35 @@ export class FormatosComponent implements OnInit {
   
   // Variables de documento con array de ubicaciones
   variables: VariableDocumento[] = [
-    { nombre: 'nombre', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'fecha_emision', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'fecha_ingreso', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'fecha_inicio_contrato', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'fecha_termino', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'nombre_completo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'rut', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'dni', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'f_inicio', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'f_ingreso', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'f_termino', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'nic', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'nacionalidad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'f_nacmnto', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'e_civil', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'fecha_nacimiento', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'estado_civil', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'domicilio', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'campo_cliente', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'banco', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'cuenta', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'firma_empleador', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'lugar_trabajo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'afp', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'salud', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'telefono', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'correo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] }
+    { nombre: 'correo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'tipo_pago', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'banco', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'tipo_cuenta', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'numero_cuenta', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'cargo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'area', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'elementos_proteccion', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'contacto_emergencia_nombre', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'contacto_emergencia_telefono', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'firma_empleador', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'firma', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'huella', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] }
   ];
   
   // Track variables placed on each page
@@ -148,24 +170,35 @@ export class FormatosComponent implements OnInit {
    */
   obtenerValorEjemplo(nombreVariable: string): string {
     const ejemplos: {[key: string]: string} = {
-      'nombre': 'Juan Pérez González',
-      'rut': '12.345.678-9', 
-      'dni': '12.345.678-9',
-      'f_inicio': '15/03/2024',
-      'f_ingreso': '15/03/2024', 
-      'f_termino': '14/03/2025',
+      'fecha_emision': '05/11/2025',
+      'fecha_ingreso': '15/03/2024',
+      'fecha_inicio_contrato': '15/03/2024',
+      'fecha_termino': '14/03/2025',
+      'nombre_completo': 'Juan Pérez González',
+      'rut': '12.345.678-9',
+      'dni': '45.678.901',
+      'nic': 'NIC123456789',
       'nacionalidad': 'Chilena',
-      'f_nacmnto': '25/08/1990',
-      'e_civil': 'Soltero(a)',
+      'fecha_nacimiento': '25/08/1990',
+      'estado_civil': 'Soltero(a)',
       'domicilio': 'Av. Las Condes 123, Santiago',
-      'campo_cliente': 'Campo Específico Cliente',
-      'banco': 'Banco de Chile',
-      'cuenta': '123456789',
-      'firma_empleador': '[Firma Digital]',
+      'lugar_trabajo': 'Fundo Los Pinos',
       'afp': 'AFP Capital',
       'salud': 'Fonasa',
       'telefono': '+56 9 1234 5678',
-      'correo': 'trabajador@empresa.cl'
+      'correo': 'trabajador@empresa.cl',
+      'tipo_pago': 'Transferencia bancaria',
+      'banco': 'Banco de Chile',
+      'tipo_cuenta': 'Cuenta corriente',
+      'numero_cuenta': '123456789',
+      'cargo': 'Operario Agrícola',
+      'area': 'Producción',
+      'elementos_proteccion': 'Casco, guantes, zapatos de seguridad',
+      'contacto_emergencia_nombre': 'María González',
+      'contacto_emergencia_telefono': '+56 9 8765 4321',
+      'firma_empleador': '[Firma Empleador]',
+      'firma': '[Firma Trabajador]',
+      'huella': '[Huella Digital]'
     };
     
     return ejemplos[nombreVariable] || nombreVariable;
@@ -175,7 +208,7 @@ export class FormatosComponent implements OnInit {
    * Determinar si una variable debería estar centrada
    */
   esCampocentrado(nombreVariable: string): boolean {
-    const camposCentrados = ['rut', 'dni', 'e_civil', 'f_nacmnto', 'f_inicio', 'nacionalidad', 'f_ingreso', 'f_termino'];
+    const camposCentrados = ['rut', 'dni', 'nic', 'estado_civil', 'fecha_nacimiento', 'fecha_emision', 'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'];
     return camposCentrados.includes(nombreVariable);
   }
 
@@ -242,6 +275,209 @@ export class FormatosComponent implements OnInit {
           this.isLoading = false;
         }
       });
+  }
+
+  async anexarPDFDirecto(): Promise<void> {
+  if (!this.isBrowser) return;
+
+  this.ngZone.runOutsideAngular(async () => {
+    try {
+      const pdfjsLib = (window as any)['pdfjs-dist/build/pdf'];
+      
+      if (!pdfjsLib) {
+        console.error('PDF.js no está disponible');
+        this.errorMessage = 'Error al cargar la librería PDF.js';
+        this.isLoading = false;
+        return;
+      }
+
+      const ultimoBuffer = this.pdfBuffers[this.pdfBuffers.length - 1];
+      const loadingTask = pdfjsLib.getDocument({ data: ultimoBuffer });
+      const pdfDoc = await loadingTask.promise;
+      
+      console.log(`✅ PDF anexado cargado - ${pdfDoc.numPages} páginas`);
+      
+      this.pdfDocuments.push(pdfDoc);
+      
+      // Calcular páginas acumuladas
+      let acumulado = 0;
+      this.totalPagesAcumuladas = [];
+      this.pdfDocuments.forEach(doc => {
+        acumulado += doc.numPages;
+        this.totalPagesAcumuladas.push(acumulado);
+      });
+      
+      this.totalPages = acumulado;
+      
+      // Renderizar la nueva página
+      await this.renderizarTodasLasPaginas();
+      
+      this.ngZone.run(() => {
+        this.isLoading = false;
+        console.log('✅ PDF anexado renderizado correctamente');
+      });
+      
+    } catch (error) {
+      console.error('Error al anexar PDF:', error);
+      this.ngZone.run(() => {
+        this.errorMessage = 'Error al anexar el PDF. Verifique que el archivo sea válido.';
+        this.isLoading = false;
+      });
+    }
+  });
+}
+
+  async renderizarTodasLasPaginas(): Promise<void> {
+    if (!this.isBrowser) return;
+
+    const pagesContainer = document.getElementById('pdf-pages');
+    if (!pagesContainer) {
+      console.error('❌ No se encontró #pdf-pages');
+      return;
+    }
+
+    // Limpiar contenedor
+    pagesContainer.innerHTML = '';
+    this.pdfPages = [];
+    
+    const containerWidth = pagesContainer.clientWidth || 800;
+    const pixelRatio = window.devicePixelRatio || 1;
+    
+    console.log(`📄 Renderizando ${this.pdfDocuments.length} documentos...`);
+
+    for (let docIndex = 0; docIndex < this.pdfDocuments.length; docIndex++) {
+      const pdfDoc = this.pdfDocuments[docIndex];
+      const paginasAnteriores = docIndex > 0 ? this.totalPagesAcumuladas[docIndex - 1] : 0;
+      
+      console.log(`📘 Documento ${docIndex + 1}: ${pdfDoc.numPages} páginas (offset: ${paginasAnteriores})`);
+      
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        try {
+          const pageNumGlobal = paginasAnteriores + pageNum;
+          
+          const page = await pdfDoc.getPage(pageNum);
+          
+          // ⭐ USAR LA MISMA LÓGICA DE ESCALADO QUE renderPdfPages
+          const viewport = page.getViewport({ scale: 1.0 });
+          const scale = (containerWidth * 0.9) / viewport.width;
+          const scaledViewport = page.getViewport({ scale: scale * 1.4 * pixelRatio });
+          
+          // Crear contenedor de página con estructura completa
+          const pageDiv = document.createElement('div');
+          pageDiv.className = 'pdf-page-container';
+          
+          // Header
+          const pageHeader = document.createElement('div');
+          pageHeader.className = 'pdf-page-header';
+          pageHeader.textContent = `PÁGINA ${pageNumGlobal}`;
+          
+          // Contenedor de contenido
+          const pageContentDiv = document.createElement('div');
+          pageContentDiv.className = 'pdf-page';
+          pageContentDiv.setAttribute('data-page', pageNumGlobal.toString());
+          pageContentDiv.style.width = `${scaledViewport.width / pixelRatio}px`;
+          pageContentDiv.style.height = `${scaledViewport.height / pixelRatio}px`;
+          
+          // Canvas
+          const canvas = document.createElement('canvas');
+          canvas.className = 'pdf-canvas';
+          canvas.width = scaledViewport.width;
+          canvas.height = scaledViewport.height;
+          canvas.style.width = `${scaledViewport.width / pixelRatio}px`;
+          canvas.style.height = `${scaledViewport.height / pixelRatio}px`;
+          
+          const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+          if (!context) continue;
+          
+          // Renderizar página
+          await page.render({
+            canvasContext: context,
+            viewport: scaledViewport,
+            renderInteractiveForms: true
+          }).promise;
+          
+          // Footer
+          const pageFooter = document.createElement('div');
+          pageFooter.className = 'pdf-page-footer';
+          pageFooter.textContent = 'Haga clic para posicionar variables | Arrastre para mover';
+          
+          // Ensamblar
+          pageContentDiv.appendChild(canvas);
+          pageDiv.appendChild(pageHeader);
+          pageDiv.appendChild(pageContentDiv);
+          pageDiv.appendChild(pageFooter);
+          
+          // Agregar al contenedor
+          pagesContainer.appendChild(pageDiv);
+          
+          for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+            const page = await pdfDoc.getPage(pageNum);
+            const nativeViewport = page.getViewport({ scale: 1.0 });
+            
+            // Guardar dimensiones REALES de esta página
+            this.pdfPages.push({
+              pageNumber: pageNumGlobal,
+              nativeWidth: nativeViewport.width,   // ← NUEVO
+              nativeHeight: nativeViewport.height, // ← NUEVO
+              canvas: canvas,
+              viewport: scaledViewport,
+              container: pageContentDiv
+            });
+          }
+          
+          console.log(`✅ Página ${pageNumGlobal} renderizada (Doc ${docIndex + 1}, Pág ${pageNum})`);
+          
+        } catch (error) {
+          console.error(`Error al renderizar página ${pageNum} del documento ${docIndex + 1}:`, error);
+        }
+      }
+    }
+    
+    // Actualizar dimensiones nativas desde el primer documento
+    if (this.pdfDocuments.length > 0) {
+      const firstPage = await this.pdfDocuments[0].getPage(1);
+      const nativeViewport = firstPage.getViewport({ scale: 1.0 });
+      this.pdfNativeWidth = nativeViewport.width;
+      this.pdfNativeHeight = nativeViewport.height;
+    }
+    
+    // Esperar más tiempo antes de redibujar variables
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Redibujar variables después de que el DOM esté listo
+    this.ngZone.run(() => {
+      setTimeout(() => {
+        this.redibujarTodasLasVariables();
+        console.log(`✅ ${this.pdfPages.length} páginas totales renderizadas`);
+      }, 150);
+    });
+  }
+
+  /**
+   * Redibujar todas las variables en todas las páginas
+   */
+  redibujarTodasLasVariables(): void {
+    console.log('🔄 Redibujando todas las variables...');
+    
+    this.variablesPorPagina.forEach((variables, pageNum) => {
+      const pageElement = document.querySelector(`[data-page="${pageNum}"]`) as HTMLElement;
+      
+      if (pageElement) {
+        // Limpiar variables existentes de esta página
+        pageElement.querySelectorAll('.pdf-variable').forEach(el => el.remove());
+        
+        // Redibujar cada variable
+        variables.forEach(variable => {
+          this.mostrarVariableEnPdf(variable, pageElement);
+        });
+        
+        console.log(`✅ Página ${pageNum} redibujada con ${variables.length} variables`);
+      } else {
+        console.warn(`⚠️ No se encontró el elemento de página ${pageNum}`);
+      }
+    });
+    
+    console.log('✅ Todas las variables redibujadas');
   }
 
   /**
@@ -383,34 +619,45 @@ export class FormatosComponent implements OnInit {
     return this.variables.filter(v => v.colocada).length;
   }
 
-  onFileSelected(event: Event): void {
+  onFileSelected(event: Event, esAnexo: boolean = false): void {
     if (!this.isBrowser) return;
     
     const input = event.target as HTMLInputElement;
     
     if (input.files && input.files[0]) {
       const file = input.files[0];
-      this.originalPdfFile = file;
-      console.log('File selected:', file.name, 'size:', file.size, 'bytes');
+      console.log('File selected:', file.name, 'size:', file.size, 'bytes', 'Es anexo:', esAnexo);
       
       this.isLoading = true;
       this.errorMessage = null;
       
       const reader = new FileReader();
       reader.onload = () => {
-        // ⭐ CORRECCIÓN: Crear copia del buffer para almacenamiento
         const originalBuffer = reader.result as ArrayBuffer;
-        this.pdfSrc = originalBuffer.slice(0);
         
-        console.log('PDF cargado como ArrayBuffer, tamaño:', (this.pdfSrc as ArrayBuffer).byteLength);
-        this.renderPdf();
+        if (!esAnexo) {
+          // Reemplazar PDF actual
+          this.originalPdfFile = file;
+          this.pdfSrc = originalBuffer.slice(0);
+          this.pdfBuffers = [originalBuffer.slice(0)];
+          this.pdfFiles = [file]; // ← ALMACENAR FILE ORIGINAL
+          this.pdfDocuments = [];
+          this.totalPagesAcumuladas = [];
+          
+          // Mostrar modal para seleccionar tipo de contrato
+          this.mostrarModalTipoContrato = true;
+        } else {
+          // Anexar PDF
+          this.pdfBuffers.push(originalBuffer.slice(0));
+          this.pdfFiles.push(file); // ← ALMACENAR FILE ORIGINAL
+          this.anexarPDFDirecto();
+        }
       };
       reader.onerror = (error) => {
         console.error('Error al leer el archivo:', error);
         this.isLoading = false;
         this.errorMessage = 'Error al leer el archivo PDF.';
       };
-      
       reader.readAsArrayBuffer(file);
     }
   }
@@ -639,19 +886,27 @@ export class FormatosComponent implements OnInit {
           
           const pdf = await loadingTask.promise;
           this.pdfDocument = pdf;
-          console.log('PDF cargado con éxito. Páginas:', pdf.numPages);
+          this.pdfDocuments = [pdf];
+          this.totalPagesAcumuladas = [pdf.numPages];
+          this.totalPages = pdf.numPages;
           
           // Obtener dimensiones nativas del PDF desde la primera página
           const firstPage = await pdf.getPage(1);
           const nativeViewport = firstPage.getViewport({ scale: 1.0 });
           this.pdfNativeWidth = nativeViewport.width;
           this.pdfNativeHeight = nativeViewport.height;
-          
+
           console.log(`Dimensiones nativas del PDF: ${this.pdfNativeWidth} x ${this.pdfNativeHeight}`);
-          
-          this.createPdfControls(container, pdf.numPages);
-          await this.renderPdfPages(1, Math.min(pdf.numPages, 3));
-          
+
+          // Crear contenedor de páginas
+          const pagesContainer = document.createElement('div');
+          pagesContainer.id = 'pdf-pages';
+          pagesContainer.className = 'pdf-pages';
+          container.appendChild(pagesContainer);
+
+          // Renderizar TODAS las páginas
+          await this.renderizarTodasLasPaginas();
+
           this.ngZone.run(() => {
             this.isLoading = false;
             resolve();
@@ -775,8 +1030,8 @@ export class FormatosComponent implements OnInit {
       const scale = (containerWidth * 0.9) / viewport.width;
       const scaledViewport = page.getViewport({ scale: scale * 1.4 * pixelRatio });
       
-      pageContentDiv.style.width = `${scaledViewport.width / pixelRatio}px`;
-      pageContentDiv.style.height = `${scaledViewport.height / pixelRatio}px`;
+      pageContentDiv.style.width = `${viewport.width / pixelRatio}px`;
+      pageContentDiv.style.height = `${viewport.height / pixelRatio}px`;
       
       const canvas = document.createElement('canvas');
       canvas.className = 'pdf-canvas';
@@ -872,11 +1127,15 @@ export class FormatosComponent implements OnInit {
       this.variableSeleccionada.pagina = pageNumber;
       this.variableSeleccionada.colocada = true;
       
+      const pageData = this.pdfPages.find(p => p.pageNumber === pageNumber);
+
       this.variableSeleccionada.ubicaciones.push({
         pagina: pageNumber,
         posX: coords.posX,
         posY: coords.posY,
-        id: elementId
+        id: elementId,
+        pageWidth: pageData?.nativeWidth || this.pdfNativeWidth,   // ← NUEVO
+        pageHeight: pageData?.nativeHeight || this.pdfNativeHeight // ← NUEVO
       });
       
       if (!this.variablesPorPagina.has(pageNumber)) {
@@ -1251,6 +1510,7 @@ export class FormatosComponent implements OnInit {
       return;
     }
     
+    // Solo pedir nombre, el tipo ya fue seleccionado
     this.mostrarModal = true;
   }
 
@@ -1277,12 +1537,34 @@ export class FormatosComponent implements OnInit {
     }));
     
     const formData = new FormData();
-    
-    const nombreArchivo = this.nombreFormato.toLowerCase().replace(/\s+/g, '_') + '.pdf';
-    const renamedFile = new File([this.originalPdfFile], nombreArchivo, { type: 'application/pdf' });
-    
-    console.log('Enviando archivo original:', renamedFile.name, 'size:', renamedFile.size, 'bytes');
-    formData.append('archivo_pdf', renamedFile);
+
+    // Si hay múltiples PDFs anexados, enviarlos todos
+    // Si hay múltiples PDFs anexados, enviarlos todos
+      if (this.pdfFiles.length > 1) {
+        console.log(`📎 Enviando ${this.pdfFiles.length} PDFs para fusionar...`);
+        
+        // Enviar cada archivo original directamente
+        this.pdfFiles.forEach((file, index) => {
+          formData.append(`pdf_parte_${index}`, file);
+          console.log(`  - Parte ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)} KB`);
+        });
+        
+        // Enviar metadata
+        formData.append('num_partes', this.pdfFiles.length.toString());
+        formData.append('requiere_merge', 'true');
+      
+      // Enviar metadata
+      formData.append('num_partes', this.pdfBuffers.length.toString());
+      formData.append('requiere_merge', 'true');
+    } else {
+      // Un solo PDF (comportamiento original)
+      const nombreArchivo = this.nombreFormato.toLowerCase().replace(/\s+/g, '_') + '.pdf';
+      const renamedFile = new File([this.originalPdfFile!], nombreArchivo, { type: 'application/pdf' });
+      console.log('Enviando archivo único:', renamedFile.name, 'size:', renamedFile.size, 'bytes');
+      formData.append('archivo_pdf', renamedFile);
+      formData.append('requiere_merge', 'false');
+    }
+
     formData.append('nombre', this.nombreFormato);
     formData.append('tipo', this.tipoContrato);
     formData.append('variables', JSON.stringify(variables));
@@ -1340,6 +1622,34 @@ export class FormatosComponent implements OnInit {
     } else {
       alert('No hay variables colocadas en el documento');
     }
+  }
+
+  /**
+    * Obtener variables filtradas según el tipo de contrato
+  */
+  get variablesFiltradas(): VariableDocumento[] {
+    if (this.tipoContrato === 'CHILENO') {
+      return this.variables.filter(v => v.nombre !== 'dni' && v.nombre !== 'nic');
+    } else {
+      return this.variables.filter(v => v.nombre !== 'rut');
+    }
+  }
+
+  /**
+   * Confirmar tipo de contrato y renderizar PDF
+   */
+  confirmarTipoContrato(): void {
+    this.mostrarModalTipoContrato = false;
+    this.renderPdf();
+  }
+
+  /**
+   * Cerrar modal de tipo de contrato
+   */
+  cerrarModalTipoContrato(): void {
+    this.mostrarModalTipoContrato = false;
+    this.pdfSrc = null;
+    this.originalPdfFile = null;
   }
   
   cerrarModalDatosPrueba(): void {

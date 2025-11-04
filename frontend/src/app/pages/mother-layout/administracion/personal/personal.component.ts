@@ -191,7 +191,7 @@ export class PersonalComponent implements OnInit {
   public todasSeleccionadas: boolean = false;
   public trabajadoresCargados: any[] = [];
   columnasDesplegadas = [
-    'codigo', 'sociedad', 'area', 'cargo', 'nombre', 'apellidos', 'rut', 
+    'codigo', 'sociedad', 'area', 'cargo', 'nombre', 'apellidos', 'rut', 'dni', 'nic',
     'direccion', 'sexo', 'telefono', 'nacionalidad', 'correo', 
     'fecha_ingreso', 'fecha_nacimiento', 'estado_civil', 'afp', 'salud', 
     'metodo_pago', 'banco_info', 'casa', 'fundo', 'documentos', 'estado'

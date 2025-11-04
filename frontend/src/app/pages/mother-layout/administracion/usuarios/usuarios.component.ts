@@ -41,6 +41,7 @@ export class UsuariosComponent implements OnInit {
   public usuarioIdNew = 0;
   public personalDisponible: any[] = [];
   public selectedPersonalId: string = '';
+  public selectedSupervisorIdNew: number | null = null;
 
   modulosDisponibles = [
     { id: 1, name: 'Administrar Perfiles' },
@@ -122,6 +123,11 @@ export class UsuariosComponent implements OnInit {
     const selectedPerfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
     return selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA';
   }
+
+  isJefeCuadrillaNew(): boolean {
+  const selectedPerfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
+  return selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA';
+}
 
   cargarSupervisores():void{
     this.apiService.get(`api_supervisores/${this.holding}/`).subscribe({
@@ -288,6 +294,14 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
+    // ✅ NUEVO: Validar supervisor si es Jefe de Cuadrilla
+    const selectedPerfil = this.perfilesCargados.find(p => p.id === this.selectedPerfilId);
+    if (selectedPerfil?.nombre_perfil === 'JEFE DE CUADRILLA' && !this.selectedSupervisorIdNew) {
+      this.openModal('errorModal');
+      this.errorMessage = 'Debe seleccionar un supervisor para el Jefe de Cuadrilla.';
+      return;
+    }
+
     let data = {
       id: this.selectedUserId,
       nombre: this.nombreUsuarioNew,
@@ -295,22 +309,21 @@ export class UsuariosComponent implements OnInit {
       usuario: this.limpiarRUT(this.rutUsuarioNew),
       email: this.emailUsuarioNew,
       perfil: this.selectedPerfilId,
-      empresas_asignadas: this.selectedSociedadesNew
+      empresas_asignadas: this.selectedSociedadesNew,
+      supervisor: this.selectedSupervisorIdNew  // ✅ NUEVO: Incluir supervisor
     }
 
-    console.log('📤 Datos de modificación enviados:', data);
-    console.log('🧹 RUT limpio enviado:', data.rut);
+    console.log('📤 Datos enviados al modificar usuario:', data);
 
     this.apiService.put('api_usuarios/', data).subscribe({
       next: (response) => {
-        console.log('✅ Usuario modificado exitosamente:', response);
         this.closeModal('modificarUsuario');
         this.cargarUsuarios();
         this.openModal('exitoModal');
       },
       error: (error) => {
-        console.error('❌ Error al modificar usuario:', error);
         this.openModal('errorModal');
+        // El mensaje del backend ya viene en error.error.message
         this.errorMessage = error.error.message || 'Error al modificar usuario';
       }
     });
@@ -442,11 +455,19 @@ export class UsuariosComponent implements OnInit {
       this.emailUsuarioNew = this.usuarioSeleccionado.email_usuario_seleccionado;
       this.selectedUserId = this.usuarioSeleccionado.id_usuario_seleccionado;
       
+      // ✅ NUEVO: Obtener supervisor si es jefe de cuadrilla
+      if (lastSelectedRow.supervisor_id) {
+        this.selectedSupervisorIdNew = lastSelectedRow.supervisor_id;
+      } else {
+        this.selectedSupervisorIdNew = null;
+      }
+      
       console.log('📝 Campos asignados para modificar:');
       console.log('   Nombre:', this.nombreUsuarioNew);
       console.log('   RUT:', this.rutUsuarioNew);
       console.log('   Email:', this.emailUsuarioNew);
       console.log('   Perfil ID:', this.selectedPerfilId);
+      console.log('   Supervisor ID:', this.selectedSupervisorIdNew);
     } else {
       this.usuarioSeleccionado = {
         nombre_usuario_seleccionado: '',
@@ -458,6 +479,7 @@ export class UsuariosComponent implements OnInit {
       this.rutUsuarioNew = '';
       this.emailUsuarioNew = '';
       this.selectedPerfilId = null;
+      this.selectedSupervisorIdNew = null;
     }
   }
 

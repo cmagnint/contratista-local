@@ -30,7 +30,7 @@ class JWTService:
     def generate_jwt_for_user(cls, user, token_type: str = 'access') -> str:
         """
         Genera un JWT token para un usuario específico
-        ✅ ACTUALIZADO: Incluye permisos reales del perfil
+        ✅ ACTUALIZADO: Incluye permisos reales del perfil + supervisor/jefe
         
         Args:
             user: Instancia del modelo Usuarios
@@ -48,14 +48,41 @@ class JWTService:
         else:
             expiration = timezone.now() + cls.ACCESS_TOKEN_LIFETIME
         
+        # ✅ BUSCAR SUPERVISOR Y JEFE DE CUADRILLA
+        supervisor_id = None
+        jefe_cuadrilla_id = None
+        
+        try:
+            from contratista_test_app.models import Supervisores
+            supervisor = Supervisores.objects.get(usuario=user)
+            supervisor_id = supervisor.id
+        except Supervisores.DoesNotExist:
+            pass
+        except Exception as e:
+            print(f"⚠️ Error buscando supervisor: {e}")
+        
+        try:
+            from contratista_test_app.models import JefesDeCuadrilla
+            jefe = JefesDeCuadrilla.objects.get(usuario=user)
+            jefe_cuadrilla_id = jefe.id
+        except JefesDeCuadrilla.DoesNotExist:
+            pass
+        except Exception as e:
+            print(f"⚠️ Error buscando jefe de cuadrilla: {e}")
+        
+        # ✅ OBTENER SOCIEDAD
+        sociedad_id = None
+        if user.empresas_asignadas.exists():
+            sociedad_id = user.empresas_asignadas.first().id
+        
         # Construir payload con claims
         payload = {
             # Claims estándar JWT
             'exp': int(expiration.timestamp()),
             'iat': int(timezone.now().timestamp()),
-            'iss': 'contratista-system',  # Issuer
-            'sub': str(user.id),          # Subject (user ID)
-            'jti': cls._generate_jti(),   # JWT ID único
+            'iss': 'contratista-system',
+            'sub': str(user.id),
+            'jti': cls._generate_jti(),
             
             # Claims personalizados del negocio
             'user_id': user.id,
@@ -71,6 +98,11 @@ class JWTService:
             # Información organizacional
             'holding_id': user.holding.id if user.holding else None,
             'holding_name': user.holding.nombre if user.holding else None,
+            'sociedad': sociedad_id,  # ✅ AGREGADO
+            
+            # ✅ SUPERVISOR Y JEFE DE CUADRILLA
+            'supervisor_id': supervisor_id,
+            'jefe_cuadrilla_id': jefe_cuadrilla_id,
             
             # Información del perfil/persona
             'perfil': {
@@ -82,12 +114,12 @@ class JWTService:
             'persona_id': user.persona.id if user.persona else None,
             'nombre_completo': user.persona.nombres if user.persona else user.email,
             
-            # ✅ PERMISOS Y RUTAS ACTUALIZADOS
+            # Permisos y rutas
             'permissions': permissions_structure,
             'allowed_routes': allowed_routes,
             
-            # Empresas asignadas (para admins que manejan múltiples sociedades)
-            'empresas_asignadas': [s.id for s in user.empresas_asignadas.all()] if user.empresas_asignadas else [],
+            # Empresas asignadas
+            'empresas_asignadas': [s.id for s in user.empresas_asignadas.all()],
         }
         
         # Generar y firmar token

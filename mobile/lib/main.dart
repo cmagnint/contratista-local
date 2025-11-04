@@ -1,3 +1,4 @@
+import 'package:contratista/pages/login/token_check_screen.dart';
 import 'package:contratista/pages/mother_layout/mother_layout.dart';
 import 'package:contratista/services/worker_sinc_service.dart';
 import 'package:flutter/material.dart';
@@ -32,8 +33,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: globalnavigatorKey,
-      initialRoute: '/Login',
+      initialRoute: '/CheckToken',
       routes: {
+        '/CheckToken': (context) => const TokenCheckScreen(),
         '/Login': (context) => const LoginScreen(),
         '/Mother_Layout': (context) => const MotherLayout(),
       },

@@ -50,7 +50,7 @@
       <p class="panel-instruction">Haz clic en las variables para posicionarlas en el PDF. Los valores mostrados son ejemplos de cómo aparecerán en el documento final.</p>
       
       <div class="variables-list">
-        <div class="variable-item" *ngFor="let variable of variables">
+        <div class="variable-item" *ngFor="let variable of variablesFiltradas">
           <div class="variable-header">
             <label>{{ variable.nombre | titlecase }}</label>
             <span class="variable-status" [class.placed]="variable.colocada">
@@ -124,17 +124,45 @@
     <div class="file-upload-section" *ngIf="!modoDocumentoExistente">
       <h2>Visualizador de PDF</h2>
       <div class="file-input-wrapper">
-        <label for="pdf-upload" class="file-input-label">
+        <!-- Input oculto para seleccionar PDF -->
+        <input 
+          type="file" 
+          #fileInput
+          id="pdf-upload" 
+          accept="application/pdf" 
+          (change)="onFileSelected($event, false)"
+          class="file-input"
+          style="display: none;"
+        >
+        
+        <!-- Input oculto para anexar PDF -->
+        <input 
+          type="file" 
+          #anexoInput
+          id="pdf-anexo" 
+          accept="application/pdf" 
+          (change)="onFileSelected($event, true)"
+          class="file-input"
+          style="display: none;"
+        >
+        
+        <!-- Botón Seleccionar PDF -->
+        <button class="file-input-label" (click)="fileInput.click()">
           <span class="btn-text">Seleccionar PDF</span>
-          <input 
-            type="file" 
-            id="pdf-upload" 
-            accept="application/pdf" 
-            (change)="onFileSelected($event)"
-            class="file-input"
-          >
-        </label>
-        <span *ngIf="pdfSrc" class="file-selected-text">Archivo PDF seleccionado</span>
+        </button>
+        
+        <!-- Botón Anexar PDF - Solo visible cuando hay PDF cargado -->
+        <button 
+          *ngIf="pdfSrc" 
+          class="anexo-btn" 
+          (click)="anexoInput.click()"
+          [disabled]="!pdfSrc">
+          <span class="btn-text">Anexar PDF</span>
+        </button>
+        
+        <span *ngIf="pdfSrc" class="file-selected-text">
+          {{ pdfDocuments.length > 1 ? pdfDocuments.length + ' documentos anexados' : 'Archivo PDF seleccionado' }}
+        </span>
       </div>
       
       <!-- Mensaje para modo de colocación activo -->
@@ -219,10 +247,28 @@
       >
     </div>
     
+    
+    
+    <div class="modal-actions">
+      <button class="action-btn reset-btn" (click)="cerrarModal()">Cancelar</button>
+      <button class="action-btn export-btn" (click)="confirmarGuardado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para seleccionar tipo de contrato -->
+<div class="modal-overlay" *ngIf="mostrarModalTipoContrato">
+  <div class="modal-content">
+    <h3>Tipo de Contrato</h3>
+    
+    <p class="modal-description">
+      Seleccione el tipo de contrato para mostrar las variables correspondientes.
+    </p>
+    
     <div class="form-group">
-      <label for="tipo-contrato">Tipo de Contrato:</label>
+      <label for="tipo-contrato-inicial">Tipo de Contrato:</label>
       <select 
-        id="tipo-contrato" 
+        id="tipo-contrato-inicial" 
         class="form-control" 
         [(ngModel)]="tipoContrato"
       >
@@ -232,8 +278,8 @@
     </div>
     
     <div class="modal-actions">
-      <button class="action-btn reset-btn" (click)="cerrarModal()">Cancelar</button>
-      <button class="action-btn export-btn" (click)="confirmarGuardado()">Guardar</button>
+      <button class="action-btn reset-btn" (click)="cerrarModalTipoContrato()">Cancelar</button>
+      <button class="action-btn export-btn" (click)="confirmarTipoContrato()">Continuar</button>
     </div>
   </div>
 </div>

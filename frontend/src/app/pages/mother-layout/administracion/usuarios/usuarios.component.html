@@ -222,6 +222,17 @@
           </ng-container>
         </div>
       </div>
+
+      <!-- ✅ NUEVO: Sección para Jefe de Cuadrilla en MODIFICAR -->
+      <div *ngIf="isJefeCuadrillaNew()">
+        <h3>Supervisor Asignado:</h3>
+        <select class="input-usuario" [(ngModel)]="selectedSupervisorIdNew">
+          <option value="" disabled>Seleccione un supervisor</option>
+          <option *ngFor="let supervisor of supervisoresCargados" [value]="supervisor.usuario">
+            {{supervisor.usuario_nombre}} - {{supervisor.usuario_rut}}
+          </option>
+        </select>
+      </div>
       
       <!-- Dropdown para sociedades -->
       <h3>Modificar Sociedades:</h3>
