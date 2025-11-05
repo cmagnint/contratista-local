@@ -1,4 +1,4 @@
-//contratacion.dart; Contratista - CON FLUJO AUTOMÁTICO
+//contratacion.dart; Contratista - CON FLUJO AUTOMÃTICO
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -48,7 +48,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     'APELLIDOS': TextEditingController(),
     'NOMBRES': TextEditingController(),
     'NACIONALIDAD': TextEditingController(),
-    'SEXO': TextEditingController(),
     'TELEFONO': TextEditingController(),
     'CORREO': TextEditingController(),
     'DIRECCION': TextEditingController(),
@@ -59,6 +58,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   bool _isCameraInitialized = false;
 
   String _estadoCivil = 'Soltero(a)';
+  String? _sexo;
   String _selectedDia = '01';
   String _selectedMes = '01';
   String _selectedAnio = '2000';
@@ -223,7 +223,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         'NOMBRES',
         'APELLIDOS',
         'NACIONALIDAD',
-        'SEXO',
         'TELEFONO',
         'CORREO',
         'DIRECCION',
@@ -513,6 +512,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
             for (var field in _controllers.keys) {
               _controllers[field]!.text = text[field] ?? '';
             }
+            if (text['SEXO'] != null) {
+              _sexo = text['SEXO'];
+            }
             if (text['FECHA_NACIMIENTO'] != null) {
               final fechaParts = text['FECHA_NACIMIENTO']!.split(' ');
               if (fechaParts.length == 3) {
@@ -562,7 +564,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           setState(() {
             _controllers['NOMBRES']!.text = backData['NOMBRES'] ?? '';
             _controllers['APELLIDOS']!.text = backData['APELLIDOS'] ?? '';
-            _controllers['SEXO']!.text = backData['SEXO'] ?? '';
+            if (backData['SEXO'] != null) {
+              _sexo = backData['SEXO'];
+            }
             _estadoCivil = normalizeEstadoCivil(
               backData['ESTADO_CIVIL'] ?? 'Soltero(a)',
             );
@@ -678,7 +682,12 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     if (nacionalidadMatch != null) {
       cardData['NACIONALIDAD'] = nacionalidadMatch.group(1)!;
     }
-    if (sexoMatch != null) cardData['SEXO'] = sexoMatch.group(1)!;
+    if (sexoMatch != null) {
+      String sexoDetectado = sexoMatch.group(1)!.toUpperCase();
+      cardData['SEXO'] = (sexoDetectado == 'M' || sexoDetectado == 'F')
+          ? sexoDetectado
+          : 'H';
+    }
     if (numDocMatch != null) {
       cardData['NUMERO DOCUMENTO'] = numDocMatch.group(1)!;
     }
@@ -690,7 +699,10 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       final sexoNearPattern = RegExp(r'sexo\s*([MF])', caseSensitive: false);
       final sexoNearMatch = sexoNearPattern.firstMatch(combinedText);
       if (sexoNearMatch != null) {
-        cardData['SEXO'] = sexoNearMatch.group(1)!;
+        String sexoDetectado = sexoNearMatch.group(1)!.toUpperCase();
+        cardData['SEXO'] = (sexoDetectado == 'M' || sexoDetectado == 'F')
+            ? sexoDetectado
+            : 'H';
       }
     }
 
@@ -807,7 +819,10 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
     var sexoMatch = sexoPattern.firstMatch(combinedText);
     if (sexoMatch != null) {
-      cardData['SEXO'] = sexoMatch.group(1)!;
+      String sexoDetectado = sexoMatch.group(1)!.toUpperCase();
+      cardData['SEXO'] = (sexoDetectado == 'M' || sexoDetectado == 'F')
+          ? sexoDetectado
+          : 'H';
       loggerGlobal.d('Sexo encontrado: ${cardData['SEXO']}');
     }
 
@@ -1073,22 +1088,24 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'transportista': widget.initialData['transportista'] ?? '',
           'casa': widget.initialData['casa'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
-              ? _controllers['RUN']!.text
+              ? _controllers['RUN']!.text.toUpperCase()
               : '',
-          'dni': _tipoDocumento == 'Cédula Extranjera' ? _dni : '',
-          'nic': _nic,
-          'apellidos': _controllers['APELLIDOS']!.text,
-          'nombres': _controllers['NOMBRES']!.text,
-          'nacionalidad': _controllers['NACIONALIDAD']!.text,
-          'sexo': _controllers['SEXO']!.text,
-          'estado_civil': _estadoCivil,
-          'telefono': _controllers['TELEFONO']!.text,
-          'correo': _controllers['CORREO']!.text,
-          'direccion': _controllers['DIRECCION']!.text,
+          'dni': _tipoDocumento == 'Cédula Extranjera'
+              ? _dni.toUpperCase()
+              : '',
+          'nic': _nic.toUpperCase(),
+          'apellidos': _controllers['APELLIDOS']!.text.toUpperCase(),
+          'nombres': _controllers['NOMBRES']!.text.toUpperCase(),
+          'nacionalidad': _controllers['NACIONALIDAD']!.text.toUpperCase(),
+          'sexo': _sexo ?? '',
+          'estado_civil': _estadoCivil.toUpperCase(),
+          'telefono': _controllers['TELEFONO']!.text.toUpperCase(),
+          'correo': _controllers['CORREO']!.text.toLowerCase(),
+          'direccion': _controllers['DIRECCION']!.text.toUpperCase(),
           'fecha_nacimiento': fechaNacimiento,
-          'metodo_pago': _metodoPago,
+          'metodo_pago': _metodoPago.toUpperCase(),
           'banco': _banco,
-          'tipo_cuenta_bancaria': _tipoCuenta,
+          'tipo_cuenta_bancaria': _tipoCuenta.toUpperCase(),
           'numero_cuenta': _numeroCuenta,
           'estado': 'true',
         };
@@ -1393,6 +1410,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _imagePaths[0] = null;
       _imagePaths[1] = null;
       _estadoCivil = 'Soltero(a)';
+      _sexo = null;
       _selectedDia = '01';
       _selectedMes = '01';
       _selectedAnio = '2000';
@@ -1584,6 +1602,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       child: TextFormField(
                         controller: _controllers['RUN'],
                         focusNode: _focusNodes['RUN'],
+                        textCapitalization: TextCapitalization.characters,
                         decoration: const InputDecoration(
                           labelText: 'RUT *',
                           border: OutlineInputBorder(),
@@ -1600,6 +1619,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
                         decoration: const InputDecoration(
                           labelText: 'DNI *',
                           border: OutlineInputBorder(),
@@ -1621,6 +1641,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
                         decoration: const InputDecoration(
                           labelText: 'NIC',
                           border: OutlineInputBorder(),
@@ -1633,6 +1654,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: TextFormField(
+                      textCapitalization: TextCapitalization.characters,
                       controller: _controllers['NOMBRES'],
                       focusNode: _focusNodes['NOMBRES'],
                       decoration: const InputDecoration(
@@ -1650,6 +1672,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: TextFormField(
+                      textCapitalization: TextCapitalization.characters,
                       controller: _controllers['APELLIDOS'],
                       focusNode: _focusNodes['APELLIDOS'],
                       decoration: const InputDecoration(
@@ -1664,16 +1687,11 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       },
                     ),
                   ),
-                  ...[
-                    'NACIONALIDAD',
-                    'SEXO',
-                    'TELEFONO',
-                    'CORREO',
-                    'DIRECCION',
-                  ].map(
+                  ...['NACIONALIDAD', 'TELEFONO', 'DIRECCION'].map(
                     (field) => Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
                         controller: _controllers[field],
                         focusNode: _focusNodes[field],
                         decoration: InputDecoration(
@@ -1681,6 +1699,47 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                           border: const OutlineInputBorder(),
                         ),
                       ),
+                    ),
+                  ),
+                  // Luego agregar CORREO manualmente sin textCapitalization
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextFormField(
+                      controller: _controllers['CORREO'],
+                      focusNode: _focusNodes['CORREO'],
+                      decoration: const InputDecoration(
+                        labelText: 'CORREO',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: DropdownButtonFormField<String>(
+                      value: _sexo,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _sexo = newValue;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'SEXO *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: <String>['H', 'M'].map<DropdownMenuItem<String>>((
+                        String value,
+                      ) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Sexo es requerido';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   Padding(
@@ -1910,6 +1969,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
                         controller: _numeroCuentaController,
                         onChanged: _updateNumeroCuenta,
                         keyboardType: TextInputType.number,
