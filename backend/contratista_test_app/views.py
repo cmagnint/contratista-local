@@ -140,7 +140,7 @@ from .models import (
     DocumentosVehiculo,
     RegistroAsistencia,
     RegistroManoObraPersona,
-    
+    SolicitudTraspaso,
 
 )
 
@@ -19536,5 +19536,463 @@ class InformeManoObraAPIView(APIView):
             traceback.print_exc()
             return Response(
                 {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# ===== VISTAS CORREGIDAS PARA AGREGAR A views.py =====
+
+class TraspasoTrabajadoresAPIView(APIView):
+    """
+    Vista para gestionar el traspaso de trabajadores entre supervisores y jefes de cuadrilla
+    VERSIÓN CORREGIDA: campo 'estado' en lugar de 'estado_trabajador'
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+    
+    def dispatch(self, request, *args, **kwargs):
+        if request.method in ['GET', 'POST']:
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get(self, request):
+        """
+        Obtiene los datos necesarios para realizar traspasos según el perfil del usuario
+        """
+        try:
+            supervisor_id = request.query_params.get('supervisor_id')
+            jefe_cuadrilla_id = request.query_params.get('jefe_cuadrilla_id')
+            holding_id = request.query_params.get('holding')
+            
+            if not holding_id:
+                return Response(
+                    {'error': 'Holding es requerido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            holding = get_object_or_404(Holding, id=holding_id)
+            
+            # CASO 1: Usuario es SUPERVISOR
+            if supervisor_id:
+                supervisor = get_object_or_404(Supervisores, id=supervisor_id, holding=holding)
+                
+                # Obtener trabajadores directos del supervisor
+                mis_trabajadores = PersonalTrabajadores.objects.filter(
+                    supervisor_directo=supervisor,
+                    estado=True  # ✅ CORREGIDO: era estado_trabajador
+                ).values('id', 'nombres', 'apellidos', 'rut')
+                
+                mis_trabajadores_list = [
+                    {
+                        'id': t['id'],
+                        'nombre': f"{t['nombres']} {t['apellidos'] or ''}".strip(),
+                        'rut': t['rut']
+                    }
+                    for t in mis_trabajadores
+                ]
+                
+                # Obtener trabajadores de los jefes de cuadrilla bajo este supervisor
+                jefes_cuadrilla = JefesDeCuadrilla.objects.filter(
+                    supervisor=supervisor,
+                    holding=holding
+                )
+                
+                trabajadores_jefes = []
+                for jefe in jefes_cuadrilla:
+                    trabajadores = PersonalTrabajadores.objects.filter(
+                        jefe_cuadrilla=jefe,
+                        estado=True  # ✅ CORREGIDO: era estado_trabajador
+                    ).values('id', 'nombres', 'apellidos', 'rut')
+                    
+                    for t in trabajadores:
+                        trabajadores_jefes.append({
+                            'id': t['id'],
+                            'nombre': f"{t['nombres']} {t['apellidos'] or ''}".strip(),
+                            'rut': t['rut'],
+                            'jefe_cuadrilla_id': jefe.id,
+                            'jefe_cuadrilla_nombre': f"{jefe.usuario.persona.nombres} {jefe.usuario.persona.apellidos or ''}".strip() if jefe.usuario and jefe.usuario.persona else 'Sin nombre'
+                        })
+                
+                # Combinar todos los trabajadores que puede ver el supervisor
+                mis_trabajadores_list.extend(trabajadores_jefes)
+                
+                # Obtener jefes de cuadrilla bajo este supervisor
+                mis_jefes_cuadrilla = [
+                    {
+                        'id': jefe.id,
+                        'nombre': f"{jefe.usuario.persona.nombres} {jefe.usuario.persona.apellidos or ''}".strip() if jefe.usuario and jefe.usuario.persona else 'Sin nombre',
+                        'rut': jefe.usuario.rut if jefe.usuario else 'Sin RUT'
+                    }
+                    for jefe in jefes_cuadrilla
+                ]
+                
+                # Obtener otros supervisores (para traspasos que requieren aprobación)
+                otros_supervisores = Supervisores.objects.filter(
+                    holding=holding
+                ).exclude(id=supervisor_id).select_related('usuario', 'usuario__persona')
+                
+                otros_supervisores_list = [
+                    {
+                        'id': s.id,
+                        'nombre': f"{s.usuario.persona.nombres} {s.usuario.persona.apellidos or ''}".strip() if s.usuario and s.usuario.persona else 'Sin nombre',
+                        'rut': s.usuario.rut if s.usuario else 'Sin RUT'
+                    }
+                    for s in otros_supervisores
+                ]
+                
+                # Obtener solicitudes pendientes que este supervisor debe aprobar
+                solicitudes_pendientes = SolicitudTraspaso.objects.filter(
+                    supervisor_aprobador=supervisor,
+                    estado='PENDIENTE'
+                ).prefetch_related('trabajadores')
+                
+                solicitudes_list = []
+                for solicitud in solicitudes_pendientes:
+                    solicitante_nombre = ''
+                    if solicitud.solicitante_supervisor:
+                        solicitante_nombre = f"{solicitud.solicitante_supervisor.usuario.persona.nombres} {solicitud.solicitante_supervisor.usuario.persona.apellidos or ''}".strip() if solicitud.solicitante_supervisor.usuario and solicitud.solicitante_supervisor.usuario.persona else 'Sin nombre'
+                    elif solicitud.solicitante_jefe_cuadrilla:
+                        solicitante_nombre = f"{solicitud.solicitante_jefe_cuadrilla.usuario.persona.nombres} {solicitud.solicitante_jefe_cuadrilla.usuario.persona.apellidos or ''}".strip() if solicitud.solicitante_jefe_cuadrilla.usuario and solicitud.solicitante_jefe_cuadrilla.usuario.persona else 'Sin nombre'
+                    
+                    solicitudes_list.append({
+                        'id': solicitud.id,
+                        'solicitante_nombre': solicitante_nombre,
+                        'tipo_traspaso': solicitud.tipo_traspaso,
+                        'trabajadores_count': solicitud.trabajadores.count(),
+                        'fecha_solicitud': solicitud.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
+                        'observaciones': solicitud.observaciones or ''
+                    })
+                
+                return Response({
+                    'mis_trabajadores': mis_trabajadores_list,
+                    'mis_jefes_cuadrilla': mis_jefes_cuadrilla,
+                    'otros_supervisores': otros_supervisores_list,
+                    'otros_jefes_cuadrilla': [],
+                    'solicitudes_pendientes': solicitudes_list
+                }, status=status.HTTP_200_OK)
+            
+            # CASO 2: Usuario es JEFE DE CUADRILLA
+            elif jefe_cuadrilla_id:
+                jefe_cuadrilla = get_object_or_404(
+                    JefesDeCuadrilla, 
+                    id=jefe_cuadrilla_id,
+                    holding=holding
+                )
+                
+                # Obtener trabajadores del jefe de cuadrilla
+                mis_trabajadores = PersonalTrabajadores.objects.filter(
+                    jefe_cuadrilla=jefe_cuadrilla,
+                    estado=True  # ✅ CORREGIDO: era estado_trabajador
+                ).values('id', 'nombres', 'apellidos', 'rut')
+                
+                mis_trabajadores_list = [
+                    {
+                        'id': t['id'],
+                        'nombre': f"{t['nombres']} {t['apellidos'] or ''}".strip(),
+                        'rut': t['rut'],
+                        'supervisor_id': jefe_cuadrilla.supervisor.id,
+                        'supervisor_nombre': f"{jefe_cuadrilla.supervisor.usuario.persona.nombres} {jefe_cuadrilla.supervisor.usuario.persona.apellidos or ''}".strip() if jefe_cuadrilla.supervisor.usuario and jefe_cuadrilla.supervisor.usuario.persona else 'Sin nombre'
+                    }
+                    for t in mis_trabajadores
+                ]
+                
+                # Obtener otros jefes de cuadrilla del mismo supervisor
+                otros_jefes_cuadrilla = JefesDeCuadrilla.objects.filter(
+                    supervisor=jefe_cuadrilla.supervisor,
+                    holding=holding
+                ).exclude(id=jefe_cuadrilla_id).select_related('usuario', 'usuario__persona')
+                
+                otros_jefes_cuadrilla_list = [
+                    {
+                        'id': jefe.id,
+                        'nombre': f"{jefe.usuario.persona.nombres} {jefe.usuario.persona.apellidos or ''}".strip() if jefe.usuario and jefe.usuario.persona else 'Sin nombre',
+                        'rut': jefe.usuario.rut if jefe.usuario else 'Sin RUT'
+                    }
+                    for jefe in otros_jefes_cuadrilla
+                ]
+                
+                return Response({
+                    'mis_trabajadores': mis_trabajadores_list,
+                    'mis_jefes_cuadrilla': [],
+                    'otros_supervisores': [],
+                    'otros_jefes_cuadrilla': otros_jefes_cuadrilla_list,
+                    'solicitudes_pendientes': []
+                }, status=status.HTTP_200_OK)
+            
+            else:
+                return Response(
+                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            print(f"❌ Error en TraspasoTrabajadoresAPIView GET: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request):
+        """
+        Realiza o solicita un traspaso de trabajadores
+        """
+        try:
+            data = request.data
+            print("📥 Datos recibidos para traspaso:", data)
+            
+            holding_id = data.get('holding')
+            trabajadores_ids = data.get('trabajadores_ids', [])
+            destino_id_str = data.get('destino_id')
+            tipo_destino = data.get('tipo_destino')  # 'jefe_cuadrilla' o 'supervisor'
+            supervisor_id = data.get('supervisor_id')
+            jefe_cuadrilla_id = data.get('jefe_cuadrilla_id')
+            
+            # Validaciones básicas
+            if not all([holding_id, trabajadores_ids, destino_id_str, tipo_destino]):
+                return Response(
+                    {'error': 'Faltan parámetros requeridos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            destino_id = int(destino_id_str)
+            holding = get_object_or_404(Holding, id=holding_id)
+            
+            # Obtener trabajadores
+            trabajadores = PersonalTrabajadores.objects.filter(
+                id__in=trabajadores_ids,
+                estado=True  # ✅ CORREGIDO: era estado_trabajador
+            )
+            
+            if trabajadores.count() != len(trabajadores_ids):
+                return Response(
+                    {'error': 'Algunos trabajadores no existen o están inactivos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # CASO 1: Supervisor realiza el traspaso
+            if supervisor_id:
+                supervisor = get_object_or_404(Supervisores, id=supervisor_id, holding=holding)
+                
+                # Verificar que los trabajadores pertenecen al supervisor o sus jefes de cuadrilla
+                for trabajador in trabajadores:
+                    es_directo = trabajador.supervisor_directo.filter(id=supervisor_id).exists()
+                    es_de_jefe = False
+                    if not es_directo:
+                        jefes_supervisor = JefesDeCuadrilla.objects.filter(supervisor=supervisor)
+                        es_de_jefe = trabajador.jefe_cuadrilla.filter(
+                            id__in=[j.id for j in jefes_supervisor]
+                        ).exists()
+                    
+                    if not es_directo and not es_de_jefe:
+                        return Response(
+                            {'error': f'El trabajador {trabajador.nombres} no pertenece a tu supervisión'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                # Destino: Jefe de Cuadrilla (TRASPASO DIRECTO)
+                if tipo_destino == 'jefe_cuadrilla':
+                    jefe_destino = get_object_or_404(
+                        JefesDeCuadrilla,
+                        id=destino_id,
+                        supervisor=supervisor,
+                        holding=holding
+                    )
+                    
+                    with transaction.atomic():
+                        for trabajador in trabajadores:
+                            # Remover de relaciones anteriores
+                            trabajador.supervisor_directo.clear()
+                            trabajador.jefe_cuadrilla.clear()
+                            
+                            # Asignar al jefe de cuadrilla
+                            trabajador.jefe_cuadrilla.add(jefe_destino)
+                    
+                    return Response({
+                        'mensaje': f'Traspaso realizado exitosamente a {jefe_destino.usuario.persona.nombres if jefe_destino.usuario and jefe_destino.usuario.persona else "Jefe de Cuadrilla"}'
+                    }, status=status.HTTP_200_OK)
+                
+                # Destino: Otro Supervisor (REQUIERE APROBACIÓN)
+                elif tipo_destino == 'supervisor':
+                    supervisor_destino = get_object_or_404(
+                        Supervisores,
+                        id=destino_id,
+                        holding=holding
+                    )
+                    
+                    # Crear solicitud de traspaso
+                    solicitud = SolicitudTraspaso.objects.create(
+                        holding=holding,
+                        solicitante_supervisor=supervisor,
+                        destino_supervisor=supervisor_destino,
+                        supervisor_aprobador=supervisor_destino,
+                        estado='PENDIENTE',
+                        tipo_traspaso='SUPERVISOR_A_SUPERVISOR'
+                    )
+                    solicitud.trabajadores.set(trabajadores)
+                    
+                    return Response({
+                        'mensaje': f'Solicitud de traspaso enviada a {supervisor_destino.usuario.persona.nombres if supervisor_destino.usuario and supervisor_destino.usuario.persona else "Supervisor"}'
+                    }, status=status.HTTP_201_CREATED)
+            
+            # CASO 2: Jefe de Cuadrilla solicita el traspaso
+            elif jefe_cuadrilla_id:
+                jefe_cuadrilla = get_object_or_404(
+                    JefesDeCuadrilla,
+                    id=jefe_cuadrilla_id,
+                    holding=holding
+                )
+                
+                # Verificar que los trabajadores pertenecen al jefe de cuadrilla
+                for trabajador in trabajadores:
+                    if not trabajador.jefe_cuadrilla.filter(id=jefe_cuadrilla_id).exists():
+                        return Response(
+                            {'error': f'El trabajador {trabajador.nombres} no está bajo tu cargo'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                # Determinar tipo de traspaso y supervisor aprobador
+                if tipo_destino == 'supervisor':
+                    # Devolución al supervisor
+                    tipo_traspaso = 'JEFE_A_SUPERVISOR'
+                    supervisor_aprobador = jefe_cuadrilla.supervisor
+                    destino_supervisor = jefe_cuadrilla.supervisor
+                    destino_jefe = None
+                    
+                elif tipo_destino == 'jefe_cuadrilla':
+                    # Traspaso a otro jefe de cuadrilla
+                    jefe_destino = get_object_or_404(
+                        JefesDeCuadrilla,
+                        id=destino_id,
+                        supervisor=jefe_cuadrilla.supervisor,
+                        holding=holding
+                    )
+                    tipo_traspaso = 'JEFE_A_JEFE'
+                    supervisor_aprobador = jefe_cuadrilla.supervisor
+                    destino_supervisor = None
+                    destino_jefe = jefe_destino
+                else:
+                    return Response(
+                        {'error': 'Tipo de destino no válido'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Crear solicitud de traspaso
+                solicitud = SolicitudTraspaso.objects.create(
+                    holding=holding,
+                    solicitante_jefe_cuadrilla=jefe_cuadrilla,
+                    destino_supervisor=destino_supervisor,
+                    destino_jefe_cuadrilla=destino_jefe,
+                    supervisor_aprobador=supervisor_aprobador,
+                    estado='PENDIENTE',
+                    tipo_traspaso=tipo_traspaso
+                )
+                solicitud.trabajadores.set(trabajadores)
+                
+                return Response({
+                    'mensaje': f'Solicitud de traspaso enviada al supervisor {supervisor_aprobador.usuario.persona.nombres if supervisor_aprobador.usuario and supervisor_aprobador.usuario.persona else "Supervisor"}'
+                }, status=status.HTTP_201_CREATED)
+            
+            else:
+                return Response(
+                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            print(f"❌ Error en TraspasoTrabajadoresAPIView POST: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ResponderTraspasoAPIView(APIView):
+    """
+    Vista para aprobar o rechazar solicitudes de traspaso
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+    required_scopes = ['admin', 'write']
+    
+    def post(self, request):
+        try:
+            data = request.data
+            solicitud_id = data.get('solicitud_id')
+            aprobar = data.get('aprobar')
+            supervisor_id = data.get('supervisor_id')
+            motivo_rechazo = data.get('motivo_rechazo', '')
+            
+            if not all([solicitud_id is not None, aprobar is not None, supervisor_id]):
+                return Response(
+                    {'error': 'Faltan parámetros requeridos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            solicitud = get_object_or_404(SolicitudTraspaso, id=solicitud_id)
+            supervisor = get_object_or_404(Supervisores, id=supervisor_id)
+            
+            # Verificar que el supervisor tiene permiso para aprobar esta solicitud
+            if solicitud.supervisor_aprobador.id != supervisor.id:
+                return Response(
+                    {'error': 'No tienes permiso para aprobar esta solicitud'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Verificar que la solicitud está pendiente
+            if solicitud.estado != 'PENDIENTE':
+                return Response(
+                    {'error': 'Esta solicitud ya fue procesada'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            with transaction.atomic():
+                if aprobar:
+                    # APROBAR: Realizar el traspaso
+                    trabajadores = solicitud.trabajadores.all()
+                    
+                    for trabajador in trabajadores:
+                        # Limpiar relaciones anteriores
+                        trabajador.supervisor_directo.clear()
+                        trabajador.jefe_cuadrilla.clear()
+                        
+                        # Asignar según el tipo de traspaso
+                        if solicitud.tipo_traspaso == 'SUPERVISOR_A_SUPERVISOR':
+                            trabajador.supervisor_directo.add(solicitud.destino_supervisor)
+                        
+                        elif solicitud.tipo_traspaso == 'JEFE_A_SUPERVISOR':
+                            trabajador.supervisor_directo.add(solicitud.destino_supervisor)
+                        
+                        elif solicitud.tipo_traspaso == 'JEFE_A_JEFE':
+                            trabajador.jefe_cuadrilla.add(solicitud.destino_jefe_cuadrilla)
+                    
+                    solicitud.estado = 'APROBADO'
+                    solicitud.fecha_respuesta = timezone.now()
+                    solicitud.save()
+                    
+                    mensaje = 'Solicitud aprobada y traspaso realizado exitosamente'
+                else:
+                    # RECHAZAR: Actualizar estado
+                    solicitud.estado = 'RECHAZADO'
+                    solicitud.fecha_respuesta = timezone.now()
+                    solicitud.motivo_rechazo = motivo_rechazo
+                    solicitud.save()
+                    
+                    mensaje = 'Solicitud rechazada exitosamente'
+            
+            return Response({'mensaje': mensaje}, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"❌ Error en ResponderTraspasoAPIView: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

@@ -3,6 +3,7 @@ import 'package:contratista/pages/mother_layout/contratacion/contratacion.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pending_enrollments_screen.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pre_contratacion.dart';
 import 'package:contratista/pages/mother_layout/contratacion/asociar_qr.dart';
+import 'package:contratista/pages/mother_layout/contratacion/traspaso_trabajadores.dart';
 import 'package:contratista/pages/mother_layout/cosecha/ingresar_produccion.dart';
 import 'package:contratista/pages/mother_layout/formar_cuadrillas.dart';
 import 'package:contratista/pages/mother_layout/mano_obra/asistencia.dart'; // ✅ AGREGADO
@@ -37,6 +38,7 @@ class MotherLayoutState extends State<MotherLayout> {
     Container(), // _selectedIndex = 6 ASISTENCIA ✅ AGREGADO
     Container(), // _selectedIndex = 7 INFORME ASISTENCIA ✅ AGREGADO
     Container(), // _selectedIndex = 8 INGRESO MANO OBRA
+    Container(),
     Container(),
   ];
 
@@ -184,6 +186,13 @@ class MotherLayoutState extends State<MotherLayout> {
     setState(() {
       _pages[7] = const InformeAsistenciaScreen();
       _selectedIndex = 7;
+    });
+  }
+
+  void goToTraspasoTrabajadores() async {
+    setState(() {
+      _pages[10] = const TraspasoTrabajadoresScreen();
+      _selectedIndex = 10;
     });
   }
 
@@ -446,6 +455,14 @@ class MotherLayoutState extends State<MotherLayout> {
                 if (mounted) {
                   Navigator.pop(context);
                 }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.how_to_reg),
+              title: const Text('Traspaso Trabajadores'),
+              onTap: () {
+                Navigator.pop(context);
+                goToTraspasoTrabajadores(); // ✅ Llamar a la función
               },
             ),
             ExpansionTile(

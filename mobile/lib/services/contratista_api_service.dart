@@ -7,11 +7,11 @@ import 'package:logger/logger.dart';
 Logger logger = Logger();
 
 class ApiService {
-  final String baseUrl = 'http://192.168.100.15:8182/contratista_test_api/';
+  final String baseUrl = 'http://192.168.1.175:8182/contratista_test_api/';
   //'http://contratista.terramobile.cl/contratista_test_api/'
   //192.168.43.122
   //192.168.100.15 = OFICINA PARRAL
-
+  // hostname -I | awk '{print $1}'
   // Obtener el JWT token
   Future<String?> getJwtToken() async {
     return await storage.read(key: 'jwt_token');

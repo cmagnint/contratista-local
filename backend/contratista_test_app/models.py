@@ -2519,3 +2519,102 @@ class RegistroManoObraPersona(models.Model):
             models.Index(fields=['trabajador', 'fecha_ingreso']),
             models.Index(fields=['holding', 'fecha_ingreso']),
         ]
+
+# ===== MODELO PARA AGREGAR A models.py =====
+
+class SolicitudTraspaso(models.Model):
+    """
+    Modelo para gestionar las solicitudes de traspaso de trabajadores
+    """
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('APROBADO', 'Aprobado'),
+        ('RECHAZADO', 'Rechazado'),
+    ]
+    
+    TIPO_TRASPASO_CHOICES = [
+        ('SUPERVISOR_A_SUPERVISOR', 'Supervisor a Supervisor'),
+        ('JEFE_A_JEFE', 'Jefe de Cuadrilla a Jefe de Cuadrilla'),
+        ('JEFE_A_SUPERVISOR', 'Jefe de Cuadrilla a Supervisor'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    
+    # Solicitante
+    solicitante_supervisor = models.ForeignKey(
+        Supervisores, 
+        on_delete=models.CASCADE, 
+        related_name='traspasos_solicitados_como_supervisor',
+        null=True,
+        blank=True
+    )
+    solicitante_jefe_cuadrilla = models.ForeignKey(
+        JefesDeCuadrilla,
+        on_delete=models.CASCADE,
+        related_name='traspasos_solicitados',
+        null=True,
+        blank=True
+    )
+    
+    # Destino
+    destino_supervisor = models.ForeignKey(
+        Supervisores,
+        on_delete=models.CASCADE,
+        related_name='traspasos_recibidos',
+        null=True,
+        blank=True
+    )
+    destino_jefe_cuadrilla = models.ForeignKey(
+        JefesDeCuadrilla,
+        on_delete=models.CASCADE,
+        related_name='traspasos_recibidos_jefe',
+        null=True,
+        blank=True
+    )
+    
+    # Supervisor que debe aprobar
+    supervisor_aprobador = models.ForeignKey(
+        Supervisores,
+        on_delete=models.CASCADE,
+        related_name='traspasos_por_aprobar',
+        null=True,
+        blank=True
+    )
+    
+    # Trabajadores a traspasar
+    trabajadores = models.ManyToManyField(
+        PersonalTrabajadores,
+        related_name='solicitudes_traspaso'
+    )
+    
+    # Estado y tipo
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='PENDIENTE'
+    )
+    tipo_traspaso = models.CharField(
+        max_length=30,
+        choices=TIPO_TRASPASO_CHOICES
+    )
+    
+    # Fechas
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    fecha_respuesta = models.DateTimeField(null=True, blank=True)
+    
+    # Observaciones
+    observaciones = models.TextField(blank=True, null=True)
+    motivo_rechazo = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'solicitud_traspaso'
+        ordering = ['-fecha_solicitud']
+    
+    def __str__(self):
+        solicitante = (
+            self.solicitante_supervisor.usuario.rut 
+            if self.solicitante_supervisor 
+            else self.solicitante_jefe_cuadrilla.usuario.rut
+        )
+        return f"Solicitud {self.id} - {solicitante} - {self.estado}"
