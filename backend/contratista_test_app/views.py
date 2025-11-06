@@ -20,7 +20,7 @@ from selenium.webdriver.common.by import By
 from django.core.files.base import ContentFile
 from collections import defaultdict
 from rest_framework.views import APIView
-from PyPDF2 import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter
 from .utils import generar_documento_con_datos, validate_uploaded_documents
 from reportlab.lib.pagesizes import letter
 from django.forms import ValidationError
@@ -61,7 +61,7 @@ import csv
 import io
 import os
 import re
-import PyPDF2
+
 
 #SERVICIOS
 from .services.jwt_service import JWTService
@@ -3224,7 +3224,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             print("❌ Errores de validación:")
             print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -15207,7 +15206,7 @@ class ProcesarCartolaAPIView(APIView):
         try:
             print("📖 Leyendo contenido del PDF...")
             # Leer el PDF
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            pdf_reader = pypdf.PdfReader(pdf_file)
             texto_completo = ""
             
             for page_num, page in enumerate(pdf_reader.pages):
@@ -16825,7 +16824,7 @@ class ProcesarCartolaEgresoAPIView(APIView):
         try:
             print("📖 Leyendo contenido del PDF...")
             # Leer el PDF
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            pdf_reader = pypdf.PdfReader(pdf_file)
             texto_completo = ""
             
             for page_num, page in enumerate(pdf_reader.pages):
@@ -17702,7 +17701,7 @@ class DocumentoVariablesNativasAPIView(APIView):
         Convierte cualquier PDF a tamaño carta (612x792 puntos) FORZADO.
         Usa transformaciones matriciales para garantizar dimensiones exactas.
         """
-        from PyPDF2 import PdfReader, PdfWriter, Transformation
+        from pypdf import PdfReader, PdfWriter, Transformation
         from reportlab.pdfgen import canvas
         from reportlab.lib.pagesizes import letter
         import io
@@ -17803,7 +17802,7 @@ class DocumentoVariablesNativasAPIView(APIView):
     def _crear_documento(self, request):
         """Crear un nuevo documento con variables posicionadas (soporta merge de PDFs)"""
         try:
-            from PyPDF2 import PdfMerger
+            from pypdf import PdfMerger
             from django.core.files.base import ContentFile
             import io
             
@@ -17985,7 +17984,7 @@ class DocumentoVariablesNativasAPIView(APIView):
         Genera PDF con coordenadas nativas.
         SIMPLIFICADO: Todos los PDFs guardados YA están en 612x792.
         """
-        from PyPDF2 import PdfReader, PdfWriter
+        from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
         import io
         
@@ -18427,6 +18426,9 @@ class GenerarDocumentosMasivoAPIView(APIView):
         try:
             documento_id = request.data.get('documento_id')
             trabajador_ids = request.data.get('trabajador_ids', [])
+            # ⭐ CRÍTICO: Extraer fecha_emision y sociedad_id del request
+            fecha_emision = request.data.get('fecha_emision')
+            sociedad_id = request.data.get('sociedad_id')
             
             if not documento_id:
                 return Response({
@@ -18458,8 +18460,12 @@ class GenerarDocumentosMasivoAPIView(APIView):
                         holding=request.user.holding
                     )
                     
-                    # Mapear datos del trabajador
-                    datos_variables = self._mapear_datos_trabajador(trabajador)
+                    # ⭐ CRÍTICO: Pasar fecha_emision y sociedad_id
+                    datos_variables = self._mapear_datos_trabajador(
+                        trabajador, 
+                        fecha_emision, 
+                        sociedad_id
+                    )
                     
                     # Generar PDF
                     pdf_buffer = self._generar_documento_coordenadas_nativas(
@@ -18468,12 +18474,11 @@ class GenerarDocumentosMasivoAPIView(APIView):
                         debug=False
                     )
                     
-                    # ⭐ CAMBIO: Pasar el request al método
                     pdf_url = self._guardar_contrato_generado(
                         pdf_buffer,
                         trabajador,
                         documento,
-                        request  # ← Pasar request
+                        request
                     )
                     
                     urls_generadas.append({
@@ -18514,8 +18519,11 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 "error": f"Error al generar contratos: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    def _mapear_datos_trabajador(self, trabajador):
-        """Mapea datos correctos desde PersonalTrabajadores + ContratoTrabajador"""
+    def _mapear_datos_trabajador(self, trabajador, fecha_emision=None, sociedad_id=None):
+        """
+        Mapea datos desde PersonalTrabajadores + ContratoTrabajador
+        Recibe fecha_emision y sociedad_id desde el frontend
+        """
         
         def formatear_fecha(fecha):
             if not fecha:
@@ -18540,9 +18548,9 @@ class GenerarDocumentosMasivoAPIView(APIView):
             return f"{rut_formateado}-{dv}"
         
         # ⭐ OBTENER CONTRATO ACTIVO
-        from datetime import date
+        from datetime import date, datetime
         from django.db import models
-
+        
         contrato_activo = trabajador.contratos.filter(
             fecha_inicio_contrato__lte=date.today()
         ).filter(
@@ -18550,9 +18558,34 @@ class GenerarDocumentosMasivoAPIView(APIView):
             models.Q(fecha_termino_contrato__isnull=True)
         ).order_by('-fecha_inicio_contrato').first()
         
+        # ⭐ PROCESAR FECHA DE EMISIÓN
+        fecha_emision_formateada = ''
+        if fecha_emision:
+            try:
+                # Convertir de formato YYYY-MM-DD a DD/MM/YYYY
+                fecha_obj = datetime.strptime(fecha_emision, '%Y-%m-%d').date()
+                fecha_emision_formateada = formatear_fecha(fecha_obj)
+            except ValueError:
+                # Si falla, usar fecha actual
+                fecha_emision_formateada = formatear_fecha(date.today())
+        else:
+            fecha_emision_formateada = formatear_fecha(date.today())
+        
+        # ⭐ OBTENER NOMBRE DE SOCIEDAD
+        sociedad_nombre = ''
+        if sociedad_id:
+            try:
+                from .models import Sociedad
+                sociedad = Sociedad.objects.get(id=sociedad_id)
+                sociedad_nombre = sociedad.nombre
+            except Sociedad.DoesNotExist:
+                print(f"⚠️ Sociedad con ID {sociedad_id} no encontrada")
+            except Exception as e:
+                print(f"⚠️ Error obteniendo sociedad: {e}")
+        
         return {
             # Fechas
-            'fecha_emision': formatear_fecha(date.today()),
+            'fecha_emision': fecha_emision_formateada,
             'fecha_ingreso': formatear_fecha(trabajador.fecha_ingreso),
             'fecha_inicio_contrato': formatear_fecha(contrato_activo.fecha_inicio_contrato) if contrato_activo else '',
             'fecha_termino': formatear_fecha(contrato_activo.fecha_termino_contrato) if contrato_activo else '',
@@ -18571,10 +18604,13 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'telefono': trabajador.telefono or '',
             'correo': trabajador.correo or '',
             
-            # Trabajo (desde ContratoTrabajador)
+            # Trabajo
             'lugar_trabajo': contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
             'cargo': trabajador.cargo.nombre if trabajador.cargo else '',
             'area': trabajador.area.nombre if trabajador.area else '',
+            
+            # ⭐ NUEVO: Sociedad
+            'sociedad': sociedad_nombre,
             
             # Previsión
             'afp': trabajador.afp.nombre if trabajador.afp else '',
@@ -18587,9 +18623,9 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'numero_cuenta': str(trabajador.numero_cuenta) if trabajador.numero_cuenta else '',
             
             # Otros
-            'elementos_proteccion': '',  # Por definir
-            'contacto_emergencia_nombre': '',  # Por definir
-            'contacto_emergencia_telefono': '',  # Por definir
+            'elementos_proteccion': '',
+            'contacto_emergencia_nombre': '',
+            'contacto_emergencia_telefono': '',
             'firma_empleador': '[FIRMA DIGITAL]',
             'firma': '[FIRMA TRABAJADOR]',
             'huella': '[HUELLA DIGITAL]',
@@ -18625,109 +18661,112 @@ class GenerarDocumentosMasivoAPIView(APIView):
         return url_absoluta
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
-        from PyPDF2 import PdfReader, PdfWriter
+        from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
         import io
         
         documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
         
-        reader = PdfReader(open(input_pdf_path, "rb"))
-        writer = PdfWriter()
-        
-        BASE_FONT_SIZE = 9
-        BASE_OFFSET_X = -8
-        BASE_OFFSET_Y = -15.2
-        FONT_BASELINE = BASE_FONT_SIZE * 0.3
-        
-        # Organizar variables por página
-        variables_por_pagina = {}
-        for variable_data in documento.variables:
-            nombre_variable = variable_data.get('nombre')
-            for ubicacion in variable_data.get('ubicaciones', []):
-                pagina = ubicacion.get('pagina', 1)
-                if pagina not in variables_por_pagina:
-                    variables_por_pagina[pagina] = []
-                
-                variables_por_pagina[pagina].append({
-                    'nombre': nombre_variable,
-                    'posX': ubicacion.get('posX', 0),
-                    'posY': ubicacion.get('posY', 0)
-                })
-        
-        campos_centrados = ['rut', 'dni', 'nic', 'estado_civil', 'fecha_nacimiento', 
-                            'fecha_emision', 'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino']
-        
-        # Procesar cada página
-        for page_num in range(len(reader.pages)):
-            ui_page_num = page_num + 1
-            page = reader.pages[page_num]
+        # ⭐ CRÍTICO: Usar context manager para cerrar archivo automáticamente
+        with open(input_pdf_path, "rb") as pdf_file:
+            reader = PdfReader(pdf_file)
+            writer = PdfWriter()
             
-            if ui_page_num in variables_por_pagina:
-                page_width = float(page.mediabox.width)
-                page_height = float(page.mediabox.height)
-                
-                packet = io.BytesIO()
-                can = canvas.Canvas(packet, pagesize=(page_width, page_height))
-                
-                # ⭐ Contador de textos escritos
-                textos_escritos = 0
-                
-                for variable in variables_por_pagina[ui_page_num]:
-                    nombre = variable['nombre']
-                    if nombre in datos_variables and datos_variables[nombre]:
-                        frontend_x = variable['posX']
-                        frontend_y = variable['posY']
-                        
-                        pdf_x = frontend_x + BASE_OFFSET_X
-                        pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
-                        
-                        if nombre == 'rut':
-                            pdf_x += BASE_OFFSET_X * 0.5
-                        elif nombre == 'nombre':
-                            pdf_x += BASE_OFFSET_X * 0.1
-                        
-                        valor = str(datos_variables[nombre])
-                        can.setFont("Helvetica", BASE_FONT_SIZE)
-                        
-                        if nombre in campos_centrados:
-                            text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
-                            can.drawString(pdf_x - (text_width/2), pdf_y, valor)
-                        else:
-                            can.drawString(pdf_x, pdf_y, valor)
-                        
-                        textos_escritos += 1
-                        
-                        if debug:
-                            can.saveState()
-                            can.setStrokeColorRGB(1, 0, 0)
-                            can.setLineWidth(1)
-                            can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
-                            can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
-                            can.restoreState()
-                
-                can.save()
-                packet.seek(0)
-                
-                # ⭐ SOLO hacer merge si se escribieron textos
-                if textos_escritos > 0:
-                    try:
-                        overlay = PdfReader(packet)
-                        if overlay.pages:  # Verificar que tenga páginas
-                            page.merge_page(overlay.pages[0])
-                            print(f"✅ Página {ui_page_num}: {textos_escritos} textos aplicados")
-                    except Exception as e:
-                        print(f"⚠️ Error merge página {ui_page_num}: {e}")
-                else:
-                    print(f"⚠️ Página {ui_page_num}: sin datos para escribir")
+            BASE_FONT_SIZE = 9
+            BASE_OFFSET_X = -8
+            BASE_OFFSET_Y = -15.2
+            FONT_BASELINE = BASE_FONT_SIZE * 0.3
             
-            writer.add_page(page)
-        
-        buffer = io.BytesIO()
-        writer.write(buffer)
-        buffer.seek(0)
-        
-        print(f"✅ PDF generado: {len(reader.pages)} páginas")
+            # Organizar variables por página
+            variables_por_pagina = {}
+            for variable_data in documento.variables:
+                nombre_variable = variable_data.get('nombre')
+                for ubicacion in variable_data.get('ubicaciones', []):
+                    pagina = ubicacion.get('pagina', 1)
+                    if pagina not in variables_por_pagina:
+                        variables_por_pagina[pagina] = []
+                    
+                    variables_por_pagina[pagina].append({
+                        'nombre': nombre_variable,
+                        'posX': ubicacion.get('posX', 0),
+                        'posY': ubicacion.get('posY', 0)
+                    })
+            
+            campos_centrados = ['rut', 'dni', 'nic', 'estado_civil', 'fecha_nacimiento', 
+                                'fecha_emision', 'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino']
+            
+            # Procesar cada página
+            for page_num in range(len(reader.pages)):
+                ui_page_num = page_num + 1
+                page = reader.pages[page_num]
+                
+                if ui_page_num in variables_por_pagina:
+                    page_width = float(page.mediabox.width)
+                    page_height = float(page.mediabox.height)
+                    
+                    packet = io.BytesIO()
+                    can = canvas.Canvas(packet, pagesize=(page_width, page_height))
+                    
+                    textos_escritos = 0
+                    
+                    for variable in variables_por_pagina[ui_page_num]:
+                        nombre = variable['nombre']
+                        if nombre in datos_variables and datos_variables[nombre]:
+                            frontend_x = variable['posX']
+                            frontend_y = variable['posY']
+                            
+                            pdf_x = frontend_x + BASE_OFFSET_X
+                            pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
+                            
+                            if nombre == 'rut':
+                                pdf_x += BASE_OFFSET_X * 0.5
+                            elif nombre == 'nombre':
+                                pdf_x += BASE_OFFSET_X * 0.1
+                            
+                            valor = str(datos_variables[nombre])
+                            can.setFont("Helvetica", BASE_FONT_SIZE)
+                            
+                            if nombre in campos_centrados:
+                                text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
+                                can.drawString(pdf_x - (text_width/2), pdf_y, valor)
+                            else:
+                                can.drawString(pdf_x, pdf_y, valor)
+                            
+                            textos_escritos += 1
+                            
+                            if debug:
+                                can.saveState()
+                                can.setStrokeColorRGB(1, 0, 0)
+                                can.setLineWidth(1)
+                                can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
+                                can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
+                                can.restoreState()
+                    
+                    can.save()
+                    packet.seek(0)
+                    
+                    if textos_escritos > 0:
+                        try:
+                            overlay = PdfReader(packet)
+                            if overlay.pages:
+                                page.merge_page(overlay.pages[0])
+                                print(f"✅ Página {ui_page_num}: {textos_escritos} textos aplicados")
+                        except Exception as e:
+                            print(f"⚠️ Error merge página {ui_page_num}: {e}")
+                    else:
+                        print(f"⚠️ Página {ui_page_num}: sin datos para escribir")
+                
+                writer.add_page(page)
+            
+            # ⭐ Escribir buffer DENTRO del context manager
+            buffer = io.BytesIO()
+            writer.write(buffer)
+            buffer.seek(0)
+            
+            print(f"✅ PDF generado: {len(reader.pages)} páginas")
+            
+        # ⭐ El archivo se cierra automáticamente al salir del `with`
         return buffer
 
 class ListarDocumentosAPIView(APIView):

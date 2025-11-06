@@ -1,4 +1,6 @@
 //contratacion.dart; Contratista - CON FLUJO AUTOMÃTICO
+// ignore_for_file: deprecated_member_use, no_leading_underscores_for_local_identifiers
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -90,9 +92,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _fetchBancos();
 
     // ✅ INICIALIZAR FocusNodes
-    _controllers.keys.forEach((key) {
+    for (var key in _controllers.keys) {
       _focusNodes[key] = FocusNode();
-    });
+    }
 
     loggerGlobal.d('holding: ${userInfo.holding}');
   }
@@ -523,6 +525,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                 _selectedAnio = fechaParts[2];
               }
             }
+            // Mantener estado civil Soltero(a) por defecto  // ⭐ NUEVO
+            _estadoCivil = 'Soltero(a)'; // ⭐ NUEVO
           });
           _hideLoadingOverlay();
 
@@ -993,7 +997,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
         if (fileSize > 10 * 1024 * 1024) {
           loggerGlobal.e(
-            'Archivo demasiado grande: ${fileEntry.key} - ${fileSize} bytes',
+            'Archivo demasiado grande: ${fileEntry.key} - $fileSize bytes',
           );
           return false;
         }
@@ -1885,6 +1889,30 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                             _tipoCuenta = '';
                             _numeroCuenta = '';
                             _numeroCuentaController.clear();
+                          } else if (_metodoPago == 'Transferencia') {
+                            // ⭐ NUEVO
+                            // Setear Banco Estado por defecto
+                            final bancoEstado = _bancos.firstWhere(
+                              (b) => b['nombre']
+                                  .toString()
+                                  .toLowerCase()
+                                  .contains('estado'),
+                              orElse: () => {},
+                            );
+                            if (bancoEstado.isNotEmpty) {
+                              _selectedBancoNombre = bancoEstado['nombre']
+                                  .toString();
+                              _banco = bancoEstado['id'].toString();
+                            }
+                            // Setear Cuenta Rut por defecto
+                            _tipoCuenta = 'Cuenta Rut';
+                            // Setear número de cuenta desde RUT
+                            if (_controllers['RUN']!.text.isNotEmpty) {
+                              _numeroCuenta = _getRutWithoutFormatting(
+                                _controllers['RUN']!.text,
+                              );
+                              _numeroCuentaController.text = _numeroCuenta;
+                            }
                           }
                         });
                       },

@@ -72,6 +72,9 @@ export class GenerarContratosComponent implements OnInit {
   // ID del holding actual
   holding: string = '';
   
+  // ⭐ NUEVO: Fecha de emisión del contrato
+  fechaEmision: string = new Date().toISOString().split('T')[0];
+  
   // Columnas para la tabla de trabajadores
   displayedColumns: string[] = ['seleccionar', 'nombre', 'rut', 'nacionalidad', 'acciones'];
   
@@ -281,12 +284,20 @@ export class GenerarContratosComponent implements OnInit {
     this.formatoSeleccionado = formato;
   }
   
-  // Reemplazar solo el método generarContratos() en generar-contratos.component.ts
-
   generarContratos(): void {
     if (!this.formatoSeleccionado || this.trabajadoresSeleccionados.length === 0) {
       this.snackBar.open(
         'Debe seleccionar trabajadores y un formato de contrato',
+        'Cerrar',
+        { duration: 3000 }
+      );
+      return;
+    }
+    
+    // ⭐ VALIDAR FECHA DE EMISIÓN
+    if (!this.fechaEmision) {
+      this.snackBar.open(
+        'Debe seleccionar la fecha de emisión del contrato',
         'Cerrar',
         { duration: 3000 }
       );
@@ -303,10 +314,15 @@ export class GenerarContratosComponent implements OnInit {
     
     console.log('Generando contratos para trabajadores:', trabajadorIds);
     console.log('Usando formato:', this.formatoSeleccionado.nombre);
+    console.log('Fecha de emisión:', this.fechaEmision);
+    console.log('Sociedad ID:', this.filtroForm.get('sociedad_id')?.value);
     
+    // ⭐ MODIFICADO: Incluir fecha_emision y sociedad_id
     const requestData = {
       documento_id: this.formatoSeleccionado.id,
-      trabajador_ids: trabajadorIds
+      trabajador_ids: trabajadorIds,
+      fecha_emision: this.fechaEmision,
+      sociedad_id: this.filtroForm.get('sociedad_id')?.value
     };
     
     // Usar el método POST convencional
@@ -317,7 +333,6 @@ export class GenerarContratosComponent implements OnInit {
         
         console.log('Respuesta del servidor:', response);
         
-        // ⭐ SIMPLIFICADO: El backend ahora retorna URLs absolutas completas
         if (response.urls && Array.isArray(response.urls)) {
           this.urlsContratos = response.urls.map((item: any) => item.url);
           
@@ -374,11 +389,11 @@ export class GenerarContratosComponent implements OnInit {
     // Construir nombre del archivo
     const trabajador = this.trabajadoresSeleccionados[indice];
     const nombreTrabajador = this.getNombreTrabajador(trabajador)
-      .replace(/\s+/g, '_')  // Reemplazar espacios con guiones bajos
-      .replace(/[^\w\-]/g, '');  // Eliminar caracteres especiales
+      .replace(/\s+/g, '_')
+      .replace(/[^\w\-]/g, '');
     
     a.download = `contrato_${nombreTrabajador}.pdf`;
-    a.target = '_blank';  // Abrir en nueva pestaña
+    a.target = '_blank';
     
     document.body.appendChild(a);
     a.click();
@@ -401,7 +416,7 @@ export class GenerarContratosComponent implements OnInit {
         console.log(`Descargando contrato ${index + 1}/${this.urlsContratos.length}`);
         this.descargarContrato(this.urlsContratos[index], index);
         index++;
-        setTimeout(descargaSiguiente, 500); // Esperar 500ms entre descargas
+        setTimeout(descargaSiguiente, 500);
       } else {
         this.snackBar.open(
           `Se iniciaron ${this.urlsContratos.length} descargas`,
@@ -425,6 +440,9 @@ export class GenerarContratosComponent implements OnInit {
     this.filtroForm.get('fundo_id')?.setValue('');
     this.filtroForm.get('fundo_id')?.disable();
     
+    // ⭐ RESETEAR FECHA A HOY
+    this.fechaEmision = new Date().toISOString().split('T')[0];
+    
     this.trabajadores = [];
     this.trabajadoresSeleccionados = [];
     this.formatosDisponibles = [];
@@ -438,7 +456,6 @@ export class GenerarContratosComponent implements OnInit {
     return this.trabajadoresSeleccionados.some(t => t.id === trabajador.id);
   }
   
-  // Helper method to extract name from trabajador object
   getNombreTrabajador(trabajador: any): string {
     return trabajador.nombre_completo || `${trabajador.nombres || ''} ${trabajador.apellidos || ''}`.trim();
   }

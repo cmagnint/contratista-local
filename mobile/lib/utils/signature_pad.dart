@@ -17,9 +17,10 @@ class SignatureWidgetState extends State<SignatureWidget> {
   void initState() {
     super.initState();
     _controller = SignatureController(
-      penStrokeWidth: 5,
-      penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
+      penStrokeWidth: 3,
+      penColor: Colors.blue,
+      exportBackgroundColor: Colors.transparent,
+      exportPenColor: Colors.blue,
     );
   }
 
@@ -28,8 +29,9 @@ class SignatureWidgetState extends State<SignatureWidget> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isLandscape = constraints.maxWidth > constraints.maxHeight;
-        final signatureWidth =
-            isLandscape ? constraints.maxWidth * 0.8 : constraints.maxWidth;
+        final signatureWidth = isLandscape
+            ? constraints.maxWidth * 0.8
+            : constraints.maxWidth;
         final signatureHeight = isLandscape
             ? constraints.maxHeight * 0.7
             : constraints.maxHeight * 0.6;
@@ -41,32 +43,50 @@ class SignatureWidgetState extends State<SignatureWidget> {
               width: signatureWidth,
               height: signatureHeight,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
+                border: Border.all(color: Colors.grey[400]!, width: 1.5),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Signature(
-                controller: _controller,
-                backgroundColor: Colors.grey[200]!,
+              child: Stack(
+                children: [
+                  Signature(
+                    controller: _controller,
+                    backgroundColor: Colors.white,
+                  ),
+                  if (_controller.isEmpty)
+                    Positioned(
+                      bottom: 12,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Text(
+                          'Firme aquí',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 16,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             SizedBox(height: isLandscape ? 10 : 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: <Widget>[
-                ElevatedButton(
-                  child: const Text('Limpiar'),
-                  onPressed: () {
-                    setState(() => _controller.clear());
-                  },
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.clear, size: 20),
+                  label: const Text('Limpiar'),
+                  onPressed: () => setState(() => _controller.clear()),
                 ),
-                ElevatedButton(
-                  child: const Text('Guardar'),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.check, size: 20),
+                  label: const Text('Guardar'),
                   onPressed: () async {
                     if (_controller.isNotEmpty) {
                       final Uint8List? data = await _controller.toPngBytes();
-                      if (data != null) {
-                        widget.onSignatureCapture(data);
-                      }
+                      if (data != null) widget.onSignatureCapture(data);
                     }
                   },
                 ),

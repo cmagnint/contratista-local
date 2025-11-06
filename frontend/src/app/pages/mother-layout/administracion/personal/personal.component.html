@@ -1,11 +1,7 @@
-<!--personal.component.html - ADAPTADO CON ESTILOS MODERNOS DE PERFILES-->
+<!--personal.component.html-->
 
-<!-- ============================================ -->
-<!-- 🎯 CONTENEDOR PRINCIPAL DE PERSONAL -->
-<!-- ============================================ -->
 <div class="admin-perfiles-container" (click)="deseleccionarFila($event)">
   
-  <!-- Botones de acción principales -->
   <button 
     mat-raised-button 
     color="primary" 
@@ -32,9 +28,7 @@
     ELIMINAR TRABAJADOR
   </button>
     
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL CREAR TRABAJADOR -->
-  <!-- ============================================ -->
+  <!-- MODAL CREAR TRABAJADOR -->
   <div 
     id="modalCrearTrabajador" 
     class="modal-trabajadores" 
@@ -50,7 +44,6 @@
 
       <h2>CREAR TRABAJADOR</h2>
 
-      <!-- Dropdown de Sociedades -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('sociedades')">
           SELECCIONAR SOCIEDAD
@@ -69,7 +62,6 @@
         </div>
       </div>
         
-      <!-- Dropdown de Áreas -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('areas')">
           SELECCIONAR ÁREA
@@ -88,7 +80,6 @@
         </div>
       </div>
           
-      <!-- Dropdown de Cargos -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('cargos')">
           SELECCIONAR CARGO
@@ -107,7 +98,6 @@
         </div>
       </div>
           
-      <!-- Dropdown de AFP -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('afps')">
           SELECCIONAR AFP
@@ -126,7 +116,6 @@
         </div>
       </div>
           
-      <!-- Dropdown de Salud -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('salud')">
           SELECCIONAR SALUD
@@ -145,7 +134,6 @@
         </div>
       </div>
 
-      <!-- Dropdown de Casa -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('casas')">
           SELECCIONAR CASA
@@ -164,7 +152,6 @@
         </div>
       </div>
 
-      <!-- Dropdown de Fundo -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('fundos')">
           SELECCIONAR FUNDO
@@ -183,7 +170,6 @@
         </div>
       </div>
       
-      <!-- Campos de información personal -->
       <h4 class="h4-subtitle">Nombres Trabajador:</h4>
       <input 
         type="text" 
@@ -192,7 +178,7 @@
         name="nombrePerfil" 
         [(ngModel)]="nombresTrabajador" 
         (ngModelChange)="nombresTrabajador = $event.toUpperCase()"
-        placeholder="Ingrese los nombres del trabajador">
+        placeholder="INGRESE LOS NOMBRES DEL TRABAJADOR">
       
       <h4 class="h4-subtitle">Apellidos Trabajador:</h4>
       <input 
@@ -202,7 +188,7 @@
         name="apellidosPerfil" 
         [(ngModel)]="apellidosTrabajador" 
         (ngModelChange)="apellidosTrabajador = $event.toUpperCase()"
-        placeholder="Ingrese los apellidos del trabajador">
+        placeholder="INGRESE LOS APELLIDOS DEL TRABAJADOR">
       
       <h4 class="h4-subtitle">RUT Trabajador:</h4>
       <input 
@@ -212,7 +198,7 @@
         name="rutTrabajador" 
         [(ngModel)]="rutTrabajador"  
         (input)="formatRUT($event)"
-        placeholder="Ej: 12.345.678-9">
+        placeholder="EJ: 12.345.678-9">
 
       <h4 class="h4-subtitle">Correo Trabajador:</h4>
       <input 
@@ -221,7 +207,8 @@
         id="correoTrabajador" 
         name="correoTrabajador" 
         [(ngModel)]="correoTrabajador"
-        placeholder="ejemplo@correo.com">
+        (ngModelChange)="correoTrabajador = $event.toUpperCase()"
+        placeholder="EJEMPLO@CORREO.COM">
 
       <h4 class="h4-subtitle">Dirección Trabajador:</h4>
       <input 
@@ -230,13 +217,14 @@
         id="direccionTrabajador" 
         name="direccionTrabajador" 
         [(ngModel)]="direccionTrabajador"
-        placeholder="Ingrese la dirección del trabajador">
+        (ngModelChange)="direccionTrabajador = $event.toUpperCase()"
+        placeholder="INGRESE LA DIRECCIÓN DEL TRABAJADOR">
 
       <h4 class="h4-subtitle">Sexo:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="sexoTrabajador">
-          <option value="Hombre">Hombre</option>
-          <option value="Mujer">Mujer</option>
+          <option value="H">H</option>
+          <option value="M">M</option>
         </select>
       </div>
 
@@ -275,16 +263,17 @@
         type="date" 
         class="input-perfil" 
         [(ngModel)]="fechaNacimiento"
-        placeholder="Fecha de nacimiento">
+        placeholder="FECHA DE NACIMIENTO">
 
       <h4 class="h4-subtitle">Estado Civil:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="estadoCivil">
-          <option value="Soltero">Soltero</option>
-          <option value="Casado">Casado</option>
-          <option value="Divorciado">Divorciado</option>
-          <option value="Viudo">Viudo</option>
-          <option value="Conviviente">Conviviente</option>
+          <option value="SOLTERO(A)">SOLTERO(A)</option>
+          <option value="CASADO(A)">CASADO(A)</option>
+          <option value="CONVIVIENTE CIVIL">CONVIVIENTE CIVIL</option>
+          <option value="SEPARADO(A) JUDICIALMENTE">SEPARADO(A) JUDICIALMENTE</option>
+          <option value="DIVORCIADO(A)">DIVORCIADO(A)</option>
+          <option value="VIUDO(A)">VIUDO(A)</option>
         </select>
       </div>
 
@@ -292,20 +281,18 @@
       <input 
         type="date" 
         class="input-perfil" 
-        placeholder="Fecha de Ingreso" 
+        placeholder="FECHA DE INGRESO" 
         [(ngModel)]="fechaIngreso">
 
-      <!-- Método de Pago -->
       <h4 class="h4-subtitle">Método de Pago:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="metodoPago" (change)="onMetodoPagoChange($event)">
-          <option value="Sin Pago">Sin Pago</option>
-          <option value="Efectivo">Efectivo</option>
-          <option value="Transferencia">Transferencia</option>
+          <option value="Sin Pago">SIN PAGO</option>
+          <option value="Efectivo">EFECTIVO</option>
+          <option value="Transferencia">TRANSFERENCIA</option>
         </select>
       </div>
 
-      <!-- Campos adicionales para Transferencia -->
       <div *ngIf="metodoPago === 'Transferencia'" class="contract-fields">
         <div class="dropdown">
           <button class="dropdown-button" (click)="toggleDropdown('bancos')">
@@ -328,11 +315,11 @@
         <h4 class="h4-subtitle">Tipo de Cuenta:</h4>
         <div class="input-container">
           <select class="input-perfil" [(ngModel)]="tipoCuenta">
-            <option value="">Seleccionar tipo de cuenta</option>
-            <option value="Cuenta Corriente">Cuenta Corriente</option>
-            <option value="Cuenta de Ahorro">Cuenta de Ahorro</option>
-            <option value="Cuenta Vista">Cuenta Vista</option>
-            <option value="Cuenta RUT">Cuenta RUT</option>
+            <option value="">SELECCIONAR TIPO DE CUENTA</option>
+            <option value="Cuenta Corriente">CUENTA CORRIENTE</option>
+            <option value="Cuenta de Ahorro">CUENTA DE AHORRO</option>
+            <option value="Cuenta Vista">CUENTA VISTA</option>
+            <option value="Cuenta RUT">CUENTA RUT</option>
           </select>
         </div>
 
@@ -344,7 +331,7 @@
           name="numeroCuenta" 
           [(ngModel)]="numeroCuenta" 
           (keypress)="validateNumber($event)"
-          placeholder="Ingrese el número de cuenta">
+          placeholder="INGRESE EL NÚMERO DE CUENTA">
       </div>
 
       <div class="button-container">
@@ -358,9 +345,7 @@
     </div>
   </div>
   
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL MODIFICAR TRABAJADOR -->
-  <!-- ============================================ -->
+  <!-- MODAL MODIFICAR TRABAJADOR -->
   <div 
     id="modalmodificarTrabajador" 
     class="modal-perfiles" 
@@ -378,7 +363,6 @@
 
       <h2>MODIFICAR TRABAJADOR</h2>
 
-      <!-- Dropdown de Sociedades -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('sociedades')">
           {{ getNombreSociedadSeleccionada() || 'SELECCIONAR SOCIEDAD' }}
@@ -397,7 +381,6 @@
         </div>
       </div>
         
-      <!-- Dropdown de Áreas -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('areas')">
           {{ getNombreAreaSeleccionada() || 'SELECCIONAR ÁREA' }}
@@ -416,7 +399,6 @@
         </div>
       </div>
           
-      <!-- Dropdown de Cargos -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('cargos')">
           {{ getNombreCargoSeleccionado() || 'SELECCIONAR CARGO' }}
@@ -435,7 +417,6 @@
         </div>
       </div>
           
-      <!-- Dropdown de AFP -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('afps')">
           {{ getNombreAfpSeleccionada() || 'SELECCIONAR AFP' }}
@@ -454,7 +435,6 @@
         </div>
       </div>
           
-      <!-- Dropdown de Salud -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('salud')">
           {{ getNombreSaludSeleccionada() || 'SELECCIONAR SALUD' }}
@@ -473,7 +453,6 @@
         </div>
       </div>
 
-      <!-- Dropdown de Casa -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('casas')">
           {{ getNombreCasaSeleccionada() || 'SELECCIONAR CASA' }}
@@ -492,7 +471,6 @@
         </div>
       </div>
 
-      <!-- Dropdown de Fundo -->
       <div class="dropdown">
         <button class="dropdown-button" (click)="toggleDropdown('fundos')">
           {{ getNombreFundoSeleccionado() || 'SELECCIONAR FUNDO' }}
@@ -517,7 +495,7 @@
         class="input-perfil" 
         [(ngModel)]="nombreTrabajadorNew" 
         (ngModelChange)="nombreTrabajadorNew = $event.toUpperCase()"
-        placeholder="Ingrese el nombre del trabajador">
+        placeholder="INGRESE EL NOMBRE DEL TRABAJADOR">
 
       <h4 class="h4-subtitle">RUT Trabajador:</h4>
       <input 
@@ -525,27 +503,29 @@
         class="input-perfil" 
         [(ngModel)]="rutTrabajadorNew" 
         (input)="formatRUT($event)"
-        placeholder="Ej: 12.345.678-9">
+        placeholder="EJ: 12.345.678-9">
 
       <h4 class="h4-subtitle">Correo Trabajador:</h4>
       <input 
         type="email" 
         class="input-perfil" 
         [(ngModel)]="correoTrabajadorNew"
-        placeholder="ejemplo@correo.com">
+        (ngModelChange)="correoTrabajadorNew = $event.toUpperCase()"
+        placeholder="EJEMPLO@CORREO.COM">
 
       <h4 class="h4-subtitle">Dirección:</h4>
       <input 
         type="text" 
         class="input-perfil" 
         [(ngModel)]="direccionTrabajadorNew"
-        placeholder="Ingrese la dirección">
+        (ngModelChange)="direccionTrabajadorNew = $event.toUpperCase()"
+        placeholder="INGRESE LA DIRECCIÓN">
 
       <h4 class="h4-subtitle">Sexo:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="sexoTrabajadorNew">
-          <option value="Hombre">Hombre</option>
-          <option value="Mujer">Mujer</option>
+          <option value="H">H</option>
+          <option value="M">M</option>
         </select>
       </div>
 
@@ -582,16 +562,17 @@
         type="date" 
         class="input-perfil" 
         [(ngModel)]="fechaNacimientoNew"
-        placeholder="Fecha de nacimiento">
+        placeholder="FECHA DE NACIMIENTO">
 
       <h4 class="h4-subtitle">Estado Civil:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="estadoCivilNew">
-          <option value="Soltero">Soltero</option>
-          <option value="Casado">Casado</option>
-          <option value="Divorciado">Divorciado</option>
-          <option value="Viudo">Viudo</option>
-          <option value="Conviviente">Conviviente</option>
+          <option value="SOLTERO(A)">SOLTERO(A)</option>
+          <option value="CASADO(A)">CASADO(A)</option>
+          <option value="CONVIVIENTE CIVIL">CONVIVIENTE CIVIL</option>
+          <option value="SEPARADO(A) JUDICIALMENTE">SEPARADO(A) JUDICIALMENTE</option>
+          <option value="DIVORCIADO(A)">DIVORCIADO(A)</option>
+          <option value="VIUDO(A)">VIUDO(A)</option>
         </select>
       </div>
 
@@ -601,13 +582,12 @@
       <h4 class="h4-subtitle">Método de Pago:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="metodoPagoNew" (change)="onMetodoPagoChangeModificar($event)">
-          <option value="Sin Pago">Sin Pago</option>
-          <option value="Efectivo">Efectivo</option>
-          <option value="Transferencia">Transferencia</option>
+          <option value="Sin Pago">SIN PAGO</option>
+          <option value="Efectivo">EFECTIVO</option>
+          <option value="Transferencia">TRANSFERENCIA</option>
         </select>
       </div>
 
-      <!-- Campos adicionales para Transferencia -->
       <div *ngIf="metodoPagoNew === 'Transferencia'" class="contract-fields">
         <div class="dropdown">
           <button class="dropdown-button" (click)="toggleDropdown('bancos')">
@@ -630,11 +610,11 @@
         <h4 class="h4-subtitle">Tipo de Cuenta:</h4>
         <div class="input-container">
           <select class="input-perfil" [(ngModel)]="tipoCuentaNew">
-            <option value="">Seleccionar tipo de cuenta</option>
-            <option value="Cuenta Corriente">Cuenta Corriente</option>
-            <option value="Cuenta de Ahorro">Cuenta de Ahorro</option>
-            <option value="Cuenta Vista">Cuenta Vista</option>
-            <option value="Cuenta RUT">Cuenta RUT</option>
+            <option value="">SELECCIONAR TIPO DE CUENTA</option>
+            <option value="Cuenta Corriente">CUENTA CORRIENTE</option>
+            <option value="Cuenta de Ahorro">CUENTA DE AHORRO</option>
+            <option value="Cuenta Vista">CUENTA VISTA</option>
+            <option value="Cuenta RUT">CUENTA RUT</option>
           </select>
         </div>
 
@@ -644,7 +624,7 @@
           class="input-perfil" 
           [(ngModel)]="numeroCuentaNew" 
           (keypress)="validateNumber($event)"
-          placeholder="Ingrese el número de cuenta">
+          placeholder="INGRESE EL NÚMERO DE CUENTA">
       </div>
 
       <div class="button-container">
@@ -655,9 +635,7 @@
     </div>
   </div>
   
-  <!-- ============================================ -->
-  <!-- 🎯 TABLA DE TRABAJADORES -->
-  <!-- ============================================ -->
+  <!-- TABLA DE TRABAJADORES -->
   <table mat-table [dataSource]="trabajadoresCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
     
     <ng-container matColumnDef="codigo">
@@ -823,11 +801,7 @@
   </table>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODALES DE NOTIFICACIÓN -->
-<!-- ============================================ -->
-
-<!-- Modal de confirmación para eliminar -->
+<!-- MODALES DE NOTIFICACIÓN -->
 <div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <h2>Confirmar Eliminación</h2>
@@ -846,7 +820,6 @@
   </div>
 </div>
 
-<!-- Modal de éxito -->
 <div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <h2>¡Éxito!</h2>
@@ -857,7 +830,6 @@
   </div>
 </div>
 
-<!-- Modal de error -->
 <div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <h2>¡Error!</h2>
@@ -871,9 +843,7 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL INFORMACIÓN BANCARIA -->
-<!-- ============================================ -->
+<!-- MODAL INFORMACIÓN BANCARIA -->
 <div 
   id="modalBancoInfo" 
   class="modal-perfiles" 
@@ -910,9 +880,7 @@
   </div>
 </div>
 
-<!-- ============================================ -->
 <!-- MODAL DOCUMENTOS -->
-<!-- ============================================ -->
 <div 
   id="modalDocumentos" 
   class="modal-perfiles" 
@@ -925,7 +893,6 @@
     <h2>DOCUMENTOS DEL TRABAJADOR</h2>
     
     <div class="documentos-grid">
-      <!-- Carnet Frontal -->
       <div class="documento-card">
         <h3>Carnet (Frontal)</h3>
         <div class="imagen-preview">
@@ -948,7 +915,6 @@
         </button>
       </div>
 
-      <!-- Carnet Posterior -->
       <div class="documento-card">
         <h3>Carnet (Posterior)</h3>
         <div class="imagen-preview">
@@ -971,7 +937,6 @@
         </button>
       </div>
 
-      <!-- Firma -->
       <div class="documento-card">
         <h3>Firma</h3>
         <div class="imagen-preview">

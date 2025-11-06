@@ -1,8 +1,4 @@
-/*personal.component.css - VERSIÓN ADAPTADA CON ESTILOS DE PERFILES*/
-
-/* ============================================ */
-/* 🎯 SLIDE TOGGLE PERSONALIZADO */
-/* ============================================ */
+/*personal.component.css*/
 
 ::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__shadow {
   background-color: rgb(255, 255, 255);
@@ -11,10 +7,6 @@
 ::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__track::after {
   background-color: #166a82 !important;
 }
-
-/* ============================================ */
-/* 🎯 CONTENEDOR PRINCIPAL */
-/* ============================================ */
 
 .admin-perfiles-container {
   margin: 20px 20px 100px 20px;
@@ -28,10 +20,6 @@
   border-collapse: collapse;
   margin-top: 20px;
 }
-
-/* ============================================ */
-/* 🎯 ESTILOS DE TABLA MAT-TABLE */
-/* ============================================ */
 
 .mat-header {
   background-color: #0f5163 !important; 
@@ -61,10 +49,6 @@
 .selected .mat-cell {
   background-color: #6dbeb5 !important;
 }
-
-/* ============================================ */
-/* 🎯 BOTONES BASE (ADAPTADO DE PERFILES) */
-/* ============================================ */
 
 .custom-button,
 .custom-button-cancelar,
@@ -99,7 +83,6 @@
   background-color: #ccc;
 }
 
-/* Variaciones de hover */
 .custom-button:not(:disabled):hover {
   background-color: #63b54e;
   color: white;
@@ -139,10 +122,6 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
               0 2px 6px rgba(0, 0, 0, 0.12);
 }
-
-/* ============================================ */
-/* 🎯 MODALES BASE */
-/* ============================================ */
 
 .modal-perfiles,
 .modal-trabajadores {
@@ -198,10 +177,6 @@
   border-radius: 2px;
 }
 
-/* ============================================ */
-/* 🎯 MODAL HEADER PERSONALIZADO (MANTENER COMPATIBILIDAD) */
-/* ============================================ */
-
 .modal-header {
   width: 100%;
   position: relative;
@@ -241,10 +216,6 @@
   background: rgba(244, 67, 54, 0.1);
   transform: scale(1.1);
 }
-
-/* ============================================ */
-/* 🎯 FORMULARIOS EN MODALES */
-/* ============================================ */
 
 .input-perfil,
 .input-nacionalidad {
@@ -297,10 +268,6 @@ h3,
   margin-top: 15px;
   margin-bottom: 8px;
 }
-
-/* ============================================ */
-/* 🎯 INPUT CONTAINERS Y ELEMENTOS ESPECIALIZADOS */
-/* ============================================ */
 
 .input-container {
   position: relative;
@@ -392,10 +359,6 @@ input[type="date"]:focus {
   transform: translateY(-1px);
 }
 
-/* ============================================ */
-/* 🎯 DROPDOWN Y CHECKLIST */
-/* ============================================ */
-
 .dropdown-button {
   position: relative;
   padding: 16px 20px;
@@ -472,10 +435,6 @@ input[type="checkbox"] {
   opacity: 0.5;
 }
 
-/* ============================================ */
-/* 🎯 MINI MODAL */
-/* ============================================ */
-
 .mini-modal {
   display: flex;
   position: absolute;
@@ -503,10 +462,6 @@ input[type="checkbox"] {
   z-index: 2;
   margin-bottom: 15px;
 }
-
-/* ============================================ */
-/* 🎯 SECCIONES DE CONTRATO */
-/* ============================================ */
 
 .contract-section {
   margin: 20px 0;
@@ -537,11 +492,6 @@ input[type="checkbox"] {
   cursor: not-allowed;
 }
 
-/* ============================================ */
-/* 🎯 MODALES DE MENSAJE MEJORADOS */
-/* ============================================ */
-
-/* Modal de éxito */
 #exitoModal .modal-content {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   width: 90%;
@@ -563,7 +513,6 @@ input[type="checkbox"] {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Modal de error */
 #errorModal .modal-content {
   background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
   width: 90%;
@@ -585,7 +534,6 @@ input[type="checkbox"] {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Modal de confirmación */
 #confirmacionModal .modal-content {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   width: 90%;
@@ -607,10 +555,6 @@ input[type="checkbox"] {
   background: linear-gradient(90deg, #e24110, #F57C00);
 }
 
-/* ============================================ */
-/* 🎯 MENSAJES DE MODALES */
-/* ============================================ */
-
 .exito-message,
 .error-message {
   text-align: center;
@@ -620,10 +564,6 @@ input[type="checkbox"] {
   line-height: 1.5;
   margin-bottom: 20px;
 }
-
-/* ============================================ */
-/* 🎯 BOTONES ESPECIALIZADOS */
-/* ============================================ */
 
 .yes-button,
 .no-button {
@@ -681,10 +621,6 @@ input[type="checkbox"] {
   box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
 }
 
-/* ============================================ */
-/* 🎯 CONTENEDOR DE BOTONES */
-/* ============================================ */
-
 .modal-actions {
   display: flex;
   justify-content: center;
@@ -704,10 +640,6 @@ input[type="checkbox"] {
   border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-/* ============================================ */
-/* 🎯 ICONOS Y EFECTOS */
-/* ============================================ */
-
 .error-icon-container {
   margin-bottom: 15px;
 }
@@ -716,10 +648,6 @@ input[type="checkbox"] {
   font-size: 50px;
   color: white;
 }
-
-/* ============================================ */
-/* 🎯 ESTILOS PARA INFORMACIÓN BANCARIA */
-/* ============================================ */
 
 .info-bancaria-container {
   width: 100%;
@@ -750,10 +678,6 @@ input[type="checkbox"] {
   color: #1188c3;
   font-size: 16px;
 }
-
-/* ============================================ */
-/* 🎯 ESTILOS PARA MODAL DE DOCUMENTOS */
-/* ============================================ */
 
 .documentos-grid {
   display: grid;
@@ -824,10 +748,6 @@ input[type="checkbox"] {
   transform: scale(1.05);
 }
 
-/* ============================================ */
-/* 🎯 RESPONSIVE DESIGN */
-/* ============================================ */
-
 @media (max-width: 1200px) {
   .admin-perfiles-container {
     margin: 15px;
@@ -877,10 +797,6 @@ input[type="checkbox"] {
   }
 }
 
-/* ============================================ */
-/* ESTADO SIN IMAGEN */
-/* ============================================ */
-
 .sin-imagen {
   display: flex;
   align-items: center;
@@ -894,10 +810,6 @@ input[type="checkbox"] {
   margin: 0;
   font-size: 14px;
 }
-
-/* ============================================ */
-/* BOTÓN DESHABILITADO */
-/* ============================================ */
 
 .custom-button-ingreso:disabled {
   background: linear-gradient(135deg, #ccc 0%, #999 100%);

@@ -105,7 +105,7 @@ export class PersonalComponent implements OnInit {
   public correoTrabajador: string | null = null;
   public direccionTrabajador: string | null = null;
   public fechaTrabajador : Date | null = null;
-  public sexoTrabajador: string = 'Hombre';
+  public sexoTrabajador: string = 'H';
   public telefonoTrabajador: string | null = null;
   public metodoPago: string = 'Sin Pago';
   public banco: string | null = null;
@@ -120,7 +120,7 @@ export class PersonalComponent implements OnInit {
   public casaTrabajador: number | null = null;
   public fundoTrabajador: number | null = null;
   public fechaNacimiento: string | null = null;
-  public estadoCivil: string = 'Soltero';
+  public estadoCivil: string = 'SOLTERO(A)';
 
   // Variables para modificación
   public correoTrabajadorNew: string = '';
@@ -225,7 +225,6 @@ export class PersonalComponent implements OnInit {
 
   tieneImagenReal(path: string): boolean {
     if (!path) return false;
-    // Si contiene 'dni.jpg' es la imagen por defecto (no existe)
     if (path.includes('dni.jpg')) return false;
     return true;
   }
@@ -367,16 +366,13 @@ export class PersonalComponent implements OnInit {
   cargarTrabajadores():void{
   this.contratistaApiService.get(`api_personal/?holding=${this.holding}`).subscribe({
     next: (response) => {
-      // Ordenar alfabéticamente por apellidos, luego por nombres
       this.trabajadoresCargados = response.sort((a: any, b: any) => {
-        // Primero comparar por apellidos
         const apellidoA = (a.apellidos || '').toUpperCase();
         const apellidoB = (b.apellidos || '').toUpperCase();
         
         if (apellidoA < apellidoB) return -1;
         if (apellidoA > apellidoB) return 1;
         
-        // Si los apellidos son iguales, comparar por nombres
         const nombreA = (a.nombres || '').toUpperCase();
         const nombreB = (b.nombres || '').toUpperCase();
         
@@ -866,11 +862,11 @@ export class PersonalComponent implements OnInit {
     this.rutTrabajador = null;
     this.correoTrabajador = null;
     this.direccionTrabajador = null;
-    this.sexoTrabajador = 'Hombre';
+    this.sexoTrabajador = 'H';
     this.telefonoTrabajador = null;
     this.nacionalidadTrabajador = 'CHILENA';
     this.fechaNacimiento = null;
-    this.estadoCivil = 'Soltero';
+    this.estadoCivil = 'SOLTERO(A)';
     
     this.selectedSociedadId = null;
     this.selectedAreaId = null;
