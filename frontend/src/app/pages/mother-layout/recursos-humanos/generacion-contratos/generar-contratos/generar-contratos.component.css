@@ -1,200 +1,414 @@
-/*generar-contratos.component.css*/
-:host {
-  display: block;
-  padding: 16px;
+/* ============================================ */
+/* 🎯 SECCIÓN DE FILTROS MODERNIZADA */
+/* ============================================ */
+
+.filtros-section-modern {
+  margin: 20px 0 30px 0;
+  padding: 25px;
+  background: linear-gradient(135deg, rgba(20, 179, 92, 0.05), rgba(255, 255, 255, 0.9));
+  border-radius: 15px;
+  border-left: 5px solid #14b35c;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* Estilos para las tarjetas */
-.filtros-card, .trabajadores-card, .formato-card, .contratos-card {
-  margin-bottom: 20px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+.filtros-title {
+  margin: 0 0 20px 0;
+  color: #14b35c;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-mat-card-title {
-  color: #3f51b5;
-  font-weight: 500;
-}
-
-/* Contenedor de filtros */
-.filtros-container {
+.filtros-buttons-container {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.filtros-fila {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.filtros-fila mat-form-field {
-  flex: 1;
-  min-width: 200px;
-}
-
-/* Contenedor de botones */
-.botones-container {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 15px;
   flex-wrap: wrap;
 }
 
-.botones-container button {
+.filtro-button-modern {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px 24px !important;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
+  color: #333 !important;
+  border: 2px solid #e0e0e0 !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
 }
 
-/* Mensaje de error */
-.mensaje-error {
+.filtro-button-modern .button-icon {
+  font-size: 16px;
+}
+
+.filtro-button-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.filtro-button-modern.sin-contrato.active {
+  background: linear-gradient(135deg, #FF9800, #F57C00) !important;
+  color: white !important;
+  border-color: #FF9800 !important;
+  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+}
+
+.filtro-button-modern.con-contrato.active {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+  color: white !important;
+  border-color: #4CAF50 !important;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.filtro-button-modern.todos.active {
+  background: linear-gradient(135deg, #2196F3, #1976D2) !important;
+  color: white !important;
+  border-color: #2196F3 !important;
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 BADGE DE ESTADO DE CONTRATO */
+/* ============================================ */
+
+.contrato-badge {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.contrato-badge.generado {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.contrato-badge.pendiente {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  color: white;
+}
+
+/* ============================================ */
+/* 🎯 MODAL DE CONFIRMACIÓN (si no lo tienes) */
+/* ============================================ */
+
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
+  justify-content: center;
   align-items: center;
-  background-color: #ffebee;
-  color: #d32f2f;
-  padding: 12px 16px;
-  border-radius: 4px;
-  margin-bottom: 16px;
 }
 
-.mensaje-error mat-icon {
-  margin-right: 8px;
+.modal-content-message {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 40px 30px;
+  border: none;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  animation: fadeInUp 0.3s ease-out;
 }
 
-/* Spinner de carga */
-.cargando-container {
+.icon-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-  color: #666;
+  font-size: 40px;
+  color: white;
+  margin: 0 auto 20px;
 }
 
-.cargando-container p {
-  margin-top: 16px;
+.icon-circle.confirmation {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  box-shadow: 0 8px 16px rgba(255, 152, 0, 0.3);
 }
 
-/* Tabla de trabajadores */
-.trabajadores-table {
-  width: 100%;
-  margin-top: 16px;
+.modal-title.confirmation {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #FF9800;
 }
 
-.selected-row {
-  background-color: rgba(63, 81, 181, 0.1);
+.modal-message {
+  font-size: 16px;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  line-height: 1.6;
 }
 
-/* Hint de nacionalidad */
-.hint-nacionalidad {
+.button-container.confirmation {
   display: flex;
-  align-items: center;
-  background-color: #e3f2fd;
-  color: #0d47a1;
-  padding: 8px 16px;
-  border-radius: 4px;
-  margin-bottom: 16px;
+  gap: 15px;
+  justify-content: center;
 }
 
-.hint-nacionalidad mat-icon {
-  margin-right: 8px;
+.button-bottom {
+  padding: 12px 30px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
 }
 
-/* Contenedor de formatos */
-.formatos-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.button-bottom.confirm-yes {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
 }
 
-/* ⭐ NUEVO: Campo de fecha */
-.fecha-field {
+.button-bottom.confirm-yes:hover {
+  background: linear-gradient(135deg, #d32f2f, #b71c1c);
+  transform: translateY(-2px);
+}
+
+.button-bottom.confirm-no {
+  background: linear-gradient(135deg, #9E9E9E, #757575);
+  color: white;
+}
+
+.button-bottom.confirm-no:hover {
+  background: linear-gradient(135deg, #757575, #616161);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE */
+/* ============================================ */
+
+@media (max-width: 768px) {
+  .filtros-section-modern {
+    padding: 15px;
+  }
+  
+  .filtros-buttons-container {
+    flex-direction: column;
+  }
+  
+  .filtro-button-modern {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ============================================ */
+/* 🎯 ESPACIADO DE TABLA */
+/* ============================================ */
+
+.mat-elevation-z8 {
+  margin-top: 30px !important;
+}
+
+/* O si quieres más espacio en la configuración */
+.config-container {
+  margin-bottom: 20px;
+}
+
+/* Espaciado del botón generar */
+.custom-button-generar {
+  margin: 20px 0 30px 0 !important;
+}
+
+.admin-usuarios-container {
+  margin: 20px 20px 100px 20px;
+}
+
+.admin-usuarios-container table {
   width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
 }
 
-.formato-select {
-  width: 100%;
+/* ============================================ */
+/* 🎯 PANEL DE CONTRATOS GENERADOS */
+/* ============================================ */
+
+.contratos-generados-panel {
+  margin: 30px 0;
+  padding: 25px;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05), rgba(255, 255, 255, 0.9));
+  border-radius: 15px;
+  border-left: 5px solid #4CAF50;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  animation: slideDown 0.3s ease-out;
 }
 
-/* Lista de contratos */
-.contratos-actions {
-  margin-bottom: 16px;
-}
-
-.contratos-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.contrato-item {
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  margin-bottom: 20px;
 }
 
-.contrato-nombre {
-  font-weight: 500;
-}
-
-.contrato-actions {
+.panel-title {
+  margin: 0;
+  color: #4CAF50;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
 }
 
-/* Hover effects */
-button:hover:not([disabled]) {
-  opacity: 0.9;
+.panel-title .icon {
+  font-size: 24px;
 }
 
-/* Animaciones */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.close-panel-btn {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
 }
 
-.trabajadores-card, .formato-card, .contratos-card {
-  animation: fadeIn 0.3s ease-in-out;
+.close-panel-btn:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  transform: rotate(90deg);
+}
+
+.panel-actions {
+  margin-bottom: 20px;
+}
+
+.download-all-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+  color: white !important;
+  padding: 14px 28px !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.download-all-btn:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
+}
+
+.contratos-table {
+  width: 100%;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.trabajador-nombre {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.estado-badge.success {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 11px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.download-btn:hover {
+  background: linear-gradient(135deg, #1976D2, #1565C0);
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+}
+
+.download-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .filtros-fila {
-    flex-direction: column;
+  .contratos-generados-panel {
+    padding: 15px;
   }
   
-  .filtros-fila mat-form-field {
+  .panel-title {
+    font-size: 16px;
+  }
+  
+  .download-all-btn {
     width: 100%;
-  }
-  
-  .botones-container {
-    flex-direction: column;
-  }
-  
-  .botones-container button {
-    width: 100%;
-  }
-  
-  .formatos-container {
-    flex-direction: column;
-  }
-  
-  .fecha-field, .formato-select {
-    width: 100%;
-  }
-  
-  .contrato-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .contrato-actions {
-    align-self: flex-end;
+    justify-content: center;
   }
 }

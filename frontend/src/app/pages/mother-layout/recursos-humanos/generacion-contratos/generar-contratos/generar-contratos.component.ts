@@ -1,462 +1,319 @@
-//generar-contratos.component.ts
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatTableModule } from '@angular/material/table';
-import { MatPaginatorModule } from '@angular/material/paginator';
-import { MatSortModule } from '@angular/material/sort';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
+import { FormsModule } from '@angular/forms';
+import { MatTableModule } from '@angular/material/table';
+import { MatButtonModule } from '@angular/material/button';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatInputModule } from '@angular/material/input';
+import { SelectionModel } from '@angular/cdk/collections';
 
 @Component({
   selector: 'app-generar-contratos',
   standalone: true,
   imports: [
-    CommonModule, 
+    CommonModule,
     FormsModule,
-    ReactiveFormsModule,
-    MatCardModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatCheckboxModule,
     MatTableModule,
-    MatPaginatorModule,
-    MatSortModule,
-    MatProgressSpinnerModule,
+    MatButtonModule,
+    MatSelectModule,
+    MatFormFieldModule,
     MatIconModule,
-    MatTooltipModule,
-    MatSnackBarModule
+    MatCheckboxModule,
+    MatInputModule
   ],
   templateUrl: './generar-contratos.component.html',
-  styleUrl: './generar-contratos.component.css',
-  providers: [DatePipe]
+  styleUrl: './generar-contratos.component.css'
 })
 export class GenerarContratosComponent implements OnInit {
-  filtroForm: FormGroup;
-  
-  // Datos para los dropdowns
-  sociedades: any[] = [];
-  clientes: any[] = [];
-  fundos: any[] = [];
-  casas: any[] = [];
-  
-  // Estado de carga
-  cargando: boolean = false;
-  cargandoFundos: boolean = false;
-  cargandoTrabajadores: boolean = false;
-  mensajeError: string = '';
-  
-  // Lista de trabajadores y selección
-  trabajadores: any[] = [];
-  trabajadoresSeleccionados: any[] = [];
-  
-  // Formatos de contrato disponibles
-  formatosDisponibles: any[] = [];
-  formatoSeleccionado: any = null;
-  
-  // Estado de los contratos generados
-  contratosGenerados: boolean = false;
-  urlsContratos: string[] = [];
-  
-  // ID del holding actual
-  holding: string = '';
-  
-  // ⭐ NUEVO: Fecha de emisión del contrato
-  fechaEmision: string = new Date().toISOString().split('T')[0];
-  
-  // Columnas para la tabla de trabajadores
-  displayedColumns: string[] = ['seleccionar', 'nombre', 'rut', 'nacionalidad', 'acciones'];
   
   constructor(
-    private fb: FormBuilder,
     private apiService: ContratistaApiService,
-    private snackBar: MatSnackBar,
     @Inject(PLATFORM_ID) private platformId: Object
-  ) {
-    // Inicializar formulario
-    this.filtroForm = this.fb.group({
-      sociedad_id: ['', Validators.required],
-      cliente_id: [''],
-      fundo_id: [{value: '', disabled: true}],
-      casa_id: ['']
-    });
-    
-    // Observador para cargar fundos cuando cambia el cliente
-    this.filtroForm.get('cliente_id')?.valueChanges.subscribe(clienteId => {
-      if (clienteId) {
-        this.cargandoFundos = true;
-        this.filtroForm.get('fundo_id')?.enable();
-        this.cargarFundosPorCliente(clienteId);
-      } else {
-        this.fundos = [];
-        this.filtroForm.get('fundo_id')?.setValue('');
-        this.filtroForm.get('fundo_id')?.disable();
-      }
-    });
-  }
+  ) {}
+
+  // ============================================
+  // 🎯 VARIABLES
+  // ============================================
+  public holding: string = '';
+  public sociedad: string = '';
+  public sociedades: any[] = [];
+  public trabajadores: any[] = [];
+  public documentos: any[] = [];
+  public documentoSeleccionado: number | null = null;
+  public fechaEmision: string = '';
+  public filtroContrato: string = 'sin_contrato'; // ✅ NUEVO: filtro por defecto
+  public contratosGenerados: any[] = []; // ✅ NUEVO: almacenar contratos generados
+  public mostrarContratos: boolean = false; // ✅ NUEVO: controlar visibilidad
+  // Selección
+  public selection = new SelectionModel<any>(true, []);
+  public selectedRows: any[] = [];
   
+  // Columnas de la tabla
+  displayedColumns: string[] = [
+    'select',
+    'id',
+    'nombres',
+    'apellidos',
+    'rut',
+    'estado_contrato', // ✅ NUEVO
+    'cargo',
+    'fecha_ingreso'
+  ];
+  
+  // Modales
+  public modals: { [key: string]: boolean } = {
+    exitoModal: false,
+    errorModal: false,
+    confirmacionRegenerarModal: false // ✅ NUEVO
+  };
+  
+  public errorMessage: string = '';
+  public confirmMessage: string = ''; // ✅ NUEVO
+
+  // ============================================
+  // 🎯 LIFECYCLE
+  // ============================================
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = localStorage.getItem('holding_id') || '';
-      if (this.holding) {
-        this.cargarDatosIniciales();
-      } else {
-        this.mensajeError = 'No se pudo determinar el ID del holding';
-      }
+      this.fechaEmision = new Date().toISOString().split('T')[0]; // Fecha actual por defecto
+      this.cargarSociedades();
+      this.cargarDocumentos();
     }
+    
+    // Observar cambios en la selección
+    this.selection.changed.subscribe(() => {
+      this.selectedRows = this.selection.selected;
+    });
   }
-  
-  cargarDatosIniciales(): void {
-    // Cargar sociedades
-    this.apiService.get(`api_sociedad/?holding=${this.holding}`).subscribe({
+
+  // ============================================
+  // 🎯 CARGA DE DATOS
+  // ============================================
+  cargarSociedades(): void {
+    this.apiService.get(`api_sociedades_modify/${this.holding}/`).subscribe({
       next: (response) => {
         this.sociedades = response;
+        console.log('✅ Sociedades cargadas:', this.sociedades.length);
       },
       error: (error) => {
-        console.error('Error al recibir las sociedades:', error);
-        this.mensajeError = 'Error al cargar las sociedades';
+        console.error('❌ Error al cargar sociedades:', error);
+        this.errorMessage = 'Error al cargar sociedades';
+        this.openModal('errorModal');
       }
     });
-    
-    // Cargar clientes
-    this.apiService.get(`api_clientes/?holding=${this.holding}`).subscribe({
+  }
+
+  cargarDocumentos(): void {
+    // Cargar documentos tipo CHILENO (puedes agregar filtro por tipo si lo necesitas)
+    this.apiService.get(`api_listar-documentos/?tipo=CHILENO&holding=${this.holding}`).subscribe({
       next: (response) => {
-        this.clientes = response;
+        this.documentos = response;
+        console.log('✅ Documentos cargados:', this.documentos.length);
       },
       error: (error) => {
-        console.error('Error al recibir los clientes:', error);
-        this.mensajeError = 'Error al cargar los clientes';
-      }
-    });
-    
-    // Cargar casas
-    this.apiService.get(`api_casas_trabajadores/?holding=${this.holding}`).subscribe({
-      next: (data) => {
-        this.casas = data;
-        console.log('Casas cargadas:', this.casas.length);
-      },
-      error: (err) => {
-        console.error('Error cargando casas:', err);
-        this.mensajeError = 'Error cargando datos de casas';
+        console.error('❌ Error al cargar documentos:', error);
+        this.errorMessage = 'Error al cargar documentos';
+        this.openModal('errorModal');
       }
     });
   }
-  
-  cargarFundosPorCliente(clienteId: number): void {
-    this.fundos = [];
-    
-    this.apiService.get(`api_campos_clientes/${clienteId}/`).subscribe({
-      next: (data) => {
-        this.fundos = data;
-        this.cargandoFundos = false;
-        console.log('Fundos cargados para cliente:', this.fundos.length);
-      },
-      error: (err) => {
-        console.error('Error cargando fundos:', err);
-        this.mensajeError = 'Error cargando datos de fundos';
-        this.cargandoFundos = false;
-      }
-    });
-  }
-  
-  buscarTrabajadores(): void {
-    if (this.filtroForm.invalid) {
+
+  cargarTrabajadores(): void {
+    if (!this.sociedad) {
+      this.trabajadores = [];
       return;
     }
     
-    this.cargandoTrabajadores = true;
-    this.mensajeError = '';
-    this.trabajadores = [];
-    this.trabajadoresSeleccionados = [];
-    this.formatosDisponibles = [];
-    this.formatoSeleccionado = null;
-    this.contratosGenerados = false;
-    this.urlsContratos = [];
+    // ✅ INCLUIR filtro_contrato en la petición
+    const params = `holding=${this.holding}&sociedad_id=${this.sociedad}&filtro_contrato=${this.filtroContrato}`;
     
-    const formValues = this.filtroForm.getRawValue();
-    let params: any = {
-      holding: this.holding
-    };
-    
-    // Agregar solo los filtros que tienen valor
-    if (formValues.sociedad_id) params.sociedad_id = formValues.sociedad_id;
-    if (formValues.cliente_id) params.cliente_id = formValues.cliente_id;
-    if (formValues.fundo_id) params.fundo_id = formValues.fundo_id;
-    if (formValues.casa_id) params.casa_id = formValues.casa_id;
-    
-    // Convertir params a query string
-    const queryParams = Object.keys(params)
-      .map(key => `${key}=${params[key]}`)
-      .join('&');
-    
-    this.apiService.get(`api_personal_filtrado/?${queryParams}`).subscribe({
+    this.apiService.get(`api_personal_filtrado/?${params}`).subscribe({
       next: (response) => {
         this.trabajadores = response;
-        this.cargandoTrabajadores = false;
-        console.log('Trabajadores cargados:', this.trabajadores.length);
+        this.selection.clear(); // Limpiar selección al cargar nuevos datos
+        console.log('✅ Trabajadores cargados:', this.trabajadores.length);
       },
       error: (error) => {
-        this.cargandoTrabajadores = false;
-        console.error('Error al cargar trabajadores:', error);
-        this.mensajeError = error.error?.error || 'Error al cargar trabajadores';
+        console.error('❌ Error al cargar trabajadores:', error);
+        this.errorMessage = 'Error al cargar trabajadores';
+        this.openModal('errorModal');
       }
     });
   }
-  
-  seleccionarTrabajador(trabajador: any, evento: any): void {
-    const seleccionado = evento.checked;
-    
-    if (seleccionado) {
-      // Verificar que no se mezclen nacionalidades
-      if (this.trabajadoresSeleccionados.length > 0) {
-        const nacionalidadPrimero = this.trabajadoresSeleccionados[0].nacionalidad;
-        
-        if (trabajador.nacionalidad !== nacionalidadPrimero) {
-          this.snackBar.open(
-            'No se pueden seleccionar trabajadores de diferentes nacionalidades',
-            'Cerrar',
-            { duration: 3000 }
-          );
-          evento.source.checked = false;
-          return;
-        }
-      }
-      
-      // Agregar a seleccionados
-      this.trabajadoresSeleccionados.push(trabajador);
+
+  // ============================================
+  // 🎯 FILTROS
+  // ============================================
+  cambiarFiltroContrato(filtro: string): void {
+    this.filtroContrato = filtro;
+    this.selection.clear(); // Limpiar selección al cambiar filtro
+    this.cargarTrabajadores();
+  }
+
+  // ============================================
+  // 🎯 SELECCIÓN DE TRABAJADORES
+  // ============================================
+  isAllSelected(): boolean {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.trabajadores.length;
+    return numSelected === numRows;
+  }
+
+  toggleAllRows(): void {
+    if (this.isAllSelected()) {
+      this.selection.clear();
     } else {
-      // Quitar de seleccionados
-      this.trabajadoresSeleccionados = this.trabajadoresSeleccionados.filter(
-        t => t.id !== trabajador.id
-      );
-    }
-    
-    // Si hay trabajadores seleccionados, cargar formatos disponibles
-    if (this.trabajadoresSeleccionados.length > 0) {
-      this.cargarFormatosDisponibles();
-    } else {
-      this.formatosDisponibles = [];
-      this.formatoSeleccionado = null;
+      this.trabajadores.forEach(row => this.selection.select(row));
     }
   }
-  
-  cargarFormatosDisponibles(): void {
-    // Determinar el tipo de contrato basado en la nacionalidad
-    const nacionalidad = this.trabajadoresSeleccionados[0].nacionalidad?.toUpperCase();
-    const tipoContrato = nacionalidad === 'CHILENA' || nacionalidad === 'CHILENO' ? 'CHILENO' : 'EXTRANJERO';
-    
-    // Usar el método GET convencional con query params
-    this.apiService.get(`api_listar-documentos/?tipo=${tipoContrato}&holding=${this.holding}`).subscribe({
-      next: (response) => {
-        this.formatosDisponibles = response;
-        console.log('Formatos disponibles:', this.formatosDisponibles.length);
-        
-        if (this.formatosDisponibles.length === 0) {
-          this.snackBar.open(
-            `No hay formatos de contrato disponibles para nacionalidad ${nacionalidad}`,
-            'Cerrar',
-            { duration: 3000 }
-          );
-        } else if (this.formatosDisponibles.length === 1) {
-          // Seleccionar automáticamente si solo hay un formato
-          this.formatoSeleccionado = this.formatosDisponibles[0];
-        }
-      },
-      error: (error) => {
-        console.error('Error al cargar formatos:', error);
-        this.mensajeError = 'Error al cargar formatos de contrato disponibles';
-      }
-    });
-  }
-  
-  seleccionarFormato(formato: any): void {
-    this.formatoSeleccionado = formato;
-  }
-  
+
+  // ============================================
+  // 🎯 GENERACIÓN DE CONTRATOS
+  // ============================================
   generarContratos(): void {
-    if (!this.formatoSeleccionado || this.trabajadoresSeleccionados.length === 0) {
-      this.snackBar.open(
-        'Debe seleccionar trabajadores y un formato de contrato',
-        'Cerrar',
-        { duration: 3000 }
-      );
+    // Validaciones
+    if (this.selectedRows.length === 0) {
+      this.errorMessage = 'Debe seleccionar al menos un trabajador';
+      this.openModal('errorModal');
       return;
     }
-    
-    // ⭐ VALIDAR FECHA DE EMISIÓN
+
+    if (!this.documentoSeleccionado) {
+      this.errorMessage = 'Debe seleccionar un tipo de documento';
+      this.openModal('errorModal');
+      return;
+    }
+
     if (!this.fechaEmision) {
-      this.snackBar.open(
-        'Debe seleccionar la fecha de emisión del contrato',
-        'Cerrar',
-        { duration: 3000 }
-      );
+      this.errorMessage = 'Debe seleccionar una fecha de emisión';
+      this.openModal('errorModal');
       return;
     }
     
-    this.cargando = true;
-    this.mensajeError = '';
-    this.contratosGenerados = false;
-    this.urlsContratos = [];
+    // ✅ VERIFICAR si hay trabajadores con contrato ya generado
+    const conContrato = this.selectedRows.filter(t => t.tiene_contrato);
     
-    // Preparar IDs de trabajadores seleccionados
-    const trabajadorIds = this.trabajadoresSeleccionados.map(t => t.id);
+    if (conContrato.length > 0 && this.filtroContrato !== 'con_contrato') {
+      this.confirmMessage = `${conContrato.length} trabajador(es) ya tienen contrato generado. ¿Desea regenerarlo?`;
+      this.openModal('confirmacionRegenerarModal');
+      return;
+    }
     
-    console.log('Generando contratos para trabajadores:', trabajadorIds);
-    console.log('Usando formato:', this.formatoSeleccionado.nombre);
-    console.log('Fecha de emisión:', this.fechaEmision);
-    console.log('Sociedad ID:', this.filtroForm.get('sociedad_id')?.value);
+    // Si no hay conflicto, generar directamente
+    this.confirmarGeneracion();
+  }
+
+  confirmarGeneracion(): void {
+    const trabajadorIds = this.selectedRows.map(t => t.id);
     
-    // ⭐ MODIFICADO: Incluir fecha_emision y sociedad_id
-    const requestData = {
-      documento_id: this.formatoSeleccionado.id,
+    const payload = {
+      documento_id: this.documentoSeleccionado,
       trabajador_ids: trabajadorIds,
       fecha_emision: this.fechaEmision,
-      sociedad_id: this.filtroForm.get('sociedad_id')?.value
+      sociedad_id: this.sociedad
     };
+
+    console.log('📤 Enviando payload:', payload);
     
-    // Usar el método POST convencional
-    this.apiService.post('api_generar-documentos-masivo/', requestData).subscribe({
+    this.apiService.post('api_generar-documentos-masivo/', payload).subscribe({
       next: (response) => {
-        this.cargando = false;
-        this.contratosGenerados = true;
+        console.log('✅ Contratos generados:', response);
         
-        console.log('Respuesta del servidor:', response);
+        // ✅ CAPTURAR CONTRATOS GENERADOS
+        this.contratosGenerados = response.contratos || [];
+        this.mostrarContratos = true;
         
-        if (response.urls && Array.isArray(response.urls)) {
-          this.urlsContratos = response.urls.map((item: any) => item.url);
-          
-          console.log('✅ URLs de contratos generados:', this.urlsContratos);
-          
-          // Mostrar mensaje de éxito
-          let mensaje = `Se generaron ${response.total_exitosos} contratos exitosamente`;
-          if (response.total_errores > 0) {
-            mensaje += `. ${response.total_errores} errores`;
-          }
-          
-          this.snackBar.open(mensaje, 'Cerrar', { duration: 5000 });
-          
-          // Mostrar errores si los hay
-          if (response.errores && response.errores.length > 0) {
-            console.error('Errores al generar contratos:', response.errores);
-            response.errores.forEach((error: any) => {
-              this.snackBar.open(
-                `Error trabajador ID ${error.trabajador_id}: ${error.error}`,
-                'Cerrar',
-                { duration: 5000 }
-              );
-            });
-          }
-        } else {
-          console.warn('Respuesta sin URLs:', response);
-          this.mensajeError = 'No se recibieron URLs de contratos';
-        }
+        this.closeModal('confirmacionRegenerarModal');
+        this.selection.clear();
+        this.selectedRows = [];
+        this.cargarTrabajadores();
+        this.openModal('exitoModal');
       },
       error: (error) => {
-        this.cargando = false;
-        console.error('Error al generar contratos:', error);
-        
-        // Extraer mensaje de error
-        let mensajeError = 'Error al generar contratos';
-        if (error.error?.error) {
-          mensajeError = error.error.error;
-        } else if (error.message) {
-          mensajeError = error.message;
-        }
-        
-        this.mensajeError = mensajeError;
-        this.snackBar.open(mensajeError, 'Cerrar', { duration: 5000 });
+        console.error('❌ Error al generar contratos:', error);
+        this.errorMessage = error.error?.error || 'Error al generar contratos';
+        this.closeModal('confirmacionRegenerarModal');
+        this.openModal('errorModal');
       }
     });
   }
-  
-  descargarContrato(url: string, indice: number): void {
-    console.log('Descargando contrato desde:', url);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    
-    // Construir nombre del archivo
-    const trabajador = this.trabajadoresSeleccionados[indice];
-    const nombreTrabajador = this.getNombreTrabajador(trabajador)
-      .replace(/\s+/g, '_')
-      .replace(/[^\w\-]/g, '');
-    
-    a.download = `contrato_${nombreTrabajador}.pdf`;
-    a.target = '_blank';
-    
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+
+  // ✅ NUEVO: Descargar un contrato individual
+  descargarContrato(url: string, nombreTrabajador: string): void {
+    window.open(url, '_blank');
   }
-  
-  descargarTodos(): void {
-    if (this.urlsContratos.length === 0) {
-      this.snackBar.open('No hay contratos para descargar', 'Cerrar', { duration: 3000 });
+
+  // ✅ NUEVO: Descargar todos en ZIP
+  descargarTodosContratos(): void {
+    if (this.contratosGenerados.length === 0) return;
+
+    // Si es solo 1, descargar directamente
+    if (this.contratosGenerados.length === 1) {
+      this.descargarContrato(
+        this.contratosGenerados[0].url, 
+        this.contratosGenerados[0].trabajador_nombre
+      );
       return;
     }
-    
-    console.log(`Descargando ${this.urlsContratos.length} contratos...`);
-    
-    // Descargar secuencialmente con delay
-    let index = 0;
-    
-    const descargaSiguiente = () => {
-      if (index < this.urlsContratos.length) {
-        console.log(`Descargando contrato ${index + 1}/${this.urlsContratos.length}`);
-        this.descargarContrato(this.urlsContratos[index], index);
-        index++;
-        setTimeout(descargaSiguiente, 500);
-      } else {
-        this.snackBar.open(
-          `Se iniciaron ${this.urlsContratos.length} descargas`,
-          'Cerrar',
-          { duration: 3000 }
-        );
-      }
-    };
-    
-    descargaSiguiente();
-  }
-  
-  limpiarFiltros(): void {
-    this.filtroForm.reset({
-      sociedad_id: '',
-      cliente_id: '',
-      casa_id: ''
+
+    // Si son múltiples, usar JSZip
+    import('jszip').then(JSZip => {
+      const zip = new JSZip.default();
+      let completados = 0;
+
+      this.contratosGenerados.forEach((contrato, index) => {
+        fetch(contrato.url)
+          .then(response => response.blob())
+          .then(blob => {
+            const nombreArchivo = `contrato_${contrato.trabajador_nombre.replace(/\s+/g, '_')}.pdf`;
+            zip.file(nombreArchivo, blob);
+            completados++;
+
+            // Cuando todos estén listos, descargar ZIP
+            if (completados === this.contratosGenerados.length) {
+              zip.generateAsync({ type: 'blob' }).then(content => {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `contratos_${new Date().toISOString().split('T')[0]}.zip`;
+                link.click();
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Error descargando contrato:', error);
+            completados++;
+          });
+      });
     });
-    
-    // El control de fundo debe manejarse de manera especial porque está deshabilitado
-    this.filtroForm.get('fundo_id')?.setValue('');
-    this.filtroForm.get('fundo_id')?.disable();
-    
-    // ⭐ RESETEAR FECHA A HOY
-    this.fechaEmision = new Date().toISOString().split('T')[0];
-    
-    this.trabajadores = [];
-    this.trabajadoresSeleccionados = [];
-    this.formatosDisponibles = [];
-    this.formatoSeleccionado = null;
-    this.contratosGenerados = false;
-    this.urlsContratos = [];
-    this.mensajeError = '';
   }
-  
-  estaSeleccionado(trabajador: any): boolean {
-    return this.trabajadoresSeleccionados.some(t => t.id === trabajador.id);
+
+  // ✅ NUEVO: Cerrar panel de contratos
+  cerrarPanelContratos(): void {
+    this.contratosGenerados = [];
+    this.mostrarContratos = false;
   }
-  
-  getNombreTrabajador(trabajador: any): string {
-    return trabajador.nombre_completo || `${trabajador.nombres || ''} ${trabajador.apellidos || ''}`.trim();
+
+  // ============================================
+  // 🎯 GESTIÓN DE MODALES
+  // ============================================
+  openModal(key: string): void {
+    this.modals[key] = true;
+  }
+
+  closeModal(key: string): void {
+    this.modals[key] = false;
+    
+    // Limpiar mensajes al cerrar
+    if (key === 'errorModal') {
+      this.errorMessage = '';
+    }
+    if (key === 'confirmacionRegenerarModal') {
+      this.confirmMessage = '';
+    }
   }
 }

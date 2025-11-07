@@ -1292,7 +1292,7 @@ class ContratoTrabajador(models.Model):
     fundo = models.ForeignKey(CamposClientes, on_delete=models.SET_NULL, null=True, blank=True)
     cliente = models.ForeignKey(Clientes, on_delete=models.SET_NULL, null=True, blank=True)
     empresa_transporte = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True, blank=True)
-    
+    contrato_generado = models.BooleanField(default=False)
     class Meta:
         db_table = 'contratos_trabajadores'
 

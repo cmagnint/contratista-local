@@ -293,7 +293,7 @@
         </select>
       </div>
 
-      <div *ngIf="metodoPago === 'Transferencia'" class="contract-fields">
+      <div *ngIf="metodoPago?.toUpperCase() === 'TRANSFERENCIA'" class="contract-fields">
         <div class="dropdown">
           <button class="dropdown-button" (click)="toggleDropdown('bancos')">
             SELECCIONAR BANCO
@@ -316,10 +316,10 @@
         <div class="input-container">
           <select class="input-perfil" [(ngModel)]="tipoCuenta">
             <option value="">SELECCIONAR TIPO DE CUENTA</option>
-            <option value="Cuenta Corriente">CUENTA CORRIENTE</option>
-            <option value="Cuenta de Ahorro">CUENTA DE AHORRO</option>
-            <option value="Cuenta Vista">CUENTA VISTA</option>
-            <option value="Cuenta RUT">CUENTA RUT</option>
+            <option value="CUENTA RUT">CUENTA RUT</option>
+            <option value="CUENTA CORRIENTE">CUENTA CORRIENTE</option>
+            <option value="CUENTA DE AHORRO">CUENTA DE AHORRO</option>
+            <option value="VISTA/CHEQUERA ELECTRÓNICA">VISTA/CHEQUERA ELECTRÓNICA</option>
           </select>
         </div>
 
@@ -588,7 +588,7 @@
         </select>
       </div>
 
-      <div *ngIf="metodoPagoNew === 'Transferencia'" class="contract-fields">
+      <div *ngIf="metodoPagoNew?.toUpperCase() === 'TRANSFERENCIA'" class="contract-fields">
         <div class="dropdown">
           <button class="dropdown-button" (click)="toggleDropdown('bancos')">
             {{ getNombreBancoSeleccionado() || 'SELECCIONAR BANCO' }}
@@ -611,10 +611,10 @@
         <div class="input-container">
           <select class="input-perfil" [(ngModel)]="tipoCuentaNew">
             <option value="">SELECCIONAR TIPO DE CUENTA</option>
-            <option value="Cuenta Corriente">CUENTA CORRIENTE</option>
-            <option value="Cuenta de Ahorro">CUENTA DE AHORRO</option>
-            <option value="Cuenta Vista">CUENTA VISTA</option>
-            <option value="Cuenta RUT">CUENTA RUT</option>
+            <option value="CUENTA RUT">CUENTA RUT</option>
+            <option value="CUENTA CORRIENTE">CUENTA CORRIENTE</option>
+            <option value="CUENTA DE AHORRO">CUENTA DE AHORRO</option>
+            <option value="VISTA/CHEQUERA ELECTRÓNICA">VISTA/CHEQUERA ELECTRÓNICA</option>
           </select>
         </div>
 
@@ -746,12 +746,12 @@
       <th mat-header-cell *matHeaderCellDef class="mat-header">Info Bancaria</th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell" style="cursor: pointer;">
         <div 
-          *ngIf="trabajador.metodo_pago === 'Transferencia'" 
+          *ngIf="trabajador.metodo_pago?.toUpperCase() === 'TRANSFERENCIA'" 
           (click)="abrirModalBanco(trabajador); $event.stopPropagation()"
           style="color: #1188c3; text-decoration: underline;">
           Ver Detalles
         </div>
-        <div *ngIf="trabajador.metodo_pago !== 'Transferencia'">
+        <div *ngIf="trabajador.metodo_pago?.toUpperCase() !== 'TRANSFERENCIA'">
           {{trabajador.metodo_pago || 'Sin Pago'}}
         </div>
       </td>

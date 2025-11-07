@@ -71,6 +71,7 @@ from .models import (
     DocumentosVehiculo,
     RegistroAsistencia,
     RegistroManoObraPersona,
+    ContratoTrabajador,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -2419,12 +2420,13 @@ class TrabajadorDescuentoSerializer(serializers.ModelSerializer):
 
 class PersonalConAsignacionesSerializer(serializers.ModelSerializer):
     """Serializador que muestra un trabajador con sus descuentos"""
+    tiene_contrato = serializers.BooleanField(read_only=True)
     descuentos = TrabajadorDescuentoSerializer(source='descuentos_asignados', many=True, read_only=True)
     nombre_completo = serializers.SerializerMethodField()
     
     class Meta:
         model = PersonalTrabajadores
-        fields = ['id', 'nombre_completo', 'rut', 'nacionalidad', 'descuentos']
+        fields = ['id', 'nombre_completo', 'rut', 'nacionalidad', 'descuentos','tiene_contrato']
     
     def get_nombre_completo(self, obj):
         return f"{obj.nombres} {obj.apellidos or ''}".strip()
@@ -3436,3 +3438,62 @@ class RegistroManoObraPersonaSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistroManoObraPersona
         fields = '__all__'
+
+class ContratoTrabajadorSerializer(serializers.ModelSerializer):
+    # Campos relacionados para mostrar nombres
+    nombre_trabajador = serializers.CharField(source='trabajador.nombres', read_only=True)
+    rut_trabajador = serializers.CharField(source='trabajador.rut', read_only=True)
+    nombre_sociedad = serializers.CharField(source='trabajador.sociedad.nombre', read_only=True)
+    nombre_documento = serializers.CharField(source='documento.nombre', read_only=True)
+    nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
+    nombre_fundo = serializers.CharField(source='fundo.nombre_campo', read_only=True)
+    
+    # Campo calculado para estado
+    estado_contrato = serializers.SerializerMethodField()
+    dias_restantes = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ContratoTrabajador
+        fields = [
+            'id', 
+            'trabajador',
+            'nombre_trabajador',
+            'rut_trabajador',
+            'nombre_sociedad',
+            'nombre_documento',
+            'nombre_cliente',
+            'nombre_fundo',
+            'fecha_inicio_contrato',
+            'fecha_termino_contrato',
+            'estado_contrato',
+            'dias_restantes',
+            'ESTADO_CHOICES'  # Para el dropdown
+        ]
+        
+    def get_estado_contrato(self, obj):
+        """Calcula si el contrato está vigente o vencido"""
+        from datetime import date
+        
+        if obj.fecha_termino_contrato is None:
+            return 'VIGENTE'
+        
+        if obj.fecha_termino_contrato < date.today():
+            return 'VENCIDO'
+        
+        return 'VIGENTE'
+    
+    def get_dias_restantes(self, obj):
+        """Calcula días restantes del contrato"""
+        from datetime import date
+        
+        if obj.fecha_termino_contrato is None:
+            return None
+        
+        dias = (obj.fecha_termino_contrato - date.today()).days
+        return dias if dias > 0 else 0
+
+
+
+
+
+

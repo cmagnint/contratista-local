@@ -28,9 +28,6 @@ export class PersonalComponent implements OnInit {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
-  // ============================================
-  // LISTAS DE NACIONALIDADES
-  // ============================================
   public nacionalidadesFiltradas: string[] = [];
   public todasLasNacionalidades: string[] = [
       'AFGANA', 'ALBANESA', 'ALEMANA', 'ANDORRANA', 'ANGOLEÑA', 'ANTIGUANA', 'ÁRABE', 
@@ -61,9 +58,6 @@ export class PersonalComponent implements OnInit {
       'ZAMBIANA', 'ZIMBABUENSE'
   ];
 
-  // ============================================
-  // CONTROL DE MODALES
-  // ============================================
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
@@ -82,9 +76,6 @@ export class PersonalComponent implements OnInit {
     documentosModal: false,
   };
 
-  // ============================================
-  // VARIABLES GENERALES
-  // ============================================
   public trabajadorSeleccionado: any = {
     nombre_trabajador_seleccionado : '',
     rut_trabajador_seleccionado : '',
@@ -107,28 +98,23 @@ export class PersonalComponent implements OnInit {
   public fechaTrabajador : Date | null = null;
   public sexoTrabajador: string = 'H';
   public telefonoTrabajador: string | null = null;
-  public metodoPago: string = 'Sin Pago';
+  public metodoPago: string | null = null;;
   public banco: string | null = null;
   public tipoCuenta: string | null = null;
   public numeroCuenta: string | null = null;
   public nacionalidadTrabajador: string = 'CHILENA';
   public fechaIngreso: string | null = null;
-
-  // ============================================
-  // NUEVOS CAMPOS AGREGADOS
-  // ============================================
   public casaTrabajador: number | null = null;
   public fundoTrabajador: number | null = null;
   public fechaNacimiento: string | null = null;
   public estadoCivil: string = 'SOLTERO(A)';
 
-  // Variables para modificación
   public correoTrabajadorNew: string = '';
   public direccionTrabajadorNew: string = '';
   public sexoTrabajadorNew: string = '';
   public telefonoTrabajadorNew: string = '';
   public fechaIngresoNew: string = '';
-  public metodoPagoNew: string = '';
+  public metodoPagoNew: string | null = null;
   public bancoNew: string = '';
   public tipoCuentaNew: string = '';
   public numeroCuentaNew: string = '';
@@ -138,9 +124,6 @@ export class PersonalComponent implements OnInit {
   public fechaNacimientoNew: string | null = null;
   public estadoCivilNew: string = '';
 
-  // ============================================
-  // LISTAS CARGADAS
-  // ============================================
   public sociedadesCargadas: any[] = []
   public selectedSociedadId: number | null = null;
   
@@ -165,15 +148,9 @@ export class PersonalComponent implements OnInit {
   public fundosCargados: any[] = [];
   public selectedFundoId: number | null = null;
 
-  // ============================================
-  // VARIABLES PARA MODALES DE INFO
-  // ============================================
   public trabajadorSeleccionadoBanco: any = null;
   public trabajadorSeleccionadoDocs: any = null;
 
-  // ============================================
-  // OTRAS VARIABLES
-  // ============================================
   errorMessage!: string;
   selectedRows: any[] = [];
   
@@ -203,9 +180,6 @@ export class PersonalComponent implements OnInit {
   public deletedRow: any[] = [];
   public selectedTrabajadorId: number | null = null;
 
-  // ============================================
-  // INICIALIZACIÓN
-  // ============================================
   ngOnInit():void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT(); 
@@ -256,9 +230,6 @@ export class PersonalComponent implements OnInit {
     this.fechaIngreso = `${year}-${month}-${day}`;
   }
 
-  // ============================================
-  // CARGAR DATOS DESDE API
-  // ============================================
   cargarSociedades(): void {
     this.contratistaApiService.get(`api_sociedad/?holding=${this.holding}`).subscribe({
       next: (response) => {
@@ -390,9 +361,6 @@ export class PersonalComponent implements OnInit {
   });
 }
 
-  // ============================================
-  // CRUD OPERACIONES
-  // ============================================
   crearTrabajador(): void {
     let data = {
       holding: this.holding,
@@ -492,9 +460,6 @@ export class PersonalComponent implements OnInit {
     }
   }
 
-  // ============================================
-  // TOGGLE SELECTIONS
-  // ============================================
   toggleSelection(id: number, list: number[], total: any[]): void {
     const index = list.indexOf(id);
     if (index > -1) {
@@ -573,9 +538,6 @@ export class PersonalComponent implements OnInit {
     }
   }
 
-  // ============================================
-  // OBTENER NOMBRES SELECCIONADOS
-  // ============================================
   getNombreSociedadSeleccionada(): string {
     if (this.selectedSociedadId) {
       const sociedad = this.sociedadesCargadas.find(s => s.id === this.selectedSociedadId);
@@ -640,9 +602,6 @@ export class PersonalComponent implements OnInit {
     return '';
   }
 
-  // ============================================
-  // UTILIDADES
-  // ============================================
   isSelected(row: any): boolean {
     return this.selectedRows.some(r => r.id === row.id);
   }
@@ -712,9 +671,6 @@ export class PersonalComponent implements OnInit {
     this.metodoPagoNew = selectElement.value;
   }
 
-  // ============================================
-  // GESTIÓN DE MODALES
-  // ============================================
   openModal(key: string): void {
     this.modals[key] = true;
     if(key== 'confirmacionModal'){
@@ -729,9 +685,6 @@ export class PersonalComponent implements OnInit {
     }
   }
 
-  // ============================================
-  // ABRIR MODALES DE INFORMACIÓN
-  // ============================================
   abrirModalBanco(trabajador: any): void {
     this.trabajadorSeleccionadoBanco = trabajador;
     this.openModal('bancoInfoModal');
@@ -747,9 +700,6 @@ export class PersonalComponent implements OnInit {
     this.openModal('documentosModal');
   }
 
-  // ============================================
-  // MANEJO DE DOCUMENTOS
-  // ============================================
   descargarDocumento(url: string, nombreArchivo: string): void {
     if (!url) {
       alert('No hay documento disponible');
@@ -783,9 +733,6 @@ export class PersonalComponent implements OnInit {
     console.error('Error cargando imagen');
   }
 
-  // ============================================
-  // SELECCIÓN DE FILA
-  // ============================================
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
     if (index > -1) {
@@ -821,12 +768,18 @@ export class PersonalComponent implements OnInit {
       this.selectedBancoId = selectedRow.banco;
       this.selectedCasaId = selectedRow.casa;
       this.selectedFundoId = selectedRow.fundo;
+
+      // Normalizar método de pago
+      if (this.metodoPagoNew?.toUpperCase() === 'TRANSFERENCIA') {
+        this.metodoPagoNew = 'Transferencia';
+      } else if (this.metodoPagoNew?.toUpperCase() === 'EFECTIVO') {
+        this.metodoPagoNew = 'Efectivo';
+      } else if (this.metodoPagoNew?.toUpperCase() === 'SIN PAGO') {
+        this.metodoPagoNew = 'Sin Pago';
+      }
     }
   }
 
-  // ============================================
-  // LIMPIAR FORMULARIOS
-  // ============================================
   limpiarFormularioModificacion(): void {
     this.nombreTrabajadorNew = '';
     this.rutTrabajadorNew = '';

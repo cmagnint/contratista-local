@@ -15,7 +15,6 @@ from selenium.webdriver.support.ui import Select
 from django.shortcuts import get_object_or_404
 from .browser_session_manager import BrowserSessionManager
 from rest_framework.response import Response
-from django.db.models.expressions import RawSQL
 from selenium.webdriver.common.by import By
 from django.core.files.base import ContentFile
 from collections import defaultdict
@@ -28,7 +27,7 @@ from datetime import datetime, timezone
 from reportlab.pdfgen import canvas
 from .serializers import LoginSerializer
 from reportlab.lib.enums import TA_RIGHT
-from django.db.models import Q, Max, Sum, Value, F, DecimalField
+from django.db.models import Q, Max, Sum, Value, F, DecimalField, Exists, OuterRef
 from django.db.models.functions import Coalesce
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
@@ -61,6 +60,7 @@ import csv
 import io
 import os
 import re
+import pypdf
 
 
 #SERVICIOS
@@ -145,6 +145,7 @@ from .models import (
 )
 
 from .serializers import (
+    ContratoTrabajadorSerializer,
     HoldingSerializer,
     SociedadSerializer, 
     AdminSerializer, 
@@ -6955,38 +6956,81 @@ class DescuentosAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PersonalFiltradoAPIView(APIView):
+    
     def get(self, request):
-        # Obtener parámetros de filtro
         holding_id = request.query_params.get('holding')
         sociedad_id = request.query_params.get('sociedad_id')
-        cliente_id = request.query_params.get('cliente_id')
-        fundo_id = request.query_params.get('fundo_id')
-        casa_id = request.query_params.get('casa_id')
+        filtro_contrato = request.query_params.get('filtro_contrato', 'sin_contrato')
         
         if not holding_id:
             return Response({'error': 'El parámetro holding es necesario'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        # Construir consulta base
-        query = Q(holding_id=holding_id, estado=True)
+        hoy = date.today()
         
-        # Aplicar filtros adicionales
+        # ✅ PRIMER FILTRO: holding y sociedad
+        query = Q(holding_id=holding_id, estado=True)
         if sociedad_id:
             query &= Q(sociedad_id=sociedad_id)
-        if fundo_id:
-            query &= Q(fundo_id=fundo_id)
-        if casa_id:
-            query &= Q(casa_id=casa_id)
-            
-        # Filtro por cliente (ajusta esto según cómo se relacionen tus modelos)
-        if cliente_id and fundo_id:
-            # Si hay lógica adicional para filtrar por cliente, agrégala aquí
-            pass
-            
-        # Ejecutar consulta
-        trabajadores = PersonalTrabajadores.objects.filter(query)
-        serializer = PersonalConAsignacionesSerializer(trabajadores, many=True)
         
+        # ✅ SEGUNDO FILTRO: SOLO trabajadores con contrato VIGENTE en ContratoTrabajador
+        # Vigente = fecha_inicio <= hoy Y (fecha_termino >= hoy O es NULL)
+        contrato_vigente_exists = Exists(
+            ContratoTrabajador.objects.filter(
+                trabajador=OuterRef('pk'),
+                fecha_inicio_contrato__lte=hoy
+            ).filter(
+                Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
+            )
+        )
+        
+        trabajadores = PersonalTrabajadores.objects.filter(query).filter(
+            contrato_vigente_exists
+        )
+        
+        # ✅ TERCER FILTRO: por contrato_generado del contrato vigente
+        if filtro_contrato == 'sin_contrato':
+            # Solo trabajadores cuyo contrato vigente tiene contrato_generado=False
+            trabajadores = trabajadores.filter(
+                Exists(
+                    ContratoTrabajador.objects.filter(
+                        trabajador=OuterRef('pk'),
+                        fecha_inicio_contrato__lte=hoy,
+                        contrato_generado=False
+                    ).filter(
+                        Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
+                    )
+                )
+            )
+        elif filtro_contrato == 'con_contrato':
+            # Solo trabajadores cuyo contrato vigente tiene contrato_generado=True
+            trabajadores = trabajadores.filter(
+                Exists(
+                    ContratoTrabajador.objects.filter(
+                        trabajador=OuterRef('pk'),
+                        fecha_inicio_contrato__lte=hoy,
+                        contrato_generado=True
+                    ).filter(
+                        Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
+                    )
+                )
+            )
+        # 'todos' = no aplica filtro adicional, ya tiene solo los vigentes
+        
+        # ✅ ANOTAR si tiene contrato generado (del contrato vigente)
+        trabajadores = trabajadores.annotate(
+            tiene_contrato=Exists(
+                ContratoTrabajador.objects.filter(
+                    trabajador=OuterRef('pk'),
+                    fecha_inicio_contrato__lte=hoy,
+                    contrato_generado=True
+                ).filter(
+                    Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
+                )
+            )
+        )
+        
+        serializer = PersonalConAsignacionesSerializer(trabajadores, many=True)
         return Response(serializer.data)
 
 class AsignarHaberesAPIView(APIView):
@@ -18504,7 +18548,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
             
             return Response({
                 'mensaje': f'Se generaron {len(urls_generadas)} contratos exitosamente',
-                'urls': urls_generadas,
+                'contratos': urls_generadas,  # ✅ Cambiar 'urls' por 'contratos'
                 'errores': errores,
                 'total_exitosos': len(urls_generadas),
                 'total_errores': len(errores)
@@ -18657,7 +18701,19 @@ class GenerarDocumentosMasivoAPIView(APIView):
         
         print(f"✅ Contrato guardado: {ruta_archivo}")
         print(f"🔗 URL generada: {url_absoluta}")
-        
+        # ✅ ACTUALIZAR contrato_generado del trabajador
+        try:
+            contrato = ContratoTrabajador.objects.filter(
+                trabajador=trabajador,
+                holding=trabajador.holding
+            ).latest('fecha_inicio_contrato')
+            
+            contrato.contrato_generado = True
+            contrato.save(update_fields=['contrato_generado'])
+            
+            print(f"✅ Contrato marcado como generado: ID={contrato.id}")
+        except ContratoTrabajador.DoesNotExist:
+            print(f"⚠️ Trabajador {trabajador.id} no tiene contrato registrado")
         return url_absoluta
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
@@ -20035,3 +20091,94 @@ class ResponderTraspasoAPIView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class ContratoTrabajadorAPIView(APIView):
+    """
+    Vista para gestionar contratos de trabajadores
+    GET: Lista contratos con filtros
+    POST: Crear contrato
+    PUT: Actualizar contrato
+    DELETE: Eliminar contrato
+    """
+    
+    def get(self, request):
+        """
+        Lista contratos con filtros opcionales
+        Parámetros:
+        - holding: ID del holding (requerido)
+        - estado: vigente | vencido | todos (default: todos)
+        - trabajador_id: Filtrar por trabajador específico
+        """
+        holding_id = request.query_params.get('holding')
+        estado_filtro = request.query_params.get('estado', 'todos')
+        trabajador_id = request.query_params.get('trabajador_id')
+        
+        if not holding_id:
+            return Response({'error': 'holding es requerido'}, status=400)
+        
+        # Query base
+        queryset = ContratoTrabajador.objects.filter(
+            holding_id=holding_id
+        ).select_related(
+            'trabajador',
+            'trabajador__sociedad',
+            'documento',
+            'cliente',
+            'fundo'
+        )
+        
+        # Filtro por trabajador específico
+        if trabajador_id:
+            queryset = queryset.filter(trabajador_id=trabajador_id)
+        
+        # Aplicar filtro de estado
+        if estado_filtro == 'vigente':
+            queryset = queryset.filter(
+                fecha_termino_contrato__gte=date.today()
+            ) | queryset.filter(fecha_termino_contrato__isnull=True)
+        elif estado_filtro == 'vencido':
+            queryset = queryset.filter(
+                fecha_termino_contrato__lt=date.today()
+            )
+        
+        serializer = ContratoTrabajadorSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        """Crear nuevo contrato"""
+        serializer = ContratoTrabajadorSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+    
+    def put(self, request):
+        """Actualizar contrato existente"""
+        contrato_id = request.data.get('id')
+        
+        try:
+            contrato = ContratoTrabajador.objects.get(id=contrato_id)
+        except ContratoTrabajador.DoesNotExist:
+            return Response({'error': 'Contrato no encontrado'}, status=404)
+        
+        serializer = ContratoTrabajadorSerializer(contrato, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+    
+    def delete(self, request):
+        """Eliminar contratos"""
+        ids = request.data.get('ids', [])
+        
+        if not ids:
+            return Response({'error': 'Se requiere lista de IDs'}, status=400)
+        
+        deleted_count = ContratoTrabajador.objects.filter(id__in=ids).delete()[0]
+        
+        return Response({
+            'mensaje': f'Se eliminaron {deleted_count} contratos',
+            'eliminados': deleted_count
+        })
+    
+

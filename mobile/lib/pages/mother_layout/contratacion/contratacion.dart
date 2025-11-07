@@ -1905,7 +1905,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                               _banco = bancoEstado['id'].toString();
                             }
                             // Setear Cuenta Rut por defecto
-                            _tipoCuenta = 'Cuenta Rut';
+                            _tipoCuenta = 'CUENTA RUT';
                             // Setear número de cuenta desde RUT
                             if (_controllers['RUN']!.text.isNotEmpty) {
                               _numeroCuenta = _getRutWithoutFormatting(
@@ -1964,7 +1964,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         onChanged: (String? newValue) {
                           setState(() {
                             _tipoCuenta = newValue!;
-                            if (_tipoCuenta == 'Cuenta Rut' &&
+                            if (_tipoCuenta == 'CUENTA RUT' &&
                                 _controllers['RUN'] != null) {
                               _numeroCuenta = _getRutWithoutFormatting(
                                 _controllers['RUN']!.text,
@@ -1977,15 +1977,15 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                           });
                         },
                         decoration: const InputDecoration(
-                          labelText: 'Tipo de Cuenta',
+                          labelText: 'TIPO DE CUENTA',
                           border: OutlineInputBorder(),
                         ),
                         items:
                             <String>[
-                              'Cuenta Rut',
-                              'Vista/Chequera electrónica',
-                              'Cuenta de Ahorro',
-                              'Cuenta Corriente',
+                              'CUENTA RUT', // Era: 'Cuenta Rut'
+                              'VISTA/CHEQUERA ELECTRÓNICA', // Era: 'Vista/Chequera electrónica'
+                              'CUENTA DE AHORRO', // Era: 'Cuenta de Ahorro'
+                              'CUENTA CORRIENTE', // Era: 'Cuenta Corriente'
                             ].map<DropdownMenuItem<String>>((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
