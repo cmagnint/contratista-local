@@ -18626,7 +18626,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 print(f"⚠️ Sociedad con ID {sociedad_id} no encontrada")
             except Exception as e:
                 print(f"⚠️ Error obteniendo sociedad: {e}")
-        
+        print()
         return {
             # Fechas
             'fecha_emision': fecha_emision_formateada,
@@ -18655,6 +18655,8 @@ class GenerarDocumentosMasivoAPIView(APIView):
             
             # ⭐ NUEVO: Sociedad
             'sociedad': sociedad_nombre,
+            'nombre_cliente': contrato_activo.folio_comercial.cliente.nombre if (contrato_activo and contrato_activo.folio_comercial and contrato_activo.folio_comercial.cliente) else '',
+            'nombre_campo': contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
             
             # Previsión
             'afp': trabajador.afp.nombre if trabajador.afp else '',

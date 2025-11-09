@@ -2419,14 +2419,15 @@ class TrabajadorDescuentoSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre', 'valor', 'tipo', 'tipo_valor', 'num_cuotas', 'cuota_actual', 'valor_cuota', 'descuento']
 
 class PersonalConAsignacionesSerializer(serializers.ModelSerializer):
-    """Serializador que muestra un trabajador con sus descuentos"""
     tiene_contrato = serializers.BooleanField(read_only=True)
     descuentos = TrabajadorDescuentoSerializer(source='descuentos_asignados', many=True, read_only=True)
     nombre_completo = serializers.SerializerMethodField()
+    cargo = CargoSerializer(read_only=True)  # ✅ Si tienes CargoSerializer
     
     class Meta:
         model = PersonalTrabajadores
-        fields = ['id', 'nombre_completo', 'rut', 'nacionalidad', 'descuentos','tiene_contrato']
+        fields = ['id', 'nombres', 'apellidos', 'nombre_completo', 'rut', 
+                  'nacionalidad', 'cargo', 'fecha_ingreso', 'descuentos', 'tiene_contrato']
     
     def get_nombre_completo(self, obj):
         return f"{obj.nombres} {obj.apellidos or ''}".strip()
