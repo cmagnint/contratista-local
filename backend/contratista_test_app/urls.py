@@ -119,6 +119,7 @@ from .views import (
     TraspasoTrabajadoresAPIView,
     ResponderTraspasoAPIView,
     ContratoTrabajadorAPIView,
+    CrearContratoWebAPIView,
 )
 
 app_name = 'contratista_test'
@@ -292,7 +293,7 @@ urlpatterns = [
     path('traspaso_trabajadores/', TraspasoTrabajadoresAPIView.as_view(), name='traspaso_trabajadores'),
     path('responder_traspaso/', ResponderTraspasoAPIView.as_view(), name='responder_traspaso'),
     path('api_contratos_trabajadores/', ContratoTrabajadorAPIView.as_view(), name='contratos-trabajadores'),
-
+    path('api_crear_contrato_web/', CrearContratoWebAPIView.as_view(), name='crear-contrato-web'),
 
 ]   
 

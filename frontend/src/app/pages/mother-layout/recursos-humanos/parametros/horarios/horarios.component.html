@@ -1,4 +1,4 @@
-<!-- horarios.component.html - VERSIÓN MODIFICADA CON COLUMNA NOMBRE -->
+<!-- horarios.component.html - VERSIÓN CON HORAS POR DÍA -->
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
 
@@ -16,6 +16,7 @@
     </button>
     
     <!-- Tabla de Horarios -->
+    
     <table mat-table [dataSource]="horariosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
         
         <ng-container matColumnDef="codigo">
@@ -23,15 +24,44 @@
             <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.id }} </td>
         </ng-container>
 
-        <!-- ✅ NUEVA COLUMNA NOMBRE -->
         <ng-container matColumnDef="nombre">
             <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
             <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.nombre }} </td>
         </ng-container>
 
-        <ng-container matColumnDef="jornada">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Jornada [Hrs] </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.jornada }} </td>
+        <ng-container matColumnDef="lunes">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Lunes </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_lunes || 0 }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="martes">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Martes </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_martes || 0 }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="miercoles">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Miércoles </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_miercoles || 0 }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="jueves">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Jueves </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_jueves || 0 }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="viernes">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Viernes </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_viernes || 0 }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="sabado">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Sábado </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_sabado || 0 }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="domingo">
+            <th mat-header-cell *matHeaderCellDef class="mat-header"> Domingo </th>
+            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_domingo || 0 }} </td>
         </ng-container>
         
         <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
@@ -52,7 +82,6 @@
         
         <h2>Crear Horario</h2>
         
-        <!-- ✅ NUEVA SECCIÓN NOMBRE -->
         <div class="modal-section">
             <h3>Nombre del Horario:</h3>
             <input type="text" 
@@ -64,14 +93,79 @@
         </div>
 
         <div class="modal-section">
-            <h3>Jornada Laboral (Horas):</h3>
-            <input type="number" 
-                   class="input-usuario" 
-                   id="jornadaHorario" 
-                   name="jornadaHorario" 
-                   [(ngModel)]="jornadaHorario" 
-                   step="0.5"
-                   placeholder="Ej: 9.0">
+            <h3>Horas por Día:</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Lunes:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasLunes" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Martes:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasMartes" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Miércoles:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasMiercoles" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Jueves:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasJueves" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Viernes:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasViernes" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Sábado:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasSabado" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="0.0">
+                </div>
+                <div>
+                    <label>Domingo:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasDomingo" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="0.0">
+                </div>
+            </div>
         </div>
         
         <button class="custom-button-ingreso" 
@@ -91,7 +185,6 @@
         
         <h2>Modificar Horario</h2>
         
-        <!-- ✅ NUEVA SECCIÓN NOMBRE -->
         <div class="modal-section">
             <h3>Nuevo Nombre del Horario:</h3>
             <input type="text" 
@@ -103,14 +196,79 @@
         </div>
 
         <div class="modal-section">
-            <h3>Nueva Jornada Laboral (Horas):</h3>
-            <input type="number" 
-                   class="input-usuario" 
-                   id="jornadaHorarioNew" 
-                   name="jornadaHorarioNew" 
-                   [(ngModel)]="jornadaHorarioNew" 
-                   step="0.5"
-                   placeholder="Ej: 9.0">
+            <h3>Horas por Día:</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Lunes:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasLunesNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Martes:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasMartesNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Miércoles:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasMiercolesNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Jueves:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasJuevesNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Viernes:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasViernesNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="9.0">
+                </div>
+                <div>
+                    <label>Sábado:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasSabadoNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="0.0">
+                </div>
+                <div>
+                    <label>Domingo:</label>
+                    <input type="number" 
+                           class="input-usuario" 
+                           [(ngModel)]="horasDomingoNew" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           placeholder="0.0">
+                </div>
+            </div>
         </div>
         
         <button class="custom-button-ingreso"  

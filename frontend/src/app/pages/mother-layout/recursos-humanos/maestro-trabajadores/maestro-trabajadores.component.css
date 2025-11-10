@@ -680,3 +680,67 @@
     padding: 10px 20px;
   }
 }
+
+/* Estilos adicionales para Modal Crear Contrato */
+
+.modal-content-crear-contrato {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 900px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.form-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.form-field {
+  width: 100%;
+}
+
+/* Responsive para formulario */
+@media (max-width: 768px) {
+  .form-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-content-crear-contrato {
+    width: 95%;
+    padding: 20px;
+  }
+}
+
+/* Botón agregar verde */
+.custom-button-agregar {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%) !important;
+  color: white !important;
+  padding: 12px 24px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
+}
+
+.custom-button-agregar:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4) !important;
+}
+
+.custom-button-agregar .button-icon {
+  font-size: 20px;
+}
+
+.custom-button-agregar .button-text {
+  letter-spacing: 0.5px;
+}

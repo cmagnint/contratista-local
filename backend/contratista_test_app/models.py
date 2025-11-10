@@ -423,14 +423,34 @@ class Horarios(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     nombre = models.CharField(max_length=100, blank=True, null=True) 
-    jornada = models.FloatField()
+    jornada = models.FloatField()  # Mantener por compatibilidad
+    
+    # Horas por día
+    horas_lunes = models.FloatField(default=9.0)
+    horas_martes = models.FloatField(default=9.0)
+    horas_miercoles = models.FloatField(default=9.0)
+    horas_jueves = models.FloatField(default=9.0)
+    horas_viernes = models.FloatField(default=9.0)
+    horas_sabado = models.FloatField(default=0.0)
+    horas_domingo = models.FloatField(default=0.0)
 
     class Meta:
         db_table = 'horarios'
     
-    def __str__(self):
-        return f"{self.nombre} - {self.jornada} hrs"
-    
+    def get_horas_dia(self, fecha):
+        """Obtiene horas según día de la semana (0=Lunes, 6=Domingo)"""
+        dia_semana = fecha.weekday()
+        mapeo = {
+            0: self.horas_lunes,
+            1: self.horas_martes,
+            2: self.horas_miercoles,
+            3: self.horas_jueves,
+            4: self.horas_viernes,
+            5: self.horas_sabado,
+            6: self.horas_domingo,
+        }
+        return mapeo.get(dia_semana, 9.0)
+      
 class FolioComercial(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)

@@ -1,4 +1,4 @@
-<!--maestro-trabajadores.component.html - VERSIÓN MODERNA-->
+<!--maestro-trabajadores.component.html - VERSIÓN MODERNA CON CREAR CONTRATO-->
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
   
@@ -36,17 +36,29 @@
   </div>
 
   <!-- ============================================ -->
-  <!-- 🎯 BOTÓN DE ACCIÓN MODERNIZADO -->
+  <!-- 🎯 BOTONES DE ACCIÓN MODERNIZADOS -->
   <!-- ============================================ -->
-  <button 
-    mat-raised-button 
-    color="primary" 
-    class="custom-button-cancelar" 
-    [disabled]="selectedRows.length === 0"
-    (click)="openModal('confirmacionModal')">
-    <span class="button-icon">🗑️</span>
-    <span class="button-text">ELIMINAR CONTRATOS</span>
-  </button>
+  <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+    <!-- ✅ NUEVO BOTÓN CREAR CONTRATO -->
+    <button 
+      mat-raised-button 
+      color="primary" 
+      class="custom-button-agregar" 
+      (click)="abrirModalCrearContrato()">
+      <span class="button-icon">➕</span>
+      <span class="button-text">CREAR CONTRATO</span>
+    </button>
+
+    <button 
+      mat-raised-button 
+      color="primary" 
+      class="custom-button-cancelar" 
+      [disabled]="selectedRows.length === 0"
+      (click)="eliminarContratosSeleccionados($event)">
+      <span class="button-icon">🗑️</span>
+      <span class="button-text">ELIMINAR CONTRATOS</span>
+    </button>
+  </div>
   
   <!-- ============================================ -->
   <!-- 🎯 TABLA DE CONTRATOS MODERNIZADA -->
@@ -150,6 +162,131 @@
     </tr>
   </table>
 
+</div>
+
+<!-- ============================================ -->
+<!-- 🎯 MODAL CREAR CONTRATO -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="modals['crearContratoModal']" (click)="closeModal('crearContratoModal')">
+  <div class="modal-content-crear-contrato" (click)="$event.stopPropagation()">
+    
+    <div class="modal-header-modern">
+      <h2>CREAR NUEVO CONTRATO</h2>
+      <button class="close-button-modern" (click)="closeModal('crearContratoModal')">✕</button>
+    </div>
+    
+    <div class="form-container">
+      
+      <!-- Sociedad -->
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>Sociedad *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.sociedad_id" (selectionChange)="onSociedadChange()">
+          <mat-option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
+            {{sociedad.nombre}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Folio -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.sociedad_id">
+        <mat-label>Folio Comercial *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.folio_id" (selectionChange)="onFolioChange()">
+          <mat-option *ngFor="let folio of folios" [value]="folio.id">
+            Folio #{{folio.id}} - {{folio.cliente_nombre}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Fundo -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
+        <mat-label>Fundo *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.fundo_id">
+          <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">
+            {{fundo.nombre_campo}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Labor -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
+        <mat-label>Labor *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.labor_id">
+          <mat-option *ngFor="let labor of labores" [value]="labor.id">
+            {{labor.nombre}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Horario -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
+        <mat-label>Horario *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.horario_id">
+          <mat-option *ngFor="let horario of horarios" [value]="horario.id">
+            {{horario.nombre}} ({{horario.jornada}} hrs)
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Casa -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.sociedad_id">
+        <mat-label>Casa</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.casa_id">
+          <mat-option [value]="">Sin casa</mat-option>
+          <mat-option *ngFor="let casa of casas" [value]="casa.id">
+            {{casa.nombre}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Trabajador -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
+        <mat-label>Trabajador (sin contrato vigente) *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.trabajador_id">
+          <mat-option *ngFor="let trabajador of trabajadores" [value]="trabajador.id">
+            {{trabajador.nombres}} {{trabajador.apellidos}} - {{trabajador.rut}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Documento -->
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>Tipo Documento</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.documento_id">
+          <mat-option [value]="">Ninguno</mat-option>
+          <mat-option *ngFor="let doc of documentos" [value]="doc.id">
+            {{doc.nombre}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Fecha Inicio -->
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>Fecha Inicio *</mat-label>
+        <input matInput type="date" [(ngModel)]="nuevoContrato.fecha_inicio">
+        <mat-hint>Auto-llenado desde el folio</mat-hint>
+      </mat-form-field>
+
+      <!-- Fecha Término -->
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>Fecha Término</mat-label>
+        <input matInput type="date" [(ngModel)]="nuevoContrato.fecha_termino">
+        <mat-hint>Auto-llenado desde el folio (opcional)</mat-hint>
+      </mat-form-field>
+
+    </div>
+    
+    <div class="button-container">
+      <button 
+        class="button-bottom success" 
+        [disabled]="isCreatingContract"
+        (click)="crearContrato()">
+        {{ isCreatingContract ? 'Creando...' : 'Crear Contrato' }}
+      </button>
+      <button class="button-bottom" (click)="closeModal('crearContratoModal')">
+        Cancelar
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- ============================================ -->

@@ -1,4 +1,3 @@
-//contratista-local
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:contratista/services/contratista_api_service.dart';
@@ -28,7 +27,7 @@ class TraspasoTrabajadoresScreenState
 
   Set<int> _trabajadoresSeleccionados = {};
   String? _destinoSeleccionado;
-  String? _tipoDestino; // 'jefe_cuadrilla', 'supervisor'
+  String? _tipoDestino;
 
   @override
   void initState() {
@@ -42,7 +41,6 @@ class TraspasoTrabajadoresScreenState
     try {
       String? holding = await storage.read(key: 'holding');
 
-      // Determinar el tipo de usuario
       _isSupervisor =
           userInfo.idSupervisor != null && userInfo.idSupervisor! > 0;
       _isJefeCuadrilla =
@@ -70,6 +68,7 @@ class TraspasoTrabajadoresScreenState
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
         setState(() {
           _misTrabajadores = data['mis_trabajadores'] ?? [];
           _misJefesCuadrilla = data['mis_jefes_cuadrilla'] ?? [];
@@ -138,14 +137,23 @@ class TraspasoTrabajadoresScreenState
       Map<String, dynamic> requestData = {
         'holding': holding,
         'trabajadores_ids': _trabajadoresSeleccionados.toList(),
-        'destino_id': int.parse(_destinoSeleccionado!),
-        'tipo_destino': _tipoDestino,
       };
 
-      if (_isSupervisor) {
+      // Caso especial: recuperar al supervisor
+      if (_destinoSeleccionado == 'recuperar_supervisor') {
+        requestData['recuperar'] = true;
         requestData['supervisor_id'] = userInfo.idSupervisor;
-      } else if (_isJefeCuadrilla) {
-        requestData['jefe_cuadrilla_id'] = userInfo.idJefeCuadrilla;
+      } else {
+        // Traspaso normal
+        final destinoId = int.parse(_destinoSeleccionado!.split('_')[1]);
+        requestData['destino_id'] = destinoId;
+        requestData['tipo_destino'] = _tipoDestino;
+
+        if (_isSupervisor) {
+          requestData['supervisor_id'] = userInfo.idSupervisor;
+        } else if (_isJefeCuadrilla) {
+          requestData['jefe_cuadrilla_id'] = userInfo.idJefeCuadrilla;
+        }
       }
 
       final response = await apiService.post(
@@ -157,24 +165,22 @@ class TraspasoTrabajadoresScreenState
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        _mostrarExito(data['mensaje'] ?? 'Traspaso realizado exitosamente');
+        _mostrarExito(data['mensaje'] ?? 'Operación exitosa');
 
-        // Limpiar selección
         setState(() {
           _trabajadoresSeleccionados.clear();
           _destinoSeleccionado = null;
           _tipoDestino = null;
         });
 
-        // Recargar datos
         await _cargarDatos();
       } else {
         final data = jsonDecode(response.body);
-        _mostrarError(data['error'] ?? 'Error al realizar el traspaso');
+        _mostrarError(data['error'] ?? 'Error en la operación');
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      _mostrarError('Error al realizar el traspaso: $e');
+      _mostrarError('Error: $e');
     }
   }
 
@@ -196,15 +202,15 @@ class TraspasoTrabajadoresScreenState
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _mostrarExito(data['mensaje'] ?? 'Solicitud procesada exitosamente');
+        _mostrarExito(data['mensaje'] ?? 'Solicitud procesada');
         await _cargarDatos();
       } else {
         final data = jsonDecode(response.body);
-        _mostrarError(data['error'] ?? 'Error al procesar la solicitud');
+        _mostrarError(data['error'] ?? 'Error al procesar');
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      _mostrarError('Error al procesar la solicitud: $e');
+      _mostrarError('Error: $e');
     }
   }
 
@@ -212,26 +218,98 @@ class TraspasoTrabajadoresScreenState
     final trabajadorId = trabajador['id'];
     final isSelected = _trabajadoresSeleccionados.contains(trabajadorId);
 
+    return CheckboxListTile(
+      title: Text(
+        trabajador['nombre'],
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text('RUT: ${trabajador['rut']}'),
+      value: isSelected,
+      onChanged: (bool? value) {
+        setState(() {
+          if (value == true) {
+            _trabajadoresSeleccionados.add(trabajadorId);
+          } else {
+            _trabajadoresSeleccionados.remove(trabajadorId);
+          }
+        });
+      },
+      activeColor: const Color(0xFF00B894),
+    );
+  }
+
+  Widget _buildJefesCuadrillaDisponibles() {
+    if (_misJefesCuadrilla.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Card(
       elevation: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: CheckboxListTile(
-        title: Text(
-          trabajador['nombre'],
-          style: const TextStyle(fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.groups, color: Color(0xFF00B894)),
+                const SizedBox(width: 8),
+                Text(
+                  'Jefes de Cuadrilla (${_misJefesCuadrilla.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            ..._misJefesCuadrilla.map((jefe) {
+              final trabajadores = jefe['trabajadores'] ?? [];
+
+              return Card(
+                elevation: 1,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                child: Theme(
+                  data: Theme.of(
+                    context,
+                  ).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFF00B894),
+                      child: Text(
+                        '${trabajadores.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      jefe['nombre'],
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text('RUT: ${jefe['rut']}'),
+                    children: trabajadores.isEmpty
+                        ? [
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Text(
+                                'Sin trabajadores',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          ]
+                        : trabajadores.map<Widget>((t) {
+                            return _buildTrabajadorItem(t);
+                          }).toList(),
+                  ),
+                ),
+              );
+            }).toList(),
+          ],
         ),
-        subtitle: Text('RUT: ${trabajador['rut']}'),
-        value: isSelected,
-        onChanged: (bool? value) {
-          setState(() {
-            if (value == true) {
-              _trabajadoresSeleccionados.add(trabajadorId);
-            } else {
-              _trabajadoresSeleccionados.remove(trabajadorId);
-            }
-          });
-        },
-        activeColor: const Color(0xFF00B894),
       ),
     );
   }
@@ -240,17 +318,22 @@ class TraspasoTrabajadoresScreenState
     List<DropdownMenuItem<String>> items = [];
 
     if (_isSupervisor) {
-      // Supervisor puede traspasar a sus jefes de cuadrilla
+      items.add(
+        const DropdownMenuItem(
+          value: 'recuperar_supervisor',
+          child: Text('🔙 Recuperar para mí'),
+        ),
+      );
+
       for (var jefe in _misJefesCuadrilla) {
         items.add(
           DropdownMenuItem(
             value: 'jefe_${jefe['id']}',
-            child: Text('Jefe de Cuadrilla: ${jefe['nombre']}'),
+            child: Text('Jefe: ${jefe['nombre']}'),
           ),
         );
       }
 
-      // Y a otros supervisores
       for (var supervisor in _otrosSupervisores) {
         items.add(
           DropdownMenuItem(
@@ -260,24 +343,22 @@ class TraspasoTrabajadoresScreenState
         );
       }
     } else if (_isJefeCuadrilla) {
-      // Jefe de cuadrilla puede devolver a su supervisor
       if (_misTrabajadores.isNotEmpty) {
         final supervisorId = _misTrabajadores[0]['supervisor_id'];
         final supervisorNombre = _misTrabajadores[0]['supervisor_nombre'];
         items.add(
           DropdownMenuItem(
             value: 'supervisor_$supervisorId',
-            child: Text('Devolver a Supervisor: $supervisorNombre'),
+            child: Text('Devolver: $supervisorNombre'),
           ),
         );
       }
 
-      // Y traspasar a otros jefes de cuadrilla del mismo supervisor
       for (var jefe in _otrosJefesCuadrilla) {
         items.add(
           DropdownMenuItem(
             value: 'jefe_${jefe['id']}',
-            child: Text('Jefe de Cuadrilla: ${jefe['nombre']}'),
+            child: Text('Jefe: ${jefe['nombre']}'),
           ),
         );
       }
@@ -292,14 +373,14 @@ class TraspasoTrabajadoresScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Destino del Traspaso',
+              'Destino',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'Seleccionar destino',
+                labelText: 'Seleccionar',
               ),
               value: _destinoSeleccionado,
               items: items,
@@ -307,7 +388,9 @@ class TraspasoTrabajadoresScreenState
                 setState(() {
                   _destinoSeleccionado = value;
                   if (value != null) {
-                    if (value.startsWith('jefe_')) {
+                    if (value == 'recuperar_supervisor') {
+                      _tipoDestino = 'recuperar_supervisor';
+                    } else if (value.startsWith('jefe_')) {
                       _tipoDestino = 'jefe_cuadrilla';
                     } else if (value.startsWith('supervisor_')) {
                       _tipoDestino = 'supervisor';
@@ -340,7 +423,7 @@ class TraspasoTrabajadoresScreenState
                 const Icon(Icons.pending_actions, color: Color(0xFF00B894)),
                 const SizedBox(width: 8),
                 Text(
-                  'Solicitudes Pendientes (${_solicitudesPendientes.length})',
+                  'Solicitudes (${_solicitudesPendientes.length})',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -365,13 +448,6 @@ class TraspasoTrabajadoresScreenState
                       const SizedBox(height: 4),
                       Text('Trabajadores: ${solicitud['trabajadores_count']}'),
                       Text('Tipo: ${solicitud['tipo_traspaso']}'),
-                      Text(
-                        'Fecha: ${solicitud['fecha_solicitud']}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -381,9 +457,6 @@ class TraspasoTrabajadoresScreenState
                                 _responderSolicitud(solicitud['id'], false),
                             icon: const Icon(Icons.cancel, color: Colors.red),
                             label: const Text('Rechazar'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
@@ -393,7 +466,6 @@ class TraspasoTrabajadoresScreenState
                             label: const Text('Aprobar'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00B894),
-                              foregroundColor: Colors.white,
                             ),
                           ),
                         ],
@@ -432,11 +504,10 @@ class TraspasoTrabajadoresScreenState
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Mostrar rol del usuario
                 Card(
                   color: const Color(0xFF00B894).withOpacity(0.1),
                   child: Padding(
@@ -465,12 +536,14 @@ class TraspasoTrabajadoresScreenState
 
                 const SizedBox(height: 16),
 
-                // Solicitudes pendientes (solo para supervisores)
                 if (_isSupervisor) _buildSolicitudesPendientes(),
 
                 const SizedBox(height: 16),
 
-                // Mis trabajadores
+                if (_isSupervisor) _buildJefesCuadrillaDisponibles(),
+
+                const SizedBox(height: 16),
+
                 Card(
                   elevation: 2,
                   child: Padding(
@@ -513,13 +586,11 @@ class TraspasoTrabajadoresScreenState
 
                 const SizedBox(height: 16),
 
-                // Selector de destino
                 if (_trabajadoresSeleccionados.isNotEmpty)
                   _buildDestinoSelector(),
 
                 const SizedBox(height: 16),
 
-                // Botón de traspaso
                 if (_trabajadoresSeleccionados.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.all(8),
@@ -529,9 +600,12 @@ class TraspasoTrabajadoresScreenState
                         onPressed: _realizarTraspaso,
                         icon: const Icon(Icons.swap_horiz),
                         label: Text(
-                          _isSupervisor && _tipoDestino == 'jefe_cuadrilla'
-                              ? 'Traspasar (Directo)'
-                              : 'Solicitar Traspaso',
+                          _destinoSeleccionado == 'recuperar_supervisor'
+                              ? 'Recuperar'
+                              : (_isSupervisor &&
+                                        _tipoDestino == 'jefe_cuadrilla'
+                                    ? 'Traspasar'
+                                    : 'Solicitar'),
                           style: const TextStyle(fontSize: 16),
                         ),
                         style: ElevatedButton.styleFrom(

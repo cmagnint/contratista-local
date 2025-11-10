@@ -1598,15 +1598,26 @@ class DataProduccionSerializer(serializers.Serializer):
 
 
 class HorarioSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Horarios
-        fields = ['id', 'holding', 'nombre', 'jornada']  # ✅ AGREGADO 'nombre'
+        fields = [
+            'id', 
+            'holding', 
+            'nombre', 
+            'jornada',
+            'horas_lunes',
+            'horas_martes',
+            'horas_miercoles',
+            'horas_jueves',
+            'horas_viernes',
+            'horas_sabado',
+            'horas_domingo'
+        ]
         extra_kwargs = {
             'holding': {'write_only': True},
             'id': {'read_only': True},
         }
-
+        
 class ProduccionTrabajadorSerializer(serializers.ModelSerializer):
     nombre_sociedad = serializers.SerializerMethodField()
     nombre_usuario_ingresa = serializers.SerializerMethodField()

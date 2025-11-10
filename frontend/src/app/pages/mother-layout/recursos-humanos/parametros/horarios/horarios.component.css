@@ -651,3 +651,15 @@
     transform: scale(1.1);
   }
 }
+
+.modal-section label {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.modal-section input[type="number"] {
+  width: 100%;
+}
