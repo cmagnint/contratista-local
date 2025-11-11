@@ -649,11 +649,217 @@ class HoldingAPIView(APIView):
         serializer = HoldingSerializer(holdings, many=True)
         return Response(serializer.data)
 
+    def _crear_modulos_defecto(self, holding):
+        """Crea módulos, submódulos, perfiles, AFPs y Salud por defecto para un nuevo holding"""
+        
+        # ==================== CREAR PERFILES POR DEFECTO ====================
+        perfiles_defecto = [
+            {'nombre_perfil': 'ADMINISTRADOR PRINCIPAL', 'tipo': 'AMBOS'},
+            {'nombre_perfil': 'SUPERVISOR', 'tipo': 'MOVIL'},
+            {'nombre_perfil': 'JEFE DE CUADRILLA', 'tipo': 'MOVIL'}
+        ]
+        
+        for perfil_data in perfiles_defecto:
+            Perfiles.objects.get_or_create(
+                holding=holding,
+                nombre_perfil=perfil_data['nombre_perfil'],
+                defaults={
+                    'tipo': perfil_data['tipo'],
+                    'estado': True
+                }
+            )
+        
+        # ==================== MÓDULOS WEB ====================
+        modulos_web = [
+            ('ADMINISTRACION', [
+                'PERSONAL',
+                'PERFILES',
+                'USUARIOS',
+                'AREAS/CARGOS ADMINISTRACION',
+                'PARAMETROS ADMINISTRACION',
+                'SOCIEDADES',
+                'AFP',
+                'SALUD'
+            ]),
+            ('RECURSOS HUMANOS', [
+                'CONTRATACION PERSONAL',
+                'CREAR CONTRATO',
+                'CONTRATOS FIRMADOS',
+                'MAESTRO TRABAJADORES',
+                'PARAMETROS RECURSOS HUMANOS',
+                'GENERAR CODIGOS QR',
+                'FORMATOS',
+                'LIBRO DE REMUNERACIONES ELECTRONICO',
+                'CASAS',
+                'HORARIOS',
+                'PARAMETROS RH',
+                'GENERACION CONTRATOS'
+            ]),
+            ('CLIENTES', [
+                'ADMINISTRAR CLIENTES',
+                'AREA/CARGOS CLIENTES',
+                'CONTACTOS',
+                'PARAMETROS CLIENTES'
+            ]),
+            ('COMERCIAL', [
+                'ACUERDO COMERCIAL',
+                'PARAMETROS COMERCIAL',
+                'UNIDAD DE CONTROL',
+                'LABORES'
+            ]),
+            ('TRANSPORTE', [
+                'TRANSPORTISTAS',
+                'VEHICULOS',
+                'CHOFERES',
+                'TRAMOS',
+                'ACUERDO TRANSPORTES',
+                'PAGO TRANSPORTISTA',
+                'PROFORMA',
+                'PARAMETROS TRANSPORTE'
+            ]),
+            ('PAGOS', [
+                'TRANSFERENCIA',
+                'EFECTIVO',
+                'PAGOS REALIZADOS',
+                'REPROCESAR PAGO'
+            ]),
+            ('INFORMES', [
+                'INFORME RENDIMIENTO',
+                'INFORME PAGO',
+                'INFORME TRANSPORTISTA'
+            ]),
+            ('LEYES SOCIALES', [
+                'INFORME DIAS TRABAJADOS',
+                'HABERES DESCUENTOS',
+                'ARCHIVO PREVIRED',
+                'LIQUIDACIONES',
+                'ASIGNACION HABERES',
+                'ASIGNACION DESCUENTOS',
+                'PARAMETROS LEYES SOCIALES'
+            ]),
+            ('COSTOS', [
+                'FACTURAS COMPRA AUTOMATICO',
+                'FACTURAS COMPRA DISTRIBUIDAS',
+                'PARAMETROS FACTURA COMPRA',
+                'FACTURAS VENTA AUTOMATICO',
+                'FACTURAS VENTA DISTRIBUIDAS',
+                'PARAMETROS FACTURA VENTA',
+                'CUENTAS',
+                'PARAMETROS COSTOS',
+                'FACTURAS COMPRAS',
+                'FACTURAS VENTAS'
+            ]),
+            ('TESORERIA', [
+                'PAGOS INGRESOS',
+                'PAGOS EGRESOS',
+                'HISTORIAL PAGOS'
+            ])
+        ]
+
+        
+        for modulo_nombre, submodulos in modulos_web:
+            modulo = ModulosWeb.objects.create(
+                nombre=modulo_nombre,
+                holding=holding
+            )
+            for submodulo_nombre in submodulos:
+                SubModulosWeb.objects.create(
+                    nombre=submodulo_nombre,
+                    holding=holding,
+                    modulo=modulo
+                )
+        
+        # ==================== MÓDULOS MÓVIL ====================
+        modulos_movil = [
+            ('GESTION TRABAJADORES', [
+                'ENROLLAR TRABAJADOR', 'ASIGNAR QR'
+            ]),
+            ('MANO DE OBRA', [
+                'INGRESAR RENDIMIENTO PERSONA MANO OBRA',
+                'INFORMES PERSONA MANO OBRA',
+                'INGRESAR RENDIMIENTO CUADRILLA MANO OBRA',
+                'INFORMES CUADRILLA MANO OBRA'
+            ]),
+            ('COSECHA', [
+                'INGRESAR RENDIMIENTO PERSONA COSECHA',
+                'INFORMES PERSONA COSECHA',
+                'INGRESAR RENDIMIENTO CUADRILLA COSECHA',
+                'INFORMES CUADRILLA COSECHA'
+            ])
+        ]
+        
+        for modulo_nombre, submodulos in modulos_movil:
+            modulo = ModulosMovil.objects.create(
+                nombre=modulo_nombre,
+                holding=holding
+            )
+            for submodulo_nombre in submodulos:
+                SubModulosMovil.objects.create(
+                    nombre=submodulo_nombre,
+                    holding=holding,
+                    modulo=modulo
+                )
+        
+        # ==================== CREAR AFPs POR DEFECTO ====================
+        afps_defecto = [
+            {'codigo': 0, 'nombre': 'NO ESTÁ EN AFP', 'cotizacion': 0.00, 'comision': 0.00, 'cargo_empleador': 0.00, 'seguro_social': 0.00},
+            {'codigo': 3, 'nombre': 'CUPRUM', 'cotizacion': 10.00, 'comision': 1.44, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+            {'codigo': 5, 'nombre': 'HABITAT', 'cotizacion': 10.00, 'comision': 1.27, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+            {'codigo': 8, 'nombre': 'PROVIDA', 'cotizacion': 10.00, 'comision': 1.45, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+            {'codigo': 29, 'nombre': 'PLANVITAL', 'cotizacion': 10.00, 'comision': 1.16, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+            {'codigo': 33, 'nombre': 'CAPITAL', 'cotizacion': 10.00, 'comision': 1.44, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+            {'codigo': 34, 'nombre': 'MODELO', 'cotizacion': 10.00, 'comision': 0.58, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+            {'codigo': 35, 'nombre': 'UNO', 'cotizacion': 10.00, 'comision': 0.49, 'cargo_empleador': 0.10, 'seguro_social': 0.90},
+        ]
+        
+        for afp_data in afps_defecto:
+            AFPTrabajadores.objects.get_or_create(
+                holding=holding,
+                codigo=afp_data['codigo'],
+                defaults={
+                    'nombre': afp_data['nombre'],
+                    'porcentaje_cotizacion_individual': afp_data['cotizacion'],
+                    'comision_afp': afp_data['comision'],
+                    'porcentaje_cargo_empleador': afp_data['cargo_empleador'],
+                    'porcentaje_seguro_social': afp_data['seguro_social']
+                }
+            )
+        
+        # ==================== CREAR SALUD POR DEFECTO ====================
+        salud_defecto = [
+            {'codigo': 0, 'nombre': 'SIN ISAPRE', 'porcentaje': 7.00},
+            {'codigo': 1, 'nombre': 'BANMEDICA', 'porcentaje': 7.00},
+            {'codigo': 2, 'nombre': 'CONSALUD', 'porcentaje': 7.00},
+            {'codigo': 3, 'nombre': 'VIDATRES', 'porcentaje': 7.00},
+            {'codigo': 4, 'nombre': 'COLMENA', 'porcentaje': 7.00},
+            {'codigo': 5, 'nombre': 'ISAPRE CRUZ BLANCA S.A.', 'porcentaje': 7.00},
+            {'codigo': 7, 'nombre': 'FONASA', 'porcentaje': 7.00},
+            {'codigo': 10, 'nombre': 'NUEVA MASVIDA', 'porcentaje': 7.00},
+            {'codigo': 11, 'nombre': 'ISAPRE DE CODELCO LTDA.', 'porcentaje': 7.00},
+            {'codigo': 12, 'nombre': 'ISAPRE BCO. ESTADO', 'porcentaje': 7.00},
+            {'codigo': 25, 'nombre': 'CRUZ DEL NORTE', 'porcentaje': 7.00},
+        ]
+        
+        for salud_data in salud_defecto:
+            SaludTrabajadores.objects.get_or_create(
+                holding=holding,
+                codigo=salud_data['codigo'],
+                defaults={
+                    'nombre': salud_data['nombre'],
+                    'porcentaje': salud_data['porcentaje']
+                }
+            )
+
     def post(self, request, format=None):
         serializer = HoldingSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            holding = serializer.save()
+            
+            # Crear módulos y submódulos por defecto
+            self._crear_modulos_defecto(holding)
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -808,15 +1014,35 @@ class AdminAPIView(APIView):
         
         try:
             with transaction.atomic():
+                holding_id = data.get('holding')
+                
                 # Limpiar RUT (solo números y K)
                 rut_limpio = re.sub(r'[^0-9kK]', '', data.get('rut', ''))
                 
-                # Paso 1: Crear PersonalTrabajadores
+                # ==================== CREAR ÁREA Y CARGO SI NO EXISTEN ====================
+                area_admin, area_created = AreasAdministracion.objects.get_or_create(
+                    holding_id=holding_id,
+                    nombre='ADMINISTRACION',
+                    defaults={'nombre': 'ADMINISTRACION'}
+                )
+                
+                cargo_admin, cargo_created = CargosAdministracion.objects.get_or_create(
+                    holding_id=holding_id,
+                    area=area_admin,
+                    nombre='ADMINISTRADOR PRINCIPAL',
+                    defaults={
+                        'nombre': 'ADMINISTRADOR PRINCIPAL',
+                        'area': area_admin
+                    }
+                )
+                
+                # ==================== CREAR PERSONALTRABAJADORES ====================
                 persona_data = {
-                    'holding_id': data.get('holding'),
+                    'holding_id': holding_id,
                     'nombres': data.get('nombre', '').upper(),
                     'rut': rut_limpio,
-                    'cargo_id': 1,  # Asumiendo que cargo_id=1 es para administradores
+                    'cargo': cargo_admin,
+                    'area': area_admin,
                     'estado': True
                 }
                 
@@ -830,8 +1056,7 @@ class AdminAPIView(APIView):
                 
                 persona = PersonalTrabajadores.objects.create(**persona_data)
 
-                # Paso 2: Verificar/Crear perfil "ADMINISTRADOR PRINCIPAL"
-                holding_id = data.get('holding')
+                # ==================== CREAR/OBTENER PERFIL ====================
                 perfil, created = Perfiles.objects.get_or_create(
                     holding_id=holding_id,
                     nombre_perfil='ADMINISTRADOR PRINCIPAL',
@@ -840,23 +1065,32 @@ class AdminAPIView(APIView):
                         'estado': True
                     }
                 )
+                
+                # ==================== ASIGNAR MÓDULOS Y SUBMÓDULOS WEB ====================
+                # Obtener todos los módulos web del holding
+                modulos_web = ModulosWeb.objects.filter(holding_id=holding_id)
+                perfil.modulos_web.set(modulos_web)
+                
+                # Obtener todos los submódulos web del holding
+                submodulos_web = SubModulosWeb.objects.filter(holding_id=holding_id)
+                perfil.submodulos_web.set(submodulos_web)
+                
+                print(f"✅ Asignados {modulos_web.count()} módulos y {submodulos_web.count()} submódulos al perfil")
 
-                # Paso 3: Verificar si ya existe un admin para este holding
+                # ==================== VERIFICAR ADMIN EXISTENTE ====================
                 existing_admin = Usuarios.objects.filter(
                     holding_id=holding_id,
                     is_admin=True
                 ).first()
                 
                 if existing_admin:
-                    # Eliminar la persona creada si ya hay un admin
                     persona.delete()
                     return Response(
                         {"message": f"Ya existe un administrador principal para este holding"}, 
                         status=status.HTTP_400_BAD_REQUEST
                     )
-               
 
-                # Paso 4: Crear usuario administrador
+                # ==================== CREAR USUARIO ADMINISTRADOR ====================
                 usuario_data = {
                     'holding_id': holding_id,
                     'persona': persona,
@@ -867,7 +1101,7 @@ class AdminAPIView(APIView):
                     'estado': True
                 }
                 
-                # Verificar si ya existe usuario con ese email o RUT
+                # Verificar email y RUT duplicados
                 if Usuarios.objects.filter(email=data.get('email')).exists():
                     persona.delete()
                     return Response(
@@ -884,12 +1118,11 @@ class AdminAPIView(APIView):
 
                 admin = Usuarios.objects.create(**usuario_data)
                 
-                # Si se proporciona contraseña, establecerla
+                # Establecer contraseña
                 if data.get('password'):
                     admin.set_password(data.get('password'))
                     admin.save()
 
-                # Serializar respuesta
                 serializer = AdminSerializer(admin)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
                     
