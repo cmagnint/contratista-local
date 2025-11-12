@@ -3331,7 +3331,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             )
         else:
             print("Creando nuevo trabajador")
-            # ⭐ AGREGAR FECHA_INGRESO SI NO EXISTE
             if 'fecha_ingreso' not in data or not data['fecha_ingreso']:
                 data['fecha_ingreso'] = timezone.now().date()
                 print(f"✅ Fecha de ingreso asignada: {data['fecha_ingreso']}")
@@ -3342,29 +3341,62 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             print("✅ Serializer válido")
             personal = serializer.save()
             
-            # ✅ DEBUG SUPERVISOR
+            # ✅ VALIDAR Y ASIGNAR SUPERVISOR (OBLIGATORIO)
             supervisor_id = data.get('codigo_supervisor')
             print(f"🔍 supervisor_id recibido: {supervisor_id} (tipo: {type(supervisor_id)})")
             
+            if not supervisor_id:
+                print(f"❌ No se recibió supervisor_id")
+                return Response(
+                    {'error': 'El supervisor es obligatorio'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             try:
-                if supervisor_id:
-                    supervisor = Supervisores.objects.filter(id=supervisor_id).first()
-                    print(f"🔍 Supervisor encontrado: {supervisor}")
-                    if supervisor:
-                        supervisor.trabajadores.add(personal)
-                        supervisor.save()  # ⭐ AGREGAR SAVE EXPLÍCITO
-                        print(f"✅ Trabajador {personal.id} asignado al supervisor {supervisor.id}")
-                        print(f"🔍 Total trabajadores del supervisor: {supervisor.trabajadores.count()}")
-                    else:
-                        print(f"❌ Supervisor ID {supervisor_id} no encontrado en BD")
-                else:
-                    print(f"⚠️ No se recibió supervisor_id")
+                supervisor = Supervisores.objects.filter(id=supervisor_id).first()
+                print(f"🔍 Supervisor encontrado: {supervisor}")
+                
+                if not supervisor:
+                    print(f"❌ Supervisor ID {supervisor_id} no encontrado en BD")
+                    return Response(
+                        {'error': f'Supervisor con ID {supervisor_id} no encontrado'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                supervisor.trabajadores.add(personal)
+                supervisor.save()
+                print(f"✅ Trabajador {personal.id} asignado al supervisor {supervisor.id}")
+                print(f"🔍 Total trabajadores del supervisor: {supervisor.trabajadores.count()}")
+                
             except Exception as e:
                 print(f"❌ Error asignando supervisor: {e}")
                 import traceback
                 print(traceback.format_exc())
+                return Response(
+                    {'error': f'Error al asignar supervisor: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
-            # ✅ DEBUG HORARIO
+            # ✅ ASIGNAR JEFE DE CUADRILLA (OPCIONAL)
+            jefe_cuadrilla_id = data.get('jefe_cuadrilla')
+            print(f"🔍 jefe_cuadrilla_id recibido: {jefe_cuadrilla_id}")
+            
+            if jefe_cuadrilla_id:
+                try:
+                    jefe = JefesDeCuadrilla.objects.filter(id=jefe_cuadrilla_id).first()
+                    if jefe:
+                        jefe.trabajadores.add(personal)
+                        jefe.save()
+                        print(f"✅ Trabajador {personal.id} asignado al jefe de cuadrilla {jefe.id}")
+                        print(f"🔍 Total trabajadores del jefe: {jefe.trabajadores.count()}")
+                    else:
+                        print(f"⚠️ Jefe de cuadrilla ID {jefe_cuadrilla_id} no encontrado")
+                except Exception as e:
+                    print(f"❌ Error asignando jefe de cuadrilla: {e}")
+                    import traceback
+                    print(traceback.format_exc())
+            
+            # ✅ CREAR CONTRATO Y ASISTENCIA
             try:
                 folio_id = data.get('folio')
                 horario_id = data.get('horario')
@@ -3374,7 +3406,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     folio = FolioComercial.objects.get(id=folio_id)
                     print(f"🔍 Folio encontrado: {folio.id}")
                     
-                    # ✅ BUSCAR HORARIO
+                    # Buscar horario
                     horario = None
                     if horario_id:
                         horario = Horarios.objects.filter(id=horario_id).first()
@@ -3384,6 +3416,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     else:
                         print(f"⚠️ No se recibió horario_id")
                     
+                    # Crear relación de transporte si aplica
                     trabajador_transporte = None
                     if data.get('transportista') or data.get('vehiculo'):
                         trabajador_transporte = TrabajadorEmpresaTransporte.objects.create(
@@ -3392,7 +3425,9 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                             transportista_id=data.get('transportista'),
                             vehiculo_id=data.get('vehiculo')
                         )
+                        print(f"✅ Relación transporte creada: {trabajador_transporte.id}")
 
+                    # Crear contrato
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
@@ -3406,42 +3441,24 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     )
                     print(f"✅ Contrato ID: {contrato.id}, horario_id: {contrato.horario_id}")
                     
-                    # ✅ CREAR ASISTENCIA AUTOMÁTICA
-                    # Usar fecha_ingreso si existe, sino fecha actual
-                    if personal.fecha_ingreso:
-                        fecha_asistencia = personal.fecha_ingreso
+                    # Crear asistencia automática
+                    fecha_asistencia = personal.fecha_ingreso if personal.fecha_ingreso else timezone.now().date()
+                    
+                    asistencia, created = RegistroAsistencia.objects.get_or_create(
+                        trabajador=personal,
+                        fecha_asistencia=fecha_asistencia,
+                        defaults={
+                            'holding_id': data.get('holding'),
+                            'supervisor': supervisor,
+                            'estado': 'A',
+                            'horas_registradas': horario.jornada if horario else 9.0,
+                            'modificado_por': request.user
+                        }
+                    )
+                    if created:
+                        print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horario.jornada if horario else 9.0}h - Supervisor: {supervisor.id}")
                     else:
-                        fecha_asistencia = timezone.now().date()
-                    
-                    # ✅ USAR EL SUPERVISOR ENVIADO DESDE EL FRONT
-                    supervisor = None
-                    if supervisor_id:
-                        supervisor = Supervisores.objects.filter(id=supervisor_id).first()
-                    
-                    # Si no viene supervisor del front, buscar cualquier supervisor del holding
-                    if not supervisor:
-                        supervisor = Supervisores.objects.filter(
-                            holding_id=data.get('holding')
-                        ).first()
-                    
-                    if supervisor:
-                        asistencia, created = RegistroAsistencia.objects.get_or_create(
-                            trabajador=personal,
-                            fecha_asistencia=fecha_asistencia,
-                            defaults={
-                                'holding_id': data.get('holding'),
-                                'supervisor': supervisor,
-                                'estado': 'A',
-                                'horas_registradas': horario.jornada if horario else 9.0,
-                                'modificado_por': request.user
-                            }
-                        )
-                        if created:
-                            print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horario.jornada if horario else 9.0}h - Supervisor: {supervisor.id}")
-                        else:
-                            print(f"ℹ️ Ya existe asistencia para {personal.nombres}")
-                    else:
-                        print(f"⚠️ No hay supervisor en holding {data.get('holding')}")
+                        print(f"ℹ️ Ya existe asistencia para {personal.nombres}")
                     
             except FolioComercial.DoesNotExist:
                 print(f"❌ Folio ID {folio_id} no encontrado")

@@ -1083,6 +1083,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'sociedad': userInfo.sociedad,
           'fecha_ingreso': DateTime.now().toIso8601String().split('T')[0],
           'codigo_supervisor': widget.initialData['supervisor'] ?? '',
+          'jefe_cuadrilla': widget.initialData['jefe_cuadrilla'] ?? '',
           'folio': widget.initialData['folio'] ?? '',
           'fundo': widget.initialData['fundo'] ?? '',
           'labor': widget.initialData['labor'] ?? '',

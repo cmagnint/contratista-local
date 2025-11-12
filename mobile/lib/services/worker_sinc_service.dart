@@ -138,10 +138,11 @@ class WorkerSyncService {
         'fundo',
         'casa',
         'labor',
-        'horario', // ✅ AGREGADO
-        'transportista', // ✅ AGREGADO
+        'horario',
+        'transportista',
         'rut',
         'codigo_supervisor',
+        'jefe_cuadrilla',
         'dni',
         'nic',
         'apellidos',
