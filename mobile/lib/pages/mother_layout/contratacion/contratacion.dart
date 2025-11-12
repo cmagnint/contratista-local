@@ -1,6 +1,3 @@
-//contratacion.dart; Contratista - CON FLUJO AUTOMÃTICO
-// ignore_for_file: deprecated_member_use, no_leading_underscores_for_local_identifiers
-
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -2087,7 +2084,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
             children: [
               BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                child: Container(color: Colors.black.withOpacity(0.5)),
+                child: Container(color: Colors.black.withValues(alpha: 0.5)),
               ),
               Center(
                 child: Column(

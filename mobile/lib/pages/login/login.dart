@@ -751,7 +751,7 @@ class LoginScreenState extends State<LoginScreen>
                     radius: 0.8,
                     colors: [
                       _animation.value!,
-                      _animation.value!.withOpacity(0.5),
+                      _animation.value!.withValues(alpha: 0.5),
                     ],
                     stops: const [0.5, 1.0],
                   ),
