@@ -104,8 +104,6 @@ export class PersonalComponent implements OnInit {
   public numeroCuenta: string | null = null;
   public nacionalidadTrabajador: string = 'CHILENA';
   public fechaIngreso: string | null = null;
-  public casaTrabajador: number | null = null;
-  public fundoTrabajador: number | null = null;
   public fechaNacimiento: string | null = null;
   public estadoCivil: string = 'SOLTERO(A)';
 
@@ -119,8 +117,6 @@ export class PersonalComponent implements OnInit {
   public tipoCuentaNew: string = '';
   public numeroCuentaNew: string = '';
   public nacionalidadTrabajadorNew: string = 'CHILENA';
-  public casaTrabajadorNew: number | null = null;
-  public fundoTrabajadorNew: number | null = null;
   public fechaNacimientoNew: string | null = null;
   public estadoCivilNew: string = '';
 
@@ -141,12 +137,6 @@ export class PersonalComponent implements OnInit {
 
   public bancosCargados: any[] = []
   public selectedBancoId: number | null = null;
-
-  public casasCargadas: any[] = [];
-  public selectedCasaId: number | null = null;
-
-  public fundosCargados: any[] = [];
-  public selectedFundoId: number | null = null;
 
   public trabajadorSeleccionadoBanco: any = null;
   public trabajadorSeleccionadoDocs: any = null;
@@ -171,7 +161,7 @@ export class PersonalComponent implements OnInit {
     'codigo', 'sociedad', 'area', 'cargo', 'nombre', 'apellidos', 'rut', 'dni', 'nic',
     'direccion', 'sexo', 'telefono', 'nacionalidad', 'correo', 
     'fecha_ingreso', 'fecha_nacimiento', 'estado_civil', 'afp', 'salud', 
-    'metodo_pago', 'banco_info', 'casa', 'fundo', 'documentos', 'estado'
+    'metodo_pago', 'banco_info', 'documentos', 'estado'
   ];
   
   public nombreTrabajadorNew: string = '';
@@ -190,8 +180,6 @@ export class PersonalComponent implements OnInit {
       this.cargaAfp();
       this.cargarSalud();
       this.cargarBancos();
-      this.cargarCasas();
-      this.cargarFundos();
       this.setDefaultFechaCelebracion();
       this.nacionalidadesFiltradas = [...this.todasLasNacionalidades];
     }
@@ -310,30 +298,6 @@ export class PersonalComponent implements OnInit {
     });
   }
 
-  cargarCasas(): void {
-    this.contratistaApiService.get(`api_casas_trabajadores/?holding=${this.holding}`).subscribe({
-      next: (response) => {
-        this.casasCargadas = response;
-        console.log('Casas cargadas:', this.casasCargadas);
-      },
-      error: (error) => {
-        console.error('Error al cargar casas:', error);
-      }
-    });
-  }
-
-  cargarFundos(): void {
-    this.contratistaApiService.get(`api_campos_clientes/?holding_id=${this.holding}`).subscribe({
-      next: (response) => {
-        this.fundosCargados = response;
-        console.log('Fundos cargados:', this.fundosCargados);
-      },
-      error: (error) => {
-        console.error('Error al cargar fundos:', error);
-      }
-    });
-  }
-
   cargarTrabajadores():void{
   this.contratistaApiService.get(`api_personal/?holding=${this.holding}`).subscribe({
     next: (response) => {
@@ -382,8 +346,6 @@ export class PersonalComponent implements OnInit {
       banco: this.selectedBancoId,
       tipo_cuenta_bancaria: this.tipoCuenta,
       numero_cuenta: this.numeroCuenta,
-      casa: this.selectedCasaId,
-      fundo: this.selectedFundoId,
       fecha_nacimiento: this.fechaNacimiento,
       estado_civil: this.estadoCivil
     }
@@ -422,8 +384,6 @@ export class PersonalComponent implements OnInit {
       banco: this.selectedBancoId,
       tipo_cuenta_bancaria: this.tipoCuentaNew,
       numero_cuenta: this.numeroCuentaNew,
-      casa: this.selectedCasaId,
-      fundo: this.selectedFundoId,
       fecha_nacimiento: this.fechaNacimientoNew,
       estado_civil: this.estadoCivilNew
     };
@@ -522,22 +482,6 @@ export class PersonalComponent implements OnInit {
     }
   }
 
-  toggleSelectionCasa(casaId: number): void {
-    if (this.selectedCasaId === casaId) {
-      this.selectedCasaId = null;
-    } else {
-      this.selectedCasaId = casaId;
-    }
-  }
-
-  toggleSelectionFundo(fundoId: number): void {
-    if (this.selectedFundoId === fundoId) {
-      this.selectedFundoId = null;
-    } else {
-      this.selectedFundoId = fundoId;
-    }
-  }
-
   getNombreSociedadSeleccionada(): string {
     if (this.selectedSociedadId) {
       const sociedad = this.sociedadesCargadas.find(s => s.id === this.selectedSociedadId);
@@ -586,22 +530,6 @@ export class PersonalComponent implements OnInit {
     return '';
   }
 
-  getNombreCasaSeleccionada(): string {
-    if (this.selectedCasaId) {
-      const casa = this.casasCargadas.find(c => c.id === this.selectedCasaId);
-      return casa ? casa.nombre : '';
-    }
-    return '';
-  }
-
-  getNombreFundoSeleccionado(): string {
-    if (this.selectedFundoId) {
-      const fundo = this.fundosCargados.find(f => f.id === this.selectedFundoId);
-      return fundo ? fundo.nombre_campo : '';
-    }
-    return '';
-  }
-
   isSelected(row: any): boolean {
     return this.selectedRows.some(r => r.id === row.id);
   }
@@ -610,19 +538,32 @@ export class PersonalComponent implements OnInit {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
+    // ✅ Permite K/k además de números
+    let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
+    
+    if (rut.length === 0) {
+      target.value = '';
+      return;
+    }
+    
     const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-        parts.unshift(rut.slice(-3));
-        rut = rut.slice(0, -3);
+    let body = rut.slice(0, -1);
+    
+    if (body.length === 0) {
+      target.value = verifier;
+      return;
     }
-    parts.unshift(rut);
+    
+    const parts: string[] = [];
+    while (body.length > 3) {
+      parts.unshift(body.slice(-3));
+      body = body.slice(0, -3);
+    }
+    if (body.length > 0) {
+      parts.unshift(body);
+    }
+    
     target.value = parts.join('.') + '-' + verifier;
-    if (target.value === '-') {
-        target.value = '';
-    }
   }
 
   validateNumber(event: KeyboardEvent) {
@@ -724,7 +665,7 @@ export class PersonalComponent implements OnInit {
       return path;
     }
     
-    const baseUrl = 'http://localhost';
+    const baseUrl = 'http://contratista.terramobile.cl';
     return `${baseUrl}${path}`;
   }
 
@@ -766,9 +707,6 @@ export class PersonalComponent implements OnInit {
       this.selectedAfpId = selectedRow.afp;
       this.selectedSaludId = selectedRow.salud;
       this.selectedBancoId = selectedRow.banco;
-      this.selectedCasaId = selectedRow.casa;
-      this.selectedFundoId = selectedRow.fundo;
-
       // Normalizar método de pago
       if (this.metodoPagoNew?.toUpperCase() === 'TRANSFERENCIA') {
         this.metodoPagoNew = 'Transferencia';
@@ -801,8 +739,6 @@ export class PersonalComponent implements OnInit {
     this.selectedAfpId = null;
     this.selectedSaludId = null;
     this.selectedBancoId = null;
-    this.selectedCasaId = null;
-    this.selectedFundoId = null;
     
     Object.keys(this.dropdownStates).forEach(key => {
       this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
@@ -820,16 +756,12 @@ export class PersonalComponent implements OnInit {
     this.nacionalidadTrabajador = 'CHILENA';
     this.fechaNacimiento = null;
     this.estadoCivil = 'SOLTERO(A)';
-    
     this.selectedSociedadId = null;
     this.selectedAreaId = null;
     this.selectedCargoId = null;
     this.selectedAfpId = null;
     this.selectedSaludId = null;
     this.selectedBancoId = null;
-    this.selectedCasaId = null;
-    this.selectedFundoId = null;
-    
     this.metodoPago = 'Sin Pago';
     this.banco = null;
     this.tipoCuenta = null;

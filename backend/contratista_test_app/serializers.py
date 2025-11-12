@@ -1023,8 +1023,6 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
     nombre_afp = serializers.SerializerMethodField()
     nombre_salud = serializers.SerializerMethodField()
     nombre_sociedad = serializers.SerializerMethodField()
-    nombre_casa = serializers.SerializerMethodField()
-    nombre_fundo = serializers.SerializerMethodField()
     nombre_banco = serializers.SerializerMethodField()
     rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
@@ -1039,9 +1037,9 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'holding', 'sociedad', 'nombre_sociedad', 'area', 'nombre_area', 'cargo', 'nombre_cargo', 'nombres', 'apellidos',
             'rut', 'dni', 'nic', 'direccion', 'afp', 'nombre_afp', 'salud','nombre_salud', 'fecha_ingreso',
-            'fecha_finiquito', 'metodo_pago', 'banco','nombre_banco', 'tipo_cuenta_bancaria',
+            'metodo_pago', 'banco','nombre_banco', 'tipo_cuenta_bancaria',
             'numero_cuenta', 'nacionalidad', 'sexo', 'telefono', 'correo', 'estado', 'carnet_front_image','carnet_back_image',
-            'firma', 'estado_civil', 'fecha_nacimiento', 'casa', 'nombre_casa', 'fundo', 'nombre_fundo', 'sueldo_base'
+            'firma', 'estado_civil', 'fecha_nacimiento', 'sueldo_base'
         ]
         extra_kwargs = {
             'holding': {'write_only': True},
@@ -1051,11 +1049,6 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
     def get_nombre_banco(self, obj):
         if obj.banco:
             return obj.banco.nombre
-        return None
-
-    def get_nombre_fundo(self, obj):
-        if obj.fundo:
-            return obj.fundo.nombre_campo
         return None
 
     def get_nombre_area(self, obj):
@@ -1083,11 +1076,6 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
             return obj.sociedad.nombre
         return None
 
-    def get_nombre_casa(self, obj):
-        if obj.casa:
-            return obj.casa.nombre
-        return None
-
     def create(self, validated_data):
         # Manejar la carga de archivos de manera específica si es necesario
         carnet_front = validated_data.pop('carnet_front_image', None)
@@ -1113,7 +1101,113 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
         validated_data.pop('firma', None)
         
         return super().update(instance, validated_data)
+
+
+class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
+    """
+    Serializer para la creación de trabajadores desde móviles.
+    """
+    carnet_front_image = serializers.ImageField(required=False, allow_null=True)
+    carnet_back_image = serializers.ImageField(required=False, allow_null=True)
+    firma = serializers.ImageField(required=False, allow_null=True)
     
+    rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    nic = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    
+    class Meta:
+        model = PersonalTrabajadores
+        fields = [
+            'id', 'holding', 'sociedad', 'area', 'cargo', 
+            'afp', 'salud', 'banco',
+            
+            'nombres', 'apellidos', 'rut', 'dni', 'nic', 
+            'nacionalidad', 'sexo', 'estado_civil', 'telefono', 
+            'correo', 'direccion', 'fecha_nacimiento',
+            
+            'fecha_ingreso',
+            
+            'metodo_pago', 'tipo_cuenta_bancaria', 'numero_cuenta',
+            
+            'carnet_front_image', 'carnet_back_image', 'firma',
+            
+            'estado', 'sueldo_base',
+        ]
+        
+        extra_kwargs = {
+            'id': {'read_only': True},
+            'holding': {'write_only': True},
+            
+            'sociedad': {'required': False, 'allow_null': True},
+            'area': {'required': False, 'allow_null': True},
+            'cargo': {'required': False, 'allow_null': True},
+            'afp': {'required': False, 'allow_null': True},
+            'salud': {'required': False, 'allow_null': True},
+            'banco': {'required': False, 'allow_null': True},
+            
+            'apellidos': {'required': False, 'allow_blank': True},
+            'nacionalidad': {'required': False, 'allow_blank': True},
+            'sexo': {'required': False, 'allow_blank': True},
+            'estado_civil': {'required': False, 'allow_blank': True},
+            'telefono': {'required': False, 'allow_blank': True},
+            'correo': {'required': False, 'allow_blank': True},
+            'direccion': {'required': False, 'allow_blank': True},
+            'metodo_pago': {'required': False, 'allow_blank': True},
+            'tipo_cuenta_bancaria': {'required': False, 'allow_blank': True},
+            
+            'fecha_nacimiento': {'required': False, 'allow_null': True},
+            'fecha_ingreso': {'required': False, 'allow_null': True},
+            
+            'numero_cuenta': {'required': False, 'allow_null': True},
+            'sueldo_base': {'required': False, 'allow_null': True},
+            'estado': {'default': True},
+        }
+    
+    def to_internal_value(self, data):
+        valid_fields = set(self.Meta.fields)
+        filtered_data = {}
+        ignored_fields = []
+        
+        for key, value in data.items():
+            if key in valid_fields:
+                if key in ['numero_cuenta'] and value in ('', 'null', 'undefined', None):
+                    filtered_data[key] = None
+                else:
+                    filtered_data[key] = value
+            else:
+                ignored_fields.append(f"{key}={value}")
+        
+        if ignored_fields:
+            print(f"[DEBUG] Campos ignorados: {', '.join(ignored_fields)}")
+        
+        return super().to_internal_value(filtered_data)
+    
+    def validate(self, data):
+        rut = data.get('rut', '').strip() if data.get('rut') else ''
+        dni = data.get('dni', '').strip() if data.get('dni') else ''
+        
+        if not rut and not dni:
+            raise serializers.ValidationError(
+                "Debe proporcionar RUT (para chilenos) o DNI (para extranjeros)"
+            )
+        
+        nombres = data.get('nombres', '').strip() if data.get('nombres') else ''
+        
+        if not nombres:
+            raise serializers.ValidationError("Los nombres son obligatorios")
+            
+        return data
+    
+    def create(self, validated_data):
+        return PersonalTrabajadores.objects.create(**validated_data)
+    
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+    
+
 class UnidadControlSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -1408,153 +1502,6 @@ class FolioComercialSerializer(serializers.ModelSerializer):
 #-------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------
 
-
-class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
-    """
-    Serializer para la creación de trabajadores desde móviles.
-    CORREGIDO: Solo campos que existen en el modelo con tipos correctos.
-    """
-    carnet_front_image = serializers.ImageField(required=False, allow_null=True)
-    carnet_back_image = serializers.ImageField(required=False, allow_null=True)
-    firma = serializers.ImageField(required=False, allow_null=True)
-    
-    # Campos opcionales para trabajadores chilenos/extranjeros
-    rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    nic = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    
-    class Meta:
-        model = PersonalTrabajadores
-        fields = [
-            # Campos básicos que SÍ existen en el modelo
-            'id', 'holding', 'sociedad', 'fundo', 'area', 'cargo', 
-            'afp', 'salud', 'banco', 'casa', 'transportista', 'vehiculo',
-            
-            
-            # Información personal
-            'nombres', 'apellidos', 'rut', 'dni', 'nic', 
-            'nacionalidad', 'sexo', 'estado_civil', 'telefono', 
-            'correo', 'direccion', 'fecha_nacimiento',
-            
-            # Fechas laborales
-            'fecha_ingreso', 'fecha_finiquito',
-            
-            # Información bancaria
-            'metodo_pago', 'tipo_cuenta_bancaria', 'numero_cuenta',
-            
-            # Archivos
-            'carnet_front_image', 'carnet_back_image', 'firma',
-            
-            # Otros campos
-            'estado', 'sueldo_base',
-        ]
-        
-        extra_kwargs = {
-            'id': {'read_only': True},
-            'holding': {'write_only': True},
-            
-            # ForeignKeys - SOLO allow_null, NO allow_blank
-            'sociedad': {'required': False, 'allow_null': True},
-            'fundo': {'required': False, 'allow_null': True},
-            'area': {'required': False, 'allow_null': True},
-            'cargo': {'required': False, 'allow_null': True},
-            'afp': {'required': False, 'allow_null': True},
-            'salud': {'required': False, 'allow_null': True},
-            'banco': {'required': False, 'allow_null': True},
-            'casa': {'required': False, 'allow_null': True},
-            'transportista': {'required': False, 'allow_null': True},
-            'vehiculo': {'required': False, 'allow_null': True},
-            
-            # CharFields/TextFields - allow_blank=True
-            'apellidos': {'required': False, 'allow_blank': True},
-            'nacionalidad': {'required': False, 'allow_blank': True},
-            'sexo': {'required': False, 'allow_blank': True},
-            'estado_civil': {'required': False, 'allow_blank': True},
-            'telefono': {'required': False, 'allow_blank': True},
-            'correo': {'required': False, 'allow_blank': True},
-            'direccion': {'required': False, 'allow_blank': True},
-            'metodo_pago': {'required': False, 'allow_blank': True},
-            'tipo_cuenta_bancaria': {'required': False, 'allow_blank': True},
-            
-            # DateFields - allow_null=True
-            'fecha_nacimiento': {'required': False, 'allow_null': True},
-            'fecha_ingreso': {'required': False, 'allow_null': True},
-            'fecha_finiquito': {'required': False, 'allow_null': True},
-            
-            # IntegerField
-            'numero_cuenta': {'required': False, 'allow_null': True},
-            
-            # DecimalField
-            'sueldo_base': {'required': False, 'allow_null': True},
-            
-            # BooleanField
-            'estado': {'default': True},
-        }
-
-    def to_internal_value(self, data):
-        """
-        Filtrar automáticamente campos que NO existen en el modelo
-        y limpiar campos enteros que pueden llegar vacíos
-        """
-        # Campos válidos según el modelo PersonalTrabajadores
-        valid_fields = set(self.Meta.fields)
-        
-        # Filtrar solo campos válidos
-        filtered_data = {}
-        ignored_fields = []
-        
-        for key, value in data.items():
-            if key in valid_fields:
-                # Limpiar campos enteros que pueden llegar como strings vacíos
-                if key in ['numero_cuenta'] and value in ('', 'null', 'undefined', None):
-                    filtered_data[key] = None
-                else:
-                    filtered_data[key] = value
-            else:
-                ignored_fields.append(f"{key}={value}")
-        
-        # Debug: mostrar campos ignorados
-        if ignored_fields:
-            print(f"[DEBUG] Campos ignorados: {', '.join(ignored_fields)}")
-        
-        # Llamar al método padre con datos filtrados
-        return super().to_internal_value(filtered_data)
-    def validate(self, data):
-        """
-        Validaciones personalizadas
-        """
-        # Validar que tenga RUT o DNI
-        rut = data.get('rut', '').strip() if data.get('rut') else ''
-        dni = data.get('dni', '').strip() if data.get('dni') else ''
-        
-        if not rut and not dni:
-            raise serializers.ValidationError(
-                "Debe proporcionar RUT (para chilenos) o DNI (para extranjeros)"
-            )
-        
-        # Validar nombres (obligatorio)
-        nombres = data.get('nombres', '').strip() if data.get('nombres') else ''
-        
-        if not nombres:
-            raise serializers.ValidationError("Los nombres son obligatorios")
-            
-        return data
-
-    def create(self, validated_data):
-        """
-        Crear un nuevo trabajador
-        """
-        return PersonalTrabajadores.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        """
-        Actualizar trabajador existente
-        """
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
-    
 class DataProduccionSerializer(serializers.Serializer):
     trabajadores = serializers.SerializerMethodField()
     labores = serializers.SerializerMethodField()
@@ -1593,9 +1540,6 @@ class DataProduccionSerializer(serializers.Serializer):
         holding_id = self.context.get('holding_id')
         unidades_control = UnidadControl.objects.filter(holding_id=holding_id)
         return [{'id': uc.id, 'nombre': uc.nombre} for uc in unidades_control]
-
-
-
 
 class HorarioSerializer(serializers.ModelSerializer):
     class Meta:

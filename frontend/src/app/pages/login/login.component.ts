@@ -175,12 +175,20 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
+    // ✅ Limpiar y validar formato
+    const rutClean = this.rutForRecovery.replace(/[^0-9kK]/g, '').toUpperCase();
+    
+    // Validar longitud mínima (ej: 7 dígitos + verificador)
+    if (rutClean.length < 8) {
+      this.toastr.error('RUT incompleto', 'Error');
+      return;
+    }
 
-    // ✅ NUEVA API UNIFICADA con action
+    console.log('📤 RUT limpio enviado:', rutClean);
+
     this.contratistaApiService.post('password-reset/', { 
       action: 'check_user',
-      rut_user: rutWithoutFormat 
+      rut_user: rutClean  // Enviar sin puntos ni guión
     }).subscribe({
       next: (response: any) => {
         console.log('✅ Respuesta verificación RUT:', response);
@@ -357,21 +365,47 @@ export class LoginComponent implements OnInit {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
+    // Guardar posición del cursor
+    const cursorPosition = target.selectionStart || 0;
     
-    while (rut.length > 3) {
-      parts.unshift(rut.slice(-3));
-      rut = rut.slice(0, -3);
-    }
+    // Limpiar todo excepto números y K/k
+    let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
     
-    parts.unshift(rut);
-    target.value = parts.join('.') + '-' + verifier;
-    
-    if (target.value === '-') {
+    // Si está vacío, salir
+    if (rut.length === 0) {
       target.value = '';
+      return;
     }
+    
+    // Separar dígito verificador (último carácter)
+    const verifier = rut.slice(-1);
+    let body = rut.slice(0, -1);
+    
+    // Si solo hay un dígito, no formatear aún
+    if (body.length === 0) {
+      target.value = verifier;
+      return;
+    }
+    
+    // Formatear cuerpo con puntos
+    const parts: string[] = [];
+    while (body.length > 3) {
+      parts.unshift(body.slice(-3));
+      body = body.slice(0, -3);
+    }
+    if (body.length > 0) {
+      parts.unshift(body);
+    }
+    
+    // Construir RUT formateado
+    const formatted = parts.join('.') + '-' + verifier;
+    target.value = formatted;
+    
+    // Restaurar cursor (opcional, mejora UX)
+    const lengthDiff = formatted.length - rut.length;
+    target.setSelectionRange(
+      cursorPosition + lengthDiff, 
+      cursorPosition + lengthDiff
+    );
   }
 }

@@ -521,43 +521,44 @@ class Banco(models.Model):
         return f"{self.nombre} ({self.codigo_sbif})"
     
 class PersonalTrabajadores(models.Model):
+    #Informacion Basica Trabajador
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     sociedad = models.ForeignKey(Sociedad, on_delete=models.SET_NULL, null=True, blank=True)
-    fundo = models.ForeignKey(CamposClientes, on_delete=models.SET_NULL, null=True, blank=True)
     area = models.ForeignKey(AreasAdministracion, on_delete=models.SET_NULL, null=True, blank=True)
     cargo = models.ForeignKey(CargosAdministracion, on_delete=models.SET_NULL, null=True, blank=True)
-    afp = models.ForeignKey(AFPTrabajadores, on_delete=models.SET_NULL, null=True, blank=True)
-    salud = models.ForeignKey(SaludTrabajadores, on_delete=models.SET_NULL, null=True, blank=True)
-    banco = models.ForeignKey(Banco, on_delete=models.SET_NULL, null=True, blank=True)  # New field
-    casa = models.ForeignKey(CasasTrabajadores, on_delete=models.SET_NULL, null=True, blank=True)
-    transportista = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True)
-    vehiculo = models.ForeignKey(VehiculosTransporte, on_delete=models.SET_NULL, null=True)
     nombres = models.CharField(max_length=255)
     apellidos = models.TextField(null=True, blank=True)
     rut = models.TextField(null=True, blank=True)
     dni = models.TextField(null=True, blank=True)
     nic = models.TextField(null=True, blank=True)
     direccion = models.CharField(max_length=255, null=True, blank=True)
-    fecha_ingreso = models.DateField(null=True, blank=True)
-    fecha_finiquito = models.DateField(null=True, blank=True)
-    estado = models.BooleanField(default=True, null=True, blank=True)
+    afp = models.ForeignKey(AFPTrabajadores, on_delete=models.SET_NULL, null=True, blank=True)
+    salud = models.ForeignKey(SaludTrabajadores, on_delete=models.SET_NULL, null=True, blank=True)
+    banco = models.ForeignKey(Banco, on_delete=models.SET_NULL, null=True, blank=True)
     metodo_pago = models.TextField(null=True, blank=True)
     tipo_cuenta_bancaria = models.TextField(null=True, blank=True)
     numero_cuenta = models.IntegerField(null=True, blank=True)
     nacionalidad = models.CharField(max_length=255, blank=True, null=True)
+    estado_civil = models.CharField(max_length=255, blank=True, null=True)
+    fecha_nacimiento = models.DateField(blank=True, null=True)
     sexo = models.CharField(max_length=255, blank=True, null=True)
     telefono = models.CharField(max_length=255, blank=True, null=True)
     correo = models.CharField(max_length=255, blank=True, null=True)
+
+    #Imagenes
     carnet_front_image = models.ImageField(upload_to='carnets/', default='carnets/dni.jpg', null=True, blank=True)
     carnet_back_image = models.ImageField(upload_to='carnets/', default='carnets/dni.jpg', null=True, blank=True)
     firma = models.ImageField(upload_to='firmas/', null=True, blank=True)
-    estado_civil = models.CharField(max_length=255, blank=True, null=True)
-    fecha_nacimiento = models.DateField(blank=True, null=True)
+    
+    #Contrato
+    fecha_ingreso = models.DateField(null=True, blank=True)
+    estado = models.BooleanField(default=True, null=True, blank=True)
+    
+    # AFC (cód 1151)
     sueldo_base = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     pensionado_vejez = models.BooleanField(default=False)
     ips_regimen = models.ForeignKey(IpsRegimen, on_delete=models.SET_NULL, null=True, blank=True)
-    # AFC (cód 1151)
     afiliado_afc = models.BooleanField(default=True, verbose_name="Afiliado a AFC")
     cargas_familiares_legales = models.IntegerField(default=0)
     cargas_familiares_maternales = models.BooleanField(default=False)
@@ -566,10 +567,20 @@ class PersonalTrabajadores(models.Model):
     colacion = models.IntegerField(null=True, blank=True)
     movilizacion = models.IntegerField(null=True, blank=True)
     
-    
     class Meta:
         db_table = 'personal'
- 
+
+class TrabajadorEmpresaTransporte(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.SET_NULL, null=True)
+    transportista = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True)
+    vehiculo = models.ForeignKey(VehiculosTransporte, on_delete=models.SET_NULL, null=True)
+    chofer = models.ForeignKey(ChoferesTransporte, on_delete=models.SET_NULL, null=True)
+    
+    class Meta:
+        db_table = 'trabajador_empresa_transporte'
+
 class Usuarios(AbstractBaseUser, PermissionsMixin):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE, null=True, blank=True)
@@ -1311,7 +1322,6 @@ class ContratoTrabajador(models.Model):
     )
     fundo = models.ForeignKey(CamposClientes, on_delete=models.SET_NULL, null=True, blank=True)
     cliente = models.ForeignKey(Clientes, on_delete=models.SET_NULL, null=True, blank=True)
-    empresa_transporte = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True, blank=True)
     contrato_generado = models.BooleanField(default=False)
     class Meta:
         db_table = 'contratos_trabajadores'

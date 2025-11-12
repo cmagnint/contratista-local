@@ -19,8 +19,7 @@ from selenium.webdriver.common.by import By
 from django.core.files.base import ContentFile
 from collections import defaultdict
 from rest_framework.views import APIView
-from pypdf import PdfReader, PdfWriter
-from .utils import generar_documento_con_datos, validate_uploaded_documents
+from .utils import  validate_uploaded_documents
 from reportlab.lib.pagesizes import letter
 from django.forms import ValidationError
 from datetime import datetime, timezone
@@ -53,7 +52,6 @@ import tempfile
 import calendar
 import zipfile
 import random
-import uuid
 import time
 import json
 import csv
@@ -141,7 +139,7 @@ from .models import (
     RegistroAsistencia,
     RegistroManoObraPersona,
     SolicitudTraspaso,
-
+    TrabajadorEmpresaTransporte,
 )
 
 from .serializers import (
@@ -3386,13 +3384,22 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     else:
                         print(f"⚠️ No se recibió horario_id")
                     
+                    trabajador_transporte = None
+                    if data.get('transportista') or data.get('vehiculo'):
+                        trabajador_transporte = TrabajadorEmpresaTransporte.objects.create(
+                            holding_id=data.get('holding'),
+                            trabajador=personal,
+                            transportista_id=data.get('transportista'),
+                            vehiculo_id=data.get('vehiculo')
+                        )
+
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
                         folio_comercial_id=folio_id,
                         labor_id=data.get('labor'),
                         fundo_id=data.get('fundo'),
-                        empresa_transporte_id=data.get('transportista'),
+                        trabajador_transporte=trabajador_transporte,
                         horario=horario,
                         fecha_inicio_contrato=folio.fecha_inicio_contrato,
                         fecha_termino_contrato=folio.fecha_termino_contrato,
