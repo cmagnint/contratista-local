@@ -690,7 +690,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       String sexoDetectado = sexoMatch.group(1)!.toUpperCase();
       cardData['SEXO'] = (sexoDetectado == 'M' || sexoDetectado == 'F')
           ? sexoDetectado
-          : 'H';
+          : 'M';
     }
     if (numDocMatch != null) {
       cardData['NUMERO DOCUMENTO'] = numDocMatch.group(1)!;
@@ -706,7 +706,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         String sexoDetectado = sexoNearMatch.group(1)!.toUpperCase();
         cardData['SEXO'] = (sexoDetectado == 'M' || sexoDetectado == 'F')
             ? sexoDetectado
-            : 'H';
+            : 'M';
       }
     }
 
@@ -826,7 +826,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       String sexoDetectado = sexoMatch.group(1)!.toUpperCase();
       cardData['SEXO'] = (sexoDetectado == 'M' || sexoDetectado == 'F')
           ? sexoDetectado
-          : 'H';
+          : 'M';
       loggerGlobal.d('Sexo encontrado: ${cardData['SEXO']}');
     }
 
@@ -1730,7 +1730,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         labelText: 'SEXO *',
                         border: OutlineInputBorder(),
                       ),
-                      items: <String>['H', 'M'].map<DropdownMenuItem<String>>((
+                      items: <String>['F', 'M'].map<DropdownMenuItem<String>>((
                         String value,
                       ) {
                         return DropdownMenuItem<String>(

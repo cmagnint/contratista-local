@@ -270,8 +270,8 @@ class LoginScreenState extends State<LoginScreen>
     loggerGlobal.d(userInfo.rut);
 
     try {
-      final String rut = rutNumber.toString();
-
+      final String rut = formatCharRut(rutNumber.toString());
+      loggerGlobal.d(rut);
       if (rut != "") {
         final hasInternet = await isConnected();
         if (!hasInternet) {
@@ -934,7 +934,7 @@ class LoginScreenState extends State<LoginScreen>
                           vertical: 5.0,
                         ),
                         child: Text(
-                          '                         ¿Olvido su contraseña?',
+                          '                    ¿Olvido su contraseña?',
                           style: TextStyle(
                             color: Color.fromARGB(255, 255, 255, 255),
                             fontWeight: FontWeight.bold,

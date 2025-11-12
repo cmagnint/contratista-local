@@ -1,7 +1,7 @@
 # docker-compose.yml
 
 services:
-  db:
+  contratista_db_local:
     profiles:
       - local-dev
     image: postgres:15
