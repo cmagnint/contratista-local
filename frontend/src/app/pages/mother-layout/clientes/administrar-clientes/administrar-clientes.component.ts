@@ -48,7 +48,9 @@ export class AdministrarClientesComponent implements OnInit {
   public nuevoCampo: { nombre: string, direccion: string, comuna: string } = { nombre: '', direccion: '', comuna: '' };
   public campos: { nombre: string, direccion: string, comuna: string }[] = [];
   public camposNew: { id: number, nombre_campo: string, direccion_campo: string, comuna_campo: string }[] = [];
-
+  public nuevosCampos: { nombre: string, direccion: string, comuna: string }[] = [];
+  public camposAEliminar: number[] = [];
+  
   errorMessage!: string;
   selectedRows: any[] = [];
   dropdownOpen: boolean = false;
@@ -183,32 +185,65 @@ export class AdministrarClientesComponent implements OnInit {
 
   // 🆕 MÉTODO MODIFICAR CLIENTE ACTUALIZADO PARA INCLUIR REPRESENTANTE LEGAL
   modificarCliente(): void {
+    // 1. Eliminar campos marcados
+    if (this.camposAEliminar.length > 0) {
+      this.apiService.delete('api_campos_clientes/', { ids: this.camposAEliminar }).subscribe();
+    }
+
+    // 2. Crear nuevos campos
+    for (let campo of this.nuevosCampos) {
+      let campoData = {
+        holding: this.holding,
+        cliente: this.selectedClienteId,
+        nombre_campo: campo.nombre,
+        direccion_campo: campo.direccion,
+        comuna_campo: campo.comuna
+      };
+      this.apiService.post('api_campos_clientes/', campoData).subscribe();
+    }
+
+    // 3. Actualizar cliente y campos existentes (ya está)
     let data = {
       holding: this.holding,
       id: this.selectedClienteId,
       nombre: this.nombreClienteNew,
-      rut: this.rutClienteNew.replace(/[\.\-]/g, ''), // Limpiar formato RUT
+      rut: this.rutClienteNew.replace(/[\.\-]/g, ''),
       direccion: this.direccionClienteNew,
       giro: this.giroClienteNew,
-      nombre_rep_legal: this.nombreRepresentanteLegalNew, // 🆕 Incluir nombre rep legal
-      direccion_rep_legal: this.direccionRepresentanteLegalNew, // 🆕 Incluir dirección rep legal
-      camposPersonalizados: this.camposNew
+      nombre_rep_legal: this.nombreRepresentanteLegalNew,
+      direccion_rep_legal: this.direccionRepresentanteLegalNew,
+      camposPersonalizados: this.camposNew.filter(c => !this.camposAEliminar.includes(c.id))
     };
-    
-    console.log('🔄 Datos a enviar para modificar:', data);
     
     this.apiService.put('api_clientes/', data).subscribe({
       next: (response) => {
-        console.log('✅ Cliente actualizado:', response);
         this.closeModal('modificarCliente');
         this.cargarClientes();
         this.openModal('exitoModal');
+        // Limpiar
+        this.nuevosCampos = [];
+        this.camposAEliminar = [];
       },
       error: (error) => {
-        console.error('❌ Error al modificar cliente:', error);
         this.openModal('errorModal');
       }
     });
+  }
+
+  agregarCampoNuevo(): void {
+    if (this.nuevoCampo.nombre.trim() && this.nuevoCampo.direccion.trim() && this.nuevoCampo.comuna.trim()) {
+      this.nuevosCampos.push({ ...this.nuevoCampo });
+      this.nuevoCampo = { nombre: '', direccion: '', comuna: '' };
+    }
+  }
+
+  marcarCampoParaEliminar(campoId: number): void {
+    this.camposAEliminar.push(campoId);
+    this.camposNew = this.camposNew.filter(c => c.id !== campoId);
+  }
+
+  eliminarCampoNuevo(index: number): void {
+    this.nuevosCampos.splice(index, 1);
   }
 
   eliminarClientesSeleccionados(): void {
@@ -300,7 +335,7 @@ export class AdministrarClientesComponent implements OnInit {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    let rut = target.value.replace(/\D/g, '');
+    let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
     let parts = [];
     const verifier = rut.slice(-1);
     rut = rut.slice(0, -1);

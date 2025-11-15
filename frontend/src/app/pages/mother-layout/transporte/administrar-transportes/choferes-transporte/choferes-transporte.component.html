@@ -670,7 +670,7 @@
     <ng-container matColumnDef="rut">
       <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
       <td mat-cell *matCellDef="let chofer" class="mat-cell">
-        <span class="rut-formatted">{{ chofer.rut }}</span>
+        <span class="rut-formatted">{{ formatRUTString(chofer.rut) }}</span>
       </td>
     </ng-container>
     

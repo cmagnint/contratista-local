@@ -18,7 +18,7 @@ fi
 FECHA=$(date '+%Y-%m-%d')
 
 # Mensaje de commit fijo
-COMMIT_MSG=":hammer: Update ${FECHA}"
+COMMIT_MSG=":hammer: Update FIRST ${FECHA}"
 
 echo "📦 Agregando archivos..."
 git add .

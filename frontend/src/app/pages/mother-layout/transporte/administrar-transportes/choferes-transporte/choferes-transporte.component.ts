@@ -537,7 +537,7 @@ export class ChoferesTransporteComponent implements OnInit {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    let rut = target.value.replace(/\D/g, '');
+    let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
     let parts = [];
     const verifier = rut.slice(-1);
     rut = rut.slice(0, -1);
@@ -553,7 +553,7 @@ export class ChoferesTransporteComponent implements OnInit {
   }
 
   formatRUTString(value: string): string {
-    let rut = value.replace(/\D/g, '');
+    let rut = value.replace(/[^0-9kK]/g, '').toUpperCase();
     let parts = [];
     const verifier = rut.slice(-1);
     rut = rut.slice(0, -1);

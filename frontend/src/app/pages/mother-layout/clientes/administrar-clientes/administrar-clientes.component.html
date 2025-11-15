@@ -209,10 +209,9 @@
           placeholder="Nueva dirección del representante legal">
       </div>
 
-
       <!-- Campos personalizados existentes -->
       <div *ngIf="camposNew.length > 0" class="campos-section">
-        <h3>Campos Personalizados:</h3>
+        <h3>Campos Personalizados Existentes:</h3>
         <div class="campos-list">
           <ul>
             <li *ngFor="let campo of camposNew; let i = index" class="campo-item">
@@ -236,6 +235,48 @@
                 class="input-usuario" 
                 [(ngModel)]="campo.comuna_campo"
                 placeholder="Comuna del campo">
+              
+              <button (click)="marcarCampoParaEliminar(campo.id)">ELIMINAR</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Nuevos campos a agregar -->
+      <div class="campos-section">
+        <h3>Agregar Nuevos Campos:</h3>
+        
+        <input 
+          type="text" 
+          class="input-usuario" 
+          placeholder="Nombre del campo" 
+          [(ngModel)]="nuevoCampo.nombre">
+        
+        <input 
+          type="text" 
+          class="input-usuario" 
+          placeholder="Dirección del campo" 
+          [(ngModel)]="nuevoCampo.direccion">
+        
+        <input 
+          type="text" 
+          class="input-usuario" 
+          placeholder="Comuna del campo" 
+          [(ngModel)]="nuevoCampo.comuna">
+        
+        <button 
+          class="custom-button-ingreso add-campo-button" 
+          (click)="agregarCampoNuevo()">
+          AÑADIR CAMPO
+        </button>
+        
+        <div *ngIf="nuevosCampos.length > 0" class="campos-list">
+          <ul>
+            <li *ngFor="let campo of nuevosCampos; let i = index" class="campo-item">
+              <h1>{{ campo.nombre }}</h1>
+              <h3>Dirección: {{ campo.direccion }}</h3>
+              <h3>Comuna: {{ campo.comuna }}</h3>
+              <button (click)="eliminarCampoNuevo(i)">ELIMINAR</button>
             </li>
           </ul>
         </div>

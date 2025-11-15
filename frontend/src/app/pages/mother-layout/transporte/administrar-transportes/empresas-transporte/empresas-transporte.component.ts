@@ -185,26 +185,27 @@ export class EmpresasTransporteComponent implements OnInit {
 
   // FORMATO RUT
   formatRUT(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    if (!target) return;
+  const target = event.target as HTMLInputElement;
+  if (!target) return;
 
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-      parts.unshift(rut.slice(-3));
-      rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    target.value = parts.join('.') + '-' + verifier;
-    if (target.value === '-') {
-      target.value = '';
-    }
+  let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
+  let parts = [];
+  const verifier = rut.slice(-1);
+  rut = rut.slice(0, -1);
+  while (rut.length > 3) {
+    parts.unshift(rut.slice(-3));
+    rut = rut.slice(0, -3);
   }
+  parts.unshift(rut);
+  const formatted = parts.join('.') + '-' + verifier;
+  target.value = formatted === '-' ? '' : formatted;
+  
+  // Forzar actualización del modelo
+  target.dispatchEvent(new Event('input'));
+}
 
   formatRUTString(value: string): string {
-    let rut = value.replace(/\D/g, '');
+    let rut = value.replace(/[^0-9kK]/g, '').toUpperCase(); 
     let parts = [];
     const verifier = rut.slice(-1);
     rut = rut.slice(0, -1);
