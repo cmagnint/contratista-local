@@ -33,6 +33,7 @@ from django.core.mail import send_mail
 from reportlab.lib.units import inch
 from django.http import HttpResponse
 from django.http import FileResponse
+from google.cloud import vision_v1
 from rest_framework import status
 from django.utils import timezone
 from django.conf import settings
@@ -920,14 +921,12 @@ class SociedadAPIView(APIView):
 
     # Método GET existente
     def get(self, request, holding_id=None, format=None):
-        holding_id = request.query_params.get('holding')
         if holding_id:
             sociedades = Sociedad.objects.filter(holding_id=holding_id)
         else:
             sociedades = Sociedad.objects.all()
         serializer = SociedadSerializer(sociedades, many=True)
         return Response(serializer.data)
-    
     # Método POST existente
     def post(self, request, format=None):
         data = request.data
@@ -2453,6 +2452,7 @@ class VehiculosTransporteAPIView(APIView):
 
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
+        print(holding_id)
         if holding_id:
             vehiculos = VehiculosTransporte.objects.filter(holding_id=holding_id)
             # AGREGAR CONTEXTO para generar URLs correctamente
@@ -2461,6 +2461,7 @@ class VehiculosTransporteAPIView(APIView):
                 many=True, 
                 context={'request': request}
             )
+            print(serializer.data)
             return Response(serializer.data)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -3431,10 +3432,10 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
+                        cliente_id=folio.cliente_id, 
                         folio_comercial_id=folio_id,
                         labor_id=data.get('labor'),
                         fundo_id=data.get('fundo'),
-                        trabajador_transporte=trabajador_transporte,
                         horario=horario,
                         fecha_inicio_contrato=folio.fecha_inicio_contrato,
                         fecha_termino_contrato=folio.fecha_termino_contrato,
@@ -4309,6 +4310,7 @@ class SupervisorAPIView(APIView):
                 
                 if supervisores.exists():
                     serializer = SupervisorSerializer(supervisores, many=True)
+                    print('Supervisores:',serializer.data)
                     return Response(serializer.data, status=status.HTTP_200_OK)
                 return Response({"message": "No se encontraron supervisores"}, 
                              status=status.HTTP_404_NOT_FOUND)
@@ -17999,15 +18001,12 @@ class DocumentoVariablesNativasAPIView(APIView):
     
     def _normalizar_pdf_a_carta(self, pdf_file):
         """
-        Convierte cualquier PDF a tamaño carta (612x792 puntos) FORZADO.
-        Usa transformaciones matriciales para garantizar dimensiones exactas.
+        Normalización ROBUSTA con PyMuPDF 1.26.6 (API actualizada)
+        Convierte cualquier PDF a 612x792 puntos (carta/letter)
         """
-        from pypdf import PdfReader, PdfWriter, Transformation
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import letter
+        import fitz  # PyMuPDF
         import io
         
-        # Dimensiones objetivo (Letter/Carta)
         TARGET_WIDTH = 612.0
         TARGET_HEIGHT = 792.0
         
@@ -18015,95 +18014,109 @@ class DocumentoVariablesNativasAPIView(APIView):
             # Leer PDF original
             if hasattr(pdf_file, 'read'):
                 pdf_file.seek(0)
-                reader = PdfReader(pdf_file)
+                pdf_bytes = pdf_file.read()
             else:
-                reader = PdfReader(open(pdf_file, "rb"))
+                with open(pdf_file, "rb") as f:
+                    pdf_bytes = f.read()
             
-            writer = PdfWriter()
+            # Abrir documento con PyMuPDF
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             
-            print(f"📄 Normalizando PDF: {len(reader.pages)} páginas")
+            print(f"📄 Normalizando PDF con PyMuPDF: {len(doc)} páginas")
             
-            for page_num, page in enumerate(reader.pages):
-                # Obtener dimensiones originales
-                original_width = float(page.mediabox.width)
-                original_height = float(page.mediabox.height)
+            # Crear nuevo documento normalizado
+            output_doc = fitz.open()
+            
+            for page_num in range(len(doc)):
+                page = doc[page_num]
                 
-                print(f"  Página {page_num + 1}: {original_width}x{original_height} → {TARGET_WIDTH}x{TARGET_HEIGHT}")
+                # Dimensiones originales
+                rect = page.rect
+                original_width = rect.width
+                original_height = rect.height
+                
+                print(f"  Página {page_num + 1}: {original_width:.1f}x{original_height:.1f} → {TARGET_WIDTH}x{TARGET_HEIGHT}")
+                
+                # Crear página nueva de 612x792
+                new_page = output_doc.new_page(width=TARGET_WIDTH, height=TARGET_HEIGHT)
                 
                 # Si ya tiene las dimensiones correctas
-                if abs(original_width - TARGET_WIDTH) < 1 and abs(original_height - TARGET_HEIGHT) < 1:
-                    print(f"  ✓ Ya está en 612x792")
-                    writer.add_page(page)
+                if abs(original_width - TARGET_WIDTH) < 2 and abs(original_height - TARGET_HEIGHT) < 2:
+                    print(f"  ✓ Ya está normalizada")
+                    new_page.show_pdf_page(
+                        new_page.rect,
+                        doc,
+                        page_num
+                    )
                     continue
                 
-                # ⭐ CREAR PÁGINA BASE DE 612x792 CON REPORTLAB
-                packet = io.BytesIO()
-                can = canvas.Canvas(packet, pagesize=letter)  # letter = (612, 792)
-                can.showPage()  # Página en blanco
-                can.save()
-                packet.seek(0)
-                
-                # Leer la página base
-                base_page = PdfReader(packet).pages[0]
-                
-                # ⭐ CALCULAR ESCALA PARA FORZAR AJUSTE
+                # Calcular escala para ajustar a 612x792
                 scale_x = TARGET_WIDTH / original_width
                 scale_y = TARGET_HEIGHT / original_height
                 
                 print(f"  📐 Escalas: X={scale_x:.4f}, Y={scale_y:.4f}")
                 
-                # ⭐ APLICAR TRANSFORMACIÓN DE ESCALA A LA PÁGINA ORIGINAL
-                # Matriz de transformación: [sx, 0, 0, sy, tx, ty]
-                # sx, sy = factores de escala
-                # tx, ty = traslación (0,0 en este caso)
-                transformation = Transformation().scale(sx=scale_x, sy=scale_y)
-                page.add_transformation(transformation)
+                # ✅ MÉTODO CORRECTO para PyMuPDF 1.26.6
+                # Crear matriz de transformación
+                mat = fitz.Matrix(scale_x, scale_y)
                 
-                # ⭐ FORZAR MEDIABOX DE LA PÁGINA ESCALADA
-                page.mediabox.lower_left = (0, 0)
-                page.mediabox.upper_right = (TARGET_WIDTH, TARGET_HEIGHT)
-                page.cropbox.lower_left = (0, 0)
-                page.cropbox.upper_right = (TARGET_WIDTH, TARGET_HEIGHT)
+                # Obtener el contenido de la página original como pixmap
+                # y renderizarlo en la nueva página con la escala correcta
+                src_rect = page.rect
                 
-                # Agregar la página modificada
-                writer.add_page(page)
+                # Calcular rectángulo destino escalado
+                dest_rect = fitz.Rect(0, 0, TARGET_WIDTH, TARGET_HEIGHT)
                 
-                # Verificar dimensiones finales
-                final_width = float(page.mediabox.width)
-                final_height = float(page.mediabox.height)
-                print(f"  ✅ Dimensiones finales: {final_width}x{final_height}")
+                # Insertar página con escalado
+                new_page.show_pdf_page(
+                    dest_rect,      # Rectángulo destino (612x792)
+                    doc,            # Documento fuente
+                    page_num,       # Número de página
+                    clip=src_rect   # Región a copiar (página completa)
+                )
+                
+                print(f"  ✅ Normalizada a {TARGET_WIDTH}x{TARGET_HEIGHT}")
             
-            # Escribir en buffer
-            output = io.BytesIO()
-            writer.write(output)
-            output.seek(0)
+            # Guardar en buffer
+            output_bytes = output_doc.tobytes(
+                garbage=4,      # Comprimir
+                deflate=True,
+                clean=True
+            )
+            
+            doc.close()
+            output_doc.close()
+            
+            output = io.BytesIO(output_bytes)
             
             # ⭐ VERIFICACIÓN FINAL
-            verification_reader = PdfReader(output)
-            output.seek(0)  # Reset para retornar
-            
+            verification_doc = fitz.open(stream=output_bytes, filetype="pdf")
             print(f"\n🔍 VERIFICACIÓN FINAL:")
-            for i, vpage in enumerate(verification_reader.pages):
-                vwidth = float(vpage.mediabox.width)
-                vheight = float(vpage.mediabox.height)
-                print(f"  Página {i+1}: {vwidth}x{vheight}")
-                
-                if abs(vwidth - TARGET_WIDTH) > 1 or abs(vheight - TARGET_HEIGHT) > 1:
-                    print(f"  ⚠️ ADVERTENCIA: Dimensiones no coinciden con 612x792")
             
-            print(f"✅ PDF normalizado completo")
+            for i in range(len(verification_doc)):
+                vpage = verification_doc[i]
+                vwidth = vpage.rect.width
+                vheight = vpage.rect.height
+                print(f"  Página {i+1}: {vwidth:.1f}x{vheight:.1f}")
+                
+                if abs(vwidth - TARGET_WIDTH) > 2 or abs(vheight - TARGET_HEIGHT) > 2:
+                    print(f"  ⚠️ ADVERTENCIA: Dimensiones no coinciden exactamente")
+            
+            verification_doc.close()
+            
+            print(f"✅ PDF normalizado completo con PyMuPDF")
             return output
             
         except Exception as e:
-            print(f"❌ Error normalizando PDF: {str(e)}")
+            print(f"❌ Error normalizando PDF con PyMuPDF: {str(e)}")
             import traceback
             traceback.print_exc()
             raise
     
     def _crear_documento(self, request):
-        """Crear un nuevo documento con variables posicionadas (soporta merge de PDFs)"""
+        """Crear documento con variables posicionadas (soporta merge de PDFs)"""
         try:
-            from pypdf import PdfMerger
+            from pypdf import PdfWriter, PdfReader  # ✅ Actualizado
             from django.core.files.base import ContentFile
             import io
             
@@ -18117,7 +18130,7 @@ class DocumentoVariablesNativasAPIView(APIView):
                 num_partes = int(request.data.get('num_partes', 1))
                 print(f"🔀 Fusionando {num_partes} PDFs...")
                 
-                merger = PdfMerger()
+                writer = PdfWriter()  # ✅ PdfWriter en lugar de PdfMerger
                 
                 # ⭐ Normalizar cada parte ANTES de fusionar
                 for i in range(num_partes):
@@ -18125,16 +18138,19 @@ class DocumentoVariablesNativasAPIView(APIView):
                     if parte_file:
                         print(f"  📄 Parte {i+1}: {parte_file.size} bytes")
                         
-                        # Normalizar a 612x792
+                        # Normalizar a 612x792 con PyMuPDF
                         parte_normalizada = self._normalizar_pdf_a_carta(parte_file)
-                        merger.append(parte_normalizada)
+                        
+                        # ✅ Agregar páginas con PdfWriter
+                        reader = PdfReader(parte_normalizada)
+                        for page in reader.pages:
+                            writer.add_page(page)
                     else:
                         print(f"  ⚠️ No se encontró pdf_parte_{i}")
                 
                 # Crear archivo fusionado en memoria
                 merged_buffer = io.BytesIO()
-                merger.write(merged_buffer)
-                merger.close()
+                writer.write(merged_buffer)  # ✅ Sin close()
                 merged_buffer.seek(0)
                 
                 print(f"✅ PDF fusionado: {len(merged_buffer.getvalue())} bytes")
@@ -18156,7 +18172,7 @@ class DocumentoVariablesNativasAPIView(APIView):
                         "error": "El archivo PDF está vacío"
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                # Normalizar a 612x792
+                # Normalizar a 612x792 con PyMuPDF
                 pdf_normalizado = self._normalizar_pdf_a_carta(pdf_file_original)
                 
                 # Convertir a ContentFile para Django
@@ -18192,7 +18208,7 @@ class DocumentoVariablesNativasAPIView(APIView):
                 variables=variables_json
             )
             
-            print(f"✅ Documento guardado: ID {documento.id}, {len(variables_json)} variables, PDF normalizado a 612x792")
+            print(f"✅ Documento guardado: ID {documento.id}, {len(variables_json)} variables, PDF normalizado a 612x792 con PyMuPDF")
             
             return Response({
                 "id": documento.id,
@@ -18474,13 +18490,13 @@ class GenerarTxtBancoAPIView(APIView):
                     'message': f'Error al leer el archivo CSV: {str(e)}'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Dividir registros en grupos de 30
+            # Dividir registros en grupos de 100
             archivos_generados = []
             total_registros = len(registros)
             
-            for i in range(0, total_registros, 30):
-                grupo = registros[i:i+30]
-                numero_archivo = (i // 30) + 1
+            for i in range(0, total_registros, 100):
+                grupo = registros[i:i+100]
+                numero_archivo = (i // 100) + 1
                 
                 # Generar contenido del archivo TXT
                 contenido_txt = self._generar_contenido_txt(grupo)
@@ -20314,6 +20330,7 @@ class TraspasoTrabajadoresAPIView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 class ResponderTraspasoAPIView(APIView):
     """
     Vista para aprobar o rechazar solicitudes de traspaso
@@ -20487,7 +20504,6 @@ class ContratoTrabajadorAPIView(APIView):
             'eliminados': deleted_count
         })
     
-
 class CrearContratoWebAPIView(APIView):
     """
     Vista única para manejar la creación de contratos desde web.
@@ -20806,3 +20822,122 @@ class CrearContratoWebAPIView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class CarnetOCRAPIView(APIView):
+    def post(self, request):
+        try:
+            image_file = request.FILES.get('image')
+            if not image_file:
+                return Response({'error': 'No se recibió imagen'}, status=400)
+            
+            # Vision API
+            client = vision_v1.ImageAnnotatorClient(
+                client_options={"api_key": 'AIzaSyA2sAcNQfKjrDfCIDUWOT4vVPICZkhmkUc'}
+            )
+            
+            content = image_file.read()
+            image = vision_v1.Image(content=content)
+            response = client.text_detection(image=image)
+            
+            if not response.text_annotations:
+                return Response({'error': 'No se detectó texto'}, status=400)
+            
+            texto = response.text_annotations[0].description
+            
+            # Parser
+            datos = self.parse_carnet_chileno(texto)
+            
+            return Response({'success': True, 'datos': datos})
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+    
+    def parse_carnet_chileno(self, texto):
+        import re
+        
+        datos = {
+            'nombres': '',
+            'apellidos': '',
+            'rut': '',
+            'sexo': '',
+            'fecha_nacimiento': '',
+            'nacionalidad': 'CHILENA'
+        }
+        
+        # Limpiar texto de palabras clave comunes
+        texto_limpio = texto.upper()
+        print(f"DEBUG - TEXTO COMPLETO:\n{texto_limpio}\n{'='*50}")  # AGREGAR ESTO
+
+        
+        # RUN - Más flexible
+        run_match = re.search(r'RUN[:\s]*(\d{1,2}\.?\d{3}\.?\d{3}-?[\dkK])', texto_limpio, re.I)
+        if run_match:
+            rut_crudo = run_match.group(1)
+            # Limpiar formato
+            rut_limpio = rut_crudo.replace('.', '').replace('-', '')
+            # Separar dígito verificador
+            if len(rut_limpio) > 1:
+                datos['rut'] = rut_limpio[:-1] + rut_limpio[-1]
+            else:
+                datos['rut'] = rut_crudo
+        
+        # APELLIDOS - Mejorado
+        # Buscar entre "APELLIDOS" y "NOMBRES"
+        apellidos_match = re.search(
+            r'APELLIDOS\s*\n\s*([A-ZÁÉÍÓÚÑ\s]+?)(?=\n\s*NOMBRES|\n\s*NACIONALIDAD)', 
+            texto_limpio, 
+            re.DOTALL
+        )
+        if apellidos_match:
+            apellidos_raw = apellidos_match.group(1).strip()
+            # Limpiar palabras clave residuales
+            apellidos_clean = re.sub(r'(NACIONALIDAD|SEXO|RUN|FECHA|NUMERO)', '', apellidos_raw)
+            # Limpiar espacios múltiples
+            apellidos_clean = re.sub(r'\s+', ' ', apellidos_clean).strip()
+            datos['apellidos'] = apellidos_clean
+        
+        lineas = texto_limpio.split('\n')
+        for i, linea in enumerate(lineas):
+            if 'NOMBRES' in linea and i + 1 < len(lineas):
+                nombres_raw = lineas[i + 1].strip()
+                print(f"DEBUG - Nombres RAW: '{nombres_raw}'")
+                # Si no contiene palabras clave, es el nombre
+                if not re.search(r'(RUN|NACIONALIDAD|SEXO|FECHA|NUMERO|APELLIDOS)', nombres_raw):
+                    datos['nombres'] = nombres_raw
+                    print(f"DEBUG - Nombres FINAL: '{nombres_raw}'")
+                    break
+        
+        # SEXO - Más robusto
+        sexo_match = re.search(r'SEXO\s*\n?\s*([MF])\s', texto_limpio)
+        if sexo_match:
+            datos['sexo'] = sexo_match.group(1)
+        
+        # FECHA NACIMIENTO - Más patrones
+        # Patrón 1: DD MES AAAA
+        fecha_match = re.search(
+            r'(\d{1,2})\s+(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC)[A-Z]*\s+(\d{4})', 
+            texto_limpio
+        )
+        if fecha_match:
+            meses = {
+                'ENE':'01','FEB':'02','MAR':'03','ABR':'04','MAY':'05','JUN':'06',
+                'JUL':'07','AGO':'08','SEP':'09','OCT':'10','NOV':'11','DIC':'12'
+            }
+            dia = fecha_match.group(1).zfill(2)
+            mes_texto = fecha_match.group(2)
+            # Limpiar mes de caracteres extra
+            mes_key = mes_texto[:3]  # Tomar solo las primeras 3 letras
+            mes = meses.get(mes_key, '01')
+            anio = fecha_match.group(3)
+            datos['fecha_nacimiento'] = f"{anio}-{mes}-{dia}"
+        else:
+            # Patrón 2: DD/MM/AAAA o DD-MM-AAAA
+            fecha_match2 = re.search(r'(\d{2})[/-](\d{2})[/-](\d{4})', texto_limpio)
+            if fecha_match2:
+                dia = fecha_match2.group(1)
+                mes = fecha_match2.group(2)
+                anio = fecha_match2.group(3)
+                datos['fecha_nacimiento'] = f"{anio}-{mes}-{dia}"
+        
+        return datos
+

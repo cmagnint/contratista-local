@@ -5,20 +5,22 @@
 # Uso: ./scripts/git-auto-push.sh
 # ----------------------------------------------------------
 
-# Ir a la carpeta raíz del repositorio
 cd "$(dirname "$0")/.." || exit 1
 
-# Verificar si hay cambios
 if git diff-index --quiet HEAD --; then
     echo "✅ No hay cambios para commitear."
     exit 0
 fi
 
-# Generar fecha del día
 FECHA=$(date '+%Y-%m-%d')
 
-# Mensaje de commit fijo
-COMMIT_MSG=":hammer: Update FIRST ${FECHA}"
+echo "📝 Ingresa el mensaje del commit:"
+read -r COMMIT_MSG
+
+# Si está vacío, usar mensaje por defecto
+if [ -z "$COMMIT_MSG" ]; then
+    COMMIT_MSG=":hammer: Update FIRST ${FECHA}"
+fi
 
 echo "📦 Agregando archivos..."
 git add .

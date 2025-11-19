@@ -1,0 +1,492 @@
+<div class="enrolamiento-container">
+  
+  <!-- INDICADOR DE PASOS -->
+  <div class="stepper">
+    <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
+      <div class="step-number">1</div>
+      <div class="step-label">Sociedad</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
+      <div class="step-number">2</div>
+      <div class="step-label">Pre-Contratación</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" [class.active]="pasoActual === 3">
+      <div class="step-number">3</div>
+      <div class="step-label">Contratación</div>
+    </div>
+  </div>
+
+  <!-- ============ PASO 1: SELECCIÓN DE SOCIEDAD ============ -->
+  <div class="paso-container" *ngIf="pasoActual === 1">
+    <h2>Seleccionar Sociedad</h2>
+    
+    <div class="dropdown">
+      <button class="dropdown-button" (click)="toggleDropdown('sociedades')">
+        {{ sociedadSeleccionadaNombre }} 
+      </button>
+      <div class="dropdown-content" [class.show]="dropdownStates.sociedades">
+        <ng-container *ngFor="let sociedad of sociedadesCargadas">
+          <label [class.disabled]="selectedSociedadId !== null && selectedSociedadId !== sociedad.id">
+            <input 
+              type="checkbox"
+              [checked]="selectedSociedadId === sociedad.id"
+              (change)="toggleSelectionSociedad(sociedad.id)"
+              [disabled]="selectedSociedadId !== null && selectedSociedadId !== sociedad.id">
+            {{ sociedad.nombre }}
+          </label>
+        </ng-container>
+      </div>
+    </div>
+
+    <div class="button-container">
+      <button 
+        class="btn-primary" 
+        (click)="siguientePreContratacion()"
+        [disabled]="!selectedSociedadId">
+        Siguiente
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ PASO 2: PRE-CONTRATACIÓN ============ -->
+  <div class="paso-container" *ngIf="pasoActual === 2">
+    <h2>Parámetros de Pre-Contratación</h2>
+    
+    <div class="form-grid">
+      <!-- Folio -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('folios')">
+            {{ folioSeleccionadoNombre }} 
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.folios">
+          <ng-container *ngFor="let folio of foliosCargados">
+            <label [class.disabled]="selectedFolioId !== null && selectedFolioId !== folio.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedFolioId === folio.id"
+                (change)="toggleSelectionFolio(folio.id)"
+                [disabled]="selectedFolioId !== null && selectedFolioId !== folio.id">
+              Folio {{ folio.id }} - {{ folio.nombre_cliente }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Fundo -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('fundos')" [disabled]="!selectedFolioId">
+          {{fundoSeleccionadoNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.fundos">
+          <ng-container *ngFor="let fundo of fundosCargados">
+            <label [class.disabled]="selectedFundoId !== null && selectedFundoId !== fundo.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedFundoId === fundo.id"
+                (change)="toggleSelectionFundo(fundo.id)"
+                [disabled]="selectedFundoId !== null && selectedFundoId !== fundo.id">
+              {{ fundo.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Labor -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('labores')" [disabled]="!selectedFolioId">
+          {{laborSeleccionadaNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.labores">
+          <ng-container *ngFor="let labor of laboresCargadas">
+            <label [class.disabled]="selectedLaborId !== null && selectedLaborId !== labor.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedLaborId === labor.id"
+                (change)="toggleSelectionLabor(labor.id)"
+                [disabled]="selectedLaborId !== null && selectedLaborId !== labor.id">
+              {{ labor.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Horario -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('horarios')" [disabled]="!selectedFolioId">
+          {{horarioSeleccionadoNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.horarios">
+          <ng-container *ngFor="let horario of horariosCargados">
+            <label [class.disabled]="selectedHorarioId !== null && selectedHorarioId !== horario.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedHorarioId === horario.id"
+                (change)="toggleSelectionHorario(horario.id)"
+                [disabled]="selectedHorarioId !== null && selectedHorarioId !== horario.id">
+              {{ horario.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Transportista -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('transportistas')" [disabled]="!selectedFolioId">
+          {{transportistaSeleccionadoNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.transportistas">
+          <ng-container *ngFor="let transportista of transportistasCargados">
+            <label [class.disabled]="selectedTransportistaId !== null && selectedTransportistaId !== transportista.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedTransportistaId === transportista.id"
+                (change)="toggleSelectionTransportista(transportista.id)"
+                [disabled]="selectedTransportistaId !== null && selectedTransportistaId !== transportista.id">
+              {{ transportista.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Vehículo -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('vehiculos')" [disabled]="!selectedTransportistaId">
+          {{ vehiculoSeleccionadoNombre }}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.vehiculos">
+          <ng-container *ngFor="let vehiculo of vehiculosCargados">
+            <label [class.disabled]="selectedVehiculoId !== null && selectedVehiculoId !== vehiculo.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedVehiculoId === vehiculo.id"
+                (change)="toggleSelectionVehiculo(vehiculo.id)"
+                [disabled]="selectedVehiculoId !== null && selectedVehiculoId !== vehiculo.id">
+              {{ vehiculo.ppu }} {{vehiculo.modelo}}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Casa -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('casas')">
+          {{casaSeleccionadaNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.casas">
+          <ng-container *ngFor="let casa of casasCargadas">
+            <label [class.disabled]="selectedCasaId !== null && selectedCasaId !== casa.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedCasaId === casa.id"
+                (change)="toggleSelectionCasa(casa.id)"
+                [disabled]="selectedCasaId !== null && selectedCasaId !== casa.id">
+              {{ casa.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Supervisor -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('supervisores')">
+          {{supervisorSeleccionadoNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.supervisores">
+          <ng-container *ngFor="let supervisor of supervisoresCargados">
+            <label [class.disabled]="selectedSupervisorId !== null && selectedSupervisorId !== supervisor.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedSupervisorId === supervisor.id"
+                (change)="toggleSelectionSupervisor(supervisor.id)"
+                [disabled]="selectedSupervisorId !== null && selectedSupervisorId !== supervisor.id">
+              {{ supervisor.usuario_nombre || supervisor.id || supervisor.usuario_rut }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Jefe de Cuadrilla -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('jefes')" [disabled]="!selectedSupervisorId">
+          {{ jefeSeleccionadoNombre }}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.jefes">
+          <ng-container *ngFor="let jefe of jefesCuadrillaFiltrados">
+            <label [class.disabled]="selectedJefeCuadrillaId !== null && selectedJefeCuadrillaId !== jefe.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedJefeCuadrillaId === jefe.id"
+                (change)="toggleSelectionJefeCuadrilla(jefe.id)"
+                [disabled]="selectedJefeCuadrillaId !== null && selectedJefeCuadrillaId !== jefe.id">
+              {{ jefe.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-container">
+      <button class="btn-secondary" (click)="volverSociedad()">Volver</button>
+      <button class="btn-primary" (click)="siguienteContratacion()">Siguiente</button>
+    </div>
+  </div>
+
+  <!-- ============ PASO 3: CONTRATACIÓN ============ -->
+  <div class="paso-container" *ngIf="pasoActual === 3">
+    <h2>Datos del Trabajador</h2>
+
+    <!-- Tipo de Documento -->
+    <div class="form-group">
+      <label>Tipo de Documento:</label>
+      <select [(ngModel)]="tipoDocumento" class="form-control">
+        <option value="CEDULA_CHILENA">CÉDULA CHILENA</option>
+        <option value="CEDULA_EXTRANJERA">CÉDULA EXTRANJERA</option>
+      </select>
+    </div>
+
+    <!-- Sección de Escaneo de Carnet -->
+    <div class="scan-section">
+      <h3>Escanear Carnet</h3>
+      
+      <div class="image-upload-container">
+        <!-- Carnet Frente -->
+        <div class="image-upload">
+          <label for="carnetFrente">
+            <div class="upload-box">
+              <mat-icon *ngIf="!previewCarnetFrente">camera_alt</mat-icon>
+              <img *ngIf="previewCarnetFrente" [src]="previewCarnetFrente" alt="Carnet Frente">
+              <p>Carnet Frontal</p>
+            </div>
+          </label>
+          <input 
+            type="file" 
+            id="carnetFrente" 
+            accept="image/*" 
+            (change)="onFileSelected($event, 'frente')"
+            style="display: none;">
+        </div>
+
+        <!-- Carnet Reverso -->
+        <div class="image-upload">
+          <label for="carnetReverso">
+            <div class="upload-box">
+              <mat-icon *ngIf="!previewCarnetReverso">camera_alt</mat-icon>
+              <img *ngIf="previewCarnetReverso" [src]="previewCarnetReverso" alt="Carnet Reverso">
+              <p>Carnet Reverso</p>
+            </div>
+          </label>
+          <input 
+            type="file" 
+            id="carnetReverso" 
+            accept="image/*" 
+            (change)="onFileSelected($event, 'reverso')"
+            style="display: none;">
+        </div>
+      </div>
+
+      <div *ngIf="cargandoOCR" class="loading">
+        <p>Procesando imagen...</p>
+      </div>
+    </div>
+
+    <!-- Formulario de Datos -->
+    <div class="form-grid-2col">
+      <div class="form-group">
+        <label>Nombres: *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="nombres" 
+          class="form-control"
+          (ngModelChange)="nombres = $event.toUpperCase()">
+      </div>
+
+      <div class="form-group">
+        <label>Apellidos: *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="apellidos" 
+          class="form-control"
+          (ngModelChange)="apellidos = $event.toUpperCase()">
+      </div>
+
+      <div class="form-group" *ngIf="tipoDocumento === 'CEDULA_CHILENA'">
+        <label>RUT: *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="rut" 
+          class="form-control"
+          (input)="formatRUT($event)">
+      </div>
+
+      <div class="form-group" *ngIf="tipoDocumento === 'CEDULA_EXTRANJERA'">
+        <label>DNI: *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="dni" 
+          class="form-control">
+      </div>
+
+      <div class="form-group" *ngIf="tipoDocumento === 'CEDULA_EXTRANJERA'">
+        <label>NIC:</label>
+        <input 
+          type="text" 
+          [(ngModel)]="nic" 
+          class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label>Sexo: *</label>
+        <select [(ngModel)]="sexo" class="form-control">
+          <option value="">SELECCIONAR</option>
+          <option value="M">M</option>
+          <option value="F">F</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Estado Civil:</label>
+        <select [(ngModel)]="estadoCivil" class="form-control">
+          <option value="SOLTERO(A)">SOLTERO(A)</option>
+          <option value="CASADO(A)">CASADO(A)</option>
+          <option value="VIUDO(A)">VIUDO(A)</option>
+          <option value="DIVORCIADO(A)">DIVORCIADO(A)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Nacionalidad: *</label>
+        <div class="dropdown">
+          <button class="dropdown-button" (click)="toggleDropdown('nacionalidades')">
+            {{ nacionalidad }}
+          </button>
+          <div class="dropdown-content" [class.show]="dropdownStates.nacionalidades">
+            <ng-container *ngFor="let nac of nacionalidades">
+              <label (click)="nacionalidad = nac; dropdownStates.nacionalidades = false">
+                {{ nac }}
+              </label>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Fecha de Nacimiento: *</label>
+        <input 
+          type="date" 
+          [(ngModel)]="fechaNacimiento" 
+          class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label>Teléfono:</label>
+        <div style="display: flex; gap: 10px;">
+          <input 
+            type="text" 
+            [(ngModel)]="telefonoPrefijo" 
+            class="form-control"
+            style="width: 80px;"
+            readonly>
+          <input 
+            type="tel" 
+            [(ngModel)]="telefonoNumero" 
+            class="form-control"
+            style="flex: 1;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Correo:</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input 
+            type="text" 
+            [(ngModel)]="correoUsuario" 
+            class="form-control"
+            style="flex: 1;">
+          <span>&#64;</span>
+          <input 
+            type="text" 
+            [(ngModel)]="correoDominio" 
+            class="form-control"
+            style="flex: 1;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Dirección:</label>
+        <input 
+          type="text" 
+          [(ngModel)]="direccion" 
+          class="form-control"
+          (ngModelChange)="direccion = $event.toUpperCase()">
+      </div>
+    </div>
+
+    <!-- Datos Bancarios -->
+    <h3>Datos Bancarios</h3>
+    <div class="form-grid-2col">
+      <div class="form-group">
+        <label>Método de Pago:</label>
+        <select [(ngModel)]="metodoPago" (ngModelChange)="onMetodoPagoChange()" class="form-control">
+          <option value="EFECTIVO">EFECTIVO</option>
+          <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+        </select>
+      </div>
+
+      <div class="dropdown" *ngIf="metodoPago === 'TRANSFERENCIA'">
+        <button class="dropdown-button" (click)="toggleDropdown('bancos')">
+          {{ bancoSeleccionadoNombre }}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.bancos">
+          <ng-container *ngFor="let bancoItem of bancosCargados">
+            <label (click)="banco = bancoItem.id.toString(); dropdownStates.bancos = false">
+              {{ bancoItem.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <div class="form-group" *ngIf="metodoPago === 'TRANSFERENCIA'">
+        <label>Tipo de Cuenta:</label>
+        <select [(ngModel)]="tipoCuenta" class="form-control">
+          <option value="CUENTA RUT">CUENTA RUT</option>
+          <option value="VISTA/CHEQUERA ELECTRÓNICA">VISTA/CHEQUERA ELECTRÓNICA</option>
+          <option value="CUENTA DE AHORRO">CUENTA DE AHORRO</option>
+          <option value="CUENTA CORRIENTE">CUENTA CORRIENTE</option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="metodoPago === 'TRANSFERENCIA'">
+        <label>Número de Cuenta:</label>
+        <input 
+          type="text" 
+          [(ngModel)]="numeroCuenta" 
+          class="form-control">
+      </div>
+    </div>
+
+    <!-- Botones -->
+    <div class="button-container">
+      <button class="btn-secondary" (click)="volverPreContratacion()">Volver</button>
+      <button 
+        class="btn-primary" 
+        (click)="guardarTrabajador()"
+        [disabled]="guardando || !validarFormulario()">
+        {{ guardando ? 'Guardando...' : 'Guardar Trabajador' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal de loading -->
+  <div id="loadingModal" class="modal-perfiles" *ngIf="modals['loadingModal']">
+    <div class="modal-content loading-modal" (click)="$event.stopPropagation()">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2>Leyendo datos...</h2>
+        <div class="loading-message">Un momento por favor...</div>
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -503,7 +503,12 @@ export class MotherLayoutComponent implements OnInit {
     this.router.navigate(['/fs/maestro-trabajadores']);
     this.leftSidenav.close();
   }
-
+  
+  navigateToEnrolamiento() {
+    this.router.navigate(['/fs/enrolamiento']);
+    this.leftSidenav.close();
+  }
+  
   navigateToAutoRegistro() {
     this.router.navigate(['/fs/autoregistro-personal']);
     this.leftSidenav.close();

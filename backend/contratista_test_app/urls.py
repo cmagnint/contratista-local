@@ -120,6 +120,7 @@ from .views import (
     ResponderTraspasoAPIView,
     ContratoTrabajadorAPIView,
     CrearContratoWebAPIView,
+    CarnetOCRAPIView,
 )
 
 app_name = 'contratista_test'
@@ -294,6 +295,7 @@ urlpatterns = [
     path('responder_traspaso/', ResponderTraspasoAPIView.as_view(), name='responder_traspaso'),
     path('api_contratos_trabajadores/', ContratoTrabajadorAPIView.as_view(), name='contratos-trabajadores'),
     path('api_crear_contrato_web/', CrearContratoWebAPIView.as_view(), name='crear-contrato-web'),
+    path('api_ocr_carnet/', CarnetOCRAPIView.as_view(), name='ocr_carnet'),
 
 ]   
 

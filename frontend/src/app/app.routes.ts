@@ -60,6 +60,7 @@ import { ChangePasswordComponent } from './pages/change-password/change-password
 import { MaestroTrabajadoresComponent } from './pages/mother-layout/recursos-humanos/maestro-trabajadores/maestro-trabajadores.component';
 import { FormatosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/formatos/formatos.component';
 import { GenerarTxtBancoComponent } from './pages/mother-layout/pagos/generar-txt-banco/generar-txt-banco.component';
+import { EnrolamientoComponent } from './pages/mother-layout/recursos-humanos/enrolamiento/enrolamiento.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -101,6 +102,7 @@ export const routes: Routes = [
       { path: 'autoregistro-personal', component: AutoRegistroComponent },
       { path: 'formatos', component: FormatosComponent },
       { path: 'generar-contrato',  component: GenerarContratosComponent },
+      { path: 'enrolamiento', component: EnrolamientoComponent },
       // RUTAS DE CLIENTES
       { path: 'administrar-clientes', component: AdministrarClientesComponent },
       { path: 'administrar-area-cargos-cliente', component: AreasCargosClientesComponent },

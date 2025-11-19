@@ -216,6 +216,11 @@
           
           </ul>
 
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'MAESTRO TRABAJADORES')" (click)="navigateToEnrolamiento()">
+            <mat-icon>receipt</mat-icon>
+            <span class="icon-label">Enrolamiento</span>
+          </li>
+
           <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'MAESTRO TRABAJADORES')" (click)="navigateToMaestroTrabajadores()">
             <mat-icon>receipt</mat-icon>
             <span class="icon-label">Maestro Trabajadores</span>
