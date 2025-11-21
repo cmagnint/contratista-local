@@ -347,10 +347,37 @@ export class EnrolamientoComponent implements OnInit {
       this.previewImage(file, 'frente');
       this.procesarOCR(file, 'frente');
     } else {
-      this.imagenCarnetReverso = file;
-      this.previewImage(file, 'reverso');
-      this.procesarOCR(file, 'reverso');
+    // ⬇️ ESTE ES EL ÚNICO CAMBIO
+    if (file.type === 'application/pdf') {
+      // Si es PDF, convertir primero
+      this.convertirPDFaImagen(file, 'reverso');
+    } else {
+        // Si es imagen, funciona como antes
+        this.imagenCarnetReverso = file;
+        this.previewImage(file, 'reverso');
+      }
     }
+  }
+
+  // MÉTODO NUEVO - Agregar después de onFileSelected
+  convertirPDFaImagen(file: File, tipo: 'reverso'): void {
+    this.modals['loadingModal'] = true;
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    this.contratistaApiService.postFormData('api_convert_pdf_to_image/', formData).subscribe({
+      next: (response) => {
+        if (response.success && response.imagen_convertida) {
+          this.reemplazarConImagenConvertida(response.imagen_convertida, tipo);
+        }
+        this.modals['loadingModal'] = false;
+      },
+      error: (error) => {
+        console.error('Error convirtiendo PDF:', error);
+        this.modals['loadingModal'] = false;
+        alert('Error al convertir PDF.');
+      }
+    });
   }
 
   previewImage(file: File, tipo: 'frente' | 'reverso'): void {

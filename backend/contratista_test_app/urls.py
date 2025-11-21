@@ -121,6 +121,7 @@ from .views import (
     ContratoTrabajadorAPIView,
     CrearContratoWebAPIView,
     CarnetOCRAPIView,
+    PDFToImageAPIView,
 )
 
 app_name = 'contratista_test'
@@ -296,7 +297,7 @@ urlpatterns = [
     path('api_contratos_trabajadores/', ContratoTrabajadorAPIView.as_view(), name='contratos-trabajadores'),
     path('api_crear_contrato_web/', CrearContratoWebAPIView.as_view(), name='crear-contrato-web'),
     path('api_ocr_carnet/', CarnetOCRAPIView.as_view(), name='ocr_carnet'),
-
+    path('api_convert_pdf_to_image/', PDFToImageAPIView.as_view(), name='convert_pdf'),
 ]   
 
 

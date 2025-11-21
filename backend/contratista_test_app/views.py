@@ -61,6 +61,8 @@ import io
 import os
 import re
 import pypdf
+import base64
+
 
 
 #SERVICIOS
@@ -21124,3 +21126,35 @@ class CarnetOCRAPIView(APIView):
         
         return datos
 
+# views.py
+class PDFToImageAPIView(APIView):
+    """
+    Endpoint SOLO para convertir PDF a imagen (sin OCR)
+    """
+    def post(self, request):
+        try:
+            file = request.FILES.get('image')
+            if not file:
+                return Response({'error': 'No se recibió archivo'}, status=400)
+            
+            content = file.read()
+            
+            # Solo procesar si es PDF
+            if file.content_type == 'application/pdf':
+                images = convert_from_bytes(content, first_page=1, last_page=1)
+                img_byte_arr = io.BytesIO()
+                images[0].save(img_byte_arr, format='PNG')
+                content = img_byte_arr.getvalue()
+                
+                imagen_base64 = base64.b64encode(content).decode('utf-8')
+                
+                return Response({
+                    'success': True,
+                    'imagen_convertida': imagen_base64
+                })
+            else:
+                return Response({'error': 'Solo se aceptan archivos PDF'}, status=400)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        
