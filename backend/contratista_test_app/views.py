@@ -18712,20 +18712,13 @@ class GenerarTxtBancoAPIView(APIView):
         return formatted[:length]
 
 class GenerarDocumentosMasivoAPIView(APIView):
-    """
-    Vista para generar contratos masivos para múltiples trabajadores
-    """
-    
     def post(self, request, *args, **kwargs):
-        """
-        Genera contratos para múltiples trabajadores
-        """
         try:
             documento_id = request.data.get('documento_id')
             trabajador_ids = request.data.get('trabajador_ids', [])
-            # ⭐ CRÍTICO: Extraer fecha_emision y sociedad_id del request
             fecha_emision = request.data.get('fecha_emision')
             sociedad_id = request.data.get('sociedad_id')
+            marcar_como_generado = request.data.get('marcar_como_generado', False)
             
             if not documento_id:
                 return Response({
@@ -18737,16 +18730,13 @@ class GenerarDocumentosMasivoAPIView(APIView):
                     "error": "Se requiere al menos un trabajador_id"
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Verificar que el documento existe
             documento = get_object_or_404(ContratoVariables, id=documento_id)
             
-            # Verificar permisos
             if documento.holding != request.user.holding:
                 return Response({
                     "error": "No tienes permisos para usar este documento"
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Generar contratos para cada trabajador
             urls_generadas = []
             errores = []
             
@@ -18757,32 +18747,33 @@ class GenerarDocumentosMasivoAPIView(APIView):
                         holding=request.user.holding
                     )
                     
-                    # ⭐ CRÍTICO: Pasar fecha_emision y sociedad_id
                     datos_variables = self._mapear_datos_trabajador(
                         trabajador, 
                         fecha_emision, 
                         sociedad_id
                     )
                     
-                    # Generar PDF
                     pdf_buffer = self._generar_documento_coordenadas_nativas(
                         documento_id,
                         datos_variables,
                         debug=False
                     )
                     
+                    # ✅ CORRECCIÓN: pasar marcar_como_generado como parámetro
                     pdf_url = self._guardar_contrato_generado(
                         pdf_buffer,
                         trabajador,
                         documento,
-                        request
+                        request,
+                        marcar_como_generado
                     )
                     
                     urls_generadas.append({
                         'trabajador_id': trabajador.id,
                         'trabajador_nombre': f"{trabajador.nombres} {trabajador.apellidos}",
                         'url': pdf_url,
-                        'success': True
+                        'success': True,
+                        'marcado_como_generado': marcar_como_generado
                     })
                     
                 except PersonalTrabajadores.DoesNotExist:
@@ -18801,10 +18792,11 @@ class GenerarDocumentosMasivoAPIView(APIView):
             
             return Response({
                 'mensaje': f'Se generaron {len(urls_generadas)} contratos exitosamente',
-                'contratos': urls_generadas,  # ✅ Cambiar 'urls' por 'contratos'
+                'contratos': urls_generadas,
                 'errores': errores,
                 'total_exitosos': len(urls_generadas),
-                'total_errores': len(errores)
+                'total_errores': len(errores),
+                'marcados_como_generados': marcar_como_generado
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -18815,6 +18807,50 @@ class GenerarDocumentosMasivoAPIView(APIView):
             return Response({
                 "error": f"Error al generar contratos: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # ✅ CORRECCIÓN: Actualizar firma del método para recibir marcar_como_generado
+    def _guardar_contrato_generado(self, pdf_buffer, trabajador, documento, request, marcar_como_generado=False):
+        """
+        Guarda el PDF generado y retorna la URL ABSOLUTA
+        Opcionalmente marca el contrato como generado
+        """
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        rut_limpio = (trabajador.rut or trabajador.dni or str(trabajador.id)).replace('.', '').replace('-', '')
+        nombre_archivo = f"contrato_{documento.tipo}_{rut_limpio}_{timestamp}.pdf"
+        
+        ruta_relativa = f'contratos_generados/{trabajador.holding.id}/{documento.tipo.lower()}/'
+        ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta_relativa)
+        
+        os.makedirs(ruta_completa, exist_ok=True)
+        
+        ruta_archivo = os.path.join(ruta_completa, nombre_archivo)
+        with open(ruta_archivo, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        url_relativa = f"{ruta_relativa}{nombre_archivo}".replace('\\', '/')
+        url_absoluta = request.build_absolute_uri(f"{settings.MEDIA_URL}{url_relativa}")
+        
+        print(f"✅ Contrato guardado: {ruta_archivo}")
+        print(f"🔗 URL generada: {url_absoluta}")
+        
+        # ✅ Actualizar contrato_generado solo si se solicitó
+        if marcar_como_generado:
+            try:
+                contrato = ContratoTrabajador.objects.filter(
+                    trabajador=trabajador,
+                    holding=trabajador.holding
+                ).latest('fecha_inicio_contrato')
+                
+                contrato.contrato_generado = True
+                contrato.save(update_fields=['contrato_generado'])
+                
+                print(f"✅ Contrato marcado como generado: ID={contrato.id}")
+            except ContratoTrabajador.DoesNotExist:
+                print(f"⚠️ Trabajador {trabajador.id} no tiene contrato registrado")
+        else:
+            print(f"ℹ️ Contrato generado pero mantenido como PENDIENTE para trabajador {trabajador.id}")
+        
+        return url_absoluta
     
     def _mapear_datos_trabajador(self, trabajador, fecha_emision=None, sociedad_id=None):
         """
@@ -18931,47 +18967,6 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'firma': '[FIRMA TRABAJADOR]',
             'huella': '[HUELLA DIGITAL]',
         }
-    
-    def _guardar_contrato_generado(self, pdf_buffer, trabajador, documento, request):
-        """
-        Guarda el PDF generado y retorna la URL ABSOLUTA
-        """
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        rut_limpio = (trabajador.rut or trabajador.dni or str(trabajador.id)).replace('.', '').replace('-', '')
-        nombre_archivo = f"contrato_{documento.tipo}_{rut_limpio}_{timestamp}.pdf"
-        
-        # Ruta relativa desde MEDIA_ROOT
-        ruta_relativa = f'contratos_generados/{trabajador.holding.id}/{documento.tipo.lower()}/'
-        ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta_relativa)
-        
-        # Crear directorio si no existe
-        os.makedirs(ruta_completa, exist_ok=True)
-        
-        # Guardar archivo
-        ruta_archivo = os.path.join(ruta_completa, nombre_archivo)
-        with open(ruta_archivo, 'wb') as f:
-            f.write(pdf_buffer.getvalue())
-        
-        # ⭐ Construir URL absoluta completa
-        url_relativa = f"{ruta_relativa}{nombre_archivo}".replace('\\', '/')
-        url_absoluta = request.build_absolute_uri(f"{settings.MEDIA_URL}{url_relativa}")
-        
-        print(f"✅ Contrato guardado: {ruta_archivo}")
-        print(f"🔗 URL generada: {url_absoluta}")
-        # ✅ ACTUALIZAR contrato_generado del trabajador
-        try:
-            contrato = ContratoTrabajador.objects.filter(
-                trabajador=trabajador,
-                holding=trabajador.holding
-            ).latest('fecha_inicio_contrato')
-            
-            contrato.contrato_generado = True
-            contrato.save(update_fields=['contrato_generado'])
-            
-            print(f"✅ Contrato marcado como generado: ID={contrato.id}")
-        except ContratoTrabajador.DoesNotExist:
-            print(f"⚠️ Trabajador {trabajador.id} no tiene contrato registrado")
-        return url_absoluta
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """

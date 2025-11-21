@@ -52,6 +52,7 @@ export class GenerarContratosComponent implements OnInit {
   public selection = new SelectionModel<any>(true, []);
   public selectedRows: any[] = [];
   public tipoFormato: string = '';
+  public marcarComoGenerado: boolean = false;
 
   // Columnas de la tabla
   displayedColumns: string[] = [
@@ -69,7 +70,8 @@ export class GenerarContratosComponent implements OnInit {
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
-    confirmacionRegenerarModal: false // ✅ NUEVO
+    confirmacionRegenerarModal: false,
+    decisionEstadoModal: false
   };
   
   public errorMessage: string = '';
@@ -175,6 +177,12 @@ export class GenerarContratosComponent implements OnInit {
     this.cargarTrabajadores();
   }
 
+  procederGeneracion(marcarGenerado: boolean): void {
+    this.marcarComoGenerado = marcarGenerado;
+    this.closeModal('decisionEstadoModal');
+    this.confirmarGeneracion();
+  }
+
   // ============================================
   // 🎯 SELECCIÓN DE TRABAJADORES
   // ============================================
@@ -215,7 +223,7 @@ export class GenerarContratosComponent implements OnInit {
       return;
     }
     
-    // ✅ VERIFICAR si hay trabajadores con contrato ya generado
+    // Verificar si hay trabajadores con contrato ya generado
     const conContrato = this.selectedRows.filter(t => t.tiene_contrato);
     
     if (conContrato.length > 0 && this.filtroContrato !== 'con_contrato') {
@@ -224,8 +232,8 @@ export class GenerarContratosComponent implements OnInit {
       return;
     }
     
-    // Si no hay conflicto, generar directamente
-    this.confirmarGeneracion();
+    // Mostrar modal de decisión de estado
+    this.openModal('decisionEstadoModal');
   }
 
   confirmarGeneracion(): void {
@@ -235,7 +243,8 @@ export class GenerarContratosComponent implements OnInit {
       documento_id: this.documentoSeleccionado,
       trabajador_ids: trabajadorIds,
       fecha_emision: this.fechaEmision,
-      sociedad_id: this.sociedad
+      sociedad_id: this.sociedad,
+      marcar_como_generado: this.marcarComoGenerado
     };
 
     console.log('📤 Enviando payload:', payload);
@@ -244,7 +253,6 @@ export class GenerarContratosComponent implements OnInit {
       next: (response) => {
         console.log('✅ Contratos generados:', response);
         
-        // ✅ CAPTURAR CONTRATOS GENERADOS
         this.contratosGenerados = response.contratos || [];
         this.mostrarContratos = true;
         

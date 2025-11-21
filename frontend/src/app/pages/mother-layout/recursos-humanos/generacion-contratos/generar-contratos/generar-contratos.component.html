@@ -110,6 +110,44 @@
     <span class="button-icon">📄</span>
     <span class="button-text">GENERAR CONTRATOS ({{ selectedRows.length }})</span>
   </button>
+
+  <!-- Modal de Decisión de Estado -->
+  <div class="modal" *ngIf="modals['decisionEstadoModal']" (click)="closeModal('decisionEstadoModal')">
+    <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+      
+      <div class="icon-container confirmation">
+        <div class="icon-circle confirmation">?</div>
+      </div>
+      
+      <h2 class="modal-title confirmation">Estado de los Contratos</h2>
+      <p class="modal-message">¿Cómo desea marcar estos contratos después de generarlos?</p>
+      
+      <div class="button-container decision">
+        <button 
+          class="button-bottom confirm-yes" 
+          (click)="procederGeneracion(true)"
+          style="background: #4caf50;">
+          <span style="display: block; font-weight: bold; margin-bottom: 4px;">✓ CONTRATO GENERADO</span>
+          <span style="font-size: 12px; opacity: 0.9;">Los trabajadores se marcarán como "Con Contrato"</span>
+        </button>
+        
+        <button 
+          class="button-bottom confirm-no" 
+          (click)="procederGeneracion(false)"
+          style="background: #ff9800;">
+          <span style="display: block; font-weight: bold; margin-bottom: 4px;">⊗ PENDIENTE</span>
+          <span style="font-size: 12px; opacity: 0.9;">Los trabajadores seguirán como "Sin Contrato"</span>
+        </button>
+        
+        <button 
+          class="button-bottom" 
+          (click)="closeModal('decisionEstadoModal')"
+          style="background: #757575;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
   
   <!-- ============================================ -->
   <!-- 🎯 TABLA DE TRABAJADORES -->
