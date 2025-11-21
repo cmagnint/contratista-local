@@ -51,7 +51,8 @@ export class GenerarContratosComponent implements OnInit {
   // Selección
   public selection = new SelectionModel<any>(true, []);
   public selectedRows: any[] = [];
-  
+  public tipoFormato: string = '';
+
   // Columnas de la tabla
   displayedColumns: string[] = [
     'select',
@@ -82,7 +83,6 @@ export class GenerarContratosComponent implements OnInit {
       this.holding = localStorage.getItem('holding_id') || '';
       this.fechaEmision = new Date().toISOString().split('T')[0]; // Fecha actual por defecto
       this.cargarSociedades();
-      this.cargarDocumentos();
     }
     
     // Observar cambios en la selección
@@ -108,11 +108,21 @@ export class GenerarContratosComponent implements OnInit {
     });
   }
 
+  cambiarTipoFormato(tipo: string): void {
+    this.tipoFormato = tipo;
+    this.cargarDocumentos();
+  }
+
   cargarDocumentos(): void {
-    // Cargar documentos tipo CHILENO (puedes agregar filtro por tipo si lo necesitas)
-    this.apiService.get(`api_listar-documentos/?tipo=CHILENO&holding=${this.holding}`).subscribe({
+    if (!this.tipoFormato) {
+      this.documentos = [];
+      return;
+    }
+    
+    this.apiService.get(`api_listar-documentos/?tipo=${this.tipoFormato}&holding=${this.holding}`).subscribe({
       next: (response) => {
         this.documentos = response;
+        this.documentoSeleccionado = null; // Resetear selección
         console.log('✅ Documentos cargados:', this.documentos.length);
       },
       error: (error) => {
@@ -129,13 +139,17 @@ export class GenerarContratosComponent implements OnInit {
       return;
     }
     
-    // ✅ INCLUIR filtro_contrato en la petición
+    // ✅ RESETEAR tipo de formato y documentos
+    this.tipoFormato = '';
+    this.documentos = [];
+    this.documentoSeleccionado = null;
+    
     const params = `holding=${this.holding}&sociedad_id=${this.sociedad}&filtro_contrato=${this.filtroContrato}`;
     
     this.apiService.get(`api_personal_filtrado/?${params}`).subscribe({
       next: (response) => {
         this.trabajadores = response;
-        this.selection.clear(); // Limpiar selección al cargar nuevos datos
+        this.selection.clear();
         console.log('✅ Trabajadores cargados:', this.trabajadores.length);
       },
       error: (error) => {
@@ -151,7 +165,13 @@ export class GenerarContratosComponent implements OnInit {
   // ============================================
   cambiarFiltroContrato(filtro: string): void {
     this.filtroContrato = filtro;
-    this.selection.clear(); // Limpiar selección al cambiar filtro
+    this.selection.clear();
+    
+    // ✅ RESETEAR tipo de formato
+    this.tipoFormato = '';
+    this.documentos = [];
+    this.documentoSeleccionado = null;
+    
     this.cargarTrabajadores();
   }
 

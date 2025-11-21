@@ -744,3 +744,82 @@
 .custom-button-agregar .button-text {
   letter-spacing: 0.5px;
 }
+
+/* ============================================ */
+/* 🎯 CONTENEDOR DE BOTONES DE ACCIÓN */
+/* ============================================ */
+
+.botones-accion-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center; /* Alinea verticalmente */
+}
+
+/* ============================================ */
+/* 🎯 NORMALIZAR ALTURA DE BOTONES */
+/* ============================================ */
+
+.custom-button-agregar,
+.custom-button-cancelar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  padding: 14px 28px !important; /* Mismo padding para ambos */
+  margin: 0 !important; /* Eliminar márgenes individuales */
+  border: none !important;
+  cursor: pointer !important;
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 48px; /* Altura mínima igual */
+  white-space: nowrap; /* Evita saltos de línea */
+}
+
+/* Botón Agregar (Verde) */
+.custom-button-agregar {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+  color: white !important;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.custom-button-agregar:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049, #3d8b40) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
+}
+
+/* Botón Eliminar (Rojo) */
+.custom-button-cancelar {
+  background: linear-gradient(135deg, #f44336, #d32f2f) !important;
+  color: white !important;
+  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+}
+
+.custom-button-cancelar:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d32f2f, #b71c1c) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(244, 67, 54, 0.4);
+}
+
+.custom-button-cancelar:disabled,
+.custom-button-agregar:disabled {
+  background: linear-gradient(135deg, #ccc, #999) !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Iconos dentro de los botones */
+.button-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.button-text {
+  letter-spacing: 0.5px;
+  line-height: 1;
+}

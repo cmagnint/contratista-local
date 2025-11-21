@@ -1,10 +1,8 @@
-<!--maestro-trabajadores.component.html - VERSIÓN MODERNA CON CREAR CONTRATO-->
+<!--maestro-trabajadores.component.html-->
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
   
-  <!-- ============================================ -->
-  <!-- 🎯 SECCIÓN DE FILTROS MODERNIZADA -->
-  <!-- ============================================ -->
+  <!-- FILTROS -->
   <div class="filtros-section-modern">
     <h3 class="filtros-title">FILTRAR CONTRATOS POR ESTADO</h3>
     <div class="filtros-buttons-container">
@@ -35,11 +33,8 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 BOTONES DE ACCIÓN MODERNIZADOS -->
-  <!-- ============================================ -->
-  <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-    <!-- ✅ NUEVO BOTÓN CREAR CONTRATO -->
+  <!-- BOTONES DE ACCIÓN -->
+  <div class="botones-accion-container">
     <button 
       mat-raised-button 
       color="primary" 
@@ -48,7 +43,7 @@
       <span class="button-icon">➕</span>
       <span class="button-text">CREAR CONTRATO</span>
     </button>
-
+    
     <button 
       mat-raised-button 
       color="primary" 
@@ -60,9 +55,7 @@
     </button>
   </div>
   
-  <!-- ============================================ -->
-  <!-- 🎯 TABLA DE CONTRATOS MODERNIZADA -->
-  <!-- ============================================ -->
+  <!-- TABLA DE CONTRATOS -->
   <table mat-table [dataSource]="contratosFiltrados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
     
     <ng-container matColumnDef="id">
@@ -97,11 +90,6 @@
     <ng-container matColumnDef="fundo">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Fundo</th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nombre_fundo || 'N/A'}}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="documento">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Tipo Contrato</th>
-      <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nombre_documento || 'N/A'}}</td>
     </ng-container>
 
     <ng-container matColumnDef="fecha_inicio">
@@ -164,9 +152,7 @@
 
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL CREAR CONTRATO -->
-<!-- ============================================ -->
+<!-- MODAL CREAR CONTRATO -->
 <div class="modal" *ngIf="modals['crearContratoModal']" (click)="closeModal('crearContratoModal')">
   <div class="modal-content-crear-contrato" (click)="$event.stopPropagation()">
     
@@ -227,17 +213,6 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Casa -->
-      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.sociedad_id">
-        <mat-label>Casa</mat-label>
-        <mat-select [(ngModel)]="nuevoContrato.casa_id">
-          <mat-option [value]="">Sin casa</mat-option>
-          <mat-option *ngFor="let casa of casas" [value]="casa.id">
-            {{casa.nombre}}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
-
       <!-- Trabajador -->
       <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
         <mat-label>Trabajador (sin contrato vigente) *</mat-label>
@@ -248,13 +223,57 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Documento -->
+      <!-- NUEVO: Supervisor (Opcional) -->
       <mat-form-field appearance="outline" class="form-field">
-        <mat-label>Tipo Documento</mat-label>
-        <mat-select [(ngModel)]="nuevoContrato.documento_id">
-          <mat-option [value]="">Ninguno</mat-option>
-          <mat-option *ngFor="let doc of documentos" [value]="doc.id">
-            {{doc.nombre}}
+        <mat-label>Supervisor (Opcional)</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.supervisor_id" (selectionChange)="onSupervisorChange()">
+          <mat-option [value]="''">-- Sin Supervisor --</mat-option>
+          <mat-option *ngFor="let supervisor of supervisores" [value]="supervisor.id">
+            {{supervisor.nombre}} - {{supervisor.rut}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- NUEVO: Jefe de Cuadrilla (Opcional - solo si hay supervisor) -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.supervisor_id && jefesCuadrillaFiltrados.length > 0">
+        <mat-label>Jefe de Cuadrilla (Opcional)</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.jefe_cuadrilla_id">
+          <mat-option [value]="''">-- Sin Jefe de Cuadrilla --</mat-option>
+          <mat-option *ngFor="let jefe of jefesCuadrillaFiltrados" [value]="jefe.id">
+            {{jefe.nombre}} - {{jefe.rut}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- NUEVO: Transportista (Opcional) -->
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>Empresa Transporte (Opcional)</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.transportista_id" (selectionChange)="onTransportistaChange()">
+          <mat-option [value]="''">-- Sin Transporte --</mat-option>
+          <mat-option *ngFor="let transportista of transportistas" [value]="transportista.id">
+            {{transportista.nombre}} - {{transportista.rut}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- NUEVO: Vehículo (solo si hay transportista) -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.transportista_id && vehiculosFiltrados.length > 0">
+        <mat-label>Vehículo</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.vehiculo_id" (selectionChange)="onVehiculoChange()">
+          <mat-option [value]="''">-- Seleccionar Vehículo --</mat-option>
+          <mat-option *ngFor="let vehiculo of vehiculosFiltrados" [value]="vehiculo.id">
+            {{vehiculo.ppu}} - {{vehiculo.modelo}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- NUEVO: Chofer (solo si hay vehículo) -->
+      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.vehiculo_id && choferesFiltrados.length > 0">
+        <mat-label>Chofer</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.chofer_id">
+          <mat-option [value]="''">-- Seleccionar Chofer --</mat-option>
+          <mat-option *ngFor="let chofer of choferesFiltrados" [value]="chofer.id">
+            {{chofer.nombre}} - {{chofer.licencia}}
           </mat-option>
         </mat-select>
       </mat-form-field>
@@ -289,22 +308,17 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE CONFIRMACIÓN MODERNIZADO -->
-<!-- ============================================ -->
+<!-- MODAL DE CONFIRMACIÓN -->
 <div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
   <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
-    
     <div class="icon-container confirmation">
       <div class="icon-circle confirmation">?</div>
     </div>
-    
     <h2 class="modal-title confirmation">Confirmar Eliminación</h2>
     <p class="modal-message">
       ¿Está seguro que desea eliminar {{selectedRows.length}} contrato(s) seleccionado(s)?<br>
       Esta acción no se puede deshacer.
     </p>
-    
     <div class="button-container confirmation">
       <button class="button-bottom confirm-yes" (click)="confirmarEliminacion()">
         Sí, Eliminar
@@ -316,19 +330,14 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ÉXITO MODERNIZADO -->
-<!-- ============================================ -->
+<!-- MODAL DE ÉXITO -->
 <div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
   <div class="modal-content-message success" (click)="$event.stopPropagation()">
-    
     <div class="icon-container success">
       <div class="icon-circle success">✓</div>
     </div>
-    
     <h2 class="modal-title success">¡Éxito!</h2>
     <p class="modal-message">La operación se ha completado exitosamente.</p>
-    
     <div class="button-container">
       <button class="button-bottom success" (click)="closeModal('exitoModal')">
         Cerrar
@@ -337,19 +346,14 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ERROR MODERNIZADO -->
-<!-- ============================================ -->
+<!-- MODAL DE ERROR -->
 <div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
   <div class="modal-content-message error" (click)="$event.stopPropagation()">
-    
     <div class="icon-container error">
       <div class="icon-circle error">✕</div>
     </div>
-    
     <h2 class="modal-title error">Error</h2>
     <p class="modal-message">{{ errorMessage }}</p>
-    
     <div class="button-container">
       <button class="button-bottom error" (click)="closeModal('errorModal')">
         Cerrar
@@ -358,17 +362,13 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DETALLE CONTRATO MODERNIZADO -->
-<!-- ============================================ -->
+<!-- MODAL DETALLE CONTRATO -->
 <div class="modal" *ngIf="modals['detalleContratoModal']" (click)="closeModal('detalleContratoModal')">
   <div class="modal-content-detalle" (click)="$event.stopPropagation()">
-    
     <div class="modal-header-modern">
       <h2>DETALLE DEL CONTRATO</h2>
       <button class="close-button-modern" (click)="closeModal('detalleContratoModal')">✕</button>
     </div>
-    
     <div class="detalle-content">
       <div class="detalle-section">
         <h3>Información General</h3>
@@ -377,24 +377,20 @@
             <span class="info-label">ID Contrato:</span>
             <span class="info-value">{{contratoSeleccionado?.id}}</span>
           </div>
-          
           <div class="info-item">
             <span class="info-label">Trabajador:</span>
             <span class="info-value">{{contratoSeleccionado?.nombre_trabajador}}</span>
           </div>
-          
           <div class="info-item">
             <span class="info-label">RUT:</span>
             <span class="info-value">{{contratoSeleccionado?.rut_trabajador}}</span>
           </div>
-          
           <div class="info-item">
             <span class="info-label">Sociedad:</span>
             <span class="info-value">{{contratoSeleccionado?.nombre_sociedad}}</span>
           </div>
         </div>
       </div>
-      
       <div class="detalle-section">
         <h3>Ubicación y Asignación</h3>
         <div class="info-grid">
@@ -402,19 +398,12 @@
             <span class="info-label">Cliente:</span>
             <span class="info-value">{{contratoSeleccionado?.nombre_cliente || 'N/A'}}</span>
           </div>
-          
           <div class="info-item">
             <span class="info-label">Fundo:</span>
             <span class="info-value">{{contratoSeleccionado?.nombre_fundo || 'N/A'}}</span>
           </div>
-          
-          <div class="info-item">
-            <span class="info-label">Tipo Contrato:</span>
-            <span class="info-value">{{contratoSeleccionado?.nombre_documento || 'N/A'}}</span>
-          </div>
         </div>
       </div>
-      
       <div class="detalle-section">
         <h3>Vigencia y Estado</h3>
         <div class="info-grid">
@@ -422,12 +411,10 @@
             <span class="info-label">Fecha Inicio:</span>
             <span class="info-value">{{contratoSeleccionado?.fecha_inicio_contrato}}</span>
           </div>
-          
           <div class="info-item">
             <span class="info-label">Fecha Término:</span>
             <span class="info-value">{{contratoSeleccionado?.fecha_termino_contrato || 'INDEFINIDO'}}</span>
           </div>
-          
           <div class="info-item">
             <span class="info-label">Estado:</span>
             <span class="info-value estado-tag" 
@@ -436,7 +423,6 @@
               {{contratoSeleccionado?.estado_contrato}}
             </span>
           </div>
-          
           <div class="info-item" *ngIf="contratoSeleccionado?.dias_restantes !== null">
             <span class="info-label">Días Restantes:</span>
             <span class="info-value">{{contratoSeleccionado?.dias_restantes}} días</span>
@@ -444,7 +430,6 @@
         </div>
       </div>
     </div>
-    
     <div class="button-container">
       <button class="button-bottom" (click)="closeModal('detalleContratoModal')">
         Cerrar

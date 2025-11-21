@@ -96,7 +96,7 @@ export class PersonalComponent implements OnInit {
   public correoTrabajador: string | null = null;
   public direccionTrabajador: string | null = null;
   public fechaTrabajador : Date | null = null;
-  public sexoTrabajador: string = 'H';
+  public sexoTrabajador: string = '';
   public telefonoTrabajador: string | null = null;
   public metodoPago: string | null = null;;
   public banco: string | null = null;
@@ -140,6 +140,11 @@ export class PersonalComponent implements OnInit {
 
   public trabajadorSeleccionadoBanco: any = null;
   public trabajadorSeleccionadoDocs: any = null;
+
+  public dniTrabajador: string | null = null;
+  public nicTrabajador: string | null = null;
+  public dniTrabajadorNew: string = '';
+  public nicTrabajadorNew: string = '';
 
   errorMessage!: string;
   selectedRows: any[] = [];
@@ -331,6 +336,8 @@ export class PersonalComponent implements OnInit {
       nombres: this.nombresTrabajador,
       apellidos: this.apellidosTrabajador,
       rut: this.rutTrabajador!.replace(/[\.\-]/g, ''),
+      dni: this.dniTrabajador,
+      nic: this.nicTrabajador,
       correo: this.correoTrabajador,
       direccion: this.direccionTrabajador,
       sexo: this.sexoTrabajador,
@@ -369,6 +376,8 @@ export class PersonalComponent implements OnInit {
       holding: this.holding,
       nombres: this.nombreTrabajadorNew,
       rut: this.rutTrabajadorNew.replace(/[\.\-]/g, ''),
+      dni: this.dniTrabajadorNew,
+      nic: this.nicTrabajadorNew,
       correo: this.correoTrabajadorNew,
       direccion: this.direccionTrabajadorNew,
       sexo: this.sexoTrabajadorNew,
@@ -665,7 +674,7 @@ export class PersonalComponent implements OnInit {
       return path;
     }
     
-    const baseUrl = 'http://contratista.terramobile.cl';
+    const baseUrl = 'http://localhost';
     return `${baseUrl}${path}`;
   }
 
@@ -688,6 +697,8 @@ export class PersonalComponent implements OnInit {
       
       this.nombreTrabajadorNew = selectedRow.nombres;
       this.rutTrabajadorNew = this.formatRUTString(selectedRow.rut);
+      this.dniTrabajadorNew = selectedRow.dni || '';
+      this.nicTrabajadorNew = selectedRow.nic || '';
       this.correoTrabajadorNew = selectedRow.correo;
       this.direccionTrabajadorNew = selectedRow.direccion;
       this.sexoTrabajadorNew = selectedRow.sexo;
@@ -721,6 +732,8 @@ export class PersonalComponent implements OnInit {
   limpiarFormularioModificacion(): void {
     this.nombreTrabajadorNew = '';
     this.rutTrabajadorNew = '';
+    this.dniTrabajadorNew = '';
+    this.nicTrabajadorNew = '';
     this.correoTrabajadorNew = '';
     this.direccionTrabajadorNew = '';
     this.sexoTrabajadorNew = '';
@@ -749,6 +762,8 @@ export class PersonalComponent implements OnInit {
     this.nombresTrabajador = null;
     this.apellidosTrabajador = null;
     this.rutTrabajador = null;
+    this.dniTrabajador = null;
+    this.nicTrabajador = null;
     this.correoTrabajador = null;
     this.direccionTrabajador = null;
     this.sexoTrabajador = 'H';

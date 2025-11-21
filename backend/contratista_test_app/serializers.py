@@ -72,6 +72,7 @@ from .models import (
     RegistroAsistencia,
     RegistroManoObraPersona,
     ContratoTrabajador,
+    FolioComercialLabor,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -1277,23 +1278,21 @@ class HorarioSimpleSerializer(serializers.ModelSerializer):
         
 class FolioComercialPreContratacionSerializer(serializers.ModelSerializer):
     """
-    Serializer específico para la pantalla de pre-contratación en el móvil.
-    Devuelve los transportistas con su lista completa de vehículos.
+    Serializer específico para la pantalla de pre-contratación.
     """
     nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
     fundos = FundoSimpleSerializer(many=True, read_only=True)
     labores = LaborSimpleSerializer(many=True, read_only=True)
-    horarios = HorarioSimpleSerializer(many=True, read_only=True)  # ✅ NUEVO
+    horarios = HorarioSimpleSerializer(many=True, read_only=True)
     transportistas = serializers.SerializerMethodField()
     
     class Meta:
         model = FolioComercial
         fields = [
             'id', 'cliente', 'nombre_cliente',
-            'fundos', 'labores', 'horarios',  # ✅ AGREGADO 'horarios'
+            'fundos', 'labores', 'horarios',
             'transportistas',
             'fecha_inicio_contrato', 'fecha_termino_contrato',
-            'valor_pago_trabajador', 'valor_facturacion',
             'estado'
         ]
     
@@ -1320,37 +1319,46 @@ class TransportistaNestedSerializer(serializers.ModelSerializer):
         model = EmpresasTransporte  # o el nombre de tu modelo
         fields = ['id', 'nombre', 'rut', 'direccion', 'vehiculos']  # ✅ Solo campos que existen
 
+class FolioComercialLaborSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='labor.id')
+    nombre = serializers.CharField(source='labor.nombre', read_only=True)
+    
+    class Meta:
+        model = FolioComercialLabor
+        fields = ['id', 'nombre', 'valor_pago_trabajador', 'valor_facturacion']
+
 
 class FolioComercialSerializer(serializers.ModelSerializer):
-    # Campos de lectura
     cliente = serializers.PrimaryKeyRelatedField(queryset=Clientes.objects.all())
     nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
     fundos = FundoSimpleSerializer(many=True, read_only=True)
-    labores = LaborSimpleSerializer(many=True, read_only=True)
-    horarios = HorarioSimpleSerializer(many=True, read_only=True)  # ✅ NUEVO
+    
+    # 🔥 CAMBIO PRINCIPAL: Usar labores en lugar de labores_detalle
+    labores = serializers.SerializerMethodField()  # ✅ Campo para leer
+    
+    horarios = HorarioSimpleSerializer(many=True, read_only=True)
     nombres_fundos = serializers.SerializerMethodField()
     nombres_labores = serializers.SerializerMethodField()
     nombres_horarios = serializers.SerializerMethodField()
     nombres_transportistas = serializers.SerializerMethodField()
     nombres_vehiculos = serializers.SerializerMethodField()
     transportistas = TransportistaNestedSerializer(many=True, read_only=True)
-
     
-    # Campos para escritura
+    # Write-only fields
     fundos_ids = serializers.PrimaryKeyRelatedField(
         source='fundos',
         write_only=True,
         many=True,
         queryset=CamposClientes.objects.all()
     )
-    labores_ids = serializers.PrimaryKeyRelatedField(
-        source='labores',
+    
+    labores_data = serializers.ListField(
+        child=serializers.DictField(),
         write_only=True,
-        many=True,
-        queryset=Labores.objects.all()
+        required=False
     )
 
-    horarios_ids = serializers.PrimaryKeyRelatedField(  # ✅ NUEVO
+    horarios_ids = serializers.PrimaryKeyRelatedField(
         source='horarios',
         write_only=True,
         many=True,
@@ -1367,24 +1375,35 @@ class FolioComercialSerializer(serializers.ModelSerializer):
     class Meta:
         model = FolioComercial
         fields = [
-            'id', 'cliente', 'nombre_cliente','holding',
+            'id', 'cliente', 'nombre_cliente', 'holding',
             'fundos', 'fundos_ids', 'nombres_fundos',
-            'labores', 'labores_ids', 'nombres_labores',
-            'horarios', 'horarios_ids', 'nombres_horarios',  
+            'labores', 'labores_data', 'nombres_labores',  # ✅ Cambió labores_detalle a labores
+            'horarios', 'horarios_ids', 'nombres_horarios',
             'transportistas', 'transportistas_data', 'nombres_transportistas',
             'nombres_vehiculos',
             'fecha_inicio_contrato', 'fecha_termino_contrato',
-            'valor_pago_trabajador', 'valor_facturacion',
             'estado'
         ]
+
+    # 🔥 NUEVO MÉTODO: Obtener labores con valores desde tabla intermedia
+    def get_labores(self, obj):
+        """Devuelve las labores con sus valores desde FolioComercialLabor"""
+        folios_labores = FolioComercialLabor.objects.filter(folio=obj)
+        return [{
+            'id': fl.labor.id,
+            'nombre': fl.labor.nombre,
+            'valor_pago_trabajador': fl.valor_pago_trabajador,
+            'valor_facturacion': fl.valor_facturacion
+        } for fl in folios_labores]
 
     def get_nombres_fundos(self, obj):
         return ', '.join([fundo.nombre_campo for fundo in obj.fundos.all()])
 
     def get_nombres_labores(self, obj):
-        return ', '.join([labor.nombre for labor in obj.labores.all()])
+        labores = FolioComercialLabor.objects.filter(folio=obj)
+        return ', '.join([f"{l.labor.nombre} (Pago: ${l.valor_pago_trabajador}, Fact: ${l.valor_facturacion})" for l in labores])
     
-    def get_nombres_horarios(self, obj):  
+    def get_nombres_horarios(self, obj):
         return ', '.join([f"{horario.nombre} ({horario.jornada}h)" for horario in obj.horarios.all()])
 
     def get_nombres_transportistas(self, obj):
@@ -1396,53 +1415,63 @@ class FolioComercialSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         fundos = validated_data.pop('fundos', [])
-        labores = validated_data.pop('labores', [])
+        horarios = validated_data.pop('horarios', [])
+        labores_data = validated_data.pop('labores_data', [])
         transportistas_data = validated_data.pop('transportistas_data', [])
         
-        # Crear el folio comercial con los datos básicos
         folio = FolioComercial.objects.create(**validated_data)
         
-        # Asignar fundos y labores
         folio.fundos.set(fundos)
-        folio.labores.set(labores)
+        folio.horarios.set(horarios)
         
-        # Procesar transportistas y sus vehículos
+        for labor_data in labores_data:
+            FolioComercialLabor.objects.create(
+                holding=folio.holding,
+                folio=folio,
+                labor_id=labor_data['id'],
+                valor_pago_trabajador=labor_data['valor_pago_trabajador'],
+                valor_facturacion=labor_data['valor_facturacion']
+            )
+        
         for transportista_data in transportistas_data:
             transportista_id = transportista_data.get('id')
             vehiculos = transportista_data.get('vehiculos', [])
             
             if transportista_id:
                 folio.transportistas.add(transportista_id)
-                # Agregar vehículos asociados
                 vehiculo_ids = [v.get('id') for v in vehiculos if v.get('id')]
                 folio.vehiculos.add(*vehiculo_ids)
         
         return folio
 
     def update(self, instance, validated_data):
-        # Extraer las relaciones ManyToMany
         fundos = validated_data.pop('fundos', None)
-        labores = validated_data.pop('labores', None)
-        horarios = validated_data.pop('horarios', None)  # ✅ AGREGAR ESTA LÍNEA
+        horarios = validated_data.pop('horarios', None)
+        labores_data = validated_data.pop('labores_data', None)
         transportistas_data = validated_data.pop('transportistas_data', None)
 
-        # Actualizar el cliente si está presente
         if 'cliente' in validated_data:
             instance.cliente = validated_data.pop('cliente')
         
-        # Actualizar campos básicos
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
-        # Actualizar relaciones si se proporcionaron
         if fundos is not None:
             instance.fundos.set(fundos)
         
-        if labores is not None:
-            instance.labores.set(labores)
-        
-        if horarios is not None:  # ✅ AGREGAR ESTE BLOQUE
+        if horarios is not None:
             instance.horarios.set(horarios)
+        
+        if labores_data is not None:
+            FolioComercialLabor.objects.filter(folio=instance).delete()
+            for labor_data in labores_data:
+                FolioComercialLabor.objects.create(
+                    holding=instance.holding,
+                    folio=instance,
+                    labor_id=labor_data['id'],
+                    valor_pago_trabajador=labor_data['valor_pago_trabajador'],
+                    valor_facturacion=labor_data['valor_facturacion']
+                )
         
         if transportistas_data is not None:
             instance.transportistas.clear()
@@ -1459,47 +1488,16 @@ class FolioComercialSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
-    
-    def create(self, validated_data):
-        fundos = validated_data.pop('fundos', [])
-        labores = validated_data.pop('labores', [])
-        horarios = validated_data.pop('horarios', [])  # ✅ AGREGAR ESTA LÍNEA
-        transportistas_data = validated_data.pop('transportistas_data', [])
-        
-        # Crear el folio comercial con los datos básicos
-        folio = FolioComercial.objects.create(**validated_data)
-        
-        # Asignar fundos, labores y horarios
-        folio.fundos.set(fundos)
-        folio.labores.set(labores)
-        folio.horarios.set(horarios)  # ✅ AGREGAR ESTA LÍNEA
-        
-        # Procesar transportistas y sus vehículos
-        for transportista_data in transportistas_data:
-            transportista_id = transportista_data.get('id')
-            vehiculos = transportista_data.get('vehiculos', [])
-            
-            if transportista_id:
-                folio.transportistas.add(transportista_id)
-                # Agregar vehículos asociados
-                vehiculo_ids = [v.get('id') for v in vehiculos if v.get('id')]
-                folio.vehiculos.add(*vehiculo_ids)
-        
-        return folio
 
     def to_representation(self, instance):
-        # Obtener la representación base
         representation = super().to_representation(instance)
         
-        # Asegurarnos de que los campos de fecha estén en el formato correcto
         if representation.get('fecha_inicio_contrato'):
             representation['fecha_inicio_contrato'] = instance.fecha_inicio_contrato.strftime('%Y-%m-%d')
         if representation.get('fecha_termino_contrato'):
             representation['fecha_termino_contrato'] = instance.fecha_termino_contrato.strftime('%Y-%m-%d')
             
-        return representation
-
-#-------------------------------------------------------------------------------------------------------
+        return representation#-------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------
 
 class DataProduccionSerializer(serializers.Serializer):

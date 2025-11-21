@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { JwtService } from '../../../../services/jwt.service';
 
 @Component({
   selector: 'app-maestro-trabajadores',
@@ -33,6 +34,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
   
   constructor(
     private apiService: ContratistaApiService,
+    private jwtService: JwtService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -40,11 +42,11 @@ export class MaestroTrabajadoresComponent implements OnInit {
   public holding: string = '';
   public contratos: any[] = [];
   public contratosFiltrados: any[] = [];
-  public filtroEstado: string = 'vigente'; // ✅ CAMBIO: ahora por defecto es 'vigente'
+  public filtroEstado: string = 'vigente';
   public selectedRows: any[] = [];
   public contratoSeleccionado: any = null;
   
-  // ✅ NUEVAS VARIABLES PARA CREAR CONTRATO
+  // Variables para crear contrato
   public sociedades: any[] = [];
   public folios: any[] = [];
   public fundos: any[] = [];
@@ -53,8 +55,17 @@ export class MaestroTrabajadoresComponent implements OnInit {
   public horarios: any[] = [];
   public trabajadores: any[] = [];
   public documentos: any[] = [];
-  public isCreatingContract: boolean = false; // ← AGREGAR variable
-
+  
+  // NUEVAS VARIABLES para supervisores y transporte
+  public supervisores: any[] = [];
+  public jefesCuadrilla: any[] = [];
+  public jefesCuadrillaFiltrados: any[] = [];
+  public transportistas: any[] = [];
+  public vehiculosFiltrados: any[] = [];
+  public choferesFiltrados: any[] = [];
+  
+  public isCreatingContract: boolean = false;
+  
   public nuevoContrato = {
     sociedad_id: '',
     folio_id: '',
@@ -65,7 +76,13 @@ export class MaestroTrabajadoresComponent implements OnInit {
     trabajador_id: '',
     documento_id: '',
     fecha_inicio: '',
-    fecha_termino: ''
+    fecha_termino: '',
+    // NUEVOS CAMPOS
+    supervisor_id: '',
+    jefe_cuadrilla_id: '',
+    transportista_id: '',
+    vehiculo_id: '',
+    chofer_id: ''
   };
   
   // Columnas de la tabla
@@ -76,7 +93,6 @@ export class MaestroTrabajadoresComponent implements OnInit {
     'sociedad',
     'cliente',
     'fundo',
-    'documento',
     'fecha_inicio',
     'fecha_termino',
     'estado',
@@ -90,16 +106,36 @@ export class MaestroTrabajadoresComponent implements OnInit {
     errorModal: false,
     confirmacionModal: false,
     detalleContratoModal: false,
-    crearContratoModal: false // ✅ NUEVO
+    crearContratoModal: false
   };
   
   public errorMessage: string = '';
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      this.holding = localStorage.getItem('holding_id') || '';
+      this.holding = this.getHoldingIdFromJWT();
+      console.log('Holding:', this.holding);
       this.cargarContratos();
-      this.cargarSociedades(); // ✅ Carga sociedades Y folios juntos
+      this.cargarSociedadesyFolios();
+    }
+  }
+
+  private getHoldingIdFromJWT(): string {
+    try {
+      const userInfo = this.jwtService.getUserInfo();
+      const holdingId = userInfo?.holding_id;
+      
+      console.log('🔍 Holding ID del JWT:', holdingId);
+      
+      if (holdingId && holdingId !== null) {
+        return holdingId.toString();
+      } else {
+        console.warn('⚠️ Holding ID no encontrado en JWT o es null');
+        return '';
+      }
+    } catch (error) {
+      console.error('❌ Error extrayendo holding_id del JWT:', error);
+      return '';
     }
   }
 
@@ -120,25 +156,25 @@ export class MaestroTrabajadoresComponent implements OnInit {
     });
   }
 
-  // ✅ MÉTODOS PARA CARGAR DATOS - USANDO ENDPOINT UNIFICADO
-  cargarSociedades(): void {
-    // Cargar sociedades y folios iniciales
+  cargarSociedadesyFolios(): void {
     this.apiService.get(`api_crear_contrato_web/?holding=${this.holding}`).subscribe({
       next: (response) => {
         this.sociedades = response.sociedades;
         this.folios = response.folios;
+        this.supervisores = response.supervisores;
+        this.jefesCuadrilla = response.jefes_cuadrilla;
+        this.transportistas = response.transportistas;
+        
         console.log('✅ Sociedades cargadas:', this.sociedades.length);
         console.log('✅ Folios cargados:', this.folios.length);
+        console.log('✅ Supervisores cargados:', this.supervisores.length);
+        console.log('✅ Jefes de cuadrilla cargados:', this.jefesCuadrilla.length);
+        console.log('✅ Transportistas cargados:', this.transportistas.length);
       },
       error: (error) => {
         console.error('❌ Error al cargar datos iniciales:', error);
       }
     });
-  }
-
-  cargarDocumentos(): void {
-    // Los documentos ahora vienen en el segundo llamado con sociedad y folio
-    // No es necesario cargarlos por separado inicialmente
   }
 
   onSociedadChange(): void {
@@ -157,7 +193,6 @@ export class MaestroTrabajadoresComponent implements OnInit {
   onFolioChange(): void {
     if (!this.nuevoContrato.folio_id || !this.nuevoContrato.sociedad_id) return;
     
-    // Cargar trabajadores disponibles y datos del folio
     const params = `holding=${this.holding}&sociedad_id=${this.nuevoContrato.sociedad_id}&folio_id=${this.nuevoContrato.folio_id}`;
     
     this.apiService.get(`api_crear_contrato_web/?${params}`).subscribe({
@@ -184,6 +219,66 @@ export class MaestroTrabajadoresComponent implements OnInit {
     });
   }
 
+  // NUEVO: Filtrar jefes de cuadrilla por supervisor
+  onSupervisorChange(): void {
+    if (!this.nuevoContrato.supervisor_id) {
+      this.jefesCuadrillaFiltrados = [];
+      this.nuevoContrato.jefe_cuadrilla_id = '';
+      return;
+    }
+    
+    this.jefesCuadrillaFiltrados = this.jefesCuadrilla.filter(
+      jefe => jefe.supervisor_id === parseInt(this.nuevoContrato.supervisor_id)
+    );
+    
+    // Resetear jefe de cuadrilla si no hay opciones
+    if (this.jefesCuadrillaFiltrados.length === 0) {
+      this.nuevoContrato.jefe_cuadrilla_id = '';
+    }
+    
+    console.log('✅ Jefes de cuadrilla filtrados:', this.jefesCuadrillaFiltrados.length);
+  }
+
+  // NUEVO: Filtrar vehículos por transportista
+  onTransportistaChange(): void {
+    if (!this.nuevoContrato.transportista_id) {
+      this.vehiculosFiltrados = [];
+      this.choferesFiltrados = [];
+      this.nuevoContrato.vehiculo_id = '';
+      this.nuevoContrato.chofer_id = '';
+      return;
+    }
+    
+    const transportistaSeleccionado = this.transportistas.find(
+      t => t.id === parseInt(this.nuevoContrato.transportista_id)
+    );
+    
+    this.vehiculosFiltrados = transportistaSeleccionado?.vehiculos || [];
+    this.choferesFiltrados = [];
+    this.nuevoContrato.vehiculo_id = '';
+    this.nuevoContrato.chofer_id = '';
+    
+    console.log('✅ Vehículos filtrados:', this.vehiculosFiltrados.length);
+  }
+
+  // NUEVO: Filtrar choferes por vehículo
+  onVehiculoChange(): void {
+    if (!this.nuevoContrato.vehiculo_id) {
+      this.choferesFiltrados = [];
+      this.nuevoContrato.chofer_id = '';
+      return;
+    }
+    
+    const vehiculoSeleccionado = this.vehiculosFiltrados.find(
+      v => v.id === parseInt(this.nuevoContrato.vehiculo_id)
+    );
+    
+    this.choferesFiltrados = vehiculoSeleccionado?.choferes || [];
+    this.nuevoContrato.chofer_id = '';
+    
+    console.log('✅ Choferes filtrados:', this.choferesFiltrados.length);
+  }
+
   cambiarFiltro(filtro: string): void {
     this.filtroEstado = filtro;
     this.selectedRows = [];
@@ -204,7 +299,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
   }
 
   eliminarContratosSeleccionados(event?: MouseEvent): void {
-    if (event) event.stopPropagation(); // ← AGREGAR ESTO
+    if (event) event.stopPropagation();
     if (this.selectedRows.length === 0) return;
     this.openModal('confirmacionModal');
   }
@@ -228,15 +323,13 @@ export class MaestroTrabajadoresComponent implements OnInit {
     });
   }
 
-  // ✅ NUEVO MÉTODO PARA ABRIR MODAL CREAR CONTRATO
   abrirModalCrearContrato(): void {
     this.limpiarFormularioContrato();
     this.openModal('crearContratoModal');
   }
 
-  // ✅ NUEVO MÉTODO PARA CREAR CONTRATO
   crearContrato(): void {
-    if (this.isCreatingContract) return; // ← PREVENIR doble click
+    if (this.isCreatingContract) return;
     
     if (!this.nuevoContrato.sociedad_id || !this.nuevoContrato.folio_id || 
         !this.nuevoContrato.fundo_id || !this.nuevoContrato.labor_id || 
@@ -247,9 +340,9 @@ export class MaestroTrabajadoresComponent implements OnInit {
       return;
     }
 
-    this.isCreatingContract = true; // ← BLOQUEAR
+    this.isCreatingContract = true;
 
-    const body = {
+    const body: any = {
       holding: this.holding,
       trabajador: this.nuevoContrato.trabajador_id,
       documento: this.nuevoContrato.documento_id || null,
@@ -262,17 +355,38 @@ export class MaestroTrabajadoresComponent implements OnInit {
       casa: this.nuevoContrato.casa_id || null
     };
 
+    // AGREGAR CAMPOS OPCIONALES
+    if (this.nuevoContrato.supervisor_id) {
+      body.supervisor_id = this.nuevoContrato.supervisor_id;
+    }
+    
+    if (this.nuevoContrato.jefe_cuadrilla_id) {
+      body.jefe_cuadrilla_id = this.nuevoContrato.jefe_cuadrilla_id;
+    }
+    
+    if (this.nuevoContrato.transportista_id) {
+      body.transportista_id = this.nuevoContrato.transportista_id;
+    }
+    
+    if (this.nuevoContrato.vehiculo_id) {
+      body.vehiculo_id = this.nuevoContrato.vehiculo_id;
+    }
+    
+    if (this.nuevoContrato.chofer_id) {
+      body.chofer_id = this.nuevoContrato.chofer_id;
+    }
+
     this.apiService.post('api_crear_contrato_web/', body).subscribe({
       next: (response) => {
         console.log('✅ Contrato creado:', response);
-        this.isCreatingContract = false; // ← DESBLOQUEAR
+        this.isCreatingContract = false;
         this.closeModal('crearContratoModal');
         this.cargarContratos();
         this.openModal('exitoModal');
       },
       error: (error) => {
         console.error('❌ Error al crear contrato:', error);
-        this.isCreatingContract = false; // ← DESBLOQUEAR
+        this.isCreatingContract = false;
         this.errorMessage = error.error?.error || 'Error al crear contrato';
         this.openModal('errorModal');
       }
@@ -290,11 +404,19 @@ export class MaestroTrabajadoresComponent implements OnInit {
       trabajador_id: '',
       documento_id: '',
       fecha_inicio: '',
-      fecha_termino: ''
+      fecha_termino: '',
+      supervisor_id: '',
+      jefe_cuadrilla_id: '',
+      transportista_id: '',
+      vehiculo_id: '',
+      chofer_id: ''
     };
     this.fundos = [];
     this.labores = [];
     this.horarios = [];
+    this.jefesCuadrillaFiltrados = [];
+    this.vehiculosFiltrados = [];
+    this.choferesFiltrados = [];
   }
 
   verDetalleContrato(contrato: any): void {

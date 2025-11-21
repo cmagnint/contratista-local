@@ -366,8 +366,7 @@ export class EnrolamientoComponent implements OnInit {
   }
 
   procesarOCR(file: File, tipo: 'frente' | 'reverso'): void {
-    this.modals['loadingModal'] = true; // Mostrar loading
-    
+    this.modals['loadingModal'] = true; // ✅ Mostrar loading
     const formData = new FormData();
     formData.append('image', file);
     
@@ -375,15 +374,43 @@ export class EnrolamientoComponent implements OnInit {
       next: (response) => {
         if (response.success && response.datos) {
           this.rellenarDatosOCR(response.datos);
+          // Si el backend convirtió PDF a imagen
+          if (response.imagen_convertida) {
+            this.reemplazarConImagenConvertida(response.imagen_convertida, tipo);
+          }
         }
-        this.modals['loadingModal'] = false; // Ocultar loading
+        this.modals['loadingModal'] = false;
       },
       error: (error) => {
         console.error('Error en OCR:', error);
-        this.modals['loadingModal'] = false; // Ocultar loading
+        this.modals['loadingModal'] = false;
         alert('Error al procesar el carnet. Complete los datos manualmente.');
       }
     });
+  }
+
+  reemplazarConImagenConvertida(base64Image: string, tipo: 'frente' | 'reverso'): void {
+    // Convertir base64 a Blob
+    const byteString = atob(base64Image);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ab], { type: 'image/png' });
+    
+    // Convertir Blob a File
+    const nombreArchivo = tipo === 'frente' ? 'carnet_frente.png' : 'carnet_reverso.png';
+    const archivoConvertido = new File([blob], nombreArchivo, { type: 'image/png' });
+    
+    // Reemplazar archivo original
+    if (tipo === 'frente') {
+      this.imagenCarnetFrente = archivoConvertido;
+      this.previewCarnetFrente = `data:image/png;base64,${base64Image}`;
+    } else {
+      this.imagenCarnetReverso = archivoConvertido;
+      this.previewCarnetReverso = `data:image/png;base64,${base64Image}`;
+    }
   }
 
   rellenarDatosOCR(datos: any): void {

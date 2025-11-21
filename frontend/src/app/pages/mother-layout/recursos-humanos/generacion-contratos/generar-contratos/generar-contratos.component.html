@@ -51,9 +51,34 @@
   </div>
 
   <!-- ============================================ -->
+  <!-- 🎯 SELECCIÓN DE TIPO DE FORMATO -->
+  <!-- ============================================ -->
+  <div class="filtros-section-modern" *ngIf="sociedad && trabajadores.length > 0 && !tipoFormato">
+    <h3 class="filtros-title">TIPO DE FORMATO</h3>
+    <div class="filtros-buttons-container">
+      <button 
+        mat-raised-button 
+        [class.active]="tipoFormato === 'CHILENO'"
+        class="filtro-button-modern con-contrato"
+        (click)="cambiarTipoFormato('CHILENO')">
+        <span class="button-icon">🇨🇱</span>
+        <span class="button-text">CHILENO</span>
+      </button>
+      <button 
+        mat-raised-button 
+        [class.active]="tipoFormato === 'EXTRANJERO'"
+        class="filtro-button-modern sin-contrato"
+        (click)="cambiarTipoFormato('EXTRANJERO')">
+        <span class="button-icon">🌎</span>
+        <span class="button-text">EXTRANJERO</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
   <!-- 🎯 SELECCIÓN DE DOCUMENTO Y FECHA -->
   <!-- ============================================ -->
-  <div class="filtros-section-modern" *ngIf="trabajadores.length > 0">
+  <div class="filtros-section-modern" *ngIf="tipoFormato && documentos.length >= 0">
     <h3 class="filtros-title">CONFIGURACIÓN DEL CONTRATO</h3>
     <div class="config-container">
       <mat-form-field appearance="outline" class="config-field">
@@ -81,7 +106,7 @@
     class="custom-button-generar" 
     [disabled]="selectedRows.length === 0 || !documentoSeleccionado"
     (click)="generarContratos()"
-    *ngIf="trabajadores.length > 0">
+    *ngIf="tipoFormato && trabajadores.length > 0">
     <span class="button-icon">📄</span>
     <span class="button-text">GENERAR CONTRATOS ({{ selectedRows.length }})</span>
   </button>

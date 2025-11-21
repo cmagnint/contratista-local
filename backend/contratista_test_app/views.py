@@ -1,4 +1,5 @@
 #contratista-local
+from pdf2image import convert_from_bytes
 from selenium.common.exceptions import (
     TimeoutException, 
     
@@ -17940,8 +17941,14 @@ class DocumentoVariablesNativasAPIView(APIView):
                     'activo': documento.activo
                 })
             else:
-                # Listar todos los documentos
+                # Otherwise, list all documents for the current user's holding
                 documentos = ContratoVariables.objects.filter(holding=request.user.holding)
+                
+                # Filtrar por tipo si se proporciona
+                tipo = request.GET.get('tipo')
+                if tipo:
+                    documentos = documentos.filter(tipo=tipo)
+                
                 documentos_list = []
                 
                 for doc in documentos:
@@ -18001,17 +18008,16 @@ class DocumentoVariablesNativasAPIView(APIView):
     
     def _normalizar_pdf_a_carta(self, pdf_file):
         """
-        Normalización ROBUSTA con PyMuPDF 1.26.6 (API actualizada)
-        Convierte cualquier PDF a 612x792 puntos (carta/letter)
+        Normalización con PyMuPDF - Páginas aisladas SIN convertir a imagen
         """
-        import fitz  # PyMuPDF
+        import fitz
         import io
         
         TARGET_WIDTH = 612.0
         TARGET_HEIGHT = 792.0
         
         try:
-            # Leer PDF original
+            # Leer PDF
             if hasattr(pdf_file, 'read'):
                 pdf_file.seek(0)
                 pdf_bytes = pdf_file.read()
@@ -18019,96 +18025,68 @@ class DocumentoVariablesNativasAPIView(APIView):
                 with open(pdf_file, "rb") as f:
                     pdf_bytes = f.read()
             
-            # Abrir documento con PyMuPDF
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            print(f"📄 Normalizando PDF: {len(doc)} páginas")
             
-            print(f"📄 Normalizando PDF con PyMuPDF: {len(doc)} páginas")
-            
-            # Crear nuevo documento normalizado
             output_doc = fitz.open()
             
             for page_num in range(len(doc)):
                 page = doc[page_num]
-                
-                # Dimensiones originales
                 rect = page.rect
                 original_width = rect.width
                 original_height = rect.height
                 
-                print(f"  Página {page_num + 1}: {original_width:.1f}x{original_height:.1f} → {TARGET_WIDTH}x{TARGET_HEIGHT}")
+                print(f"  Página {page_num + 1}: {original_width:.1f}x{original_height:.1f}")
+                
+                # ⭐ SOLUCIÓN: Crear documento temporal para CADA página
+                # Esto aísla completamente las páginas
+                temp_doc = fitz.open()
+                temp_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+                temp_page = temp_doc[0]
                 
                 # Crear página nueva de 612x792
                 new_page = output_doc.new_page(width=TARGET_WIDTH, height=TARGET_HEIGHT)
                 
-                # Si ya tiene las dimensiones correctas
-                if abs(original_width - TARGET_WIDTH) < 2 and abs(original_height - TARGET_HEIGHT) < 2:
-                    print(f"  ✓ Ya está normalizada")
-                    new_page.show_pdf_page(
-                        new_page.rect,
-                        doc,
-                        page_num
-                    )
-                    continue
+                # Calcular escala uniforme
+                scale = min(TARGET_WIDTH / original_width, TARGET_HEIGHT / original_height)
+                scaled_width = original_width * scale
+                scaled_height = original_height * scale
                 
-                # Calcular escala para ajustar a 612x792
-                scale_x = TARGET_WIDTH / original_width
-                scale_y = TARGET_HEIGHT / original_height
+                # Centrar
+                offset_x = (TARGET_WIDTH - scaled_width) / 2
+                offset_y = (TARGET_HEIGHT - scaled_height) / 2
                 
-                print(f"  📐 Escalas: X={scale_x:.4f}, Y={scale_y:.4f}")
-                
-                # ✅ MÉTODO CORRECTO para PyMuPDF 1.26.6
-                # Crear matriz de transformación
-                mat = fitz.Matrix(scale_x, scale_y)
-                
-                # Obtener el contenido de la página original como pixmap
-                # y renderizarlo en la nueva página con la escala correcta
-                src_rect = page.rect
-                
-                # Calcular rectángulo destino escalado
-                dest_rect = fitz.Rect(0, 0, TARGET_WIDTH, TARGET_HEIGHT)
-                
-                # Insertar página con escalado
-                new_page.show_pdf_page(
-                    dest_rect,      # Rectángulo destino (612x792)
-                    doc,            # Documento fuente
-                    page_num,       # Número de página
-                    clip=src_rect   # Región a copiar (página completa)
+                dest_rect = fitz.Rect(
+                    offset_x,
+                    offset_y,
+                    offset_x + scaled_width,
+                    offset_y + scaled_height
                 )
                 
-                print(f"  ✅ Normalizada a {TARGET_WIDTH}x{TARGET_HEIGHT}")
+                # ✅ Mostrar desde documento TEMPORAL (aislado)
+                new_page.show_pdf_page(
+                    dest_rect,
+                    temp_doc,  # ← Documento temporal de 1 página
+                    0,         # ← Siempre página 0 del temp
+                    clip=temp_page.rect
+                )
+                
+                temp_doc.close()  # Cerrar temporal
+                
+                print(f"  ✅ Página {page_num + 1} normalizada (aislada)")
             
-            # Guardar en buffer
-            output_bytes = output_doc.tobytes(
-                garbage=4,      # Comprimir
-                deflate=True,
-                clean=True
-            )
-            
+            # Guardar
+            output_bytes = output_doc.tobytes(garbage=4, deflate=True, clean=True)
             doc.close()
             output_doc.close()
             
             output = io.BytesIO(output_bytes)
             
-            # ⭐ VERIFICACIÓN FINAL
-            verification_doc = fitz.open(stream=output_bytes, filetype="pdf")
-            print(f"\n🔍 VERIFICACIÓN FINAL:")
-            
-            for i in range(len(verification_doc)):
-                vpage = verification_doc[i]
-                vwidth = vpage.rect.width
-                vheight = vpage.rect.height
-                print(f"  Página {i+1}: {vwidth:.1f}x{vheight:.1f}")
-                
-                if abs(vwidth - TARGET_WIDTH) > 2 or abs(vheight - TARGET_HEIGHT) > 2:
-                    print(f"  ⚠️ ADVERTENCIA: Dimensiones no coinciden exactamente")
-            
-            verification_doc.close()
-            
-            print(f"✅ PDF normalizado completo con PyMuPDF")
+            print(f"✅ PDF normalizado con páginas aisladas")
             return output
             
         except Exception as e:
-            print(f"❌ Error normalizando PDF con PyMuPDF: {str(e)}")
+            print(f"❌ Error: {str(e)}")
             import traceback
             traceback.print_exc()
             raise
@@ -18911,7 +18889,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'nombre_completo': f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
             'rut': formatear_rut(trabajador.rut) if trabajador.rut else '',
             'dni': trabajador.dni or '',
-            'nic': '',
+            'nic': trabajador.nic or '',
             'nacionalidad': trabajador.nacionalidad or '',
             'fecha_nacimiento': formatear_fecha(trabajador.fecha_nacimiento),
             'estado_civil': trabajador.estado_civil or '',
@@ -18925,6 +18903,8 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'lugar_trabajo': contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
             'cargo': trabajador.cargo.nombre if trabajador.cargo else '',
             'area': trabajador.area.nombre if trabajador.area else '',
+            'horario': contrato_activo.horario.nombre if (contrato_activo and contrato_activo.horario) else '',
+
             
             # ⭐ NUEVO: Sociedad
             'sociedad': sociedad_nombre,
@@ -18992,6 +18972,9 @@ class GenerarDocumentosMasivoAPIView(APIView):
         return url_absoluta
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
+        """
+        Genera PDF con coordenadas nativas - PÁGINAS INDEPENDIENTES CON DEBUGGING
+        """
         from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
         import io
@@ -18999,106 +18982,168 @@ class GenerarDocumentosMasivoAPIView(APIView):
         documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
         
-        # ⭐ CRÍTICO: Usar context manager para cerrar archivo automáticamente
-        with open(input_pdf_path, "rb") as pdf_file:
-            reader = PdfReader(pdf_file)
-            writer = PdfWriter()
-            
-            BASE_FONT_SIZE = 9
-            BASE_OFFSET_X = -8
-            BASE_OFFSET_Y = -15.2
-            FONT_BASELINE = BASE_FONT_SIZE * 0.3
-            
-            # Organizar variables por página
-            variables_por_pagina = {}
-            for variable_data in documento.variables:
-                nombre_variable = variable_data.get('nombre')
-                for ubicacion in variable_data.get('ubicaciones', []):
-                    pagina = ubicacion.get('pagina', 1)
-                    if pagina not in variables_por_pagina:
-                        variables_por_pagina[pagina] = []
-                    
-                    variables_por_pagina[pagina].append({
-                        'nombre': nombre_variable,
-                        'posX': ubicacion.get('posX', 0),
-                        'posY': ubicacion.get('posY', 0)
-                    })
-            
-            campos_centrados = ['rut', 'dni', 'nic', 'estado_civil', 'fecha_nacimiento', 
-                                'fecha_emision', 'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino']
-            
-            # Procesar cada página
-            for page_num in range(len(reader.pages)):
-                ui_page_num = page_num + 1
-                page = reader.pages[page_num]
+        print(f"\n{'='*80}")
+        print(f"🔍 INICIO GENERACIÓN PDF - Documento ID: {documento_id}")
+        print(f"{'='*80}")
+        
+        reader = PdfReader(open(input_pdf_path, "rb"))
+        print(f"📄 PDF original: {len(reader.pages)} páginas")
+        
+        # Organizar variables por página
+        variables_por_pagina = {}
+        for variable_data in documento.variables:
+            nombre_variable = variable_data.get('nombre')
+            for ubicacion in variable_data.get('ubicaciones', []):
+                pagina = ubicacion.get('pagina', 1)
+                if pagina not in variables_por_pagina:
+                    variables_por_pagina[pagina] = []
                 
-                if ui_page_num in variables_por_pagina:
-                    page_width = float(page.mediabox.width)
-                    page_height = float(page.mediabox.height)
-                    
-                    packet = io.BytesIO()
-                    can = canvas.Canvas(packet, pagesize=(page_width, page_height))
-                    
-                    textos_escritos = 0
-                    
-                    for variable in variables_por_pagina[ui_page_num]:
-                        nombre = variable['nombre']
-                        if nombre in datos_variables and datos_variables[nombre]:
-                            frontend_x = variable['posX']
-                            frontend_y = variable['posY']
-                            
-                            pdf_x = frontend_x + BASE_OFFSET_X
-                            pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
-                            
-                            if nombre == 'rut':
-                                pdf_x += BASE_OFFSET_X * 0.5
-                            elif nombre == 'nombre':
-                                pdf_x += BASE_OFFSET_X * 0.1
-                            
-                            valor = str(datos_variables[nombre])
-                            can.setFont("Helvetica", BASE_FONT_SIZE)
-                            
-                            if nombre in campos_centrados:
-                                text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
-                                can.drawString(pdf_x - (text_width/2), pdf_y, valor)
-                            else:
-                                can.drawString(pdf_x, pdf_y, valor)
-                            
-                            textos_escritos += 1
-                            
-                            if debug:
-                                can.saveState()
-                                can.setStrokeColorRGB(1, 0, 0)
-                                can.setLineWidth(1)
-                                can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
-                                can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
-                                can.restoreState()
-                    
-                    can.save()
-                    packet.seek(0)
-                    
-                    if textos_escritos > 0:
-                        try:
-                            overlay = PdfReader(packet)
-                            if overlay.pages:
-                                page.merge_page(overlay.pages[0])
-                                print(f"✅ Página {ui_page_num}: {textos_escritos} textos aplicados")
-                        except Exception as e:
-                            print(f"⚠️ Error merge página {ui_page_num}: {e}")
-                    else:
-                        print(f"⚠️ Página {ui_page_num}: sin datos para escribir")
+                variables_por_pagina[pagina].append({
+                    'nombre': nombre_variable,
+                    'posX': ubicacion.get('posX', 0),
+                    'posY': ubicacion.get('posY', 0)
+                })
+        
+        print(f"\n📋 MAPA DE VARIABLES POR PÁGINA:")
+        for pagina, vars in sorted(variables_por_pagina.items()):
+            print(f"  Página {pagina}: {len(vars)} variables")
+            for v in vars:
+                valor = datos_variables.get(v['nombre'], '[NO DATA]')
+                print(f"    - {v['nombre']}: '{valor}' en ({v['posX']:.1f}, {v['posY']:.1f})")
+        
+        campos_centrados = [
+            'rut', 'dni', 'nic', 'estado_civil', 
+            'fecha_nacimiento', 'fecha_emision', 
+            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
+        ]
+        
+        BASE_FONT_SIZE = 9
+        BASE_OFFSET_X = -8
+        BASE_OFFSET_Y = -15.2
+        FONT_BASELINE = BASE_FONT_SIZE * 0.3
+        
+        # ⭐ PROCESAR CADA PÁGINA EN UN WRITER SEPARADO
+        final_writer = PdfWriter()
+        
+        for page_num in range(len(reader.pages)):
+            ui_page_num = page_num + 1
+            
+            print(f"\n{'─'*80}")
+            print(f"📄 PROCESANDO PÁGINA {ui_page_num}/{len(reader.pages)}")
+            print(f"{'─'*80}")
+            
+            # ✅ CREAR DOCUMENTO TEMPORAL SOLO CON ESTA PÁGINA
+            temp_doc_buffer = io.BytesIO()
+            temp_doc_writer = PdfWriter()
+            
+            # Copiar SOLO esta página al temporal
+            original_page = reader.pages[page_num]
+            temp_doc_writer.add_page(original_page)
+            temp_doc_writer.write(temp_doc_buffer)
+            temp_doc_buffer.seek(0)
+            
+            # Leer el documento temporal (1 sola página)
+            temp_doc_reader = PdfReader(temp_doc_buffer)
+            isolated_page = temp_doc_reader.pages[0]
+            
+            page_width = float(isolated_page.mediabox.width)
+            page_height = float(isolated_page.mediabox.height)
+            
+            print(f"  📐 Dimensiones: {page_width} x {page_height}")
+            
+            # Verificar si esta página tiene variables
+            if ui_page_num not in variables_por_pagina:
+                print(f"  ℹ️ Sin variables para esta página")
+                final_writer.add_page(isolated_page)
+                continue
+            
+            # Crear overlay con variables
+            overlay_buffer = io.BytesIO()
+            can = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+            
+            variables_escritas = 0
+            variables_en_pagina = variables_por_pagina[ui_page_num]
+            
+            print(f"  📝 Escribiendo {len(variables_en_pagina)} variables:")
+            
+            for idx, variable in enumerate(variables_en_pagina):
+                nombre = variable['nombre']
                 
-                writer.add_page(page)
+                if nombre not in datos_variables:
+                    print(f"    ⚠️ Variable '{nombre}' NO tiene datos")
+                    continue
+                
+                valor = datos_variables[nombre]
+                if not valor:
+                    print(f"    ⚠️ Variable '{nombre}' tiene valor vacío")
+                    continue
+                
+                frontend_x = variable['posX']
+                frontend_y = variable['posY']
+                
+                # Transformación
+                pdf_x = frontend_x + BASE_OFFSET_X
+                pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
+                
+                # Ajustes específicos
+                if nombre == 'rut':
+                    pdf_x += BASE_OFFSET_X * 0.5
+                elif nombre == 'nombre':
+                    pdf_x += BASE_OFFSET_X * 0.1
+                
+                valor_str = str(valor)
+                can.setFont("Helvetica", BASE_FONT_SIZE)
+                
+                if nombre in campos_centrados:
+                    text_width = can.stringWidth(valor_str, "Helvetica", BASE_FONT_SIZE)
+                    can.drawString(pdf_x - (text_width/2), pdf_y, valor_str)
+                    print(f"    ✅ [{idx+1}] {nombre} = '{valor_str}' en ({pdf_x - text_width/2:.1f}, {pdf_y:.1f}) [CENTRADO]")
+                else:
+                    can.drawString(pdf_x, pdf_y, valor_str)
+                    print(f"    ✅ [{idx+1}] {nombre} = '{valor_str}' en ({pdf_x:.1f}, {pdf_y:.1f})")
+                
+                variables_escritas += 1
+                
+                if debug:
+                    can.saveState()
+                    can.setStrokeColorRGB(1, 0, 0)
+                    can.setLineWidth(1)
+                    can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
+                    can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
+                    can.restoreState()
             
-            # ⭐ Escribir buffer DENTRO del context manager
-            buffer = io.BytesIO()
-            writer.write(buffer)
-            buffer.seek(0)
+            can.save()
+            overlay_buffer.seek(0)
             
-            print(f"✅ PDF generado: {len(reader.pages)} páginas")
+            print(f"  📊 Total variables escritas: {variables_escritas}/{len(variables_en_pagina)}")
             
-        # ⭐ El archivo se cierra automáticamente al salir del `with`
-        return buffer
+            # Hacer merge SOLO si hay variables
+            if variables_escritas > 0:
+                try:
+                    overlay_reader = PdfReader(overlay_buffer)
+                    isolated_page.merge_page(overlay_reader.pages[0])
+                    print(f"  ✅ Merge completado exitosamente")
+                except Exception as e:
+                    print(f"  ❌ Error en merge: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Agregar al writer final
+            final_writer.add_page(isolated_page)
+            print(f"  ✅ Página {ui_page_num} agregada al documento final")
+        
+        # Guardar documento final
+        output_buffer = io.BytesIO()
+        final_writer.write(output_buffer)
+        output_buffer.seek(0)
+        
+        print(f"\n{'='*80}")
+        print(f"✅ PDF GENERADO EXITOSAMENTE")
+        print(f"  Total páginas: {len(reader.pages)}")
+        print(f"  Tamaño: {len(output_buffer.getvalue())} bytes")
+        print(f"{'='*80}\n")
+        
+        return output_buffer
 
 class ListarDocumentosAPIView(APIView):
     """
@@ -20508,7 +20553,6 @@ class CrearContratoWebAPIView(APIView):
     """
     Vista única para manejar la creación de contratos desde web.
     
-    GET sin parámetros: Devuelve sociedades y folios del holding
     GET con sociedad_id y folio_id: Devuelve trabajadores sin contrato vigente y datos del folio
     POST: Crea el contrato
     """
@@ -20528,7 +20572,7 @@ class CrearContratoWebAPIView(APIView):
         """
         GET: Obtiene datos necesarios para crear contratos
         
-        Sin parámetros: Devuelve sociedades y folios
+        Sin sociedad_id y folio_id: Devuelve sociedades, folios, supervisores, jefes cuadrilla, transportistas
         Con sociedad_id y folio_id: Devuelve trabajadores disponibles y datos del folio
         """
         try:
@@ -20542,9 +20586,8 @@ class CrearContratoWebAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # CASO 1: Solicitar sociedades y folios iniciales
+            # CASO 1: Datos iniciales
             if not sociedad_id and not folio_id:
-                # Obtener sociedades
                 sociedades = Sociedad.objects.filter(
                     holding_id=holding_id,
                     estado=True
@@ -20555,7 +20598,6 @@ class CrearContratoWebAPIView(APIView):
                     'rol_sociedad': s.rol_sociedad
                 } for s in sociedades]
                 
-                # Obtener folios con pre_contratacion=true para obtener estructura completa
                 folios = FolioComercial.objects.filter(
                     holding_id=holding_id,
                     estado=True
@@ -20564,14 +20606,61 @@ class CrearContratoWebAPIView(APIView):
                 from .serializers import FolioComercialPreContratacionSerializer
                 folios_serializer = FolioComercialPreContratacionSerializer(folios, many=True)
                 
+                # Supervisores
+                supervisores = Supervisores.objects.filter(
+                    holding_id=holding_id
+                ).select_related('usuario__persona')
+                
+                supervisores_data = [{
+                    'id': s.id,
+                    'nombre': f"{s.usuario.persona.nombres} {s.usuario.persona.apellidos}" if s.usuario and s.usuario.persona else 'Sin nombre',
+                    'rut': s.usuario.rut if s.usuario else None
+                } for s in supervisores]
+                
+                # Jefes de cuadrilla por supervisor
+                jefes_cuadrilla = JefesDeCuadrilla.objects.filter(
+                    holding_id=holding_id
+                ).select_related('usuario__persona', 'supervisor')
+                
+                jefes_data = [{
+                    'id': j.id,
+                    'nombre': f"{j.usuario.persona.nombres} {j.usuario.persona.apellidos}" if j.usuario and j.usuario.persona else 'Sin nombre',
+                    'rut': j.usuario.rut if j.usuario else None,
+                    'supervisor_id': j.supervisor.id if j.supervisor else None
+                } for j in jefes_cuadrilla]
+                
+                # Transportistas con vehículos y choferes
+                transportistas = EmpresasTransporte.objects.filter(
+                    holding_id=holding_id
+                ).prefetch_related('vehiculostransporte_set__choferestransporte_set')
+                
+                transportistas_data = [{
+                    'id': t.id,
+                    'nombre': t.nombre,
+                    'rut': t.rut,
+                    'vehiculos': [{
+                        'id': v.id,
+                        'ppu': v.ppu,
+                        'modelo': v.modelo,
+                        'choferes': [{
+                            'id': c.id,
+                            'nombre': c.nombre,
+                            'rut': c.rut,
+                            'licencia': c.licencia
+                        } for c in v.choferestransporte_set.all()]
+                    } for v in t.vehiculostransporte_set.all()]
+                } for t in transportistas]
+                
                 return Response({
                     'sociedades': sociedades_data,
-                    'folios': folios_serializer.data
+                    'folios': folios_serializer.data,
+                    'supervisores': supervisores_data,
+                    'jefes_cuadrilla': jefes_data,
+                    'transportistas': transportistas_data
                 }, status=status.HTTP_200_OK)
             
-            # CASO 2: Solicitar trabajadores disponibles y datos del folio
+            # CASO 2: Trabajadores disponibles y datos del folio
             if sociedad_id and folio_id:
-                # Obtener folio con todos sus datos
                 try:
                     folio = FolioComercial.objects.get(id=folio_id, holding_id=holding_id)
                 except FolioComercial.DoesNotExist:
@@ -20580,24 +20669,20 @@ class CrearContratoWebAPIView(APIView):
                         status=status.HTTP_404_NOT_FOUND
                     )
                 
-                # Obtener datos del folio
                 from datetime import date
-                fecha_actual = date.today()
-                
-                # Obtener trabajadores SIN contrato vigente
-                # Un trabajador tiene contrato vigente si:
-                # - fecha_inicio <= hoy
-                # - fecha_termino >= hoy O fecha_termino es NULL (indefinido)
-                
                 from django.db.models import Q
                 
-                # Primero obtener todos los trabajadores del holding
+                fecha_actual = date.today()
+                
+                # Obtener trabajadores excluyendo administradores
                 todos_trabajadores = PersonalTrabajadores.objects.filter(
                     holding_id=holding_id,
                     estado=True
+                ).exclude(
+                    Q(cargo__nombre__icontains='administrador') |
+                    Q(cargo__nombre__icontains='admin')
                 )
                 
-                # Obtener IDs de trabajadores CON contrato vigente
                 trabajadores_con_contrato = ContratoTrabajador.objects.filter(
                     holding_id=holding_id,
                     fecha_inicio_contrato__lte=fecha_actual
@@ -20606,7 +20691,6 @@ class CrearContratoWebAPIView(APIView):
                     Q(fecha_termino_contrato__isnull=True)
                 ).values_list('trabajador_id', flat=True).distinct()
                 
-                # Excluir trabajadores con contrato vigente
                 trabajadores_sin_contrato = todos_trabajadores.exclude(
                     id__in=trabajadores_con_contrato
                 )
@@ -20616,11 +20700,9 @@ class CrearContratoWebAPIView(APIView):
                     'nombres': t.nombres,
                     'apellidos': t.apellidos,
                     'rut': t.rut,
-                    'cargo_nombre': t.cargo.nombre if t.cargo else 'Sin cargo',
-                    'casa_nombre': t.casa.nombre if t.casa else 'Sin casa'
+                    'cargo_nombre': t.cargo.nombre if t.cargo else 'Sin cargo'
                 } for t in trabajadores_sin_contrato]
                 
-                # Datos del folio
                 fundos_data = [{
                     'id': f.id,
                     'nombre_campo': f.nombre_campo
@@ -20637,7 +20719,6 @@ class CrearContratoWebAPIView(APIView):
                     'jornada': float(h.jornada)
                 } for h in folio.horarios.all()]
                 
-                # Obtener casas del holding
                 casas = CasasTrabajadores.objects.filter(
                     holding_id=holding_id,
                     estado=True
@@ -20647,7 +20728,6 @@ class CrearContratoWebAPIView(APIView):
                     'nombre': c.nombre
                 } for c in casas]
                 
-                # Obtener documentos (tipos de contrato)
                 documentos = ContratoVariables.objects.filter(
                     holding_id=holding_id,
                     activo=True
@@ -20663,7 +20743,7 @@ class CrearContratoWebAPIView(APIView):
                     'folio': {
                         'id': folio.id,
                         'fecha_inicio': folio.fecha_inicio_contrato.strftime('%Y-%m-%d'),
-                        'fecha_termino': folio.fecha_termino_contrato.strftime('%Y-%m-%d'),
+                        'fecha_termino': folio.fecha_termino_contrato.strftime('%Y-%m-%d') if folio.fecha_termino_contrato else None,
                         'cliente_id': folio.cliente.id if folio.cliente else None,
                         'cliente_nombre': folio.cliente.nombre if folio.cliente else None
                     },
@@ -20696,17 +20776,23 @@ class CrearContratoWebAPIView(APIView):
         {
             "holding": 1,
             "trabajador": 123,
-            "documento": 5,  # opcional
             "fecha_inicio_contrato": "2024-01-01",
             "fecha_termino_contrato": "2024-12-31",  # opcional
             "labor": 10,
             "folio_comercial": 15,
             "horario": 2,
             "fundo": 8,
-            "casa": 3
+            "casa": 3,  # opcional
+            "supervisor_id": 5,  # opcional
+            "jefe_cuadrilla_id": 7,  # opcional
+            "transportista_id": 2,  # opcional
+            "vehiculo_id": 9,  # opcional
+            "chofer_id": 4  # opcional
         }
         """
         try:
+            from django.db import transaction
+            
             # Validar campos obligatorios
             required_fields = [
                 'holding', 'trabajador', 'fecha_inicio_contrato',
@@ -20715,105 +20801,185 @@ class CrearContratoWebAPIView(APIView):
             
             missing_fields = [field for field in required_fields if field not in request.data]
             if missing_fields:
-                print(f'Campos requeridos faltantes: {", ".join(missing_fields)}')
+                print(f'❌ Campos requeridos faltantes: {", ".join(missing_fields)}')
                 return Response(
                     {'error': f'Campos requeridos faltantes: {", ".join(missing_fields)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Verificar que el trabajador existe y no tiene contrato vigente
-            try:
-                trabajador = PersonalTrabajadores.objects.get(
-                    id=request.data['trabajador'],
-                    holding_id=request.data['holding']
-                )
-            except PersonalTrabajadores.DoesNotExist:
-                return Response(
-                    {'error': 'Trabajador no encontrado'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Verificar que no tenga contrato vigente
-            from datetime import datetime
-            from django.db.models import Q
-            
-            fecha_inicio = datetime.strptime(request.data['fecha_inicio_contrato'], '%Y-%m-%d').date()
-            
-            contrato_vigente = ContratoTrabajador.objects.filter(
-                trabajador=trabajador,
-                fecha_inicio_contrato__lte=fecha_inicio
-            ).filter(
-                Q(fecha_termino_contrato__gte=fecha_inicio) | 
-                Q(fecha_termino_contrato__isnull=True)
-            ).exists()
-            
-            if contrato_vigente:
-                print('El trabajador ya tiene un contrato vigente')
-                return Response(
-                    {'error': 'El trabajador ya tiene un contrato vigente'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Obtener folio para asignar cliente
-            folio = FolioComercial.objects.get(
-                id=request.data['folio_comercial'],
-                holding_id=request.data['holding']
-            )
-            
-            # Crear el contrato
-            contrato_data = {
-                'holding_id': request.data['holding'],
-                'trabajador_id': request.data['trabajador'],
-                'fecha_inicio_contrato': request.data['fecha_inicio_contrato'],
-                'labor_id': request.data['labor'],
-                'folio_comercial_id': request.data['folio_comercial'],
-                'horario_id': request.data['horario'],
-                'fundo_id': request.data['fundo'],
-                'cliente_id': folio.cliente.id if folio.cliente else None
-            }
-            
-            # Campos opcionales
-            if request.data.get('documento'):
-                contrato_data['documento_id'] = request.data['documento']
-            
-            if request.data.get('fecha_termino_contrato'):
-                contrato_data['fecha_termino_contrato'] = request.data['fecha_termino_contrato']
-            
-            # Actualizar casa del trabajador si se proporcionó
-            if request.data.get('casa'):
-                trabajador.casa_id = request.data['casa']
-                trabajador.save()
-            
-            # Crear contrato
-            contrato = ContratoTrabajador.objects.create(**contrato_data)
-            
-            # Formatear fechas para respuesta (manejar string o date)
-            fecha_inicio_str = contrato.fecha_inicio_contrato
-            if hasattr(fecha_inicio_str, 'strftime'):
-                fecha_inicio_str = fecha_inicio_str.strftime('%Y-%m-%d')
-            else:
-                fecha_inicio_str = str(fecha_inicio_str)
+            # Usar transacción atómica para asegurar consistencia
+            with transaction.atomic():
+                # Verificar que el trabajador existe
+                try:
+                    trabajador = PersonalTrabajadores.objects.get(
+                        id=request.data['trabajador'],
+                        holding_id=request.data['holding']
+                    )
+                    print(f'✅ Trabajador encontrado: {trabajador.nombres} {trabajador.apellidos}')
+                except PersonalTrabajadores.DoesNotExist:
+                    return Response(
+                        {'error': 'Trabajador no encontrado'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                # Verificar que no tenga contrato vigente
+                from datetime import datetime
+                from django.db.models import Q
+                
+                fecha_inicio = datetime.strptime(request.data['fecha_inicio_contrato'], '%Y-%m-%d').date()
+                
+                contrato_vigente = ContratoTrabajador.objects.filter(
+                    trabajador=trabajador,
+                    fecha_inicio_contrato__lte=fecha_inicio
+                ).filter(
+                    Q(fecha_termino_contrato__gte=fecha_inicio) | 
+                    Q(fecha_termino_contrato__isnull=True)
+                ).exists()
+                
+                if contrato_vigente:
+                    print('❌ El trabajador ya tiene un contrato vigente')
+                    return Response(
+                        {'error': 'El trabajador ya tiene un contrato vigente'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Obtener folio para asignar cliente
+                try:
+                    folio = FolioComercial.objects.get(
+                        id=request.data['folio_comercial'],
+                        holding_id=request.data['holding']
+                    )
+                    print(f'✅ Folio encontrado: {folio.id}')
+                except FolioComercial.DoesNotExist:
+                    return Response(
+                        {'error': 'Folio comercial no encontrado'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                # Crear el contrato
+                contrato_data = {
+                    'holding_id': request.data['holding'],
+                    'trabajador_id': request.data['trabajador'],
+                    'fecha_inicio_contrato': request.data['fecha_inicio_contrato'],
+                    'labor_id': request.data['labor'],
+                    'folio_comercial_id': request.data['folio_comercial'],
+                    'horario_id': request.data['horario'],
+                    'fundo_id': request.data['fundo'],
+                    'cliente_id': folio.cliente.id if folio.cliente else None
+                }
+                
+                # Campo opcional: fecha_termino_contrato
+                if request.data.get('fecha_termino_contrato'):
+                    contrato_data['fecha_termino_contrato'] = request.data['fecha_termino_contrato']
+                
+                # Crear contrato
+                contrato = ContratoTrabajador.objects.create(**contrato_data)
+                print(f'✅ Contrato creado: {contrato.id}')
+                
+                # Variables para el response
+                supervisor_asignado = False
+                jefe_cuadrilla_asignado = False
+                transporte_asignado = False
+                
+                # Asignar supervisor (opcional)
+                supervisor_id = request.data.get('supervisor_id')
+                if supervisor_id:
+                    try:
+                        supervisor = Supervisores.objects.get(
+                            id=supervisor_id,
+                            holding_id=request.data['holding']
+                        )
+                        supervisor.trabajadores.add(trabajador)
+                        supervisor_asignado = True
+                        print(f'✅ Trabajador asignado a supervisor: {supervisor.id}')
+                    except Supervisores.DoesNotExist:
+                        raise Exception(f'Supervisor {supervisor_id} no encontrado')
+                
+                # Asignar jefe de cuadrilla (opcional)
+                jefe_cuadrilla_id = request.data.get('jefe_cuadrilla_id')
+                if jefe_cuadrilla_id:
+                    try:
+                        jefe = JefesDeCuadrilla.objects.get(
+                            id=jefe_cuadrilla_id,
+                            holding_id=request.data['holding']
+                        )
+                        jefe.trabajadores.add(trabajador)
+                        jefe_cuadrilla_asignado = True
+                        print(f'✅ Trabajador asignado a jefe de cuadrilla: {jefe.id}')
+                    except JefesDeCuadrilla.DoesNotExist:
+                        raise Exception(f'Jefe de cuadrilla {jefe_cuadrilla_id} no encontrado')
+                
+                # Crear relación de transporte (opcional)
+                transportista_id = request.data.get('transportista_id')
+                vehiculo_id = request.data.get('vehiculo_id')
+                chofer_id = request.data.get('chofer_id')
+                
+                if transportista_id or vehiculo_id:
+                    # Validar que el transportista existe si se proporciona
+                    if transportista_id:
+                        try:
+                            transportista = EmpresasTransporte.objects.get(
+                                id=transportista_id,
+                                holding_id=request.data['holding']
+                            )
+                            print(f'✅ Transportista validado: {transportista.nombre}')
+                        except EmpresasTransporte.DoesNotExist:
+                            raise Exception(f'Empresa de transporte {transportista_id} no encontrada')
+                    
+                    # Validar que el vehículo existe si se proporciona
+                    if vehiculo_id:
+                        try:
+                            vehiculo = VehiculosTransporte.objects.get(
+                                id=vehiculo_id,
+                                holding_id=request.data['holding']
+                            )
+                            print(f'✅ Vehículo validado: {vehiculo.ppu}')
+                        except VehiculosTransporte.DoesNotExist:
+                            raise Exception(f'Vehículo {vehiculo_id} no encontrado')
+                    
+                    # Validar que el chofer existe si se proporciona
+                    if chofer_id:
+                        try:
+                            chofer = ChoferesTransporte.objects.get(
+                                id=chofer_id,
+                                holding_id=request.data['holding']
+                            )
+                            print(f'✅ Chofer validado: {chofer.nombre}')
+                        except ChoferesTransporte.DoesNotExist:
+                            raise Exception(f'Chofer {chofer_id} no encontrado')
+                    
+                    # Crear relación de transporte
+                    trabajador_transporte = TrabajadorEmpresaTransporte.objects.create(
+                        holding_id=request.data['holding'],
+                        trabajador=trabajador,
+                        transportista_id=transportista_id if transportista_id else None,
+                        vehiculo_id=vehiculo_id if vehiculo_id else None,
+                        chofer_id=chofer_id if chofer_id else None
+                    )
+                    transporte_asignado = True
+                    print(f'✅ Relación transporte creada: {trabajador_transporte.id}')
 
-            fecha_termino_str = 'INDEFINIDO'
-            if contrato.fecha_termino_contrato:
-                if hasattr(contrato.fecha_termino_contrato, 'strftime'):
-                    fecha_termino_str = contrato.fecha_termino_contrato.strftime('%Y-%m-%d')
-                else:
-                    fecha_termino_str = str(contrato.fecha_termino_contrato)
+                # Formatear fechas para respuesta
+                fecha_inicio_str = request.data['fecha_inicio_contrato']
+                fecha_termino_str = request.data.get('fecha_termino_contrato', 'INDEFINIDO')
 
-            return Response({
-                'message': 'Contrato creado exitosamente',
-                'contrato_id': contrato.id,
-                'trabajador': f"{trabajador.nombres} {trabajador.apellidos}",
-                'fecha_inicio': fecha_inicio_str,
-                'fecha_termino': fecha_termino_str
-            }, status=status.HTTP_201_CREATED)
+                # Preparar response detallado
+                response_data = {
+                    'message': 'Contrato creado exitosamente',
+                    'contrato_id': contrato.id,
+                    'trabajador': f"{trabajador.nombres} {trabajador.apellidos}",
+                    'fecha_inicio': fecha_inicio_str,
+                    'fecha_termino': fecha_termino_str,
+                    'asignaciones': {
+                        'supervisor': supervisor_asignado,
+                        'jefe_cuadrilla': jefe_cuadrilla_asignado,
+                        'transporte': transporte_asignado
+                    }
+                }
+                
+                print(f'✅ Transacción completada exitosamente')
+                return Response(response_data, status=status.HTTP_201_CREATED)
             
-        except FolioComercial.DoesNotExist:
-            return Response(
-                {'error': 'Folio comercial no encontrado'},
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Exception as e:
             print(f"❌ Error en CrearContratoWebAPIView POST: {str(e)}")
             import traceback
@@ -20830,12 +20996,26 @@ class CarnetOCRAPIView(APIView):
             if not image_file:
                 return Response({'error': 'No se recibió imagen'}, status=400)
             
+            content = image_file.read()
+            imagen_convertida_base64 = None
+            
+            # Detectar si es PDF
+            if image_file.content_type == 'application/pdf':
+                # Convertir PDF primera página a imagen
+                images = convert_from_bytes(content, first_page=1, last_page=1)
+                img_byte_arr = io.BytesIO()
+                images[0].save(img_byte_arr, format='PNG')
+                content = img_byte_arr.getvalue()
+                
+                # Convertir a base64 para enviar al frontend
+                import base64
+                imagen_convertida_base64 = base64.b64encode(content).decode('utf-8')
+            
             # Vision API
             client = vision_v1.ImageAnnotatorClient(
                 client_options={"api_key": 'AIzaSyA2sAcNQfKjrDfCIDUWOT4vVPICZkhmkUc'}
             )
             
-            content = image_file.read()
             image = vision_v1.Image(content=content)
             response = client.text_detection(image=image)
             
@@ -20843,11 +21023,14 @@ class CarnetOCRAPIView(APIView):
                 return Response({'error': 'No se detectó texto'}, status=400)
             
             texto = response.text_annotations[0].description
-            
-            # Parser
             datos = self.parse_carnet_chileno(texto)
             
-            return Response({'success': True, 'datos': datos})
+            # Retornar datos + imagen convertida (si era PDF)
+            return Response({
+                'success': True, 
+                'datos': datos,
+                'imagen_convertida': imagen_convertida_base64  # null si era imagen original
+            })
             
         except Exception as e:
             return Response({'error': str(e)}, status=500)

@@ -164,6 +164,22 @@
         (input)="formatRUT($event)"
         placeholder="EJ: 12.345.678-9">
 
+        <h4 class="h4-subtitle">DNI Trabajador:</h4>
+        <input 
+          type="text" 
+          class="input-perfil" 
+          [(ngModel)]="dniTrabajador"
+          (ngModelChange)="dniTrabajador = $event.toUpperCase()"
+          placeholder="INGRESE EL DNI (OPCIONAL)">
+
+        <h4 class="h4-subtitle">NIC Trabajador:</h4>
+        <input 
+          type="text" 
+          class="input-perfil" 
+          [(ngModel)]="nicTrabajador"
+          (ngModelChange)="nicTrabajador = $event.toUpperCase()"
+          placeholder="INGRESE EL NIC (OPCIONAL)">
+
       <h4 class="h4-subtitle">Correo Trabajador:</h4>
       <input 
         type="email" 
@@ -185,8 +201,8 @@
       <h4 class="h4-subtitle">Sexo:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="sexoTrabajador">
-          <option value="H">H</option>
           <option value="M">M</option>
+          <option value="F">F</option>
         </select>
       </div>
 
@@ -431,6 +447,22 @@
         (input)="formatRUT($event)"
         placeholder="EJ: 12.345.678-9">
 
+      <h4 class="h4-subtitle">DNI Trabajador:</h4>
+      <input 
+        type="text" 
+        class="input-perfil" 
+        [(ngModel)]="dniTrabajadorNew"
+        (ngModelChange)="dniTrabajadorNew = $event.toUpperCase()"
+        placeholder="INGRESE EL DNI (OPCIONAL)">
+
+      <h4 class="h4-subtitle">NIC Trabajador:</h4>
+      <input 
+        type="text" 
+        class="input-perfil" 
+        [(ngModel)]="nicTrabajadorNew"
+        (ngModelChange)="nicTrabajadorNew = $event.toUpperCase()"
+        placeholder="INGRESE EL NIC (OPCIONAL)">
+
       <h4 class="h4-subtitle">Correo Trabajador:</h4>
       <input 
         type="email" 
@@ -450,8 +482,8 @@
       <h4 class="h4-subtitle">Sexo:</h4>
       <div class="input-container">
         <select class="input-perfil" [(ngModel)]="sexoTrabajadorNew">
-          <option value="H">H</option>
           <option value="M">M</option>
+          <option value="F">F</option>
         </select>
       </div>
 
