@@ -21,8 +21,14 @@ interface JWTPayload {
   user_id: number;
   user_type: 'SUPERADMIN' | 'ADMIN_HOLDING' | 'USER_NORMAL';
   holding_id: number | null;
+  holding_name?: string; 
   is_superuser: boolean;
   is_admin: boolean;
+  sociedades?: Array<{
+    id: number;
+    nombre: string;
+    rol_sociedad: string;
+  }>;
   perfil?: {
     id: number;
     nombre: string;
@@ -362,6 +368,8 @@ export class JwtService {
     nombre: string; 
     user_type: string; 
     holding_id: number | null;
+    nombre_holding?: string | null; // ✅ Y AQUÍ TAMBIÉN
+
     perfil?: any;
   } | null {
     const payload = this.decodeToken();
@@ -372,6 +380,7 @@ export class JwtService {
       nombre: payload.nombre_completo,
       user_type: payload.user_type,
       holding_id: payload.holding_id,
+      nombre_holding: payload.holding_name,
       perfil: payload.perfil
     };
   }
@@ -503,6 +512,22 @@ export class JwtService {
    */
   private getSubmoduleIcon(submodulo: string): string {
     return 'arrow_forward_ios';
+  }
+
+  /**
+   * ✅ NUEVO: Obtener sociedades del usuario desde el JWT
+   */
+  getSociedades(): Array<{ id: number; nombre: string; rol_sociedad: string }> {
+    const payload = this.decodeToken();
+    return payload?.sociedades || [];
+  }
+
+  /**
+   * ✅ NUEVO: Verificar si el usuario tiene acceso a una sociedad específica
+   */
+  canAccessSociedad(sociedadId: number): boolean {
+    const sociedades = this.getSociedades();
+    return sociedades.some(s => s.id === sociedadId);
   }
 
   // ============================================

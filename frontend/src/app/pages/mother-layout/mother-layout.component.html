@@ -499,47 +499,33 @@
         <mat-icon class="icon-domain-left">domain</mat-icon>
         <label class="menu-label-left-2">{{nombre_holding}}</label>
         
-        <!-- Dropdown de Sociedades de Trabajo -->
-        <div class="sociedad-trabajo-container" *ngIf="sociedadesUsuario.length > 0">
-          <mat-icon class="icon-business-trabajo">business</mat-icon>
-          <label class="menu-label-sociedad-trabajo">EMPRESA:</label>
-          
-          <!-- Si solo hay una sociedad, mostrarla directamente -->
-          <div class="sociedad-unica" *ngIf="sociedadesUsuario.length === 1">
-            <span class="sociedad-nombre">{{ sociedadTrabajoActual?.nombre }}</span>
-            <span class="sociedad-rut">({{ sociedadTrabajoActual?.rut }})</span>
-          </div>
-          
-          <!-- Si hay múltiples sociedades, mostrar dropdown -->
-          <div class="dropdown-sociedad-trabajo" *ngIf="sociedadesUsuario.length > 1">
-            <button class="dropdown-button-sociedad-trabajo" (click)="toggleDropdownSociedadTrabajo()">
-              <span *ngIf="sociedadTrabajoActual">
-                {{ sociedadTrabajoActual.nombre }} ({{ sociedadTrabajoActual.rut }})
-              </span>
-              <span *ngIf="!sociedadTrabajoActual">
-                Seleccionar Empresa
-              </span>
-              <mat-icon class="dropdown-icon">{{ dropdownOpenSociedadTrabajo ? 'arrow_drop_up' : 'arrow_drop_down' }}</mat-icon>
-            </button>
-            
-            <div class="dropdown-content-sociedad-trabajo" [class.show]="dropdownOpenSociedadTrabajo">
-              <div *ngFor="let sociedad of sociedadesUsuario" 
-                   class="dropdown-item-sociedad"
-                   (click)="seleccionarSociedadTrabajo(sociedad)"
-                   [class.selected]="sociedadTrabajoActual?.id === sociedad.id">
-                <span class="item-nombre">{{ sociedad.nombre }}</span>
-                <span class="item-rut">{{ sociedad.rut }}</span>
-                <mat-icon *ngIf="sociedadTrabajoActual?.id === sociedad.id" class="check-icon">check</mat-icon>
-              </div>
-            </div>
-          </div>
-        </div>
-
+        
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="70px" viewBox="0 0 4 2" preserveAspectRatio="none">
           <rect width="4" height="2" fill="#0f5163" opacity="1"/>
           <path d="M 0 0 Q 0 3.5 4 0" fill="#00A693" opacity="1"/>
           <path d="M 0 2 Q 2 1.5 4 2" fill="#00A693" opacity="1"/>
         </svg>
+        
+        <!-- Dropdown Sociedad Global -->
+        <div class="dropdown-sociedad-global" *ngIf="sociedadesDisponibles.length > 0">
+          <button class="btn-sociedad-global" (click)="toggleDropdownSociedadGlobal()">
+            <mat-icon>business</mat-icon>
+            <span>{{ sociedadActual?.nombre || 'Seleccionar' }}</span>
+            <mat-icon>{{ dropdownSociedadGlobal ? 'arrow_drop_up' : 'arrow_drop_down' }}</mat-icon>
+          </button>
+          
+          <div class="dropdown-content-global" [class.show]="dropdownSociedadGlobal">
+            <div *ngFor="let sociedad of sociedadesDisponibles" 
+                class="dropdown-item-global"
+                (click)="seleccionarSociedad(sociedad)"
+                [class.selected]="sociedadActual?.id === sociedad.id">
+              {{ sociedad.nombre }}
+              <mat-icon *ngIf="sociedadActual?.id === sociedad.id">check</mat-icon>
+            </div>
+          </div>
+        </div>
+
+        
         <button mat-icon-button-right (click)="abrirMenuDerecho()" class="menu-button-right">
           <mat-icon>settings</mat-icon>
         </button>

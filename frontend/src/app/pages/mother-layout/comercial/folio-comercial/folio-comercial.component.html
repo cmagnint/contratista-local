@@ -1,8 +1,3 @@
-<!--folio-comercial.component.html - ADAPTADO CON ESTILOS MODERNOS DE PERFILES-->
-
-<!-- ============================================ -->
-<!-- 🎯 CONTENEDOR PRINCIPAL DE FOLIO COMERCIAL -->
-<!-- ============================================ -->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
     
   <!-- Botones de acción principales -->
@@ -33,6 +28,39 @@
   </button>
 
   <!-- ============================================ -->
+  <!-- 🎯 FILTROS DE ESTADO -->
+  <!-- ============================================ -->
+  <div class="filtros-section-modern">
+    <h3 class="filtros-title">FILTRAR POR ESTADO</h3>
+    <div class="filtros-buttons-container">
+      <button 
+        mat-raised-button 
+        [class.active]="filtroEstado === 'activos'"
+        class="filtro-button-modern activos"
+        (click)="cambiarFiltroEstado('activos')">
+        <span class="button-icon">✓</span>
+        <span class="button-text">ACTIVOS</span>
+      </button>
+      <button 
+        mat-raised-button 
+        [class.active]="filtroEstado === 'inactivos'"
+        class="filtro-button-modern inactivos"
+        (click)="cambiarFiltroEstado('inactivos')">
+        <span class="button-icon">✕</span>
+        <span class="button-text">INACTIVOS</span>
+      </button>
+      <button 
+        mat-raised-button 
+        [class.active]="filtroEstado === 'todos'"
+        class="filtro-button-modern todos"
+        (click)="cambiarFiltroEstado('todos')">
+        <span class="button-icon">🔍</span>
+        <span class="button-text">TODOS</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
   <!-- 🎯 MODAL CREAR FOLIO -->
   <!-- ============================================ -->
   <div 
@@ -51,7 +79,6 @@
 
       <h2>CREAR FOLIO</h2>
 
-      <!-- Selección de Cliente -->
       <div class="dropdown-container">
         <h3>Seleccionar Cliente:</h3>
         <div class="dropdown">
@@ -73,7 +100,6 @@
         </div>
       </div>
 
-      <!-- Selección de Fundo -->
       <div class="dropdown-container">
         <h3>Seleccionar Fundo:</h3>
         <div class="dropdown">
@@ -98,7 +124,6 @@
         </div>
       </div>
 
-      <!-- Selección de Labor -->
       <div class="dropdown-container">
         <h3>Seleccionar Labor:</h3>
         <div class="dropdown">
@@ -139,7 +164,6 @@
         </div>
       </div>
 
-      <!-- ✅ NUEVO - Dropdown de Horarios -->
       <div class="dropdown-container">
         <h3>Horarios del Folio:</h3>
         <div class="dropdown">
@@ -166,7 +190,6 @@
         </div>
       </div>
 
-      <!-- Selección de Transportista -->
       <div class="dropdown-container">
         <h3>Seleccionar Transportista:</h3>
         <div class="dropdown">
@@ -187,7 +210,6 @@
         </div>
       </div>
 
-      <!-- Selección de Vehículo -->
       <div class="dropdown-container">
         <h3>Seleccionar Vehículo:</h3>
         <div class="dropdown">
@@ -212,7 +234,6 @@
         </div>
       </div>
 
-      <!-- Campos de fechas y valores -->
       <div class="input-container">
         <label for="fechaInicioContrato">Fecha Inicio Contrato:</label>
         <input 
@@ -259,7 +280,6 @@
 
       <h2>MODIFICAR FOLIO</h2>
 
-      <!-- Selección de Cliente -->
       <div class="dropdown-container">
         <h3>Seleccionar Cliente:</h3>
         <div class="dropdown">
@@ -281,7 +301,6 @@
         </div>
       </div>
 
-      <!-- Selección de Fundo -->
       <div class="dropdown-container">
         <h3>Seleccionar Fundo:</h3>
         <div class="dropdown">
@@ -306,7 +325,6 @@
         </div>
       </div>
 
-      <!-- Selección de Labor -->
       <div class="dropdown-container">
         <h3>Seleccionar Labor:</h3>
         <div class="dropdown">
@@ -347,7 +365,6 @@
         </div>
       </div>
 
-      <!-- ✅ NUEVO - Dropdown de Horarios en MODIFICAR -->
       <div class="dropdown-container">
         <h3>Horarios del Folio:</h3>
         <div class="dropdown">
@@ -374,7 +391,6 @@
         </div>
       </div>
 
-      <!-- Selección de Transportista -->
       <div class="dropdown-container">
         <h3>Seleccionar Transportista:</h3>
         <div class="dropdown">
@@ -395,7 +411,6 @@
         </div>
       </div>
 
-      <!-- Selección de Vehículo -->
       <div class="dropdown-container">
         <h3>Seleccionar Vehículo:</h3>
         <div class="dropdown">
@@ -420,7 +435,6 @@
         </div>
       </div>
 
-      <!-- Campos de fechas y valores -->
       <div class="input-container">
         <label for="fechaInicioContratoMod">Fecha Inicio Contrato:</label>
         <input 
@@ -474,14 +488,12 @@
         
         <div class="labores-interactive-container">
           
-          <!-- Usar el helper para obtener labores parseadas -->
           <div *ngIf="parseLaboresFromString(folio).length > 0; else noLabores">
             
             <div 
               *ngFor="let labor of parseLaboresFromString(folio)" 
               class="labor-item-interactive">
               
-              <!-- Header de la labor -->
               <div 
                 class="labor-header-interactive"
                 (click)="toggleLaborInTable(folio.id, labor.id, $event)"
@@ -496,7 +508,6 @@
                 <span class="counter-badge">2</span>
               </div>
               
-              <!-- Valores de la labor (expandibles) -->
               <div 
                 class="valores-list-table"
                 [class.expanded]="isLaborExpandedInTable(folio.id, labor.id)">
@@ -514,7 +525,6 @@
             </div>
           </div>
           
-          <!-- Mensaje cuando no hay labores -->
           <ng-template #noLabores>
             <div class="no-labores-interactive">
               <span class="no-labores-icon">⚠️</span>
@@ -555,9 +565,14 @@
 
     <ng-container matColumnDef="estado">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Estado</th>
-      <td mat-cell *matCellDef="let cliente" class="mat-cell">
-        <span *ngIf="cliente.estado; else inactivo" class="estado-activo">ACTIVO</span>
-        <ng-template #inactivo><span class="estado-inactivo">INACTIVO</span></ng-template>
+      <td mat-cell *matCellDef="let folio" class="mat-cell" (click)="$event.stopPropagation()">
+        <button 
+          class="toggle-estado-button"
+          [class.activo]="folio.estado"
+          [class.inactivo]="!folio.estado"
+          (click)="toggleEstadoFolio(folio, $event)">
+          {{ folio.estado ? '✓ ACTIVO' : '✕ INACTIVO' }}
+        </button>
       </td>
     </ng-container>
 
@@ -600,7 +615,7 @@
   </div>
 </div>
 
-<!-- Modal de confirmación -->
+<!-- Modal de confirmación eliminar -->
 <div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <h2>¿Desea eliminar el(los) folio(s) seleccionado(s)?</h2>
@@ -608,6 +623,30 @@
     <div class="modal-actions">
       <button class="yes-button" (click)="eliminarFolioSeleccionados()">Sí</button>
       <button class="no-button" (click)="closeModal('confirmacionModal')">No</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmación cambiar estado -->
+<div class="modal" *ngIf="modals['confirmacionDesactivarModal']" (click)="closeModal('confirmacionDesactivarModal')">
+  <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+    
+    <div class="icon-container confirmation">
+      <div class="icon-circle confirmation">⚠</div>
+    </div>
+    
+    <h2 class="modal-title confirmation">Cambiar Estado del Folio</h2>
+    <p class="modal-message">
+      ¿Está seguro que desea {{ folioParaDesactivar?.estado ? 'desactivar' : 'activar' }} este folio?
+    </p>
+    
+    <div class="button-container confirmation">
+      <button class="button-bottom confirm-yes" (click)="confirmarCambioEstado()">
+        Sí, Cambiar
+      </button>
+      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionDesactivarModal')">
+        Cancelar
+      </button>
     </div>
   </div>
 </div>

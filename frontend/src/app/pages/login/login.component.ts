@@ -1,4 +1,5 @@
-// login.component.ts - VERSIÓN ACTUALIZADA CON API UNIFICADA
+// login.component.ts
+
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -23,11 +24,6 @@ export class LoginComponent implements OnInit {
   showMessage: boolean = true;
   isLoading: boolean = false;
   isError: boolean = false;
-  lottieConfig: AnimationOptions = {
-    path: 'assets/animations/loading.json',
-    autoplay: true,
-    loop: true
-  };
 
   // Estados para los modales de recuperación
   public showRutModal: boolean = false;
@@ -36,7 +32,11 @@ export class LoginComponent implements OnInit {
   public rutForRecovery: string = '';
   public emailForRecovery: string = '';
   public codeForRecovery: string = '';
-  
+
+  // ✅ NUEVO: Variables para sociedades
+  sociedades: Array<{ id: number; nombre: string; rol_sociedad: string }> = [];
+  sociedadSeleccionada: { id: number; nombre: string; rol_sociedad: string } | null = null;
+
   constructor(
     private contratistaApiService: ContratistaApiService,
     private jwtService: JwtService,
@@ -47,6 +47,9 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
+      // ✅ NUEVO: Cargar sociedades guardadas
+      this.cargarSociedadesGuardadas();
+      
       // Verificar si ya hay un JWT token válido
       if (this.jwtService.isAuthenticated()) {
         this.verifyAndNavigate();
@@ -56,6 +59,7 @@ export class LoginComponent implements OnInit {
 
   /**
    * Verifica el JWT token actual y navega si es válido
+   * ✅ ACTUALIZADO: Ahora carga sociedades
    */
   verifyAndNavigate(): void {
     const token = this.jwtService.getToken();
@@ -66,6 +70,12 @@ export class LoginComponent implements OnInit {
     this.contratistaApiService.verifyJWT(token).subscribe({
       next: (response: any) => {
         if (response.valid) {
+          // ✅ NUEVO: Guardar sociedades si vienen en la respuesta
+          if (response.sociedades?.length > 0) {
+            this.sociedades = response.sociedades;
+            this.guardarSociedades();
+          }
+
           const userInfo = response.user_info;
           
           // Navegar según tipo de usuario
@@ -76,19 +86,19 @@ export class LoginComponent implements OnInit {
           }
         } else {
           // Token inválido, limpiar
-          this.jwtService.clearTokens();
+          this.logout();
         }
       },
       error: () => {
         console.log('JWT inválido o expirado');
-        this.jwtService.clearTokens();
+        this.logout();
       }
     });
   }
 
   /**
-   * 🎯 LOGIN SIMPLE - ESTÁNDAR DE INDUSTRIA
-   * Envía contraseña en texto plano sobre HTTPS
+   * 🎯 LOGIN PRINCIPAL
+   * ✅ ACTUALIZADO: Ahora maneja sociedades
    */
   login(): void {
     this.isLoading = true;
@@ -101,13 +111,12 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    console.log('🚀 Iniciando login estándar para RUT:', this.rut);
+    console.log('🚀 Iniciando login para RUT:', this.rut);
 
-    // 🎯 USAR LOGIN SIMPLE - Tu LoginAPIView estándar
     this.contratistaApiService.login(this.rut, this.password, 'WEB')
       .subscribe({
         next: (data: any) => {
-          console.log('✅ Login JWT estándar exitoso', data);
+          console.log('✅ Login exitoso', data);
           
           if (data.autorizado) {
             // Almacenar tokens JWT
@@ -116,7 +125,21 @@ export class LoginComponent implements OnInit {
               this.jwtService.storeRefreshToken(data.refresh_token);
             }
 
-            // Limpiar tokens OAuth2 legacy si existen
+            // ✅ NUEVO: Guardar sociedades
+            if (data.sociedades?.length > 0) {
+              console.log('🏢 Sociedades disponibles:', data.sociedades);
+              this.sociedades = data.sociedades;
+              this.guardarSociedades();
+              
+              // Auto-seleccionar si solo hay una sociedad
+              if (data.sociedades.length === 1) {
+                this.sociedadSeleccionada = data.sociedades[0];
+                this.guardarSociedadSeleccionada();
+                console.log('✅ Auto-seleccionada única sociedad:', data.sociedades[0]);
+              }
+            }
+
+            // Limpiar tokens OAuth2 legacy
             this.clearLegacyTokens();
 
             this.isLoading = false;
@@ -139,7 +162,7 @@ export class LoginComponent implements OnInit {
           }
         },
         error: (error) => {
-          console.error('❌ Error en login estándar:', error);
+          console.error('❌ Error en login:', error);
           
           let errorMessage = 'Usuario o contraseña incorrectos';
           
@@ -156,17 +179,53 @@ export class LoginComponent implements OnInit {
       });
   }
 
+  // ===============================================================
+  // ✅ NUEVOS MÉTODOS PARA GESTIÓN DE SOCIEDADES
+  // ===============================================================
+
+  /**
+   * ✅ NUEVO: Guardar sociedades en localStorage
+   */
+  private guardarSociedades(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('sociedades', JSON.stringify(this.sociedades));
+    }
+  }
+
+  /**
+   * ✅ NUEVO: Cargar sociedades guardadas desde localStorage
+   */
+  private cargarSociedadesGuardadas(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      const sociedadesStr = localStorage.getItem('sociedades');
+      const sociedadStr = localStorage.getItem('sociedad_seleccionada');
+      
+      if (sociedadesStr) {
+        this.sociedades = JSON.parse(sociedadesStr);
+      }
+      if (sociedadStr) {
+        this.sociedadSeleccionada = JSON.parse(sociedadStr);
+      }
+    }
+  }
+
+  /**
+   * ✅ NUEVO: Guardar sociedad seleccionada en localStorage
+   */
+  private guardarSociedadSeleccionada(): void {
+    if (isPlatformBrowser(this.platformId) && this.sociedadSeleccionada) {
+      localStorage.setItem('sociedad_seleccionada', JSON.stringify(this.sociedadSeleccionada));
+    }
+  }
+
+  // ===============================================================
+  // MÉTODOS DE RECUPERACIÓN DE CONTRASEÑA (SIN CAMBIOS)
+  // ===============================================================
+
   onForgotPassword() {
     this.showRutModal = true;
   }
 
-  // ============================================
-  // 🎯 MÉTODOS ACTUALIZADOS PARA API UNIFICADA
-  // ============================================
-
-  /**
-   * ✅ ACTUALIZADO: Verifica si el RUT existe usando API unificada
-   */
   checkRut() {
     console.log('🔍 Verificando RUT:', this.rutForRecovery);
     
@@ -175,10 +234,8 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    // ✅ Limpiar y validar formato
     const rutClean = this.rutForRecovery.replace(/[^0-9kK]/g, '').toUpperCase();
     
-    // Validar longitud mínima (ej: 7 dígitos + verificador)
     if (rutClean.length < 8) {
       this.toastr.error('RUT incompleto', 'Error');
       return;
@@ -188,7 +245,7 @@ export class LoginComponent implements OnInit {
 
     this.contratistaApiService.post('password-reset/', { 
       action: 'check_user',
-      rut_user: rutClean  // Enviar sin puntos ni guión
+      rut_user: rutClean
     }).subscribe({
       next: (response: any) => {
         console.log('✅ Respuesta verificación RUT:', response);
@@ -197,9 +254,8 @@ export class LoginComponent implements OnInit {
           this.showRutModal = false;
           this.showEmailModal = true;
           this.toastr.success('RUT encontrado', 'Éxito');
-          
         } else {
-          console.log("RUt no encontrado")
+          console.log("RUT no encontrado")
           this.toastr.error('RUT no encontrado', 'Error');
         }
       },
@@ -210,9 +266,6 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  /**
-   * ✅ ACTUALIZADO: Envía código de verificación usando API unificada
-   */
   sendCode() {
     console.log('📧 Enviando código para:', this.emailForRecovery);
     
@@ -223,7 +276,6 @@ export class LoginComponent implements OnInit {
 
     const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
 
-    // ✅ NUEVA API UNIFICADA con action
     this.contratistaApiService.post('password-reset/', { 
       action: 'generate_code',
       email: this.emailForRecovery, 
@@ -248,9 +300,6 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  /**
-   * ✅ ACTUALIZADO: Verifica código usando API unificada
-   */
   verifyCode() {
     console.log('🔐 Verificando código:', this.codeForRecovery);
     
@@ -261,7 +310,6 @@ export class LoginComponent implements OnInit {
 
     const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
 
-    // ✅ NUEVA API UNIFICADA con action
     this.contratistaApiService.post('password-reset/', { 
       action: 'verify_code',
       rut: rutWithoutFormat, 
@@ -272,7 +320,6 @@ export class LoginComponent implements OnInit {
         
         if (response.status === 'success') {
           this.toastr.success('Código verificado exitosamente', 'Éxito');
-          // Redirigir al componente de cambio de contraseña
           this.router.navigate(['/change-password'], { 
             queryParams: { 
               rut: rutWithoutFormat, 
@@ -291,9 +338,6 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  /**
-   * ✅ CERRAR MODALES - Sin cambios
-   */
   closeModal() {
     this.showRutModal = false;
     this.showEmailModal = false;
@@ -303,13 +347,10 @@ export class LoginComponent implements OnInit {
     this.codeForRecovery = '';
   }
 
-  // ============================================
-  // 🎯 MÉTODOS AUXILIARES - Sin cambios
-  // ============================================
+  // ===============================================================
+  // MÉTODOS AUXILIARES (SIN CAMBIOS)
+  // ===============================================================
 
-  /**
-   * Muestra un mensaje de error y actualiza el estado
-   */
   private showErrorMessage(message: string): void {
     this.mensaje_login = message;
     this.showMessage = true;
@@ -318,13 +359,8 @@ export class LoginComponent implements OnInit {
     this.toastr.error(message, 'Error');
   }
 
-  /**
-   * Limpia tokens OAuth2 legacy del localStorage
-   * DEPRECATED: Solo para migración gradual
-   */
   private clearLegacyTokens(): void {
     if (isPlatformBrowser(this.platformId)) {
-      // Limpiar tokens y datos OAuth2 antiguos
       const legacyKeys = [
         'token', 'usuario_id', 'holding_id', 'is_admin', 
         'is_superuser', 'token_expiration', 'nombre_user', 
@@ -339,18 +375,25 @@ export class LoginComponent implements OnInit {
   }
 
   /**
-   * Logout completo - limpia todos los tokens JWT
+   * ✅ ACTUALIZADO: Logout completo - limpia tokens Y sociedades
    */
   logout(): void {
-    console.log('🚪 Logout desde login component...');
+    console.log('🚪 Logout...');
     this.jwtService.clearTokens();
+    
+    // ✅ NUEVO: Limpiar sociedades
+    this.sociedades = [];
+    this.sociedadSeleccionada = null;
+    
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('sociedades');
+      localStorage.removeItem('sociedad_seleccionada');
+    }
+    
     this.router.navigate(['/login']);
     console.log('✅ Logout completado');
   }
 
-  /**
-   * Maneja el submit del formulario
-   */
   onSubmit(): void {
     this.showMessage = true;
     this.isLoading = true;
@@ -358,36 +401,26 @@ export class LoginComponent implements OnInit {
     this.login();
   }
   
-  /**
-   * Formatea el RUT mientras el usuario escribe
-   */
   formatRUT(event: Event): void {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    // Guardar posición del cursor
     const cursorPosition = target.selectionStart || 0;
-    
-    // Limpiar todo excepto números y K/k
     let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
     
-    // Si está vacío, salir
     if (rut.length === 0) {
       target.value = '';
       return;
     }
     
-    // Separar dígito verificador (último carácter)
     const verifier = rut.slice(-1);
     let body = rut.slice(0, -1);
     
-    // Si solo hay un dígito, no formatear aún
     if (body.length === 0) {
       target.value = verifier;
       return;
     }
     
-    // Formatear cuerpo con puntos
     const parts: string[] = [];
     while (body.length > 3) {
       parts.unshift(body.slice(-3));
@@ -397,11 +430,9 @@ export class LoginComponent implements OnInit {
       parts.unshift(body);
     }
     
-    // Construir RUT formateado
     const formatted = parts.join('.') + '-' + verifier;
     target.value = formatted;
     
-    // Restaurar cursor (opcional, mejora UX)
     const lengthDiff = formatted.length - rut.length;
     target.setSelectionRange(
       cursorPosition + lengthDiff, 

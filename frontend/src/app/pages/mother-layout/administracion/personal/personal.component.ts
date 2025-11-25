@@ -146,6 +146,15 @@ export class PersonalComponent implements OnInit {
   public dniTrabajadorNew: string = '';
   public nicTrabajadorNew: string = '';
 
+  // Nuevas propiedades para subir documentos
+  public archivoCarnetFrontal: File | null = null;
+  public archivoCarnetTrasero: File | null = null;
+  public archivoFirma: File | null = null;
+  
+  public nombreArchivoFrontal: string = '';
+  public nombreArchivoTrasero: string = '';
+  public nombreArchivoFirma: string = '';
+
   errorMessage!: string;
   selectedRows: any[] = [];
   
@@ -429,6 +438,108 @@ export class PersonalComponent implements OnInit {
     }
   }
 
+  // NUEVOS MÉTODOS PARA SUBIR DOCUMENTOS
+  onFileSelected(event: Event, tipo: 'frontal' | 'trasero' | 'firma'): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      
+      // Validar tipo de archivo
+      const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!tiposPermitidos.includes(file.type)) {
+        alert('Solo se permiten archivos JPG, JPEG o PNG');
+        input.value = '';
+        return;
+      }
+      
+      // Validar tamaño (máx 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('El archivo no debe superar 5MB');
+        input.value = '';
+        return;
+      }
+      
+      switch(tipo) {
+        case 'frontal':
+          this.archivoCarnetFrontal = file;
+          this.nombreArchivoFrontal = file.name;
+          break;
+        case 'trasero':
+          this.archivoCarnetTrasero = file;
+          this.nombreArchivoTrasero = file.name;
+          break;
+        case 'firma':
+          this.archivoFirma = file;
+          this.nombreArchivoFirma = file.name;
+          break;
+      }
+    }
+  }
+
+  subirDocumentos(): void {
+    if (!this.trabajadorSeleccionadoDocs) {
+      alert('No hay trabajador seleccionado');
+      return;
+    }
+
+    if (!this.archivoCarnetFrontal && !this.archivoCarnetTrasero && !this.archivoFirma) {
+      alert('Debe seleccionar al menos un documento');
+      return;
+    }
+
+    console.log('📤 Iniciando subida de documentos...');
+    console.log('👤 Trabajador ID:', this.trabajadorSeleccionadoDocs.id);
+
+    const formData = new FormData();
+    
+    if (this.archivoCarnetFrontal) {
+      console.log('✅ Agregando carnet frontal:', this.archivoCarnetFrontal.name);
+      formData.append('carnet_front_image', this.archivoCarnetFrontal, this.archivoCarnetFrontal.name);
+    }
+    if (this.archivoCarnetTrasero) {
+      console.log('✅ Agregando carnet trasero:', this.archivoCarnetTrasero.name);
+      formData.append('carnet_back_image', this.archivoCarnetTrasero, this.archivoCarnetTrasero.name);
+    }
+    if (this.archivoFirma) {
+      console.log('✅ Agregando firma:', this.archivoFirma.name);
+      formData.append('firma', this.archivoFirma, this.archivoFirma.name);
+    }
+
+    console.log('📦 Enviando FormData...');
+
+    this.contratistaApiService.patchFormData(
+      `api_personal_documentos/${this.trabajadorSeleccionadoDocs.id}/`,
+      formData
+    ).subscribe({
+      next: (response: any) => {
+        console.log('✅ Respuesta exitosa:', response);
+        this.cargarTrabajadores();
+        this.trabajadorSeleccionadoDocs = response;
+        this.limpiarArchivosSeleccionados();
+        this.closeModal('documentosModal');
+        this.openModal('exitoModal');
+      },
+      error: (error) => {
+        console.error('❌ Error completo:', error);
+        console.error('❌ Status:', error.status);
+        console.error('❌ Detalle:', error.error);
+        
+        this.errorMessage = error.error?.detail || error.error?.error || 'Error al subir documentos';
+        this.openModal('errorModal');
+      }
+    });
+  }
+
+  limpiarArchivosSeleccionados(): void {
+    this.archivoCarnetFrontal = null;
+    this.archivoCarnetTrasero = null;
+    this.archivoFirma = null;
+    this.nombreArchivoFrontal = '';
+    this.nombreArchivoTrasero = '';
+    this.nombreArchivoFirma = '';
+  }
+  // FIN NUEVOS MÉTODOS
+
   toggleSelection(id: number, list: number[], total: any[]): void {
     const index = list.indexOf(id);
     if (index > -1) {
@@ -633,6 +744,9 @@ export class PersonalComponent implements OnInit {
     if (key === 'exitoModal') {
       this.cargarTrabajadores();  
     }
+    if (key === 'documentosModal') {
+      this.limpiarArchivosSeleccionados();
+    }
   }
 
   abrirModalBanco(trabajador: any): void {
@@ -674,7 +788,7 @@ export class PersonalComponent implements OnInit {
       return path;
     }
     
-    const baseUrl = 'http://localhost';
+    const baseUrl = 'http://localhost:8182';
     return `${baseUrl}${path}`;
   }
 

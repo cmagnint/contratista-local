@@ -122,6 +122,8 @@ from .views import (
     CrearContratoWebAPIView,
     CarnetOCRAPIView,
     PDFToImageAPIView,
+    FirmaEmpleadorAPIView,
+    PersonalDocumentosAPIView,
 )
 
 app_name = 'contratista_test'
@@ -176,6 +178,7 @@ urlpatterns = [
     path('api_casas_trabajadores/<int:holding_id>/', CasasTrabajadoresAPIView.as_view(), name='api_casas_trabajadores_by_holding'),
     path('api_personal/', PersonalTrabajadoresAPIView.as_view(), name='api_personal_trabajadores'),
     path('api_personal/<int:holding_id>/', PersonalTrabajadoresAPIView.as_view(), name='api_personal_trabajadores_by_holding'),
+    path('api_personal_documentos/<int:trabajador_id>/', PersonalDocumentosAPIView.as_view(), name='api_personal_documentos'),
     path('unidad_control_comercial/', UnidadControlAPIView.as_view(), name='unidad_control_comercial'),
     path('unidad_control_comercial/<int:holding_id>/', UnidadControlAPIView.as_view(), name='unidad_control_comercial_by_holding'),
     path('labores_comercial/', LaboresAPIView.as_view(), name='labores_comercial'),
@@ -298,6 +301,8 @@ urlpatterns = [
     path('api_crear_contrato_web/', CrearContratoWebAPIView.as_view(), name='crear-contrato-web'),
     path('api_ocr_carnet/', CarnetOCRAPIView.as_view(), name='ocr_carnet'),
     path('api_convert_pdf_to_image/', PDFToImageAPIView.as_view(), name='convert_pdf'),
+    path('api_firma_empleador/', FirmaEmpleadorAPIView.as_view(), name='api_firma_empleador'),
+
 ]   
 
 

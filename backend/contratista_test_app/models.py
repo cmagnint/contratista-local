@@ -47,6 +47,13 @@ class Holding(models.Model):
     id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=255, unique=True)
     estado = models.BooleanField(default=True)
+    firma_empleador = models.ImageField(
+        upload_to='firmas/firma_empleador/', 
+        null=True, 
+        blank=True,
+        help_text="Firma del empleador para contratos"
+    )
+    
     class Meta:
         db_table = 'holding'
 

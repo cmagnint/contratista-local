@@ -20,7 +20,8 @@ class UserInfo {
   String password = '';
   String email = '';
   String holding = '';
-  String sociedad = '';
+  List<Map<String, dynamic>> sociedades = []; // ✅ CAMBIAR a List
+  String sociedadSeleccionada = '';
   int idUsuario = 0;
   String selectedHolding = '';
   bool isAdmin = false;
@@ -44,7 +45,8 @@ class UserInfo {
     password = '';
     email = '';
     holding = '';
-    sociedad = '';
+    sociedades = []; // ✅ LIMPIAR LISTA
+    sociedadSeleccionada = '';
     idUsuario = 0;
     selectedHolding = '';
     isAdmin = false;
@@ -53,7 +55,7 @@ class UserInfo {
     bodega = false;
     maquinaria = false;
     manoObra = false;
-    idSupervisor = 0; // ✅ AGREGAR AQUÍ
+    idSupervisor = 0;
     idJefeCuadrilla = 0;
   }
 }
@@ -65,8 +67,6 @@ class GlobalState {
 
 Future<bool> isConnected() async {
   var connectivityResult = await (Connectivity().checkConnectivity());
-  //loggerGlobal.d(
-  // 'Connectivity result: $connectivityResult'); // Log the connectivity result
   if (connectivityResult == ConnectivityResult.none) {
     return false;
   }

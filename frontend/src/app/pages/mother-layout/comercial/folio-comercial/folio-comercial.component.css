@@ -929,3 +929,236 @@ input[type="number"]::-webkit-inner-spin-button {
     font-size: 12px;
   }
 }
+
+/* ============================================ */
+/* 🎯 SECCIÓN DE FILTROS MODERNIZADA */
+/* ============================================ */
+
+.filtros-section-modern {
+  margin: 20px 0 30px 0;
+  padding: 25px;
+  background: linear-gradient(135deg, rgba(20, 179, 92, 0.05), rgba(255, 255, 255, 0.9));
+  border-radius: 15px;
+  border-left: 5px solid #14b35c;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.filtros-title {
+  margin: 0 0 20px 0;
+  color: #14b35c;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filtros-buttons-container {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.filtro-button-modern {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px !important;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
+  color: #333 !important;
+  border: 2px solid #e0e0e0 !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+}
+
+.filtro-button-modern .button-icon {
+  font-size: 16px;
+}
+
+.filtro-button-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.filtro-button-modern.activos.active {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+  color: white !important;
+  border-color: #4CAF50 !important;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.filtro-button-modern.inactivos.active {
+  background: linear-gradient(135deg, #f44336, #d32f2f) !important;
+  color: white !important;
+  border-color: #f44336 !important;
+  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+}
+
+.filtro-button-modern.todos.active {
+  background: linear-gradient(135deg, #2196F3, #1976D2) !important;
+  color: white !important;
+  border-color: #2196F3 !important;
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 TOGGLE ESTADO EN TABLA */
+/* ============================================ */
+
+.toggle-estado-button {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-estado-button.activo {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.toggle-estado-button.inactivo {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+}
+
+.toggle-estado-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 MODAL DE CONFIRMACIÓN */
+/* ============================================ */
+
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content-message {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 40px 30px;
+  border: none;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.icon-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: white;
+  margin: 0 auto 20px;
+}
+
+.icon-circle.confirmation {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  box-shadow: 0 8px 16px rgba(255, 152, 0, 0.3);
+}
+
+.modal-title.confirmation {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #FF9800;
+}
+
+.modal-message {
+  font-size: 16px;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.button-container.confirmation {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.button-bottom {
+  padding: 12px 30px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.button-bottom.confirm-yes {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.button-bottom.confirm-yes:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-2px);
+}
+
+.button-bottom.confirm-no {
+  background: linear-gradient(135deg, #9E9E9E, #757575);
+  color: white;
+}
+
+.button-bottom.confirm-no:hover {
+  background: linear-gradient(135deg, #757575, #616161);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE */
+/* ============================================ */
+
+@media (max-width: 768px) {
+  .filtros-section-modern {
+    padding: 15px;
+  }
+  
+  .filtros-buttons-container {
+    flex-direction: column;
+  }
+  
+  .filtro-button-modern {
+    width: 100%;
+    justify-content: center;
+  }
+}

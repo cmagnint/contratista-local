@@ -3,6 +3,7 @@ import { Component, Inject, NgZone, OnInit, PLATFORM_ID, ViewChild } from '@angu
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
+import { JwtService } from '../../../../../services/jwt.service';
 
 // Interfaz para una ubicación específica de una variable
 interface Ubicacion {
@@ -10,8 +11,10 @@ interface Ubicacion {
   posX: number;
   posY: number;
   id: string;
-  pageWidth: number;   // ← NUEVO
-  pageHeight: number;  // ← NUEVO
+  pageWidth: number;
+  pageHeight: number;
+  width?: number;   // ⭐ NUEVO: para firma_empleador
+  height?: number;  // ⭐ NUEVO: para firma_empleador
 }
 
 interface VariableDocumento {
@@ -40,6 +43,7 @@ interface VariableConDatos {
   valorPredeterminado: string;
   valorPrueba: string;
 }
+
 @Component({
   selector: 'app-formatos',
   standalone: true,
@@ -55,13 +59,14 @@ export class FormatosComponent implements OnInit {
   isLoading = false;
   isBrowser: boolean;
   errorMessage: string | null = null;
-  
+  public holding: string = '';
+
   // Store the original File object
   originalPdfFile: File | null = null;
   // Array para almacenar múltiples PDFs
   pdfDocuments: any[] = [];
   pdfBuffers: ArrayBuffer[] = [];
-  pdfFiles: File[] = []; // ← NUEVA PROPIEDAD
+  pdfFiles: File[] = [];
   totalPages: number = 0;
   pdfPages: any[] = [];
   totalPagesAcumuladas: number[] = []; // Páginas acumuladas por cada PDF
@@ -87,6 +92,20 @@ export class FormatosComponent implements OnInit {
   // Propiedades para dimensiones nativas del PDF
   pdfNativeWidth: number = 0;
   pdfNativeHeight: number = 0;
+  
+  // ⭐ NUEVAS PROPIEDADES PARA FIRMA EMPLEADOR
+  firmaEmpleadorDisponible: boolean = false;
+  firmaEmpleadorUrl: string | null = null;
+  mostrarModalFirmaEmpleador: boolean = false;
+  
+  // Control de redimensionamiento de imagen
+  imagenFirmaEmpleadorEnEdicion: {
+    element: HTMLElement;
+    originalWidth: number;
+    originalHeight: number;
+    minWidth: number;
+    minHeight: number;
+  } | null = null;
   
   // Variables de documento con array de ubicaciones
   variables: VariableDocumento[] = [
@@ -154,7 +173,8 @@ export class FormatosComponent implements OnInit {
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
     private ngZone: NgZone,
-    private apiService: ContratistaApiService
+    private apiService: ContratistaApiService,
+    private jwtService: JwtService,
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
@@ -163,10 +183,163 @@ export class FormatosComponent implements OnInit {
     if (this.isBrowser) {
       document.addEventListener('mousemove', this.handleMouseMove.bind(this));
       document.addEventListener('mouseup', this.handleMouseUp.bind(this));
+      
+      // ⭐ OBTENER HOLDING DESDE JWT
+      this.holding = this.getHoldingIdFromJWT();
     }
     
     this.documentoSeleccionado = null;
     this.modoModificacion = false;
+    
+    // ⭐ Cargar firma solo si hay holding
+    if (this.holding) {
+      this.cargarFirmaEmpleador();
+    }
+  }
+
+   private getHoldingIdFromJWT(): string {
+    try {
+      const userInfo = this.jwtService.getUserInfo();
+      const holdingId = userInfo?.holding_id;
+      
+      console.log('🔍 Holding ID del JWT:', holdingId);
+      
+      if (holdingId && holdingId !== null ) {
+        return holdingId.toString();
+      } else {
+        console.warn('⚠️ Holding ID no encontrado en JWT o es null');
+        return '';
+      }
+    } catch (error) {
+      console.error('❌ Error extrayendo holding_id del JWT:', error);
+      return '';
+    }
+  }
+
+  /**
+   * ⭐ NUEVO: Cargar firma del empleador desde backend
+   */
+  cargarFirmaEmpleador(): void {
+    if (!this.holding) {
+      console.warn('⚠️ No se puede cargar firma: holding no disponible');
+      return;
+    }
+    
+    this.apiService.get(`api_firma_empleador/?holding_id=${this.holding}`)
+      .subscribe({
+        next: (response: any) => {
+          this.firmaEmpleadorDisponible = response.firma_disponible;
+          this.firmaEmpleadorUrl = response.firma_url || null;
+          
+          console.log('✅ Estado firma empleador:', {
+            disponible: this.firmaEmpleadorDisponible,
+            url: this.firmaEmpleadorUrl
+          });
+        },
+        error: (error) => {
+          console.error('Error al cargar firma empleador:', error);
+          this.firmaEmpleadorDisponible = false;
+        }
+      });
+  }
+  
+  /**
+   * ⭐ NUEVO: Abrir modal para subir firma
+   */
+  abrirModalFirmaEmpleador(): void {
+    this.mostrarModalFirmaEmpleador = true;
+  }
+  
+  /**
+   * ⭐ NUEVO: Cerrar modal
+   */
+  cerrarModalFirmaEmpleador(): void {
+    this.mostrarModalFirmaEmpleador = false;
+  }
+  
+  /**
+   * ⭐ NUEVO: Subir firma del empleador
+   */
+  onFirmaEmpleadorSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      
+      // Validar tipo
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Formato no válido. Use JPG, PNG o GIF');
+        return;
+      }
+      
+      // Validar tamaño (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. Máximo 5MB');
+        return;
+      }
+      
+      // Subir al backend
+      const formData = new FormData();
+      formData.append('firma_empleador', file);
+      formData.append('holding_id', this.holding);  // ⭐ AGREGAR holding_id
+      
+      this.isLoading = true;
+      
+      this.apiService.postFormData('api_firma_empleador/', formData)
+        .subscribe({
+          next: (response: any) => {
+            console.log('✅ Firma subida:', response);
+            this.firmaEmpleadorDisponible = true;
+            this.firmaEmpleadorUrl = response.firma_url;
+            this.isLoading = false;
+            this.cerrarModalFirmaEmpleador();
+            alert('Firma del empleador actualizada exitosamente');
+          },
+          error: (error) => {
+            console.error('Error al subir firma:', error);
+            alert(`Error: ${error.error?.error || 'No se pudo subir la firma'}`);
+            this.isLoading = false;
+          }
+        });
+    }
+  }
+  
+  /**
+   * ⭐ NUEVO: Eliminar firma del empleador
+   */
+  eliminarFirmaEmpleador(): void {
+    if (!confirm('¿Está seguro de eliminar la firma del empleador?')) {
+      return;
+    }
+    
+    this.isLoading = true;
+    
+    this.apiService.delete(`api_firma_empleador/?holding_id=${this.holding}`, {})
+      .subscribe({
+        next: (response: any) => {
+          console.log('✅ Firma eliminada:', response);
+          this.firmaEmpleadorDisponible = false;
+          this.firmaEmpleadorUrl = null;
+          this.isLoading = false;
+          alert('Firma del empleador eliminada');
+        },
+        error: (error) => {
+          console.error('Error al eliminar firma:', error);
+          alert('No se pudo eliminar la firma');
+          this.isLoading = false;
+        }
+      });
+  }
+  
+  /**
+   * ⭐ NUEVO: Verificar si variable está disponible
+   */
+  variableEstaDisponible(variable: VariableDocumento): boolean {
+    if (variable.nombre === 'firma_empleador') {
+      return this.firmaEmpleadorDisponible;
+    }
+    return true;
   }
 
   /**
@@ -222,8 +395,6 @@ export class FormatosComponent implements OnInit {
 
   /**
    * ⭐ NUEVO: Inicializa las dimensiones nativas del PDF sin renderizarlo
-   * Esto es necesario para calcular correctamente las posiciones cuando se carga un documento existente
-   * CORRECCIÓN: Clonar el buffer internamente para evitar detachment
    */
   private async inicializarDimensionesPDF(pdfArrayBuffer: ArrayBuffer): Promise<void> {
     return new Promise(async (resolve, reject) => {
@@ -236,13 +407,11 @@ export class FormatosComponent implements OnInit {
         const workerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
         
-        // ⭐ Crear una copia del buffer para esta operación
         const bufferCopy = pdfArrayBuffer.slice(0);
         
         const loadingTask = pdfjsLib.getDocument({ data: bufferCopy });
         const pdf = await loadingTask.promise;
         
-        // Obtener dimensiones de la primera página
         const firstPage = await pdf.getPage(1);
         const nativeViewport = firstPage.getViewport({ scale: 1.0 });
         
@@ -286,54 +455,52 @@ export class FormatosComponent implements OnInit {
   }
 
   async anexarPDFDirecto(): Promise<void> {
-  if (!this.isBrowser) return;
+    if (!this.isBrowser) return;
 
-  this.ngZone.runOutsideAngular(async () => {
-    try {
-      const pdfjsLib = (window as any)['pdfjs-dist/build/pdf'];
-      
-      if (!pdfjsLib) {
-        console.error('PDF.js no está disponible');
-        this.errorMessage = 'Error al cargar la librería PDF.js';
-        this.isLoading = false;
-        return;
+    this.ngZone.runOutsideAngular(async () => {
+      try {
+        const pdfjsLib = (window as any)['pdfjs-dist/build/pdf'];
+        
+        if (!pdfjsLib) {
+          console.error('PDF.js no está disponible');
+          this.errorMessage = 'Error al cargar la librería PDF.js';
+          this.isLoading = false;
+          return;
+        }
+
+        const ultimoBuffer = this.pdfBuffers[this.pdfBuffers.length - 1];
+        const loadingTask = pdfjsLib.getDocument({ data: ultimoBuffer });
+        const pdfDoc = await loadingTask.promise;
+        
+        console.log(`✅ PDF anexado cargado - ${pdfDoc.numPages} páginas`);
+        
+        this.pdfDocuments.push(pdfDoc);
+        
+        let acumulado = 0;
+        this.totalPagesAcumuladas = [];
+        this.pdfDocuments.forEach(doc => {
+          acumulado += doc.numPages;
+          this.totalPagesAcumuladas.push(acumulado);
+        });
+        
+        this.totalPages = acumulado;
+        
+        await this.renderizarTodasLasPaginas();
+        
+        this.ngZone.run(() => {
+          this.isLoading = false;
+          console.log('✅ PDF anexado renderizado correctamente');
+        });
+        
+      } catch (error) {
+        console.error('Error al anexar PDF:', error);
+        this.ngZone.run(() => {
+          this.errorMessage = 'Error al anexar el PDF. Verifique que el archivo sea válido.';
+          this.isLoading = false;
+        });
       }
-
-      const ultimoBuffer = this.pdfBuffers[this.pdfBuffers.length - 1];
-      const loadingTask = pdfjsLib.getDocument({ data: ultimoBuffer });
-      const pdfDoc = await loadingTask.promise;
-      
-      console.log(`✅ PDF anexado cargado - ${pdfDoc.numPages} páginas`);
-      
-      this.pdfDocuments.push(pdfDoc);
-      
-      // Calcular páginas acumuladas
-      let acumulado = 0;
-      this.totalPagesAcumuladas = [];
-      this.pdfDocuments.forEach(doc => {
-        acumulado += doc.numPages;
-        this.totalPagesAcumuladas.push(acumulado);
-      });
-      
-      this.totalPages = acumulado;
-      
-      // Renderizar la nueva página
-      await this.renderizarTodasLasPaginas();
-      
-      this.ngZone.run(() => {
-        this.isLoading = false;
-        console.log('✅ PDF anexado renderizado correctamente');
-      });
-      
-    } catch (error) {
-      console.error('Error al anexar PDF:', error);
-      this.ngZone.run(() => {
-        this.errorMessage = 'Error al anexar el PDF. Verifique que el archivo sea válido.';
-        this.isLoading = false;
-      });
-    }
-  });
-}
+    });
+  }
 
   async renderizarTodasLasPaginas(): Promise<void> {
     if (!this.isBrowser) return;
@@ -344,7 +511,6 @@ export class FormatosComponent implements OnInit {
       return;
     }
 
-    // Limpiar contenedor
     pagesContainer.innerHTML = '';
     this.pdfPages = [];
     
@@ -365,28 +531,23 @@ export class FormatosComponent implements OnInit {
           
           const page = await pdfDoc.getPage(pageNum);
           
-          // ⭐ USAR LA MISMA LÓGICA DE ESCALADO QUE renderPdfPages
           const viewport = page.getViewport({ scale: 1.0 });
           const scale = (containerWidth * 0.9) / viewport.width;
           const scaledViewport = page.getViewport({ scale: scale * 1.4 * pixelRatio });
           
-          // Crear contenedor de página con estructura completa
           const pageDiv = document.createElement('div');
           pageDiv.className = 'pdf-page-container';
           
-          // Header
           const pageHeader = document.createElement('div');
           pageHeader.className = 'pdf-page-header';
           pageHeader.textContent = `PÁGINA ${pageNumGlobal}`;
           
-          // Contenedor de contenido
           const pageContentDiv = document.createElement('div');
           pageContentDiv.className = 'pdf-page';
           pageContentDiv.setAttribute('data-page', pageNumGlobal.toString());
           pageContentDiv.style.width = `${scaledViewport.width / pixelRatio}px`;
           pageContentDiv.style.height = `${scaledViewport.height / pixelRatio}px`;
           
-          // Canvas
           const canvas = document.createElement('canvas');
           canvas.className = 'pdf-canvas';
           canvas.width = scaledViewport.width;
@@ -397,41 +558,33 @@ export class FormatosComponent implements OnInit {
           const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
           if (!context) continue;
           
-          // Renderizar página
           await page.render({
             canvasContext: context,
             viewport: scaledViewport,
             renderInteractiveForms: true
           }).promise;
           
-          // Footer
           const pageFooter = document.createElement('div');
           pageFooter.className = 'pdf-page-footer';
           pageFooter.textContent = 'Haga clic para posicionar variables | Arrastre para mover';
           
-          // Ensamblar
           pageContentDiv.appendChild(canvas);
           pageDiv.appendChild(pageHeader);
           pageDiv.appendChild(pageContentDiv);
           pageDiv.appendChild(pageFooter);
           
-          // Agregar al contenedor
           pagesContainer.appendChild(pageDiv);
           
-          for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-            const page = await pdfDoc.getPage(pageNum);
-            const nativeViewport = page.getViewport({ scale: 1.0 });
-            
-            // Guardar dimensiones REALES de esta página
-            this.pdfPages.push({
-              pageNumber: pageNumGlobal,
-              nativeWidth: nativeViewport.width,   // ← NUEVO
-              nativeHeight: nativeViewport.height, // ← NUEVO
-              canvas: canvas,
-              viewport: scaledViewport,
-              container: pageContentDiv
-            });
-          }
+          const nativeViewport = page.getViewport({ scale: 1.0 });
+          
+          this.pdfPages.push({
+            pageNumber: pageNumGlobal,
+            nativeWidth: nativeViewport.width,
+            nativeHeight: nativeViewport.height,
+            canvas: canvas,
+            viewport: scaledViewport,
+            container: pageContentDiv
+          });
           
           console.log(`✅ Página ${pageNumGlobal} renderizada (Doc ${docIndex + 1}, Pág ${pageNum})`);
           
@@ -441,7 +594,6 @@ export class FormatosComponent implements OnInit {
       }
     }
     
-    // Actualizar dimensiones nativas desde el primer documento
     if (this.pdfDocuments.length > 0) {
       const firstPage = await this.pdfDocuments[0].getPage(1);
       const nativeViewport = firstPage.getViewport({ scale: 1.0 });
@@ -449,10 +601,8 @@ export class FormatosComponent implements OnInit {
       this.pdfNativeHeight = nativeViewport.height;
     }
     
-    // Esperar más tiempo antes de redibujar variables
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Redibujar variables después de que el DOM esté listo
     this.ngZone.run(() => {
       setTimeout(() => {
         this.redibujarTodasLasVariables();
@@ -471,10 +621,8 @@ export class FormatosComponent implements OnInit {
       const pageElement = document.querySelector(`[data-page="${pageNum}"]`) as HTMLElement;
       
       if (pageElement) {
-        // Limpiar variables existentes de esta página
         pageElement.querySelectorAll('.pdf-variable').forEach(el => el.remove());
         
-        // Redibujar cada variable
         variables.forEach(variable => {
           this.mostrarVariableEnPdf(variable, pageElement);
         });
@@ -509,7 +657,6 @@ export class FormatosComponent implements OnInit {
             console.log(`📋 Cargando ${response.variables.length} variables desde el backend...`);
             this.cargarVariablesDesdeDocumento(response.variables);
             
-            // ⭐ DEBUG: Verificar qué se cargó
             console.log('🗂️ Variables en memoria después de cargar:', {
               totalVariablesColocadas: this.variables.filter(v => v.colocada).length,
               variablesPorPagina: Array.from(this.variablesPorPagina.entries()).map(([pagina, vars]) => ({
@@ -572,7 +719,6 @@ export class FormatosComponent implements OnInit {
 
   /**
    * ⭐ MODIFICADO: Carga el PDF desde una URL e inicializa dimensiones SIEMPRE
-   * CORRECCIÓN: Crear copias separadas del ArrayBuffer para evitar detachment
    */
   cargarPDFDesdeURL(pdfUrl: string): void {
     if (!pdfUrl) {
@@ -590,18 +736,14 @@ export class FormatosComponent implements OnInit {
         return response.arrayBuffer();
       })
       .then(async arrayBuffer => {
-        // ⭐ CORRECCIÓN CRÍTICA: Crear COPIAS SEPARADAS del ArrayBuffer
-        // PDF.js puede "detach" el buffer, por lo que necesitamos copias independientes
-        const bufferParaDimensiones = arrayBuffer.slice(0);  // Copia 1: para inicializar dimensiones
-        const bufferParaRender = arrayBuffer.slice(0);       // Copia 2: para renderizar
+        const bufferParaDimensiones = arrayBuffer.slice(0);
+        const bufferParaRender = arrayBuffer.slice(0);
         
         this.pdfSrc = bufferParaRender;
         
-        // ⭐ Usar la copia 1 para inicializar dimensiones (puede quedar detached)
         await this.inicializarDimensionesPDF(bufferParaDimensiones);
         
         if (!this.modoDocumentoExistente || this.modoModificacion) {
-          // ⭐ this.pdfSrc (copia 2) está intacta para renderizar
           this.renderPdf().then(() => {
             if (this.modoModificacion) {
               console.log('PDF renderizado, actualizando interfaz de modificación...');
@@ -644,20 +786,17 @@ export class FormatosComponent implements OnInit {
         const originalBuffer = reader.result as ArrayBuffer;
         
         if (!esAnexo) {
-          // Reemplazar PDF actual
           this.originalPdfFile = file;
           this.pdfSrc = originalBuffer.slice(0);
           this.pdfBuffers = [originalBuffer.slice(0)];
-          this.pdfFiles = [file]; // ← ALMACENAR FILE ORIGINAL
+          this.pdfFiles = [file];
           this.pdfDocuments = [];
           this.totalPagesAcumuladas = [];
           
-          // Mostrar modal para seleccionar tipo de contrato
           this.mostrarModalTipoContrato = true;
         } else {
-          // Anexar PDF
           this.pdfBuffers.push(originalBuffer.slice(0));
-          this.pdfFiles.push(file); // ← ALMACENAR FILE ORIGINAL
+          this.pdfFiles.push(file);
           this.anexarPDFDirecto();
         }
       };
@@ -687,11 +826,9 @@ export class FormatosComponent implements OnInit {
   calcularCoordenadasNativas(pageElement: HTMLElement, clientX: number, clientY: number): {posX: number, posY: number} {
     const pageRect = pageElement.getBoundingClientRect();
     
-    // Coordenadas en píxeles del elemento visual
     const pixelX = clientX - pageRect.left;
     const pixelY = clientY - pageRect.top;
     
-    // Convertir a coordenadas nativas del PDF usando las dimensiones reales
     const scaleX = this.pdfNativeWidth / pageRect.width;
     const scaleY = this.pdfNativeHeight / pageRect.height;
     
@@ -757,7 +894,6 @@ export class FormatosComponent implements OnInit {
     const finalX = parseInt(this.elementoArrastrandose.style.left);
     const finalY = parseInt(this.elementoArrastrandose.style.top);
     
-    // Convertir a coordenadas nativas
     const coords = this.calcularCoordenadasNativas(this.paginaActualArrastre, 
       finalX + this.paginaActualArrastre.getBoundingClientRect().left, 
       finalY + this.paginaActualArrastre.getBoundingClientRect().top);
@@ -777,6 +913,23 @@ export class FormatosComponent implements OnInit {
         if (ubicacionIndex !== -1) {
           variable.ubicaciones[ubicacionIndex].posX = coords.posX;
           variable.ubicaciones[ubicacionIndex].posY = coords.posY;
+          
+          // ⭐ NUEVO: Guardar dimensiones para firma_empleador
+          if (variable.nombre === 'firma_empleador') {
+            const elementRect = this.elementoArrastrandose!.getBoundingClientRect();
+            const pageRect = this.paginaActualArrastre!.getBoundingClientRect();
+            
+            const scaleX = this.pdfNativeWidth / pageRect.width;
+            const scaleY = this.pdfNativeHeight / pageRect.height;
+            
+            const nativeWidth = elementRect.width * scaleX;
+            const nativeHeight = elementRect.height * scaleY;
+            
+            variable.ubicaciones[ubicacionIndex].width = nativeWidth;
+            variable.ubicaciones[ubicacionIndex].height = nativeHeight;
+            
+            console.log(`✅ Dimensiones guardadas al arrastrar: ${nativeWidth}x${nativeHeight}`);
+          }
         }
         
         if (variable.ubicaciones.length > 0 && ubicacionIndex === variable.ubicaciones.length - 1) {
@@ -883,7 +1036,6 @@ export class FormatosComponent implements OnInit {
 
           console.log('Cargando documento PDF...');
           
-          // ⭐ CORRECCIÓN: Crear una copia del buffer para renderizar
           const bufferForRender = (this.pdfSrc as ArrayBuffer).slice(0);
           
           const loadingTask = pdfjsLib.getDocument({
@@ -898,7 +1050,6 @@ export class FormatosComponent implements OnInit {
           this.totalPagesAcumuladas = [pdf.numPages];
           this.totalPages = pdf.numPages;
           
-          // Obtener dimensiones nativas del PDF desde la primera página
           const firstPage = await pdf.getPage(1);
           const nativeViewport = firstPage.getViewport({ scale: 1.0 });
           this.pdfNativeWidth = nativeViewport.width;
@@ -906,13 +1057,11 @@ export class FormatosComponent implements OnInit {
 
           console.log(`Dimensiones nativas del PDF: ${this.pdfNativeWidth} x ${this.pdfNativeHeight}`);
 
-          // Crear contenedor de páginas
           const pagesContainer = document.createElement('div');
           pagesContainer.id = 'pdf-pages';
           pagesContainer.className = 'pdf-pages';
           container.appendChild(pagesContainer);
 
-          // Renderizar TODAS las páginas
           await this.renderizarTodasLasPaginas();
 
           this.ngZone.run(() => {
@@ -1063,10 +1212,8 @@ export class FormatosComponent implements OnInit {
       
       console.log(`✅ Canvas de página ${pageNum} renderizado`);
       
-      // ⭐ CRÍTICO: Esperar a que el DOM se actualice completamente
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // ⭐ Verificar dimensiones del pageElement antes de renderizar variables
       const pageRect = pageContentDiv.getBoundingClientRect();
       console.log(`📏 Dimensiones de página ${pageNum} en DOM:`, {
         width: pageRect.width,
@@ -1142,8 +1289,8 @@ export class FormatosComponent implements OnInit {
         posX: coords.posX,
         posY: coords.posY,
         id: elementId,
-        pageWidth: pageData?.nativeWidth || this.pdfNativeWidth,   // ← NUEVO
-        pageHeight: pageData?.nativeHeight || this.pdfNativeHeight // ← NUEVO
+        pageWidth: pageData?.nativeWidth || this.pdfNativeWidth,
+        pageHeight: pageData?.nativeHeight || this.pdfNativeHeight
       });
       
       if (!this.variablesPorPagina.has(pageNumber)) {
@@ -1177,25 +1324,20 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * ⭐ MODIFICADO: Validaciones mejoradas y debugging completo
+   * ⭐ MODIFICADO: Mostrar variable en PDF (soporta firma_empleador como imagen con dimensiones guardadas)
    */
   mostrarVariableEnPdf(variable: VariablePosicionada, pageElement: HTMLElement): void {
+    
     console.log(`🔄 Intentando renderizar variable "${variable.nombre}"...`);
     
-    // ⭐ VALIDACIÓN CRÍTICA: Verificar dimensiones nativas
     if (this.pdfNativeWidth === 0 || this.pdfNativeHeight === 0) {
-      console.error('❌ ERROR: Dimensiones nativas no inicializadas. No se puede renderizar la variable.');
-      console.error('pdfNativeWidth:', this.pdfNativeWidth, 'pdfNativeHeight:', this.pdfNativeHeight);
+      console.error('❌ ERROR: Dimensiones nativas no inicializadas');
       return;
     }
     
-    // ⭐ VALIDACIÓN: Verificar que el pageElement tiene dimensiones
     const pageRect = pageElement.getBoundingClientRect();
     if (pageRect.width === 0 || pageRect.height === 0) {
-      console.error(`❌ ERROR: pageElement no tiene dimensiones válidas:`, pageRect);
-      console.error('Esperando a que el elemento tenga dimensiones...');
-      
-      // Reintentar después de un breve delay
+      console.error(`❌ ERROR: pageElement no tiene dimensiones válidas`);
       setTimeout(() => {
         console.log(`🔁 Reintentando renderizar "${variable.nombre}"...`);
         this.mostrarVariableEnPdf(variable, pageElement);
@@ -1209,59 +1351,116 @@ export class FormatosComponent implements OnInit {
       variableElement.classList.add('edit-mode');
     }
     
-    // Mostrar valor de ejemplo en lugar del nombre de variable
-    variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
+    // ⭐ CASO ESPECIAL: firma_empleador es IMAGEN
+    if (variable.nombre === 'firma_empleador') {
+      if (!this.firmaEmpleadorDisponible || !this.firmaEmpleadorUrl) {
+        console.warn('⚠️ firma_empleador no disponible');
+        return;
+      }
+      
+      variableElement.classList.add('firma-empleador-imagen');
+      
+      // ⭐ CREAR IMAGEN CON CARGA VERIFICADA
+      const img = document.createElement('img');
+      img.src = this.firmaEmpleadorUrl;
+      
+      // ⭐ OBTENER DIMENSIONES GUARDADAS
+      const mainVarIndex = variable.variableIndex;
+      const mainVariable = this.variables[mainVarIndex];
+      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+      
+      // Calcular escalas para convertir de coordenadas nativas a píxeles
+      const scaleX = pageRect.width / this.pdfNativeWidth;
+      const scaleY = pageRect.height / this.pdfNativeHeight;
+      
+      // Usar dimensiones guardadas si existen, sino usar defaults
+      let displayWidth = 150;  // default
+      let displayHeight = 50;  // default
+      
+      if (ubicacion && ubicacion.width && ubicacion.height) {
+        displayWidth = ubicacion.width * scaleX;   // ⭐ Convertir de nativo a píxeles
+        displayHeight = ubicacion.height * scaleY; // ⭐ Convertir de nativo a píxeles
+        console.log(`✅ Usando dimensiones guardadas: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px (nativas: ${ubicacion.width.toFixed(1)}x${ubicacion.height.toFixed(1)})`);
+      } else {
+        console.log(`⚠️ Sin dimensiones guardadas, usando defaults: ${displayWidth}x${displayHeight}px`);
+      }
+      
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+      
+      // ⭐ MANEJAR ERRORES DE CARGA
+      img.onerror = () => {
+        console.error('❌ Error al cargar imagen de firma desde:', this.firmaEmpleadorUrl);
+        img.alt = '[Error: No se pudo cargar la firma]';
+        img.style.border = '2px solid red';
+      };
+      
+      // ⭐ LOG CUANDO SE CARGA EXITOSAMENTE
+      img.onload = () => {
+        console.log('✅ Imagen de firma cargada correctamente');
+      };
+      
+      variableElement.appendChild(img);
+      
+    } else {
+      // ⭐ VARIABLES DE TEXTO NORMALES
+      variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
+    }
     
     variableElement.id = variable.elementId;
     variableElement.setAttribute('data-variable', variable.nombre);
     variableElement.setAttribute('data-variable-index', variable.variableIndex.toString());
     variableElement.style.position = 'absolute';
     
-    // Convertir coordenadas nativas a píxeles para mostrar en pantalla
     const scaleX = pageRect.width / this.pdfNativeWidth;
     const scaleY = pageRect.height / this.pdfNativeHeight;
     
     const displayX = variable.posX * scaleX;
     const displayY = variable.posY * scaleY;
     
-    // 🐛 DEBUG COMPLETO: Log para verificar todo el proceso
-    console.log(`📍 Variable "${variable.nombre}" - COMPLETO:`, {
-      '1_coordenadas_nativas': { x: variable.posX, y: variable.posY },
-      '2_dimensiones_pdf': { width: this.pdfNativeWidth, height: this.pdfNativeHeight },
-      '3_dimensiones_page': { width: pageRect.width, height: pageRect.height },
-      '4_scale': { scaleX: scaleX, scaleY: scaleY },
-      '5_coordenadas_display': { x: displayX, y: displayY },
-      '6_modo_modificacion': this.modoModificacion
+    console.log(`📍 Variable "${variable.nombre}" - Posición:`, {
+      nativas: { x: variable.posX, y: variable.posY },
+      display: { x: displayX, y: displayY },
+      escala: { scaleX, scaleY }
     });
     
-    // ⭐ VALIDACIÓN: Verificar que las coordenadas calculadas son válidas
     if (isNaN(displayX) || isNaN(displayY) || !isFinite(displayX) || !isFinite(displayY)) {
-      console.error(`❌ ERROR: Coordenadas display inválidas para "${variable.nombre}":`, { displayX, displayY });
+      console.error(`❌ ERROR: Coordenadas display inválidas`);
       return;
     }
     
     variableElement.style.left = `${displayX}px`;
     variableElement.style.top = `${displayY}px`;
     
-    // ⭐ ESTILOS SINCRONIZADOS Y COMPACTOS
+    // ⭐ ESTILOS BASE (sin afectar la imagen interna)
     variableElement.style.fontFamily = 'Arial, sans-serif';
     variableElement.style.fontSize = '12px';
     variableElement.style.fontWeight = 'normal';
-    variableElement.style.padding = '3px 6px'; // ✅ REDUCIDO: más compacto
-    variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.08)';
-    variableElement.style.border = `1px dashed #4a80f5`; // ✅ REDUCIDO: 1px
-    variableElement.style.borderRadius = `3px`;
+    variableElement.style.padding = '3px 6px';
+    
+    // ⭐ COLORES DIFERENTES PARA FIRMA
+    if (variable.nombre === 'firma_empleador') {
+      variableElement.style.backgroundColor = 'rgba(40, 167, 69, 0.08)';
+      variableElement.style.border = '2px dashed #28a745';
+    } else {
+      variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.08)';
+      variableElement.style.border = '1px dashed #4a80f5';
+    }
+    
+    variableElement.style.borderRadius = '3px';
     variableElement.style.zIndex = '100';
     variableElement.style.whiteSpace = 'nowrap';
     variableElement.style.maxWidth = 'none';
     
-    // Aplicar alineación según el tipo de campo
-    if (this.esCampocentrado(variable.nombre)) {
+    if (this.esCampocentrado(variable.nombre) && variable.nombre !== 'firma_empleador') {
       variableElement.style.textAlign = 'center';
       variableElement.style.transform = 'translateX(-50%)';
     } else {
       variableElement.style.textAlign = 'left';
-      variableElement.style.transform = 'none'; // ⭐ Asegurar sin transform si no es centrado
+      variableElement.style.transform = 'none';
     }
     
     variableElement.style.pointerEvents = 'all';
@@ -1270,15 +1469,18 @@ export class FormatosComponent implements OnInit {
     pageElement.style.position = 'relative';
     pageElement.appendChild(variableElement);
     
-    console.log(`✅ Variable "${variable.nombre}" renderizada exitosamente en (${displayX}, ${displayY})`);
+    console.log(`✅ Variable "${variable.nombre}" renderizada exitosamente`);
     
     variableElement.addEventListener('mousedown', (event) => {
       this.handleVariableMouseDown(event, variable, variableElement, pageElement);
     });
     
-    // ⭐ CRÍTICO: Botón de eliminar SIEMPRE disponible (en creación y modificación)
-    console.log(`🔘 Creando botón de eliminar para "${variable.nombre}"...`);
+    // ⭐ Agregar handles de redimensionamiento SOLO para firma_empleador
+    if (variable.nombre === 'firma_empleador') {
+      this.agregarHandlesRedimension(variableElement, variable, pageElement);
+    }
     
+    // ⭐ Botón de eliminar
     const deleteBtn = document.createElement('div');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '×';
@@ -1311,7 +1513,232 @@ export class FormatosComponent implements OnInit {
     });
     
     variableElement.appendChild(deleteBtn);
-    console.log(`✅ Botón de eliminar agregado para "${variable.nombre}"`);
+  }
+  
+  /**
+   * ⭐ NUEVO: Agregar handles de redimensionamiento
+   */
+  agregarHandlesRedimension(element: HTMLElement, variable: VariablePosicionada, pageElement: HTMLElement): void {
+    const positions = [
+      'top-left', 'top-right', 'bottom-left', 'bottom-right',
+      'top', 'right', 'bottom', 'left'
+    ];
+    
+    positions.forEach(pos => {
+      const handle = document.createElement('div');
+      handle.className = `resize-handle resize-handle-${pos}`;
+      handle.style.cssText = `
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background-color: #4a80f5;
+        border: 1px solid white;
+        cursor: ${this.getCursorForHandle(pos)};
+        z-index: 102;
+      `;
+      
+      this.posicionarHandle(handle, pos);
+      
+      handle.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        this.iniciarRedimension(e, element, variable, pageElement, pos);
+      });
+      
+      element.appendChild(handle);
+    });
+  }
+  
+  /**
+   * ⭐ NUEVO: Posicionar handles
+   */
+  posicionarHandle(handle: HTMLElement, position: string): void {
+    switch(position) {
+      case 'top-left':
+        handle.style.top = '-4px';
+        handle.style.left = '-4px';
+        break;
+      case 'top-right':
+        handle.style.top = '-4px';
+        handle.style.right = '-4px';
+        break;
+      case 'bottom-left':
+        handle.style.bottom = '-4px';
+        handle.style.left = '-4px';
+        break;
+      case 'bottom-right':
+        handle.style.bottom = '-4px';
+        handle.style.right = '-4px';
+        break;
+      case 'top':
+        handle.style.top = '-4px';
+        handle.style.left = 'calc(50% - 4px)';
+        break;
+      case 'right':
+        handle.style.right = '-4px';
+        handle.style.top = 'calc(50% - 4px)';
+        break;
+      case 'bottom':
+        handle.style.bottom = '-4px';
+        handle.style.left = 'calc(50% - 4px)';
+        break;
+      case 'left':
+        handle.style.left = '-4px';
+        handle.style.top = 'calc(50% - 4px)';
+        break;
+    }
+  }
+  
+  /**
+   * ⭐ NUEVO: Obtener cursor apropiado
+   */
+  getCursorForHandle(position: string): string {
+    const cursors: {[key: string]: string} = {
+      'top-left': 'nwse-resize',
+      'top-right': 'nesw-resize',
+      'bottom-left': 'nesw-resize',
+      'bottom-right': 'nwse-resize',
+      'top': 'ns-resize',
+      'right': 'ew-resize',
+      'bottom': 'ns-resize',
+      'left': 'ew-resize'
+    };
+    return cursors[position] || 'default';
+  }
+  
+  /**
+   * ⭐ NUEVO: Iniciar redimensionamiento
+   */
+  iniciarRedimension(
+    event: MouseEvent, 
+    element: HTMLElement, 
+    variable: VariablePosicionada,
+    pageElement: HTMLElement,
+    handlePosition: string
+  ): void {
+    event.preventDefault();
+    
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startWidth = element.offsetWidth;
+    const startHeight = element.offsetHeight;
+    const startLeft = element.offsetLeft;
+    const startTop = element.offsetTop;
+    
+    this.imagenFirmaEmpleadorEnEdicion = {
+      element: element,
+      originalWidth: startWidth,
+      originalHeight: startHeight,
+      minWidth: 50,
+      minHeight: 20
+    };
+    
+    const onMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      let newLeft = startLeft;
+      let newTop = startTop;
+      
+      switch(handlePosition) {
+        case 'bottom-right':
+          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth + deltaX);
+          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight + deltaY);
+          break;
+        case 'bottom-left':
+          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth - deltaX);
+          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight + deltaY);
+          newLeft = startLeft + (startWidth - newWidth);
+          break;
+        case 'top-right':
+          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth + deltaX);
+          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight - deltaY);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+        case 'top-left':
+          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth - deltaX);
+          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight - deltaY);
+          newLeft = startLeft + (startWidth - newWidth);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+        case 'right':
+          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth + deltaX);
+          break;
+        case 'left':
+          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth - deltaX);
+          newLeft = startLeft + (startWidth - newWidth);
+          break;
+        case 'bottom':
+          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight + deltaY);
+          break;
+        case 'top':
+          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight - deltaY);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+      }
+      
+      element.style.width = `${newWidth}px`;
+      element.style.height = `${newHeight}px`;
+      element.style.left = `${newLeft}px`;
+      element.style.top = `${newTop}px`;
+      
+      const img = element.querySelector('img') as HTMLImageElement;
+      if (img) {
+        img.style.width = `${newWidth}px`;
+        img.style.height = `${newHeight}px`;
+      }
+    };
+    
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      
+      const pageRect = pageElement.getBoundingClientRect();
+      const scaleX = this.pdfNativeWidth / pageRect.width;
+      const scaleY = this.pdfNativeHeight / pageRect.height;
+      
+      const finalWidth = element.offsetWidth;
+      const finalHeight = element.offsetHeight;
+      const finalLeft = element.offsetLeft;
+      const finalTop = element.offsetTop;
+      
+      const nativeWidth = finalWidth * scaleX;
+      const nativeHeight = finalHeight * scaleY;
+      const nativeX = finalLeft * scaleX;
+      const nativeY = finalTop * scaleY;
+      
+      const pageNumber = parseInt(pageElement.getAttribute('data-page') || '0');
+      const variablesList = this.variablesPorPagina.get(pageNumber) || [];
+      const varIndex = variablesList.findIndex(v => v.elementId === variable.elementId);
+      
+      if (varIndex !== -1) {
+        variablesList[varIndex].posX = nativeX;
+        variablesList[varIndex].posY = nativeY;
+        
+        const mainVarIndex = variablesList[varIndex].variableIndex;
+        if (mainVarIndex >= 0 && mainVarIndex < this.variables.length) {
+          const mainVariable = this.variables[mainVarIndex];
+          
+          const ubicacionIndex = mainVariable.ubicaciones.findIndex(u => u.id === variable.elementId);
+          if (ubicacionIndex !== -1) {
+            mainVariable.ubicaciones[ubicacionIndex].posX = nativeX;
+            mainVariable.ubicaciones[ubicacionIndex].posY = nativeY;
+            mainVariable.ubicaciones[ubicacionIndex].width = nativeWidth;
+            mainVariable.ubicaciones[ubicacionIndex].height = nativeHeight;
+          }
+        }
+        
+        this.haycambiosPendientes = true;
+      }
+      
+      console.log(`✅ Firma redimensionada: ${nativeWidth}x${nativeHeight} en (${nativeX}, ${nativeY})`);
+      
+      this.imagenFirmaEmpleadorEnEdicion = null;
+    };
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   }
 
   actualizarInterfazModoModificacion(): void {
@@ -1336,7 +1763,7 @@ export class FormatosComponent implements OnInit {
           console.warn('No se encontraron variables en el PDF, intentando de nuevo...');
           this.intentarActualizarVariables();
         } else {
-          console.error('Se alcanzó el número máximo de reintentos. No se pudieron encontrar variables.');
+          console.error('Se alcanzó el número máximo de reintentos.');
         }
         return;
       }
@@ -1435,17 +1862,14 @@ export class FormatosComponent implements OnInit {
     
     const pdfUrl = this.documentoSeleccionado.archivo_pdf_url;
     
-    // Cambiar modos
     this.modoDocumentoExistente = false;
     this.modoModificacion = true;
     
-    // ⭐ Limpiar el contenedor para evitar duplicados
     const pdfContainer = document.getElementById('pdf-container');
     if (pdfContainer) {
       pdfContainer.innerHTML = '';
     }
     
-    // Pequeño delay para que Angular actualice el DOM
     setTimeout(() => {
       console.log('🔄 Cargando PDF para modificación...');
       this.cargarPDFDesdeURL(pdfUrl);
@@ -1518,7 +1942,6 @@ export class FormatosComponent implements OnInit {
       return;
     }
     
-    // Solo pedir nombre, el tipo ya fue seleccionado
     this.mostrarModal = true;
   }
 
@@ -1546,29 +1969,20 @@ export class FormatosComponent implements OnInit {
     
     const formData = new FormData();
 
-    // Si hay múltiples PDFs anexados, enviarlos todos
-    // Si hay múltiples PDFs anexados, enviarlos todos
-      if (this.pdfFiles.length > 1) {
-        console.log(`📎 Enviando ${this.pdfFiles.length} PDFs para fusionar...`);
-        
-        // Enviar cada archivo original directamente
-        this.pdfFiles.forEach((file, index) => {
-          formData.append(`pdf_parte_${index}`, file);
-          console.log(`  - Parte ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)} KB`);
-        });
-        
-        // Enviar metadata
-        formData.append('num_partes', this.pdfFiles.length.toString());
-        formData.append('requiere_merge', 'true');
+    if (this.pdfFiles.length > 1) {
+      console.log(`📎 Enviando ${this.pdfFiles.length} PDFs para fusionar...`);
       
-      // Enviar metadata
-      formData.append('num_partes', this.pdfBuffers.length.toString());
+      this.pdfFiles.forEach((file, index) => {
+        formData.append(`pdf_parte_${index}`, file);
+        console.log(`  - Parte ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)} KB`);
+      });
+      
+      formData.append('num_partes', this.pdfFiles.length.toString());
       formData.append('requiere_merge', 'true');
     } else {
-      // Un solo PDF (comportamiento original)
       const nombreArchivo = this.nombreFormato.toLowerCase().replace(/\s+/g, '_') + '.pdf';
       const renamedFile = new File([this.originalPdfFile!], nombreArchivo, { type: 'application/pdf' });
-      console.log('Enviando archivo único:', renamedFile.name, 'size:', renamedFile.size, 'bytes');
+      console.log('Enviando archivo único:', renamedFile.name);
       formData.append('archivo_pdf', renamedFile);
       formData.append('requiere_merge', 'false');
     }
@@ -1585,7 +1999,7 @@ export class FormatosComponent implements OnInit {
           this.documentoGuardadoId = response.id;
           this.isLoading = false;
           this.haycambiosPendientes = false;
-          alert('Formato guardado exitosamente con coordenadas nativas');
+          alert('Formato guardado exitosamente');
           this.cerrarModal();
         },
         error: (error) => {
@@ -1685,8 +2099,6 @@ export class FormatosComponent implements OnInit {
     }).subscribe({
       next: (blob: Blob) => {
         console.log('PDF generado con éxito');
-        console.log('Tamaño del blob:', blob.size, 'bytes');
-        console.log('Tipo:', blob.type);
         
         const blobUrl = URL.createObjectURL(blob);
         this.pdfPreviewUrl = blobUrl;
@@ -1737,7 +2149,7 @@ export class FormatosComponent implements OnInit {
         console.log('Posiciones sincronizadas con backend', response);
         this.isLoading = false;
         this.haycambiosPendientes = false;
-        alert('Posiciones guardadas. Ahora el PDF de prueba usará las nuevas posiciones.');
+        alert('Posiciones guardadas.');
       },
       error: (error) => {
         console.error('Error al sincronizar posiciones:', error);

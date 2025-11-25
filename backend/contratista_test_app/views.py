@@ -431,11 +431,41 @@ class VerifyJWTAPIView(APIView):
         if not payload:
             return Response({'valid': False, 'error': 'Token inválido'}, status=401)
         
+        # ✅ RECONSTRUIR SOCIEDADES CON NOMBRE E ID DESDE LA DB
+        user_id = payload.get('user_id')
+        sociedades_list = []
+        
+        try:
+            user = Usuarios.objects.get(id=user_id)
+            
+            if user.is_admin:
+                if user.holding:
+                    sociedades = Sociedad.objects.filter(holding=user.holding, estado=True)
+                    sociedades_list = [
+                        {
+                            'id': soc.id,
+                            'nombre': soc.nombre,
+                            'rol_sociedad': soc.rol_sociedad if soc.rol_sociedad else ''
+                        }
+                        for soc in sociedades
+                    ]
+            else:
+                sociedades_list = [
+                    {
+                        'id': soc.id,
+                        'nombre': soc.nombre,
+                        'rol_sociedad': soc.rol_sociedad if soc.rol_sociedad else ''
+                    }
+                    for soc in user.empresas_asignadas.filter(estado=True)
+                ]
+        except Usuarios.DoesNotExist:
+            pass
+        
         return Response({
             'valid': True,
             'user_id': payload.get('user_id'),
             'holding_id': payload.get('holding_id'),
-            'sociedad_id': payload.get('sociedad'),
+            'sociedades': sociedades_list,  # ✅ NUEVO: Lista con objetos completos
             'supervisor_id': payload.get('supervisor_id'),
             'jefe_cuadrilla_id': payload.get('jefe_cuadrilla_id'),
             'nombre': payload.get('nombre_completo'),
@@ -597,6 +627,31 @@ class LoginAPIView(APIView):
             except JefesDeCuadrilla.DoesNotExist:
                 pass
             
+            # ✅ CONSTRUIR DICCIONARIO DE SOCIEDADES CON NOMBRE E ID
+            sociedades_list = []
+            if user.is_admin:
+                # Admin tiene acceso a todas las sociedades del holding
+                if user.holding:
+                    sociedades = Sociedad.objects.filter(holding=user.holding, estado=True)
+                    sociedades_list = [
+                        {
+                            'id': soc.id,
+                            'nombre': soc.nombre,
+                            'rol_sociedad': soc.rol_sociedad if soc.rol_sociedad else ''
+                        }
+                        for soc in sociedades
+                    ]
+            else:
+                # Usuario normal: solo sus sociedades asignadas
+                sociedades_list = [
+                    {
+                        'id': soc.id,
+                        'nombre': soc.nombre,
+                        'rol_sociedad': soc.rol_sociedad if soc.rol_sociedad else ''
+                    }
+                    for soc in user.empresas_asignadas.filter(estado=True)
+                ]
+            
             # Respuesta exitosa
             response_data = {
                 'autorizado': True,
@@ -610,14 +665,17 @@ class LoginAPIView(APIView):
                 'user_type': 'SUPERADMIN' if user.is_superuser else 'ADMIN_HOLDING' if user.is_admin else 'USER_NORMAL',
                 'nombre': self._get_user_display_name(user),
                 'holding_id': user.holding.id if user.holding else None,
-                'sociedad_id': user.empresas_asignadas.first().id if user.empresas_asignadas.exists() else None,  # ✅ AGREGADO
+                'nombre_holding': user.holding.nombre if user.holding else None,
+                'sociedades': sociedades_list,  # ✅ NUEVO: Lista de diccionarios con nombre e id
                 
-                # ✅ NUEVOS CAMPOS PARA SUPERVISOR Y JEFE DE CUADRILLA
+                # ✅ CAMPOS PARA SUPERVISOR Y JEFE DE CUADRILLA
                 'supervisor_id': supervisor_id,
                 'jefe_cuadrilla_id': jefe_cuadrilla_id,
+                'is_admin': user.is_admin,
             }
             
             print(f"✅ Login exitoso para usuario {user.id}")
+            print(f"   📋 Sociedades disponibles: {sociedades_list}")
             if supervisor_id:
                 print(f"   🎯 Supervisor ID: {supervisor_id}")
             if jefe_cuadrilla_id:
@@ -3159,70 +3217,81 @@ class FolioComercialAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
-    # Define required_scopes como un atributo de instancia
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required_scopes = []
 
     def dispatch(self, request, *args, **kwargs):
-        if request.method in ['POST', 'DELETE', 'PUT']:
+        if request.method in ['POST', 'DELETE', 'PUT', 'PATCH']:
             self.required_scopes = ['superadmin_access', 'admin', 'write']
         elif request.method == 'GET':
             self.required_scopes = ['superadmin_access', 'admin', 'write']
         return super().dispatch(request, *args, **kwargs)
 
-    # Método GET
     def get(self, request, holding_id=None, format=None):
         holding_id = request.query_params.get('holding')
-        # Verificar si se solicita el formato para pre-contratación
         pre_contratacion = request.query_params.get('pre_contratacion', 'false').lower() == 'true'
+        estado = request.query_params.get('estado', 'activos')  # 'activos', 'inactivos', 'todos'
         
         folios = FolioComercial.objects.filter(holding_id=holding_id) if holding_id else FolioComercial.objects.all()
         
-        # Usar el serializer apropiado según el parámetro
+        # Filtrar por estado
+        if estado == 'activos':
+            folios = folios.filter(estado=True)
+        elif estado == 'inactivos':
+            folios = folios.filter(estado=False)
+        # 'todos' no aplica filtro adicional
+        
         if pre_contratacion:
             serializer = FolioComercialPreContratacionSerializer(folios, many=True)
         else:
             serializer = FolioComercialSerializer(folios, many=True)
             
-        print('Data del folio comercial: ', serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    # Método POST
     def post(self, request, format=None):
-        data = request.data
-        print(data)
-        serializer = FolioComercialSerializer(data=data)
+        serializer = FolioComercialSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Método DELETE
     def delete(self, request, format=None): 
+        
+        
         folio_ids = request.data.get('ids', [])
+        
+        # Verificar si existen contratos asociados
+        folios_con_contratos = ContratoTrabajador.objects.filter(
+            folio_id__in=folio_ids
+        ).values_list('folio_id', flat=True).distinct()
+        
+        if folios_con_contratos:
+            return Response({
+                "message": "No se pueden eliminar folios que tienen contratos asociados",
+                "folios_con_contratos": list(folios_con_contratos)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         FolioComercial.objects.filter(id__in=folio_ids).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # Método PATCH
     def patch(self, request, format=None):
         folio_id = request.data.get('id')
         if not folio_id:
-            return Response({"message": "ID de folio es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "ID de folio es necesario"}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
             folio = FolioComercial.objects.get(id=folio_id)
         except FolioComercial.DoesNotExist:
             return Response({"message": "Folio no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = FolioComercialSerializer(folio, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
+        serializer = FolioComercialSerializer(folio, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Método PUT
     def put(self, request, format=None):
         folio_id = request.data.get('id')
         if not folio_id:
@@ -3238,8 +3307,8 @@ class FolioComercialAPIView(APIView):
             serializer.save()
             return Response(serializer.data)
         
-        print("Errores de validación:", serializer.errors)  # Añade esto para depuración
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class PersonalTrabajadoresMobileAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -3282,37 +3351,42 @@ class PersonalTrabajadoresMobileAPIView(APIView):
     def post(self, request, format=None):
         print("=== DEBUG: INICIO POST ===")
         
-        # ✅ SOLUCIÓN: Extraer valores de listas y manejar archivos correctamente
         data = {}
         
-        # Procesar campos de request.data (pueden venir como listas)
         for key, value in request.data.items():
-            # Si es una lista, extraer el primer elemento
             if isinstance(value, list) and len(value) > 0:
                 data[key] = value[0]
             elif not isinstance(value, list):
                 data[key] = value
         
-        # Agregar archivos desde request.FILES
         for key, file in request.FILES.items():
             data[key] = file
         
-        # Convertir booleano 'estado' si viene como string
         if 'estado' in data:
             if isinstance(data['estado'], str):
                 data['estado'] = data['estado'].lower() in ('true', '1', 'yes')
         
-        # Convertir numero_cuenta a int si viene como string
         if 'numero_cuenta' in data and data['numero_cuenta']:
             try:
                 data['numero_cuenta'] = int(data['numero_cuenta'])
             except (ValueError, TypeError):
                 pass
         
-        print(f"Datos recibidos: {list(data.keys())}")
-        print(f"Tipos de datos - holding: {type(data.get('holding'))}, nombres: {type(data.get('nombres'))}")
+        # ✅ VALIDAR ÁREA Y CARGO
+        if not data.get('area'):
+            return Response(
+                {'error': 'El área es obligatoria'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not data.get('cargo'):
+            return Response(
+                {'error': 'El cargo es obligatorio'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        print(f"Área: {data.get('area')}, Cargo: {data.get('cargo')}")
 
-        # Find or create personal
         existing_personal = None
         if data.get('rut'):
             existing_personal = PersonalTrabajadores.objects.filter(rut=data['rut']).first()
@@ -3345,7 +3419,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             print("✅ Serializer válido")
             personal = serializer.save()
             
-            # ✅ VALIDAR Y ASIGNAR SUPERVISOR (OBLIGATORIO)
             supervisor_id = data.get('codigo_supervisor')
             print(f"🔍 supervisor_id recibido: {supervisor_id} (tipo: {type(supervisor_id)})")
             
@@ -3381,7 +3454,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            # ✅ ASIGNAR JEFE DE CUADRILLA (OPCIONAL)
             jefe_cuadrilla_id = data.get('jefe_cuadrilla')
             print(f"🔍 jefe_cuadrilla_id recibido: {jefe_cuadrilla_id}")
             
@@ -3400,7 +3472,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     import traceback
                     print(traceback.format_exc())
             
-            # ✅ CREAR CONTRATO Y ASISTENCIA
             try:
                 folio_id = data.get('folio')
                 horario_id = data.get('horario')
@@ -3410,7 +3481,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     folio = FolioComercial.objects.get(id=folio_id)
                     print(f"🔍 Folio encontrado: {folio.id}")
                     
-                    # Buscar horario
                     horario = None
                     if horario_id:
                         horario = Horarios.objects.filter(id=horario_id).first()
@@ -3420,7 +3490,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     else:
                         print(f"⚠️ No se recibió horario_id")
                     
-                    # Crear relación de transporte si aplica
                     trabajador_transporte = None
                     if data.get('transportista') or data.get('vehiculo'):
                         trabajador_transporte = TrabajadorEmpresaTransporte.objects.create(
@@ -3431,7 +3500,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                         )
                         print(f"✅ Relación transporte creada: {trabajador_transporte.id}")
 
-                    # Crear contrato
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
@@ -3445,7 +3513,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     )
                     print(f"✅ Contrato ID: {contrato.id}, horario_id: {contrato.horario_id}")
                     
-                    # Crear asistencia automática
                     fecha_asistencia = personal.fecha_ingreso if personal.fecha_ingreso else timezone.now().date()
                     
                     asistencia, created = RegistroAsistencia.objects.get_or_create(
@@ -3471,7 +3538,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                 import traceback
                 print(traceback.format_exc())
             
-            # Delete old images if updated
             if existing_personal:
                 if 'carnet_front_image' in request.FILES:
                     self.delete_old_file(old_front_image)
@@ -3744,6 +3810,31 @@ class PersonalTrabajadoresAPIView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class PersonalDocumentosAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+    required_scopes = ['admin', 'write']
+
+    def patch(self, request, trabajador_id):
+        try:
+            trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
+        except PersonalTrabajadores.DoesNotExist:
+            print("Trabajador no encontrado")
+            return Response({"error": "Trabajador no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Actualizar solo los campos de imagen que se envíen
+        if 'carnet_front_image' in request.FILES:
+            trabajador.carnet_front_image = request.FILES['carnet_front_image']
+        if 'carnet_back_image' in request.FILES:
+            trabajador.carnet_back_image = request.FILES['carnet_back_image']
+        if 'firma' in request.FILES:
+            trabajador.firma = request.FILES['firma']
+
+        trabajador.save()
+        
+        serializer = PersonalTrabajadoresSerializer(trabajador)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CodigoQRAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -18278,11 +18369,12 @@ class DocumentoVariablesNativasAPIView(APIView):
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """
-        Genera PDF con coordenadas nativas.
-        SIMPLIFICADO: Todos los PDFs guardados YA están en 612x792.
+        ⭐ MODIFICADO: Maneja firma_empleador como imagen
         """
         from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
+        from reportlab.lib.utils import ImageReader
+        from PIL import Image
         import io
         
         documento = ContratoVariables.objects.get(id=documento_id)
@@ -18308,15 +18400,20 @@ class DocumentoVariablesNativasAPIView(APIView):
                 variables_por_pagina[pagina].append({
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
-                    'posY': ubicacion.get('posY', 0)
+                    'posY': ubicacion.get('posY', 0),
+                    'width': ubicacion.get('width'),   # ⭐ NUEVO
+                    'height': ubicacion.get('height')  # ⭐ NUEVO
                 })
         
-        # Campos centrados
         campos_centrados = [
-                                'rut', 'dni', 'nic', 'estado_civil', 
-                                'fecha_nacimiento', 'fecha_emision', 
-                                'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
-                            ]
+            'rut', 'dni', 'nic', 'estado_civil', 
+            'fecha_nacimiento', 'fecha_emision', 
+            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
+        ]
+        
+        # ⭐ Obtener firma del empleador
+        holding = documento.holding
+        firma_empleador_disponible = bool(holding.firma_empleador)
         
         # Procesar cada página
         for page_num in range(len(reader.pages)):
@@ -18334,15 +18431,55 @@ class DocumentoVariablesNativasAPIView(APIView):
                 
                 for variable in variables_por_pagina[ui_page_num]:
                     nombre = variable['nombre']
+                    
+                    # ⭐ CASO ESPECIAL: firma_empleador es IMAGEN
+                    if nombre == 'firma_empleador':
+                        if firma_empleador_disponible:
+                            try:
+                                # Obtener imagen
+                                firma_path = holding.firma_empleador.path
+                                
+                                # Coordenadas desde frontend
+                                frontend_x = variable['posX']
+                                frontend_y = variable['posY']
+                                img_width = variable.get('width', 150)   # Default 150px
+                                img_height = variable.get('height', 50)  # Default 50px
+                                
+                                # Transformar coordenadas
+                                pdf_x = frontend_x + BASE_OFFSET_X
+                                pdf_y = page_height - frontend_y + BASE_OFFSET_Y
+                                
+                                # Ajustar por la altura de la imagen
+                                pdf_y = pdf_y - img_height
+                                
+                                # Dibujar imagen
+                                can.drawImage(
+                                    firma_path,
+                                    pdf_x,
+                                    pdf_y,
+                                    width=img_width,
+                                    height=img_height,
+                                    preserveAspectRatio=True,
+                                    mask='auto'
+                                )
+                                
+                                print(f"✅ Firma empleador insertada en ({pdf_x}, {pdf_y}) - {img_width}x{img_height}")
+                                
+                            except Exception as e:
+                                print(f"❌ Error al insertar firma empleador: {str(e)}")
+                        else:
+                            print(f"⚠️ firma_empleador solicitada pero no disponible")
+                        
+                        continue  # Saltar al siguiente variable
+                    
+                    # ⭐ RESTO DE VARIABLES (TEXTO NORMAL)
                     if nombre in datos_variables and datos_variables[nombre]:
                         frontend_x = variable['posX']
                         frontend_y = variable['posY']
                         
-                        # Transformación directa (sin escalas)
                         pdf_x = frontend_x + BASE_OFFSET_X
                         pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
                         
-                        # Ajustes específicos
                         if nombre == 'rut':
                             pdf_x += BASE_OFFSET_X * 0.5
                         elif nombre == 'nombre':
@@ -18358,7 +18495,6 @@ class DocumentoVariablesNativasAPIView(APIView):
                             can.drawString(pdf_x, pdf_y, valor)
                         
                         if debug:
-                            # Debug visual
                             can.saveState()
                             can.setStrokeColorRGB(1, 0, 0)
                             can.setLineWidth(1)
@@ -18378,7 +18514,7 @@ class DocumentoVariablesNativasAPIView(APIView):
         writer.write(buffer)
         buffer.seek(0)
         
-        print("✅ PDF generado")
+        print("✅ PDF generado con firma empleador como imagen")
         return buffer
     
 #===================================================================
@@ -18895,11 +19031,9 @@ class GenerarDocumentosMasivoAPIView(APIView):
         fecha_emision_formateada = ''
         if fecha_emision:
             try:
-                # Convertir de formato YYYY-MM-DD a DD/MM/YYYY
                 fecha_obj = datetime.strptime(fecha_emision, '%Y-%m-%d').date()
                 fecha_emision_formateada = formatear_fecha(fecha_obj)
             except ValueError:
-                # Si falla, usar fecha actual
                 fecha_emision_formateada = formatear_fecha(date.today())
         else:
             fecha_emision_formateada = formatear_fecha(date.today())
@@ -18915,7 +19049,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 print(f"⚠️ Sociedad con ID {sociedad_id} no encontrada")
             except Exception as e:
                 print(f"⚠️ Error obteniendo sociedad: {e}")
-        print()
+        
         return {
             # Fechas
             'fecha_emision': fecha_emision_formateada,
@@ -18942,9 +19076,8 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'cargo': trabajador.cargo.nombre if trabajador.cargo else '',
             'area': trabajador.area.nombre if trabajador.area else '',
             'horario': contrato_activo.horario.nombre if (contrato_activo and contrato_activo.horario) else '',
-
             
-            # ⭐ NUEVO: Sociedad
+            # Sociedad y cliente
             'sociedad': sociedad_nombre,
             'nombre_cliente': contrato_activo.folio_comercial.cliente.nombre if (contrato_activo and contrato_activo.folio_comercial and contrato_activo.folio_comercial.cliente) else '',
             'nombre_campo': contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
@@ -18963,14 +19096,14 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'elementos_proteccion': '',
             'contacto_emergencia_nombre': '',
             'contacto_emergencia_telefono': '',
-            'firma_empleador': '[FIRMA DIGITAL]',
+            # ❌ ELIMINADO: 'firma_empleador': '[FIRMA DIGITAL]',
             'firma': '[FIRMA TRABAJADOR]',
             'huella': '[HUELLA DIGITAL]',
         }
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """
-        Genera PDF con coordenadas nativas - PÁGINAS INDEPENDIENTES CON DEBUGGING
+        ⭐ MODIFICADO: Maneja firma_empleador como imagen con dimensiones guardadas
         """
         from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
@@ -18979,12 +19112,12 @@ class GenerarDocumentosMasivoAPIView(APIView):
         documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
         
-        print(f"\n{'='*80}")
-        print(f"🔍 INICIO GENERACIÓN PDF - Documento ID: {documento_id}")
-        print(f"{'='*80}")
-        
         reader = PdfReader(open(input_pdf_path, "rb"))
-        print(f"📄 PDF original: {len(reader.pages)} páginas")
+        
+        BASE_FONT_SIZE = 9
+        BASE_OFFSET_X = -8
+        BASE_OFFSET_Y = -15.2
+        FONT_BASELINE = BASE_FONT_SIZE * 0.3
         
         # Organizar variables por página
         variables_por_pagina = {}
@@ -18998,15 +19131,10 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 variables_por_pagina[pagina].append({
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
-                    'posY': ubicacion.get('posY', 0)
+                    'posY': ubicacion.get('posY', 0),
+                    'width': ubicacion.get('width'),   # ⭐ AGREGADO
+                    'height': ubicacion.get('height')  # ⭐ AGREGADO
                 })
-        
-        print(f"\n📋 MAPA DE VARIABLES POR PÁGINA:")
-        for pagina, vars in sorted(variables_por_pagina.items()):
-            print(f"  Página {pagina}: {len(vars)} variables")
-            for v in vars:
-                valor = datos_variables.get(v['nombre'], '[NO DATA]')
-                print(f"    - {v['nombre']}: '{valor}' en ({v['posX']:.1f}, {v['posY']:.1f})")
         
         campos_centrados = [
             'rut', 'dni', 'nic', 'estado_civil', 
@@ -19014,75 +19142,101 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
         ]
         
-        BASE_FONT_SIZE = 9
-        BASE_OFFSET_X = -8
-        BASE_OFFSET_Y = -15.2
-        FONT_BASELINE = BASE_FONT_SIZE * 0.3
+        # ⭐ Obtener firma del empleador del holding
+        holding = documento.holding
+        firma_empleador_disponible = bool(holding.firma_empleador)
         
-        # ⭐ PROCESAR CADA PÁGINA EN UN WRITER SEPARADO
+        # Procesar cada página INDIVIDUALMENTE
         final_writer = PdfWriter()
         
         for page_num in range(len(reader.pages)):
             ui_page_num = page_num + 1
             
-            print(f"\n{'─'*80}")
-            print(f"📄 PROCESANDO PÁGINA {ui_page_num}/{len(reader.pages)}")
-            print(f"{'─'*80}")
-            
-            # ✅ CREAR DOCUMENTO TEMPORAL SOLO CON ESTA PÁGINA
+            # ✅ Crear documento temporal para ESTA página
             temp_doc_buffer = io.BytesIO()
             temp_doc_writer = PdfWriter()
-            
-            # Copiar SOLO esta página al temporal
             original_page = reader.pages[page_num]
             temp_doc_writer.add_page(original_page)
             temp_doc_writer.write(temp_doc_buffer)
             temp_doc_buffer.seek(0)
             
-            # Leer el documento temporal (1 sola página)
+            # Leer la página aislada
             temp_doc_reader = PdfReader(temp_doc_buffer)
             isolated_page = temp_doc_reader.pages[0]
             
             page_width = float(isolated_page.mediabox.width)
             page_height = float(isolated_page.mediabox.height)
             
-            print(f"  📐 Dimensiones: {page_width} x {page_height}")
-            
-            # Verificar si esta página tiene variables
+            # Verificar si hay variables en esta página
             if ui_page_num not in variables_por_pagina:
-                print(f"  ℹ️ Sin variables para esta página")
                 final_writer.add_page(isolated_page)
                 continue
             
-            # Crear overlay con variables
+            # Crear overlay para esta página
             overlay_buffer = io.BytesIO()
             can = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
             
             variables_escritas = 0
-            variables_en_pagina = variables_por_pagina[ui_page_num]
             
-            print(f"  📝 Escribiendo {len(variables_en_pagina)} variables:")
-            
-            for idx, variable in enumerate(variables_en_pagina):
+            for variable in variables_por_pagina[ui_page_num]:
                 nombre = variable['nombre']
                 
+                # ⭐ CASO ESPECIAL: firma_empleador como IMAGEN
+                if nombre == 'firma_empleador':
+                    if firma_empleador_disponible:
+                        try:
+                            firma_path = holding.firma_empleador.path
+                            
+                            frontend_x = variable['posX']
+                            frontend_y = variable['posY']
+                            
+                            # ⭐ USAR DIMENSIONES GUARDADAS (si existen)
+                            img_width = variable.get('width', 150)
+                            img_height = variable.get('height', 50)
+                            
+                            print(f"✅ Usando dimensiones guardadas firma: {img_width}x{img_height}")
+                            
+                            # Transformar coordenadas
+                            pdf_x = frontend_x + BASE_OFFSET_X
+                            pdf_y = page_height - frontend_y + BASE_OFFSET_Y - img_height
+                            
+                            # Dibujar imagen
+                            can.drawImage(
+                                firma_path,
+                                pdf_x,
+                                pdf_y,
+                                width=img_width,
+                                height=img_height,
+                                preserveAspectRatio=True,
+                                mask='auto'
+                            )
+                            
+                            print(f"✅ Firma insertada: ({pdf_x:.1f}, {pdf_y:.1f}) - {img_width:.1f}x{img_height:.1f}")
+                            variables_escritas += 1
+                            
+                        except Exception as e:
+                            print(f"❌ Error insertando firma: {str(e)}")
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        print(f"⚠️ firma_empleador no disponible para holding {holding.id}")
+                    
+                    continue  # Siguiente variable
+                
+                # ⭐ RESTO DE VARIABLES (TEXTO)
                 if nombre not in datos_variables:
-                    print(f"    ⚠️ Variable '{nombre}' NO tiene datos")
                     continue
                 
                 valor = datos_variables[nombre]
                 if not valor:
-                    print(f"    ⚠️ Variable '{nombre}' tiene valor vacío")
                     continue
                 
                 frontend_x = variable['posX']
                 frontend_y = variable['posY']
                 
-                # Transformación
                 pdf_x = frontend_x + BASE_OFFSET_X
                 pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
                 
-                # Ajustes específicos
                 if nombre == 'rut':
                     pdf_x += BASE_OFFSET_X * 0.5
                 elif nombre == 'nombre':
@@ -19094,10 +19248,8 @@ class GenerarDocumentosMasivoAPIView(APIView):
                 if nombre in campos_centrados:
                     text_width = can.stringWidth(valor_str, "Helvetica", BASE_FONT_SIZE)
                     can.drawString(pdf_x - (text_width/2), pdf_y, valor_str)
-                    print(f"    ✅ [{idx+1}] {nombre} = '{valor_str}' en ({pdf_x - text_width/2:.1f}, {pdf_y:.1f}) [CENTRADO]")
                 else:
                     can.drawString(pdf_x, pdf_y, valor_str)
-                    print(f"    ✅ [{idx+1}] {nombre} = '{valor_str}' en ({pdf_x:.1f}, {pdf_y:.1f})")
                 
                 variables_escritas += 1
                 
@@ -19112,36 +19264,27 @@ class GenerarDocumentosMasivoAPIView(APIView):
             can.save()
             overlay_buffer.seek(0)
             
-            print(f"  📊 Total variables escritas: {variables_escritas}/{len(variables_en_pagina)}")
+            print(f"  📊 Página {ui_page_num}: {variables_escritas} variables escritas")
             
-            # Hacer merge SOLO si hay variables
+            # Hacer merge si hay variables
             if variables_escritas > 0:
                 try:
                     overlay_reader = PdfReader(overlay_buffer)
                     isolated_page.merge_page(overlay_reader.pages[0])
-                    print(f"  ✅ Merge completado exitosamente")
                 except Exception as e:
-                    print(f"  ❌ Error en merge: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    print(f"❌ Error en merge página {ui_page_num}: {e}")
             
-            # Agregar al writer final
             final_writer.add_page(isolated_page)
-            print(f"  ✅ Página {ui_page_num} agregada al documento final")
         
         # Guardar documento final
         output_buffer = io.BytesIO()
         final_writer.write(output_buffer)
         output_buffer.seek(0)
         
-        print(f"\n{'='*80}")
-        print(f"✅ PDF GENERADO EXITOSAMENTE")
-        print(f"  Total páginas: {len(reader.pages)}")
-        print(f"  Tamaño: {len(output_buffer.getvalue())} bytes")
-        print(f"{'='*80}\n")
+        print(f"✅ PDF generado con firma empleador - {len(output_buffer.getvalue())} bytes")
         
         return output_buffer
-
+    
 class ListarDocumentosAPIView(APIView):
     """
     Vista para listar documentos de contrato filtrados por tipo
@@ -21153,3 +21296,161 @@ class PDFToImageAPIView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
         
+class FirmaEmpleadorAPIView(APIView):
+    """
+    GET: Obtiene la firma actual del holding
+    POST: Sube/actualiza la firma del empleador
+    DELETE: Elimina la firma del empleador
+    
+    ⭐ NO requiere autenticación - usa holding_id desde parámetros
+    """
+    
+    def get(self, request, *args, **kwargs):
+        """
+        GET /api_firma_empleador/?holding_id=X - Obtiene la firma actual
+        """
+        try:
+            # ⭐ Obtener holding_id desde query params
+            holding_id = request.GET.get('holding_id')
+            
+            if not holding_id:
+                return Response({
+                    'error': 'Se requiere holding_id como parámetro'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            holding = get_object_or_404(Holding, id=holding_id)
+            
+            if not holding.firma_empleador:
+                return Response({
+                    'firma_disponible': False,
+                    'mensaje': 'No hay firma del empleador configurada'
+                })
+            
+            return Response({
+                'firma_disponible': True,
+                'firma_url': request.build_absolute_uri(holding.firma_empleador.url),
+                'firma_nombre': holding.firma_empleador.name.split('/')[-1]
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def post(self, request, *args, **kwargs):
+        """
+        POST /api_firma_empleador/ - Sube/actualiza la firma
+        Body: FormData con 'firma_empleador' (file) y 'holding_id' (int)
+        """
+        try:
+            # ⭐ Obtener holding_id desde FormData
+            holding_id = request.data.get('holding_id')
+            
+            if not holding_id:
+                return Response(
+                    {"error": "Se requiere holding_id"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            holding = get_object_or_404(Holding, id=holding_id)
+            
+            if 'firma_empleador' not in request.FILES:
+                return Response(
+                    {"error": "No se proporcionó archivo de firma"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            firma_file = request.FILES['firma_empleador']
+            
+            # Validar tipo de archivo
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+            if firma_file.content_type not in allowed_types:
+                return Response(
+                    {"error": "Formato de imagen no válido. Use JPG, PNG o GIF"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validar tamaño (max 5MB)
+            if firma_file.size > 5 * 1024 * 1024:
+                return Response(
+                    {"error": "La imagen es demasiado grande. Máximo 5MB"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Eliminar firma anterior si existe
+            if holding.firma_empleador:
+                holding.firma_empleador.delete(save=False)
+            
+            # Guardar nueva firma
+            holding.firma_empleador = firma_file
+            holding.save()
+            
+            return Response({
+                'mensaje': 'Firma del empleador actualizada exitosamente',
+                'firma_url': request.build_absolute_uri(holding.firma_empleador.url),
+                'firma_nombre': holding.firma_empleador.name.split('/')[-1]
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {"error": f"Error al subir firma: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        DELETE /api_firma_empleador/?holding_id=X - Elimina la firma
+        """
+        try:
+            # ⭐ Obtener holding_id desde query params
+            holding_id = request.GET.get('holding_id')
+            
+            if not holding_id:
+                return Response(
+                    {"error": "Se requiere holding_id como parámetro"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            holding = get_object_or_404(Holding, id=holding_id)
+            
+            if not holding.firma_empleador:
+                return Response(
+                    {"error": "No hay firma para eliminar"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            holding.firma_empleador.delete(save=True)
+            
+            return Response({
+                'mensaje': 'Firma del empleador eliminada exitosamente'
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        """
+        DELETE /api_firma_empleador/ - Elimina la firma
+        """
+        try:
+            holding = request.user.holding
+            
+            if not holding.firma_empleador:
+                return Response(
+                    {"error": "No hay firma para eliminar"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            holding.firma_empleador.delete(save=True)
+            
+            return Response({
+                'mensaje': 'Firma del empleador eliminada exitosamente'
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

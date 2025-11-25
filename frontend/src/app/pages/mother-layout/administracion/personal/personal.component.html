@@ -824,7 +824,7 @@
   </div>
 </div>
 
-<!-- MODAL DOCUMENTOS -->
+<!-- MODAL DOCUMENTOS CON FUNCIONALIDAD DE SUBIR/ACTUALIZAR -->
 <div 
   id="modalDocumentos" 
   class="modal-perfiles" 
@@ -848,15 +848,35 @@
             <p>Sin imagen disponible</p>
           </div>
         </div>
-        <button 
-          class="custom-button-ingreso"
-          [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)"
-          (click)="descargarDocumento(
-            getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image),
-            'carnet_frontal_' + trabajadorSeleccionadoDocs.rut + '.jpg'
-          )">
-          Descargar
-        </button>
+        
+        <input 
+          type="file" 
+          #carnetFrontalInput
+          accept="image/jpeg,image/jpg,image/png"
+          (change)="onFileSelected($event, 'frontal')"
+          style="display: none;">
+        
+        <div *ngIf="nombreArchivoFrontal" style="font-size: 12px; color: #4CAF50; margin-top: 5px;">
+          ✓ Archivo seleccionado: {{nombreArchivoFrontal}}
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button 
+            class="custom-button-ingreso"
+            (click)="carnetFrontalInput.click(); $event.stopPropagation()">
+            {{ tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image) ? 'Cambiar' : 'Subir' }}
+          </button>
+          
+          <button 
+            class="custom-button-ingreso"
+            [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)"
+            (click)="descargarDocumento(
+              getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image),
+              'carnet_frontal_' + trabajadorSeleccionadoDocs.rut + '.jpg'
+            ); $event.stopPropagation()">
+            Descargar
+          </button>
+        </div>
       </div>
 
       <div class="documento-card">
@@ -870,15 +890,35 @@
             <p>Sin imagen disponible</p>
           </div>
         </div>
-        <button 
-          class="custom-button-ingreso"
-          [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)"
-          (click)="descargarDocumento(
-            getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image),
-            'carnet_posterior_' + trabajadorSeleccionadoDocs.rut + '.jpg'
-          )">
-          Descargar
-        </button>
+        
+        <input 
+          type="file" 
+          #carnetTraseroInput
+          accept="image/jpeg,image/jpg,image/png"
+          (change)="onFileSelected($event, 'trasero')"
+          style="display: none;">
+        
+        <div *ngIf="nombreArchivoTrasero" style="font-size: 12px; color: #4CAF50; margin-top: 5px;">
+          ✓ Archivo seleccionado: {{nombreArchivoTrasero}}
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button 
+            class="custom-button-ingreso"
+            (click)="carnetTraseroInput.click(); $event.stopPropagation()">
+            {{ tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image) ? 'Cambiar' : 'Subir' }}
+          </button>
+          
+          <button 
+            class="custom-button-ingreso"
+            [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)"
+            (click)="descargarDocumento(
+              getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image),
+              'carnet_posterior_' + trabajadorSeleccionadoDocs.rut + '.jpg'
+            ); $event.stopPropagation()">
+            Descargar
+          </button>
+        </div>
       </div>
 
       <div class="documento-card">
@@ -892,20 +932,46 @@
             <p>Sin firma disponible</p>
           </div>
         </div>
-        <button 
-          class="custom-button-ingreso"
-          [disabled]="!trabajadorSeleccionadoDocs?.firma"
-          (click)="descargarDocumento(
-            getUrlCompleta(trabajadorSeleccionadoDocs.firma),
-            'firma_' + trabajadorSeleccionadoDocs.rut + '.png'
-          )">
-          Descargar
-        </button>
+        
+        <input 
+          type="file" 
+          #firmaInput
+          accept="image/jpeg,image/jpg,image/png"
+          (change)="onFileSelected($event, 'firma')"
+          style="display: none;">
+        
+        <div *ngIf="nombreArchivoFirma" style="font-size: 12px; color: #4CAF50; margin-top: 5px;">
+          ✓ Archivo seleccionado: {{nombreArchivoFirma}}
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button 
+            class="custom-button-ingreso"
+            (click)="firmaInput.click(); $event.stopPropagation()">
+            {{ trabajadorSeleccionadoDocs?.firma ? 'Cambiar' : 'Subir' }}
+          </button>
+          
+          <button 
+            class="custom-button-ingreso"
+            [disabled]="!trabajadorSeleccionadoDocs?.firma"
+            (click)="descargarDocumento(
+              getUrlCompleta(trabajadorSeleccionadoDocs.firma),
+              'firma_' + trabajadorSeleccionadoDocs.rut + '.png'
+            ); $event.stopPropagation()">
+            Descargar
+          </button>
+        </div>
       </div>
     </div>
     
     <div class="button-container" style="margin-top: 30px;">
-      <button class="custom-button" (click)="closeModal('documentosModal')">
+      <button 
+        class="custom-button-ingreso" 
+        (click)="subirDocumentos(); $event.stopPropagation()"
+        [disabled]="!archivoCarnetFrontal && !archivoCarnetTrasero && !archivoFirma">
+        GUARDAR CAMBIOS
+      </button>
+      <button class="custom-button" (click)="closeModal('documentosModal'); $event.stopPropagation()">
         Cerrar
       </button>
     </div>

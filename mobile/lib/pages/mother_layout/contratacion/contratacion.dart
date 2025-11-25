@@ -1080,7 +1080,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
         final Map<String, String> fields = {
           'holding': holding ?? '',
-          'sociedad': userInfo.sociedad,
+          'sociedad':
+              userInfo.sociedadSeleccionada, // ✅ USAR LA SOCIEDAD SELECCIONADA
           'fecha_ingreso': DateTime.now().toIso8601String().split('T')[0],
           'codigo_supervisor': widget.initialData['supervisor'] ?? '',
           'jefe_cuadrilla': widget.initialData['jefe_cuadrilla'] ?? '',
@@ -1089,6 +1090,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'labor': widget.initialData['labor'] ?? '',
           'transportista': widget.initialData['transportista'] ?? '',
           'casa': widget.initialData['casa'] ?? '',
+          'area': widget.initialData['area'] ?? '', // ✅ NUEVO
+          'cargo': widget.initialData['cargo'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
               ? _controllers['RUN']!.text.toUpperCase()
               : '',
@@ -1112,6 +1115,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'estado': 'true',
         };
 
+        loggerGlobal.d('=== SOCIEDAD ENVIADA ===');
+        loggerGlobal.d('Sociedad ID: ${userInfo.sociedadSeleccionada}');
         loggerGlobal.d('=== CAMPOS PREPARADOS ===');
         fields.forEach((key, value) {
           loggerGlobal.d('  $key: $value');

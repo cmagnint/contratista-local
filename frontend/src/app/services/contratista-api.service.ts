@@ -127,6 +127,11 @@ export class ContratistaApiService {
     return this.http.put(`${this.baseUrl}/${endpoint}`, formData,  { headers });
   }
 
+  patchFormData(endpoint: string, formData: FormData): Observable<any> {
+  const headers = this.createFileHeaders();
+  return this.http.patch(`${this.baseUrl}/${endpoint}`, formData, { headers });
+}
+
   delete(endpoint: string, data: any): Observable<any> {
     const headers = this.createHeaders();
     const options = {

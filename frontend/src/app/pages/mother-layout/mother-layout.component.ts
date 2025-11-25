@@ -10,6 +10,7 @@ import { MatDrawerContainer } from '@angular/material/sidenav';
 import { MatDrawerContent } from '@angular/material/sidenav';
 import { RouterModule } from '@angular/router';
 import { JwtService } from '../../services/jwt.service';
+import { SociedadGlobalService } from '../../services/sociedad-global.service';
 
 
 @Component({
@@ -33,10 +34,14 @@ export class MotherLayoutComponent implements OnInit {
 
   mostrarBotonAdministrarPerfiles: boolean = true;
 
-  constructor(private router: Router,
-              private jwtService: JwtService,
-              @Inject(PLATFORM_ID) private platformId: Object,
-              private apiService: ContratistaApiService) {}
+  constructor(
+    private router: Router,
+    private jwtService: JwtService,
+    private sociedadGlobalService: SociedadGlobalService,
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private apiService: ContratistaApiService
+  ) {}
+
 
   public modulos: {[key:string]:boolean} = {
     'administrar_perfiles': true,
@@ -52,6 +57,11 @@ export class MotherLayoutComponent implements OnInit {
     sociedadesModal: false,
     sucursalesModal: false,
   };
+
+  // Nueva variable
+sociedadesDisponibles: Array<{ id: number; nombre: string }> = [];
+sociedadActual: { id: number; nombre: string } | null = null;
+dropdownSociedadGlobal: boolean = false;
   
   public oneSociedadSected: boolean = false;
   public oneCampoSelected: boolean = false;
@@ -173,38 +183,37 @@ export class MotherLayoutComponent implements OnInit {
     }
 
     try {
-      
       // ✅ REEMPLAZAR LOCALSTORAGE CON JWT
       this.nombre_user = this.getNombreUsuarioFromJWT();
+      this.nombre_holding = this.getNombreHoldingFromJWT(); // ✅ AGREGAR ESTA LÍNEA
       this.holding = this.getHoldingIdFromJWT();
       this.usuario_id = this.getUserIdFromJWT();
       this.is_admin = this.getIsAdminFromJWT();
       
-  
-      
     } catch (error) {
       
-      // ✅ FALLBACK: Si falla JWT, intentar localStorage como respaldo
-      this.initializeUserDataFromLocalStorage();
     }
   }
 
   /**
-   * ✅ FALLBACK: Cargar desde localStorage solo si JWT falla
-   */
-  private initializeUserDataFromLocalStorage(): void {
-    
-    this.nombre_user = localStorage.getItem('nombre_user');
-    this.nombre_holding = localStorage.getItem('nombre_holding');
-    this.holding = localStorage.getItem('holding_id');
-    
-    const usuarioId = localStorage.getItem('usuario_id');
-    this.usuario_id = usuarioId ? parseInt(usuarioId) : null;
-    
-    this.is_admin = localStorage.getItem('is_admin') === 'true';
-    
+ * ✅ OBTENER NOMBRE HOLDING desde JWT
+ */
+private getNombreHoldingFromJWT(): string {
+  try {
+    if (!isPlatformBrowser(this.platformId)) {
+      return '';
+    }
 
+    const userInfo = this.jwtService.getUserInfo();
+    const nombreHolding = userInfo?.nombre_holding;
+    console.log('el nombre del holding es: ', nombreHolding)
+    return nombreHolding || '';
+  } catch (error) {
+    return '';
   }
+}
+
+  
 
   /**
    * ✅ VERIFICAR SI HAY DATOS VÁLIDOS
@@ -266,6 +275,26 @@ export class MotherLayoutComponent implements OnInit {
         }
       }
       
+      // ✅ NUEVO: Cargar sociedades disponibles desde localStorage para dropdown global
+      const sociedadesStr = localStorage.getItem('sociedades');
+      if (sociedadesStr) {
+        this.sociedadesDisponibles = JSON.parse(sociedadesStr);
+        
+        // Cargar sociedad guardada o seleccionar la primera
+        this.sociedadGlobalService.cargarSociedadGuardada();
+        this.sociedadActual = this.sociedadGlobalService.getSociedad();
+        
+        // Si no hay sociedad seleccionada y hay disponibles, seleccionar la primera
+        if (!this.sociedadActual && this.sociedadesDisponibles.length > 0) {
+          this.seleccionarSociedad(this.sociedadesDisponibles[0]);
+        }
+      }
+      
+      // ✅ NUEVO: Suscribirse a cambios de sociedad global
+      this.sociedadGlobalService.sociedadSeleccionada$.subscribe(sociedad => {
+        this.sociedadActual = sociedad;
+      });
+      
       // ✅ CARGAR DATOS ADICIONALES
       this.cargarSubmodulosWeb(); // Mantener por compatibilidad legacy
       
@@ -278,6 +307,16 @@ export class MotherLayoutComponent implements OnInit {
       // ✅ SSR: Solo log mínimo
     }
   }
+
+  // ✅ NUEVO: Métodos para el dropdown
+toggleDropdownSociedadGlobal(): void {
+  this.dropdownSociedadGlobal = !this.dropdownSociedadGlobal;
+}
+
+seleccionarSociedad(sociedad: { id: number; nombre: string }): void {
+  this.sociedadGlobalService.setSociedad(sociedad);
+  this.dropdownSociedadGlobal = false;
+}
 
    /**
    * 🎯 NUEVO MÉTODO: Extrae holding_id del JWT

@@ -159,6 +159,8 @@ class WorkerSyncService {
         'tipo_cuenta_bancaria',
         'numero_cuenta',
         'estado',
+        'area', // ✅ AGREGAR
+        'cargo', // ✅ AGREGAR
       };
 
       // Procesar solo los campos válidos
@@ -171,7 +173,7 @@ class WorkerSyncService {
         }
       }
 
-      // ✅ AGREGAR ESTE BLOQUE: Mapear campos con nombres diferentes
+      // Mapear campos con nombres diferentes
       if (enrollment.containsKey('labor_id')) {
         fields['labor'] = enrollment['labor_id'].toString();
       }
@@ -241,6 +243,8 @@ class WorkerSyncService {
       loggerGlobal.d('=== CAMPOS QUE SE ENVÍAN ===');
       loggerGlobal.d('codigo_supervisor: ${fields['codigo_supervisor']}');
       loggerGlobal.d('horario: ${fields['horario']}');
+      loggerGlobal.d('area: ${fields['area']}'); // ✅ AGREGAR LOG
+      loggerGlobal.d('cargo: ${fields['cargo']}'); // ✅ AGREGAR LOG
       loggerGlobal.d('Todos los campos: ${fields.keys.toList()}');
 
       // Enviar al servidor

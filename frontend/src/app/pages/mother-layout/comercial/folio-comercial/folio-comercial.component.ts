@@ -1,4 +1,3 @@
-//folio-comercial.component.ts
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
@@ -26,6 +25,7 @@ export class FolioComercialComponent implements OnInit {
     crearFolio: false,
     modificarFolio: false,
     confirmacionModal: false,
+    confirmacionDesactivarModal: false,
     clienteModal: false,
     fundosModal: false,
     laboresModal: false,
@@ -35,6 +35,7 @@ export class FolioComercialComponent implements OnInit {
   };
 
   public holding: string = ''; 
+  public filtroEstado: string = 'activos';
 
   public folioSeleccionado: any = {
     id_folio_seleccionadoNew: 0,
@@ -83,6 +84,7 @@ export class FolioComercialComponent implements OnInit {
   'fecha_termino_contrato','estado'];
   
   public deletedRow: any[] = [];
+  public folioParaDesactivar: any = null;
 
   constructor(
     private apiService: ContratistaApiService,
@@ -124,10 +126,15 @@ export class FolioComercialComponent implements OnInit {
     }
   }
 
+  cambiarFiltroEstado(filtro: string): void {
+    this.filtroEstado = filtro;
+    this.selectedRows = [];
+    this.cargarFolio();
+  }
+
   isLaborSelected(laborId: number): boolean {
     return this.selectedLaboresNew.includes(laborId);
   }
-
 
   toggleLaborSelection(labor: any): void {
     const index = this.selectedLaboresNew.indexOf(labor.id);
@@ -189,11 +196,10 @@ export class FolioComercialComponent implements OnInit {
   }
 
   cargarFolio(): void {
-    this.apiService.get(`folio_comercial/?holding=${this.holding}`).subscribe({
+    this.apiService.get(`folio_comercial/?holding=${this.holding}&estado=${this.filtroEstado}`).subscribe({
       next: (response) => {
         console.log('📦 Folios recibidos del backend:', response);
         
-        // Debug: verificar estructura del primer folio
         if (response.length > 0) {
           console.log('🔍 Estructura del primer folio:', response[0]);
           console.log('🔍 ¿Tiene labores_detalle?', response[0].labores_detalle);
@@ -209,235 +215,242 @@ export class FolioComercialComponent implements OnInit {
     });
   }
 
-  /**
- * ✅ PARSEAR LABORES DESDE STRING
- */
-parseLaboresFromString(folio: any): any[] {
-  // Si ya existe labores_detalle, usarlo
-  if (folio.labores_detalle && folio.labores_detalle.length > 0) {
-    return folio.labores_detalle;
-  }
-  
-  // Si no hay nombres_labores, retornar array vacío
-  if (!folio.nombres_labores) return [];
-  
-  const laboresArray: any[] = [];
-  
-  // Split por comas para separar múltiples labores
-  const laboresStrings = folio.nombres_labores.split(/,(?![^()]*\))/);
-  
-  laboresStrings.forEach((laborString: string, index: number) => {
-    // Regex para extraer: NOMBRE (Pago: $XXXX, Fact: $YYYY)
-    const match = laborString.trim().match(/^(.+?)\s*\(Pago:\s*\$(\d+),\s*Fact:\s*\$(\d+)\)$/);
-    
-    if (match) {
-      laboresArray.push({
-        id: `${folio.id}_labor_${index}`, // ID único combinando folio + índice
-        nombre: match[1].trim(),
-        valor_pago_trabajador: parseInt(match[2]),
-        valor_facturacion: parseInt(match[3])
-      });
+  parseLaboresFromString(folio: any): any[] {
+    if (folio.labores_detalle && folio.labores_detalle.length > 0) {
+      return folio.labores_detalle;
     }
-  });
-  
-  console.log(`🔍 Labores parseadas para folio ${folio.id}:`, laboresArray);
-  
-  return laboresArray;
-}
-
+    
+    if (!folio.nombres_labores) return [];
+    
+    const laboresArray: any[] = [];
+    const laboresStrings = folio.nombres_labores.split(/,(?![^()]*\))/);
+    
+    laboresStrings.forEach((laborString: string, index: number) => {
+      const match = laborString.trim().match(/^(.+?)\s*\(Pago:\s*\$(\d+),\s*Fact:\s*\$(\d+)\)$/);
+      
+      if (match) {
+        laboresArray.push({
+          id: `${folio.id}_labor_${index}`,
+          nombre: match[1].trim(),
+          valor_pago_trabajador: parseInt(match[2]),
+          valor_facturacion: parseInt(match[3])
+        });
+      }
+    });
+    
+    console.log(`🔍 Labores parseadas para folio ${folio.id}:`, laboresArray);
+    
+    return laboresArray;
+  }
 
   modificarFolio(): void {
-  const laboresData = this.selectedLaboresNew.map(laborId => ({
-    id: laborId,
-    valor_pago_trabajador: this.laboresValores[laborId]?.valor_pago_trabajador || 0,
-    valor_facturacion: this.laboresValores[laborId]?.valor_facturacion || 0
-  }));
+    const laboresData = this.selectedLaboresNew.map(laborId => ({
+      id: laborId,
+      valor_pago_trabajador: this.laboresValores[laborId]?.valor_pago_trabajador || 0,
+      valor_facturacion: this.laboresValores[laborId]?.valor_facturacion || 0
+    }));
 
-  const transportistasData = this.selectedTransportistasNew.map(transportistaId => {
-    const vehiculos = this.selectedVehiculosNew
-      .filter(vehiculoId => {
-        const empresa = this.vehiculosCargados.find(e => 
-          e.vehiculos.some((v: { id: any; }) => v.id === vehiculoId)
-        );
-        return empresa?.vehiculos.find((v: { id: any; empresa_id: any; }) => v.id === vehiculoId)?.empresa_id === transportistaId;
-      })
-      .map(vehiculoId => ({ id: vehiculoId }));
-    
-    return { id: transportistaId, vehiculos };
-  });
-
-  const payload = {
-    id: this.folioSeleccionado.id_folio_seleccionadoNew,
-    holding: parseInt(this.holding),
-    cliente: this.selectedClienteId,
-    fundos_ids: this.selectedFundosNew,
-    labores_data: laboresData,
-    horarios_ids: this.selectedHorariosNew,
-    transportistas_data: transportistasData,
-    fecha_inicio_contrato: this.folioSeleccionado.fecha_inicio_contratoNew,
-    fecha_termino_contrato: this.folioSeleccionado.fecha_termino_contratoNew
-  };
-
-  this.apiService.put('folio_comercial/', payload).subscribe({
-    next: () => {
-      this.openModal('exitoModal');
-      this.cargarFolio();
-      this.closeModal('modificarFolio');
-      this.resetForm();
-    },
-    error: (error) => {
-      this.errorMessage = error.error?.message || 'Error al modificar el folio';
-      this.openModal('errorModal');
-    }
-  });
-}
-
-selectRow(row: any): void {
-  const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
-  if (index > -1) {
-    this.selectedRows.splice(index, 1);
-  } else {
-    this.selectedRows.push(row);
-  }
-  
-  if (this.selectedRows.length > 0) {
-    const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
-    console.log('🔍 Fila seleccionada:', lastSelectedRow);
-    
-    this.selectedClienteId = lastSelectedRow.cliente;
-    this.selectedFundosNew = lastSelectedRow.fundos ? lastSelectedRow.fundos.map((fundo: any) => fundo.id) : [];
-    this.selectedHorariosNew = lastSelectedRow.horarios ? lastSelectedRow.horarios.map((horario: any) => horario.id) : [];
-    
-    // ✅ NUEVO: Usar parseLaboresFromString para obtener los valores correctos
-    const laboresParsed = this.parseLaboresFromString(lastSelectedRow);
-    console.log('🔍 Labores parseadas para modificar:', laboresParsed);
-    
-    if (laboresParsed.length > 0) {
-      this.selectedLaboresNew = [];
-      this.laboresValores = {};
+    const transportistasData = this.selectedTransportistasNew.map(transportistaId => {
+      const vehiculos = this.selectedVehiculosNew
+        .filter(vehiculoId => {
+          const empresa = this.vehiculosCargados.find(e => 
+            e.vehiculos.some((v: { id: any; }) => v.id === vehiculoId)
+          );
+          return empresa?.vehiculos.find((v: { id: any; empresa_id: any; }) => v.id === vehiculoId)?.empresa_id === transportistaId;
+        })
+        .map(vehiculoId => ({ id: vehiculoId }));
       
-      // Buscar el ID real de cada labor comparando con laboresCargadas
-      laboresParsed.forEach((laborParsed: any) => {
-        const laborReal = this.laboresCargadas.find(l => l.nombre === laborParsed.nombre);
+      return { id: transportistaId, vehiculos };
+    });
+
+    const payload = {
+      id: this.folioSeleccionado.id_folio_seleccionadoNew,
+      holding: parseInt(this.holding),
+      cliente: this.selectedClienteId,
+      fundos_ids: this.selectedFundosNew,
+      labores_data: laboresData,
+      horarios_ids: this.selectedHorariosNew,
+      transportistas_data: transportistasData,
+      fecha_inicio_contrato: this.folioSeleccionado.fecha_inicio_contratoNew,
+      fecha_termino_contrato: this.folioSeleccionado.fecha_termino_contratoNew
+    };
+
+    this.apiService.put('folio_comercial/', payload).subscribe({
+      next: () => {
+        this.openModal('exitoModal');
+        this.cargarFolio();
+        this.closeModal('modificarFolio');
+        this.resetForm();
+      },
+      error: (error) => {
+        this.errorMessage = error.error?.message || 'Error al modificar el folio';
+        this.openModal('errorModal');
+      }
+    });
+  }
+
+  selectRow(row: any): void {
+    const index = this.selectedRows.findIndex(selectedRow => selectedRow.id === row.id);
+    if (index > -1) {
+      this.selectedRows.splice(index, 1);
+    } else {
+      this.selectedRows.push(row);
+    }
+    
+    if (this.selectedRows.length > 0) {
+      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+      console.log('🔍 Fila seleccionada:', lastSelectedRow);
+      
+      this.selectedClienteId = lastSelectedRow.cliente;
+      this.selectedFundosNew = lastSelectedRow.fundos ? lastSelectedRow.fundos.map((fundo: any) => fundo.id) : [];
+      this.selectedHorariosNew = lastSelectedRow.horarios ? lastSelectedRow.horarios.map((horario: any) => horario.id) : [];
+      
+      const laboresParsed = this.parseLaboresFromString(lastSelectedRow);
+      console.log('🔍 Labores parseadas para modificar:', laboresParsed);
+      
+      if (laboresParsed.length > 0) {
+        this.selectedLaboresNew = [];
+        this.laboresValores = {};
         
-        if (laborReal) {
-          this.selectedLaboresNew.push(laborReal.id);
-          this.laboresValores[laborReal.id] = {
-            valor_pago_trabajador: laborParsed.valor_pago_trabajador,
-            valor_facturacion: laborParsed.valor_facturacion
-          };
+        laboresParsed.forEach((laborParsed: any) => {
+          const laborReal = this.laboresCargadas.find(l => l.nombre === laborParsed.nombre);
           
-          console.log(`✅ Labor "${laborReal.nombre}" cargada:`, {
-            id: laborReal.id,
-            pago: laborParsed.valor_pago_trabajador,
-            fact: laborParsed.valor_facturacion
-          });
-        } else {
-          console.warn(`⚠️ No se encontró la labor "${laborParsed.nombre}" en laboresCargadas`);
-        }
+          if (laborReal) {
+            this.selectedLaboresNew.push(laborReal.id);
+            this.laboresValores[laborReal.id] = {
+              valor_pago_trabajador: laborParsed.valor_pago_trabajador,
+              valor_facturacion: laborParsed.valor_facturacion
+            };
+            
+            console.log(`✅ Labor "${laborReal.nombre}" cargada:`, {
+              id: laborReal.id,
+              pago: laborParsed.valor_pago_trabajador,
+              fact: laborParsed.valor_facturacion
+            });
+          } else {
+            console.warn(`⚠️ No se encontró la labor "${laborParsed.nombre}" en laboresCargadas`);
+          }
+        });
+      } else {
+        this.selectedLaboresNew = [];
+        this.laboresValores = {};
+      }
+      
+      if (lastSelectedRow.nombres_transportistas) {
+        const transportistasNames = lastSelectedRow.nombres_transportistas.split(',').map((name: string) => name.trim());
+        this.selectedTransportistasNew = this.transportistasCargados
+          .filter(t => transportistasNames.includes(t.nombre))
+          .map(t => t.id);
+      } else {
+        this.selectedTransportistasNew = [];
+      }
+
+      if (lastSelectedRow.nombres_vehiculos) {
+        const vehiculosModelos = lastSelectedRow.nombres_vehiculos.split(',').map((name: string) => name.trim());
+        this.selectedVehiculosNew = this.vehiculosCargados
+          .flatMap(empresa => empresa.vehiculos)
+          .filter((v: { modelo: any; }) => vehiculosModelos.some((modelo: string | any[]) => modelo.includes(v.modelo)))
+          .map((v: { id: any; }) => v.id);
+      } else {
+        this.selectedVehiculosNew = [];
+      }
+      
+      this.folioSeleccionado = {
+        id_folio_seleccionadoNew: lastSelectedRow.id,
+        id_cliente_seleccionadoNew: lastSelectedRow.cliente,
+        ids_fundos_seleccionadosNew: this.selectedFundosNew,
+        ids_labores_seleccionadasNew: this.selectedLaboresNew,
+        ids_transportistas_seleccionadosNew: this.selectedTransportistasNew,
+        ids_vehiculos_seleccionadosNew: this.selectedVehiculosNew,
+        ids_horarios_seleccionadosNew: this.selectedHorariosNew,
+        fecha_inicio_contratoNew: lastSelectedRow.fecha_inicio_contrato,
+        fecha_termino_contratoNew: lastSelectedRow.fecha_termino_contrato,
+        estado_folio_seleccionado: lastSelectedRow.estado
+      };
+      
+      console.log('✅ Estado final después de seleccionar:', {
+        laboresSeleccionadas: this.selectedLaboresNew,
+        valoresLabores: this.laboresValores
       });
     } else {
-      this.selectedLaboresNew = [];
-      this.laboresValores = {};
+      this.resetForm();
     }
-    
-    if (lastSelectedRow.nombres_transportistas) {
-      const transportistasNames = lastSelectedRow.nombres_transportistas.split(',').map((name: string) => name.trim());
-      this.selectedTransportistasNew = this.transportistasCargados
-        .filter(t => transportistasNames.includes(t.nombre))
-        .map(t => t.id);
-    } else {
-      this.selectedTransportistasNew = [];
-    }
+  }
 
-    if (lastSelectedRow.nombres_vehiculos) {
-      const vehiculosModelos = lastSelectedRow.nombres_vehiculos.split(',').map((name: string) => name.trim());
-      this.selectedVehiculosNew = this.vehiculosCargados
-        .flatMap(empresa => empresa.vehiculos)
-        .filter((v: { modelo: any; }) => vehiculosModelos.some((modelo: string | any[]) => modelo.includes(v.modelo)))
-        .map((v: { id: any; }) => v.id);
-    } else {
-      this.selectedVehiculosNew = [];
-    }
+  isLaborExpandedInTable(folioId: number, laborId: number): boolean {
+    const key = `folio_${folioId}_labor_${laborId}`;
+    return this.tableExpansionState[key] || false;
+  }
+
+  toggleLaborInTable(folioId: number, laborId: number, event: Event): void {
+    event.stopPropagation();
+    const key = `folio_${folioId}_labor_${laborId}`;
+    this.tableExpansionState[key] = !this.tableExpansionState[key];
+  }
+
+  formatCurrency(value: number): string {
+    if (!value && value !== 0) return '0';
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+
+  resetForm(): void {
+    this.selectedClienteId = null;
+    this.selectedFundosNew = [];
+    this.selectedLaboresNew = [];
+    this.selectedTransportistasNew = [];
+    this.selectedVehiculosNew = [];
+    this.selectedHorariosNew = [];
+    this.laboresValores = {};
     
     this.folioSeleccionado = {
-      id_folio_seleccionadoNew: lastSelectedRow.id,
-      id_cliente_seleccionadoNew: lastSelectedRow.cliente,
-      ids_fundos_seleccionadosNew: this.selectedFundosNew,
-      ids_labores_seleccionadasNew: this.selectedLaboresNew,
-      ids_transportistas_seleccionadosNew: this.selectedTransportistasNew,
-      ids_vehiculos_seleccionadosNew: this.selectedVehiculosNew,
-      ids_horarios_seleccionadosNew: this.selectedHorariosNew,
-      fecha_inicio_contratoNew: lastSelectedRow.fecha_inicio_contrato,
-      fecha_termino_contratoNew: lastSelectedRow.fecha_termino_contrato,
-      estado_folio_seleccionado: lastSelectedRow.estado
+      id_folio_seleccionadoNew: 0,
+      id_cliente_seleccionadoNew: 0,
+      ids_labores_seleccionadasNew: [],
+      ids_fundos_seleccionadosNew: [],
+      ids_transportistas_seleccionadosNew: [],
+      ids_vehiculos_seleccionadosNew: [],
+      ids_horarios_seleccionadosNew: [],
+      fecha_inicio_contratoNew: new Date(),
+      fecha_termino_contratoNew: new Date(),
+      estado_folio_seleccionado: true,
     };
-    
-    console.log('✅ Estado final después de seleccionar:', {
-      laboresSeleccionadas: this.selectedLaboresNew,
-      valoresLabores: this.laboresValores
-    });
-  } else {
-    this.resetForm();
+
+    this.dropdownOpen = false;
+    this.dropdownOpenCliente = false;
+    this.dropdownOpenLabores = false;
+    this.dropdownOpenTransportistas = false;
+    this.dropdownOpenVehiculos = false;
+    this.dropdownOpenHorarios = false;
+    this.todasSeleccionadas = false;
   }
-}
 
-/**
- * ✅ VERIFICAR SI UNA LABOR ESTÁ EXPANDIDA EN TABLA
- */
-isLaborExpandedInTable(folioId: number, laborId: number): boolean {
-  const key = `folio_${folioId}_labor_${laborId}`;
-  return this.tableExpansionState[key] || false;
-}
+  toggleEstadoFolio(folio: any, event: Event): void {
+    event.stopPropagation();
+    this.folioParaDesactivar = folio;
+    this.openModal('confirmacionDesactivarModal');
+  }
 
-/**
- * ✅ TOGGLE EXPANSIÓN DE LABOR EN TABLA
- */
-toggleLaborInTable(folioId: number, laborId: number, event: Event): void {
-  event.stopPropagation();
-  const key = `folio_${folioId}_labor_${laborId}`;
-  this.tableExpansionState[key] = !this.tableExpansionState[key];
-}
+  confirmarCambioEstado(): void {
+    if (!this.folioParaDesactivar) return;
 
-/**
- * ✅ FORMATEAR MONEDA
- */
-formatCurrency(value: number): string {
-  if (!value && value !== 0) return '0';
-  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-}
-
-
-resetForm(): void {
-  this.selectedClienteId = null;
-  this.selectedFundosNew = [];
-  this.selectedLaboresNew = [];
-  this.selectedTransportistasNew = [];
-  this.selectedVehiculosNew = [];
-  this.selectedHorariosNew = [];
-  this.laboresValores = {};
-  
-  this.folioSeleccionado = {
-    id_folio_seleccionadoNew: 0,
-    id_cliente_seleccionadoNew: 0,
-    ids_labores_seleccionadasNew: [],
-    ids_fundos_seleccionadosNew: [],
-    ids_transportistas_seleccionadosNew: [],
-    ids_vehiculos_seleccionadosNew: [],
-    ids_horarios_seleccionadosNew: [],
-    fecha_inicio_contratoNew: new Date(),
-    fecha_termino_contratoNew: new Date(),
-    estado_folio_seleccionado: true,
-  };
-
-  this.dropdownOpen = false;
-  this.dropdownOpenCliente = false;
-  this.dropdownOpenLabores = false;
-  this.dropdownOpenTransportistas = false;
-  this.dropdownOpenVehiculos = false;
-  this.dropdownOpenHorarios = false;
-  this.todasSeleccionadas = false;
-}
+    const nuevoEstado = !this.folioParaDesactivar.estado;
+    
+    this.apiService.patch('folio_comercial/', { 
+      id: this.folioParaDesactivar.id, 
+      estado: nuevoEstado 
+    }).subscribe({
+      next: () => {
+        this.closeModal('confirmacionDesactivarModal');
+        this.folioParaDesactivar = null;
+        this.cargarFolio();
+      },
+      error: (error) => {
+        this.errorMessage = error.error?.message || 'Error al cambiar estado del folio';
+        this.closeModal('confirmacionDesactivarModal');
+        this.openModal('errorModal');
+      }
+    });
+  }
 
   eliminarFolioSeleccionados(): void {
     if (this.deletedRow.length > 0) {
@@ -447,11 +460,14 @@ resetForm(): void {
           this.closeModal('confirmacionModal');
           this.cargarFolio();
           this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
+          this.deletedRow = [];
         },
         error: (error) => {
+          this.errorMessage = error.error?.message || 'Error al eliminar folios';
+          if (error.error?.folios_con_contratos) {
+            this.errorMessage += '. Folios con contratos: ' + error.error.folios_con_contratos.join(', ');
+          }
           this.openModal('errorModal');
-          console.error('Error al eliminar folios:', error);
         }
       });
     }
@@ -571,25 +587,23 @@ resetForm(): void {
   }
 
   cargarHorarios(): void {
-  this.apiService.get(`horarios/?holding=${this.holding}`).subscribe({
-    next: (response) => {
-      this.horariosCargados = response.map((horario: any) => ({
-        id: horario.id,
-        nombre: horario.nombre,
-        jornada: horario.jornada
-      }));
-    },
-    error: (error) => {
-      console.error('Error al recibir los horarios:', error);
-    }
-  });
-}
+    this.apiService.get(`horarios/?holding=${this.holding}`).subscribe({
+      next: (response) => {
+        this.horariosCargados = response.map((horario: any) => ({
+          id: horario.id,
+          nombre: horario.nombre,
+          jornada: horario.jornada
+        }));
+      },
+      error: (error) => {
+        console.error('Error al recibir los horarios:', error);
+      }
+    });
+  }
 
   isSelected(row: any): boolean {
     return this.selectedRows.some(r => r.id === row.id);
   }
-
-
 
   toggleSelectionCliente(clienteId: number): void {
     if (this.selectedClienteId === clienteId) {
@@ -643,9 +657,6 @@ resetForm(): void {
     this.selectedRows = [];
   }
 
-  /**
-   * ✅ OBTENER ICONO PARA EXPANSIÓN
-   */
   getExpansionIcon(isExpanded: boolean): string {
     return isExpanded ? '▼' : '▶';
   }
@@ -664,6 +675,9 @@ resetForm(): void {
     this.modals[key] = false;
     if (key === 'exitoModal') {
       this.cargarFolio();
+    }
+    if (key === 'confirmacionDesactivarModal') {
+      this.folioParaDesactivar = null;
     }
   }
 }

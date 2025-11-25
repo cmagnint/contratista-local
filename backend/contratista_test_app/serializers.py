@@ -1132,7 +1132,7 @@ class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
             
             'carnet_front_image', 'carnet_back_image', 'firma',
             
-            'estado', 'sueldo_base',
+            'estado', 'sueldo_base','area', 'cargo'  
         ]
         
         extra_kwargs = {

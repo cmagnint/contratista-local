@@ -55,6 +55,20 @@ class TokenCheckScreenState extends State<TokenCheckScreen> {
   }
 
   void _loadUserDataAndNavigateHome(Map<String, dynamic> data) async {
+    // ✅ PROCESAR SOCIEDADES COMO LISTA
+    List<Map<String, dynamic>> sociedadesList = [];
+    if (data['sociedades'] != null) {
+      sociedadesList = List<Map<String, dynamic>>.from(
+        data['sociedades'].map(
+          (soc) => {
+            'id': soc['id'],
+            'nombre': soc['nombre'],
+            'rol_sociedad': soc['rol_sociedad'] ?? '',
+          },
+        ),
+      );
+    }
+
     // Guardar en storage
     await storage.write(
       key: 'user_id',
@@ -65,9 +79,9 @@ class TokenCheckScreenState extends State<TokenCheckScreen> {
       value: data['holding_id']?.toString() ?? '',
     );
     await storage.write(
-      key: 'sociedad',
-      value: data['sociedad_id']?.toString() ?? '',
-    );
+      key: 'sociedades',
+      value: jsonEncode(sociedadesList),
+    ); // ✅ GUARDAR JSON
     await storage.write(
       key: 'supervisor_id',
       value: data['supervisor_id']?.toString() ?? '',
@@ -82,7 +96,7 @@ class TokenCheckScreenState extends State<TokenCheckScreen> {
     // Cargar en memoria
     userInfo.idUsuario = int.tryParse(data['user_id']?.toString() ?? '0') ?? 0;
     userInfo.holding = data['holding_id']?.toString() ?? '';
-    userInfo.sociedad = data['sociedad_id']?.toString() ?? '';
+    userInfo.sociedades = sociedadesList; // ✅ CARGAR LISTA
     userInfo.idSupervisor = int.tryParse(
       data['supervisor_id']?.toString() ?? '0',
     );

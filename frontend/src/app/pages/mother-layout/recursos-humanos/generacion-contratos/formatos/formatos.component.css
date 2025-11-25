@@ -1075,3 +1075,196 @@ h2 {
   outline: 2px solid #28a745;
   outline-offset: 1px;
 }
+
+/* ⭐ NUEVOS ESTILOS PARA FIRMA EMPLEADOR */
+
+/* Sección firma empleador en panel */
+.firma-empleador-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.firma-empleador-section h4 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.firma-no-disponible {
+  text-align: center;
+  padding: 10px;
+}
+
+.firma-no-disponible p {
+  color: #f59f00;
+  font-weight: 500;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.upload-firma-btn {
+  background-color: #4a80f5;
+  color: white;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.upload-firma-btn:hover {
+  background-color: #3a6ad4;
+}
+
+.firma-disponible {
+  text-align: center;
+}
+
+.firma-disponible p {
+  color: #28a745;
+  font-weight: 500;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.firma-preview {
+  max-width: 100%;
+  max-height: 80px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px;
+  background-color: white;
+  margin-bottom: 10px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.firma-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cambiar-firma-btn {
+  background-color: #f59f00;
+  color: white;
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.cambiar-firma-btn:hover {
+  background-color: #e09200;
+}
+
+.eliminar-firma-btn {
+  background-color: #dc3545;
+  color: white;
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.eliminar-firma-btn:hover {
+  background-color: #c82333;
+}
+
+
+/* ⭐ Handles de redimensionamiento */
+.resize-handle {
+  position: absolute;
+  background-color: #4a80f5;
+  border: 1px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
+}
+
+.resize-handle:hover {
+  background-color: #3a6ad4;
+  transform: scale(1.3);
+}
+
+.resize-handle-top-left { cursor: nwse-resize; }
+.resize-handle-top-right { cursor: nesw-resize; }
+.resize-handle-bottom-left { cursor: nesw-resize; }
+.resize-handle-bottom-right { cursor: nwse-resize; }
+.resize-handle-top { cursor: ns-resize; }
+.resize-handle-bottom { cursor: ns-resize; }
+.resize-handle-left { cursor: ew-resize; }
+.resize-handle-right { cursor: ew-resize; }
+
+/* Botón deshabilitado mejorado */
+.place-btn:disabled {
+  background-color: #cccccc !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+  color: #666 !important;
+}
+
+.place-btn:disabled:hover {
+  background-color: #cccccc !important;
+}
+
+/* Estilos para el modal de firma */
+.modal-overlay .modal-content .form-group input[type="file"] {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-overlay .modal-content .form-group input[type="file"]::-webkit-file-upload-button {
+  background-color: #4a80f5;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.modal-overlay .modal-content .form-group input[type="file"]::-webkit-file-upload-button:hover {
+  background-color: #3a6ad4;
+}
+
+/* ⭐ Estilos para firma_empleador en PDF */
+.pdf-variable.firma-empleador-imagen {
+  background-color: rgba(40, 167, 69, 0.08) !important;
+  border: 2px dashed #28a745 !important;
+  padding: 3px !important;  /* ⭐ Mantener algo de padding */
+  overflow: visible !important;  /* ⭐ Cambiar de hidden a visible */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pdf-variable.firma-empleador-imagen:hover {
+  background-color: rgba(40, 167, 69, 0.15) !important;
+  border-color: #218838 !important;
+}
+
+.pdf-variable.firma-empleador-imagen img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+}

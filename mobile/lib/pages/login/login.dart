@@ -491,11 +491,25 @@ class LoginScreenState extends State<LoginScreen>
           responseData['refresh_token'],
         );
 
+        // ✅ PROCESAR SOCIEDADES COMO LISTA DE OBJETOS
+        List<Map<String, dynamic>> sociedadesList = [];
+        if (responseData['sociedades'] != null) {
+          sociedadesList = List<Map<String, dynamic>>.from(
+            responseData['sociedades'].map(
+              (soc) => {
+                'id': soc['id'],
+                'nombre': soc['nombre'],
+                'rol_sociedad': soc['rol_sociedad'] ?? '',
+              },
+            ),
+          );
+        }
+
         // Cargar en memoria
         userInfo.idUsuario =
             int.tryParse(responseData['user_id']?.toString() ?? '0') ?? 0;
         userInfo.holding = responseData['holding_id']?.toString() ?? '';
-        userInfo.sociedad = responseData['sociedad_id']?.toString() ?? '';
+        userInfo.sociedades = sociedadesList; // ✅ GUARDAR LISTA
         userInfo.idSupervisor = int.tryParse(
           responseData['supervisor_id']?.toString() ?? '0',
         );
@@ -506,7 +520,7 @@ class LoginScreenState extends State<LoginScreen>
         userInfo.rut = responseData['rut']?.toString() ?? '';
         userInfo.isAdmin = responseData['is_admin'] ?? false;
 
-        // Después del login exitoso:
+        // Guardar en storage
         await storage.write(
           key: 'user_id',
           value: responseData['user_id'].toString(),
@@ -516,8 +530,8 @@ class LoginScreenState extends State<LoginScreen>
           value: responseData['holding_id']?.toString() ?? '',
         );
         await storage.write(
-          key: 'sociedad',
-          value: responseData['sociedad_id']?.toString() ?? '',
+          key: 'sociedades',
+          value: jsonEncode(sociedadesList),
         );
         await storage.write(
           key: 'supervisor_id',
@@ -537,7 +551,7 @@ class LoginScreenState extends State<LoginScreen>
           value: responseData['is_admin']?.toString() ?? 'false',
         );
 
-        logger.i('Login exitoso');
+        logger.i('Login exitoso - Sociedades: ${sociedadesList.length}');
 
         if (context.mounted) {
           navigateToScreen(context, '/Mother_Layout');
