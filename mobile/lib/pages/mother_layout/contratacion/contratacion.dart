@@ -160,34 +160,29 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   void _openSignaturePad() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return OrientationBuilder(
           builder: (context, orientation) {
             final isLandscape = orientation == Orientation.landscape;
             return Dialog(
-              insetPadding: EdgeInsets.symmetric(
-                horizontal: isLandscape ? 20 : 40,
-                vertical: isLandscape ? 24 : 24,
-              ),
+              insetPadding: const EdgeInsets.all(8), // Reducido
               child: Container(
-                width: isLandscape
-                    ? MediaQuery.of(context).size.width * 0.9
-                    : MediaQuery.of(context).size.width * 0.8,
-                height: isLandscape
-                    ? MediaQuery.of(context).size.height * 0.8
-                    : MediaQuery.of(context).size.height * 0.6,
-                padding: const EdgeInsets.all(16.0),
+                width: MediaQuery.of(context).size.width * 0.95,
+                height:
+                    MediaQuery.of(context).size.height *
+                    (isLandscape ? 0.9 : 0.7),
+                padding: const EdgeInsets.all(8.0), // Reducido
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Firma del trabajador',
                       style: TextStyle(
-                        fontSize: isLandscape ? 22 : 18,
+                        fontSize: isLandscape ? 18 : 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: isLandscape ? 16 : 24),
+                    const SizedBox(height: 8),
                     Expanded(
                       child: SignatureWidget(
                         onSignatureCapture: (Uint8List signature) {
@@ -195,8 +190,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                             _signatureImage = signature;
                           });
                           Navigator.of(context).pop();
-
-                          // ✅ ENFOCAR EL PRIMER CAMPO VACÍO DESPUÉS DE FIRMAR
                           _focusFirstEmptyField();
                         },
                       ),

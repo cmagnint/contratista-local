@@ -26,75 +26,51 @@ class SignatureWidgetState extends State<SignatureWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isLandscape = constraints.maxWidth > constraints.maxHeight;
-        final signatureWidth = isLandscape
-            ? constraints.maxWidth * 0.8
-            : constraints.maxWidth;
-        final signatureHeight = isLandscape
-            ? constraints.maxHeight * 0.7
-            : constraints.maxHeight * 0.6;
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              width: signatureWidth,
-              height: signatureHeight,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[400]!, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Stack(
-                children: [
-                  Signature(
-                    controller: _controller,
-                    backgroundColor: Colors.white,
-                  ),
-                  if (_controller.isEmpty)
-                    Positioned(
-                      bottom: 12,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Text(
-                          'Firme aquí',
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 16,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[400]!, width: 1),
+              borderRadius: BorderRadius.circular(4),
             ),
-            SizedBox(height: isLandscape ? 10 : 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.clear, size: 20),
-                  label: const Text('Limpiar'),
-                  onPressed: () => setState(() => _controller.clear()),
-                ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.check, size: 20),
-                  label: const Text('Guardar'),
-                  onPressed: () async {
-                    if (_controller.isNotEmpty) {
-                      final Uint8List? data = await _controller.toPngBytes();
-                      if (data != null) widget.onSignatureCapture(data);
-                    }
-                  },
-                ),
-              ],
+            child: Signature(
+              controller: _controller,
+              backgroundColor: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceEvenly,
+          children: <Widget>[
+            ElevatedButton.icon(
+              icon: const Icon(Icons.clear, size: 18),
+              label: const Text('Limpiar'),
+              onPressed: () => setState(() => _controller.clear()),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.close, size: 18),
+              label: const Text('Cancelar'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Guardar'),
+              onPressed: () async {
+                if (_controller.isNotEmpty) {
+                  final Uint8List? data = await _controller.toPngBytes();
+                  if (data != null) widget.onSignatureCapture(data);
+                }
+              },
             ),
           ],
-        );
-      },
+        ),
+      ],
     );
   }
 
