@@ -21,6 +21,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:path/path.dart' as p;
+import 'package:contratista/services/finterprint_service.dart';
 
 class ContratacionScreen extends StatefulWidget {
   final Map<String, String?> initialData;
@@ -79,6 +80,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   Uint8List? _signatureImage;
   String? _associatedQR;
   bool _isDisposing = false;
+  final FingerPrintService _fingerprintService = FingerPrintService();
+  String? huellaDigital;
 
   @override
   void initState() {
@@ -109,6 +112,109 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
     _disposeCameraAsync();
     super.dispose();
+  }
+
+  //HUELLA DIGITAL
+  Future<void> capturarHuellaDigital() async {
+    try {
+      // Conectar dispositivo
+      bool conectado = await _fingerprintService.conectarDispositivo();
+
+      if (!conectado) {
+        throw Exception('No se pudo conectar al lector de huellas');
+      }
+
+      // Capturar huella
+      final huellaData = await _fingerprintService.capturarHuella();
+
+      if (huellaData != null) {
+        setState(() {
+          huellaDigital = base64Encode(huellaData);
+        });
+      }
+
+      await _fingerprintService.desconectar();
+    } catch (e) {
+      print('Error capturando huella: $e');
+    }
+  }
+
+  Future<void> _debugCaptureFingerprint() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      loggerGlobal.d('=== DEBUG: Iniciando captura de huella ===');
+
+      bool conectado = await _fingerprintService.conectarDispositivo();
+      loggerGlobal.d('Dispositivo conectado: $conectado');
+
+      if (!conectado) {
+        throw Exception('No se pudo conectar al lector de huellas');
+      }
+
+      final huellaData = await _fingerprintService.capturarHuella();
+      loggerGlobal.d(
+        'Datos de huella recibidos: ${huellaData?.length ?? 0} bytes',
+      );
+
+      if (huellaData != null) {
+        setState(() {
+          huellaDigital = base64Encode(huellaData);
+        });
+
+        if (mounted) {
+          Navigator.pop(context);
+          // Mostrar huella capturada
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Huella Capturada'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.memory(
+                    huellaData,
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Tamaño: ${huellaData.length} bytes'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        throw Exception('No se capturaron datos de huella');
+      }
+
+      await _fingerprintService.desconectar();
+    } catch (e, stackTrace) {
+      loggerGlobal.e('Error en debug de huella: $e');
+      loggerGlobal.e('StackTrace: $stackTrace');
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _disposeCameraAsync() async {
@@ -166,13 +272,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           builder: (context, orientation) {
             final isLandscape = orientation == Orientation.landscape;
             return Dialog(
-              insetPadding: const EdgeInsets.all(8), // Reducido
+              insetPadding: const EdgeInsets.all(8),
               child: Container(
                 width: MediaQuery.of(context).size.width * 0.95,
                 height:
                     MediaQuery.of(context).size.height *
                     (isLandscape ? 0.9 : 0.7),
-                padding: const EdgeInsets.all(8.0), // Reducido
+                padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
                     Text(
@@ -185,12 +291,21 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     const SizedBox(height: 8),
                     Expanded(
                       child: SignatureWidget(
-                        onSignatureCapture: (Uint8List signature) {
+                        onSignatureCapture: (Uint8List signature) async {
+                          // ← async
                           setState(() {
                             _signatureImage = signature;
                           });
                           Navigator.of(context).pop();
                           _focusFirstEmptyField();
+
+                          // ✅ AGREGAR CAPTURA DE HUELLA DESPUÉS DE FIRMA
+                          await Future.delayed(
+                            const Duration(milliseconds: 500),
+                          );
+                          if (mounted) {
+                            await capturarHuellaDigital();
+                          }
                         },
                       ),
                     ),
@@ -1595,6 +1710,15 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         child: const Text('Asociar QR'),
                       ),
                     ],
+                  ),
+                  const SizedBox(width: 20),
+                  // ✅ BOTÓN DEBUG HUELLA
+                  ElevatedButton(
+                    onPressed: _debugCaptureFingerprint,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
+                    child: const Text('Debug Huella'),
                   ),
                   if (_tipoDocumento == 'Cédula Chilena')
                     Padding(

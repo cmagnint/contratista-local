@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // ✅ Agregar repositorio JCenter (legacy)
+        maven { url = uri("https://jcenter.bintray.com") }
     }
 }
 
@@ -15,6 +17,7 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
