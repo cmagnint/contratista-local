@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
 import { MatIconModule } from '@angular/material/icon';
+import { JwtService } from '../../../../../services/jwt.service';
 
 interface Tramo {
   id?: number;
@@ -59,13 +60,33 @@ export class TramosComponent implements OnInit {
 
   constructor(
     private contratistaApiService: ContratistaApiService,
+    private jwtService : JwtService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      this.holding = localStorage.getItem('holding_id') || '';
+      this.holding = this.getHoldingIdFromJWT(); 
       this.loadTramos();
+    }
+  }
+
+    private getHoldingIdFromJWT(): string {
+    try {
+      const userInfo = this.jwtService.getUserInfo();
+      const holdingId = userInfo?.holding_id;
+      
+      console.log('🔍 Holding ID del JWT:', holdingId);
+      
+      if (holdingId && holdingId !== null ) {
+        return holdingId.toString();
+      } else {
+        console.warn('⚠️ Holding ID no encontrado en JWT o es null');
+        return '';
+      }
+    } catch (error) {
+      console.error('❌ Error extrayendo holding_id del JWT:', error);
+      return '';
     }
   }
 
@@ -111,7 +132,8 @@ export class TramosComponent implements OnInit {
       ...this.selectedTramo
     };
 
-    this.contratistaApiService.put('api_tramos/', data).subscribe({
+    this.contratistaApiService.put(`api_tramos/?holding=${this.holding}`, data).subscribe({
+
       next: (response) => {
         this.closeModal('modificarTramo');
         this.loadTramos();

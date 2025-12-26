@@ -5799,7 +5799,27 @@ class TramosAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
+    def put(self, request, format=None):
+        holding_id = request.query_params.get('holding')
+        tramo_id = request.data.get('id')
+        print('Holding: ',holding_id)
+        print('Tramo: ',tramo_id)
+        
+        if not tramo_id:
+            return Response({'error': 'Se requiere el id del tramo'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            tramo = Tramos.objects.get(id=tramo_id, holding_id=holding_id)
+            serializer = TramosSerializer(tramo, data=request.data, partial=False)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Tramos.DoesNotExist:
+            print('Tramo no encontrado')
+            return Response({'error': 'Tramo no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
     #Metodo DELETE
     def delete(self, request, format=None): 
         tramos_ids = request.data.get('ids', [])
