@@ -1,11 +1,7 @@
-<!--empresas-transporte.component.html - VERSIÓN MODERNIZADA-->
+<!-- empresas-transporte.component.html - COMPLETO -->
 
-<!-- ============================================ -->
-<!-- 🎯 CONTENEDOR PRINCIPAL Y BOTONES DE ACCIÓN -->
-<!-- ============================================ -->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
   
-  <!-- Botones de acción principales -->
   <button 
     mat-raised-button 
     color="primary" 
@@ -32,20 +28,15 @@
     ELIMINAR EMPRESA(S)
   </button>
 
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL CREAR EMPRESA -->
-  <!-- ============================================ -->
+  <!-- MODAL CREAR EMPRESA -->
   <div 
     class="modal" 
     *ngIf="modals['crearEmpresa']" 
     (click)="closeModal('crearEmpresa')">
     
     <div class="modal-content" (click)="$event.stopPropagation()">
-      
-      <!-- Título modernizado -->
       <h2>CREAR EMPRESA</h2>
       
-      <!-- Sección de información de la empresa -->
       <div class="modal-section">
         <h3>Información de la Empresa</h3>
         
@@ -85,9 +76,29 @@
             [(ngModel)]="direccionEmpresa"
             placeholder="Ingrese la dirección de la empresa">
         </div>
+
+        <div class="input-container">
+          <label for="comunaEmpresa">Comuna:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="searchComuna"
+            [(ngModel)]="searchComuna"
+            (input)="filtrarComunas(searchComuna, false)"
+            (focus)="dropdownComunaOpen = true"
+            placeholder="Buscar comuna...">
+          
+          <div class="dropdown-comunas" *ngIf="dropdownComunaOpen && comunasFiltradas.length > 0">
+            <div 
+              *ngFor="let comuna of comunasFiltradas"
+              class="comuna-item"
+              (click)="seleccionarComuna(comuna, false)">
+              {{ comuna.nombre }} - {{ comuna.region }}
+            </div>
+          </div>
+        </div>
       </div>
       
-      <!-- Botón de acción -->
       <div class="button-container">
         <button 
           class="button-bottom" 
@@ -98,20 +109,15 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL MODIFICAR EMPRESA -->
-  <!-- ============================================ -->
+  <!-- MODAL MODIFICAR EMPRESA -->
   <div 
     class="modal" 
     *ngIf="modals['modificarEmpresa']" 
     (click)="closeModal('modificarEmpresa')">
     
     <div class="modal-content" (click)="$event.stopPropagation()">
-      
-      <!-- Título modernizado -->
       <h2>MODIFICAR EMPRESA</h2>
       
-      <!-- Sección de información de la empresa -->
       <div class="modal-section">
         <h3>Información de la Empresa</h3>
         
@@ -151,9 +157,29 @@
             [(ngModel)]="direccionEmpresaNew"
             placeholder="Modifique la dirección de la empresa">
         </div>
+
+        <div class="input-container">
+          <label for="comunaEmpresaNew">Modificar Comuna:</label>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="searchComunaNew"
+            [(ngModel)]="searchComunaNew"
+            (input)="filtrarComunas(searchComunaNew, true)"
+            (focus)="dropdownComunaNewOpen = true"
+            placeholder="Buscar comuna...">
+          
+          <div class="dropdown-comunas" *ngIf="dropdownComunaNewOpen && comunasFiltradas.length > 0">
+            <div 
+              *ngFor="let comuna of comunasFiltradas"
+              class="comuna-item"
+              (click)="seleccionarComuna(comuna, true)">
+              {{ comuna.nombre }} - {{ comuna.region }}
+            </div>
+          </div>
+        </div>
       </div>
       
-      <!-- Botón de acción -->
       <div class="button-container">
         <button 
           class="button-bottom" 
@@ -164,12 +190,14 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 TABLA DE EMPRESAS -->
-  <!-- ============================================ -->
+  <!-- TABLA DE EMPRESAS -->
   <table mat-table [dataSource]="empresasCargadas" class="mat-elevation-z8" (click)="$event.stopPropagation()">
     
-    <!-- Columna RUT -->
+    <ng-container matColumnDef="nombre">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">{{ empresa.nombre }}</td>
+    </ng-container>
+    
     <ng-container matColumnDef="rut">
       <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
       <td mat-cell *matCellDef="let empresa" class="mat-cell">
@@ -177,13 +205,6 @@
       </td>
     </ng-container>
     
-    <!-- Columna Nombre -->
-    <ng-container matColumnDef="nombre">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
-      <td mat-cell *matCellDef="let empresa" class="mat-cell">{{ empresa.nombre }}</td>
-    </ng-container>
-    
-    <!-- Columna Dirección -->
     <ng-container matColumnDef="direccion">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Dirección</th>
       <td mat-cell *matCellDef="let empresa" class="mat-cell">
@@ -192,8 +213,12 @@
         </span>
       </td>
     </ng-container>
+
+    <ng-container matColumnDef="comuna">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Comuna</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">{{ empresa.comuna }}</td>
+    </ng-container>
     
-    <!-- Definición de filas -->
     <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
     <tr 
       mat-row 
@@ -204,19 +229,14 @@
   </table>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ÉXITO -->
-<!-- ============================================ -->
+<!-- MODAL DE ÉXITO -->
 <div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
   <div class="modal-content-message success" (click)="$event.stopPropagation()">
-    
     <div class="icon-container success">
       <div class="icon-circle success">✓</div>
     </div>
-    
     <h2 class="modal-title success">¡Éxito!</h2>
     <p class="modal-message">La operación se ha completado exitosamente.</p>
-    
     <div class="button-container">
       <button class="button-bottom success" (click)="closeModal('exitoModal')">
         Cerrar
@@ -225,19 +245,14 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ERROR -->
-<!-- ============================================ -->
+<!-- MODAL DE ERROR -->
 <div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
   <div class="modal-content-message error" (click)="$event.stopPropagation()">
-    
     <div class="icon-container error">
       <div class="icon-circle error">✕</div>
     </div>
-    
     <h2 class="modal-title error">Error</h2>
     <p class="modal-message">{{ errorMessage }}</p>
-    
     <div class="button-container">
       <button class="button-bottom error" (click)="closeModal('errorModal')">
         Cerrar
@@ -246,21 +261,16 @@
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE CONFIRMACIÓN -->
-<!-- ============================================ -->
+<!-- MODAL DE CONFIRMACIÓN -->
 <div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
   <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
-    
     <div class="icon-container confirmation">
       <div class="icon-circle confirmation">?</div>
     </div>
-    
     <h2 class="modal-title confirmation">Confirmar eliminación</h2>
     <p class="modal-message">
       ¿Está seguro que desea eliminar la(s) empresa(s) seleccionada(s)?
     </p>
-    
     <div class="button-container confirmation">
       <button class="button-bottom confirm-yes" (click)="eliminarEmpresasSeleccionados()">
         Sí

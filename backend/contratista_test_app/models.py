@@ -251,6 +251,7 @@ class EmpresasTransporte(models.Model):
     nombre = models.CharField(max_length=255)
     rut = models.CharField(max_length=255)
     direccion = models.CharField(max_length=255)
+    comuna = models.CharField(max_length=255, null=True)
 
     class Meta:
         db_table = 'empresas_transporte'
