@@ -40,63 +40,108 @@
       <div class="modal-section">
         <h3>Información de la Empresa</h3>
         
-        <div class="input-container">
-          <label for="nombreEmpresa">Nombre Empresa:</label>
-          <input 
-            type="text" 
-            class="input-usuario" 
-            id="nombreEmpresa" 
-            name="nombreEmpresa" 
-            [(ngModel)]="nombreEmpresa" 
-            (ngModelChange)="nombreEmpresa = $event.toUpperCase()"
-            placeholder="Ingrese el nombre de la empresa">
-        </div>
+        <h4 class="h4-subtitle">Nombre Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="nombreEmpresa" 
+          name="nombreEmpresa" 
+          [(ngModel)]="nombreEmpresa" 
+          (ngModelChange)="nombreEmpresa = $event.toUpperCase()"
+          placeholder="Ingrese el nombre de la empresa">
         
-        <div class="input-container">
-          <label for="rutEmpresa">RUT Empresa:</label>
-          <input 
-            type="text" 
-            class="input-usuario input-rut" 
-            id="rutEmpresa" 
-            name="rutEmpresa" 
-            [(ngModel)]="rutEmpresa" 
-            (ngModelChange)="rutEmpresa = $event"
-            (input)="formatRUT($event)"
-            placeholder="Ej: 12.345.678-9"
-            maxlength="12">
-        </div>
+        <h4 class="h4-subtitle">RUT Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario input-rut" 
+          id="rutEmpresa" 
+          name="rutEmpresa" 
+          [(ngModel)]="rutEmpresa" 
+          (ngModelChange)="rutEmpresa = $event"
+          (input)="formatRUT($event)"
+          placeholder="Ej: 12.345.678-9"
+          maxlength="12">
         
-        <div class="input-container">
-          <label for="direccionEmpresa">Dirección Empresa:</label>
-          <input 
-            type="text" 
-            class="input-usuario" 
-            id="direccionEmpresa" 
-            name="direccionEmpresa" 
-            [(ngModel)]="direccionEmpresa"
-            placeholder="Ingrese la dirección de la empresa">
-        </div>
+        <h4 class="h4-subtitle">Dirección Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="direccionEmpresa" 
+          name="direccionEmpresa" 
+          [(ngModel)]="direccionEmpresa"
+          placeholder="Ingrese la dirección de la empresa">
 
-        <div class="input-container">
-          <label for="comunaEmpresa">Comuna:</label>
-          <input 
-            type="text" 
-            class="input-usuario" 
-            id="searchComuna"
-            [(ngModel)]="searchComuna"
-            (input)="filtrarComunas(searchComuna, false)"
-            (focus)="dropdownComunaOpen = true"
-            placeholder="Buscar comuna...">
-          
-          <div class="dropdown-comunas" *ngIf="dropdownComunaOpen && comunasFiltradas.length > 0">
-            <div 
-              *ngFor="let comuna of comunasFiltradas"
-              class="comuna-item"
-              (click)="seleccionarComuna(comuna, false)">
-              {{ comuna.nombre }} - {{ comuna.region }}
-            </div>
+        <h4 class="h4-subtitle">Comuna:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="searchComuna"
+          [(ngModel)]="searchComuna"
+          (input)="filtrarComunas(searchComuna, false)"
+          (focus)="dropdownComunaOpen = true"
+          placeholder="Buscar comuna...">
+        
+        <div class="dropdown-comunas" *ngIf="dropdownComunaOpen && comunasFiltradas.length > 0">
+          <div 
+            *ngFor="let comuna of comunasFiltradas"
+            class="comuna-item"
+            (click)="seleccionarComuna(comuna, false)">
+            {{ comuna.nombre }} - {{ comuna.region }}
           </div>
         </div>
+
+        <h4 class="h4-subtitle">Método de Pago:</h4>
+        <div class="input-container">
+          <select 
+            class="input-usuario" 
+            [(ngModel)]="metodoPagoEmpresa"
+            (change)="onMetodoPagoChange(false)">
+            <option value="">Seleccione método de pago</option>
+            <option *ngFor="let metodo of metodosPago" [value]="metodo">{{ metodo }}</option>
+          </select>
+        </div>
+
+        <!-- Campos condicionales para TRANSFERENCIA -->
+        <ng-container *ngIf="metodoPagoEmpresa === 'TRANSFERENCIA'">
+          <div class="dropdown">
+            <button class="dropdown-button" (click)="toggleDropdown('bancos'); $event.stopPropagation()">
+              {{ getNombreBancoSeleccionado() }}
+            </button>
+            <div class="dropdown-content" [class.show]="dropdownStates.bancos"> 
+              <ng-container *ngFor="let banco of bancosCargados">
+                <label [class.disabled]="selectedBancoId !== null && selectedBancoId !== banco.id">
+                  <input 
+                    type="checkbox"
+                    [checked]="selectedBancoId === banco.id"
+                    (change)="toggleSelectionBanco(banco.id)"
+                    [disabled]="selectedBancoId !== null && selectedBancoId !== banco.id">
+                  {{ banco.nombre }}
+                </label>
+              </ng-container>
+            </div>
+          </div>
+
+          <h4 class="h4-subtitle">Tipo de Cuenta:</h4>
+          <div class="input-container">
+            <select 
+              class="input-usuario" 
+              id="tipoCuentaEmpresa" 
+              name="tipoCuentaEmpresa" 
+              [(ngModel)]="tipoCuentaEmpresa">
+              <option value="">Seleccione tipo de cuenta</option>
+              <option *ngFor="let tipo of tiposCuenta" [value]="tipo">{{ tipo }}</option>
+            </select>
+          </div>
+
+          <h4 class="h4-subtitle">Número de Cuenta:</h4>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="numeroCuentaEmpresa" 
+            name="numeroCuentaEmpresa" 
+            [(ngModel)]="numeroCuentaEmpresa"
+            placeholder="Ingrese el número de cuenta">
+        </ng-container>
       </div>
       
       <div class="button-container">
@@ -121,63 +166,108 @@
       <div class="modal-section">
         <h3>Información de la Empresa</h3>
         
-        <div class="input-container">
-          <label for="nombreEmpresaNew">Modificar Nombre Empresa:</label>
-          <input 
-            type="text" 
-            class="input-usuario" 
-            id="nombreEmpresaNew" 
-            name="nombreEmpresaNew" 
-            [(ngModel)]="nombreEmpresaNew" 
-            (ngModelChange)="nombreEmpresaNew = $event.toUpperCase()"
-            placeholder="Modifique el nombre de la empresa">
-        </div>
+        <h4 class="h4-subtitle">Modificar Nombre Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="nombreEmpresaNew" 
+          name="nombreEmpresaNew" 
+          [(ngModel)]="nombreEmpresaNew" 
+          (ngModelChange)="nombreEmpresaNew = $event.toUpperCase()"
+          placeholder="Modifique el nombre de la empresa">
         
-        <div class="input-container">
-          <label for="rutEmpresaNew">Modificar RUT Empresa:</label>
-          <input 
-            type="text" 
-            class="input-usuario input-rut" 
-            id="rutEmpresaNew" 
-            name="rutEmpresaNew" 
-            [(ngModel)]="rutEmpresaNew" 
-            (ngModelChange)="rutEmpresa = $event"
-            (input)="formatRUT($event)"
-            placeholder="Ej: 12.345.678-9"
-            maxlength="12">
-        </div>
+        <h4 class="h4-subtitle">Modificar RUT Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario input-rut" 
+          id="rutEmpresaNew" 
+          name="rutEmpresaNew" 
+          [(ngModel)]="rutEmpresaNew" 
+          (ngModelChange)="rutEmpresa = $event"
+          (input)="formatRUT($event)"
+          placeholder="Ej: 12.345.678-9"
+          maxlength="12">
         
-        <div class="input-container">
-          <label for="direccionEmpresaNew">Modificar Dirección Empresa:</label>
-          <input 
-            type="text" 
-            class="input-usuario" 
-            id="direccionEmpresaNew" 
-            name="direccionEmpresaNew" 
-            [(ngModel)]="direccionEmpresaNew"
-            placeholder="Modifique la dirección de la empresa">
-        </div>
+        <h4 class="h4-subtitle">Modificar Dirección Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="direccionEmpresaNew" 
+          name="direccionEmpresaNew" 
+          [(ngModel)]="direccionEmpresaNew"
+          placeholder="Modifique la dirección de la empresa">
 
-        <div class="input-container">
-          <label for="comunaEmpresaNew">Modificar Comuna:</label>
-          <input 
-            type="text" 
-            class="input-usuario" 
-            id="searchComunaNew"
-            [(ngModel)]="searchComunaNew"
-            (input)="filtrarComunas(searchComunaNew, true)"
-            (focus)="dropdownComunaNewOpen = true"
-            placeholder="Buscar comuna...">
-          
-          <div class="dropdown-comunas" *ngIf="dropdownComunaNewOpen && comunasFiltradas.length > 0">
-            <div 
-              *ngFor="let comuna of comunasFiltradas"
-              class="comuna-item"
-              (click)="seleccionarComuna(comuna, true)">
-              {{ comuna.nombre }} - {{ comuna.region }}
-            </div>
+        <h4 class="h4-subtitle">Modificar Comuna:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="searchComunaNew"
+          [(ngModel)]="searchComunaNew"
+          (input)="filtrarComunas(searchComunaNew, true)"
+          (focus)="dropdownComunaNewOpen = true"
+          placeholder="Buscar comuna...">
+        
+        <div class="dropdown-comunas" *ngIf="dropdownComunaNewOpen && comunasFiltradas.length > 0">
+          <div 
+            *ngFor="let comuna of comunasFiltradas"
+            class="comuna-item"
+            (click)="seleccionarComuna(comuna, true)">
+            {{ comuna.nombre }} - {{ comuna.region }}
           </div>
         </div>
+
+        <h4 class="h4-subtitle">Modificar Método de Pago:</h4>
+        <div class="input-container">
+          <select 
+            class="input-usuario" 
+            [(ngModel)]="metodoPagoEmpresaNew"
+            (change)="onMetodoPagoChange(true)">
+            <option value="">Seleccione método de pago</option>
+            <option *ngFor="let metodo of metodosPago" [value]="metodo">{{ metodo }}</option>
+          </select>
+        </div>
+
+        <!-- Campos condicionales para TRANSFERENCIA -->
+        <ng-container *ngIf="metodoPagoEmpresaNew === 'TRANSFERENCIA'">
+          <div class="dropdown">
+            <button class="dropdown-button" (click)="toggleDropdown('bancosNew'); $event.stopPropagation()">
+              {{ getNombreBancoSeleccionadoNew() }}
+            </button>
+            <div class="dropdown-content" [class.show]="dropdownStates.bancosNew"> 
+              <ng-container *ngFor="let banco of bancosCargados">
+                <label [class.disabled]="selectedBancoIdNew !== null && selectedBancoIdNew !== banco.id">
+                  <input 
+                    type="checkbox"
+                    [checked]="selectedBancoIdNew === banco.id"
+                    (change)="toggleSelectionBancoNew(banco.id)"
+                    [disabled]="selectedBancoIdNew !== null && selectedBancoIdNew !== banco.id">
+                  {{ banco.nombre }}
+                </label>
+              </ng-container>
+            </div>
+          </div>
+
+          <h4 class="h4-subtitle">Modificar Tipo de Cuenta:</h4>
+          <div class="input-container">
+            <select 
+              class="input-usuario" 
+              id="tipoCuentaEmpresaNew" 
+              name="tipoCuentaEmpresaNew" 
+              [(ngModel)]="tipoCuentaEmpresaNew">
+              <option value="">Seleccione tipo de cuenta</option>
+              <option *ngFor="let tipo of tiposCuenta" [value]="tipo">{{ tipo }}</option>
+            </select>
+          </div>
+
+          <h4 class="h4-subtitle">Modificar Número de Cuenta:</h4>
+          <input 
+            type="text" 
+            class="input-usuario" 
+            id="numeroCuentaEmpresaNew" 
+            name="numeroCuentaEmpresaNew" 
+            [(ngModel)]="numeroCuentaEmpresaNew"
+            placeholder="Modifique el número de cuenta">
+        </ng-container>
       </div>
       
       <div class="button-container">
@@ -217,6 +307,21 @@
     <ng-container matColumnDef="comuna">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Comuna</th>
       <td mat-cell *matCellDef="let empresa" class="mat-cell">{{ empresa.comuna }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="banco_info">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Info Bancaria</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell" style="cursor: pointer;">
+        <div 
+          *ngIf="empresa.metodo_pago?.toUpperCase() === 'TRANSFERENCIA'" 
+          (click)="abrirModalBanco(empresa); $event.stopPropagation()"
+          style="color: #1188c3; text-decoration: underline;">
+          Ver Detalles
+        </div>
+        <div *ngIf="empresa.metodo_pago?.toUpperCase() !== 'TRANSFERENCIA'">
+          {{ empresa.metodo_pago || 'EFECTIVO' }}
+        </div>
+      </td>
     </ng-container>
     
     <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
@@ -277,6 +382,43 @@
       </button>
       <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">
         No
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INFORMACIÓN BANCARIA -->
+<div 
+  id="modalBancoInfo" 
+  class="modal" 
+  *ngIf="modals['bancoInfoModal']" 
+  (click)="closeModal('bancoInfoModal')">
+  
+  <div class="modal-content-mini" (click)="$event.stopPropagation()">
+    <span class="close" (click)="closeModal('bancoInfoModal')">&times;</span>
+    
+    <h2>INFORMACIÓN BANCARIA</h2>
+    
+    <div class="info-bancaria-container">
+      <div class="info-row">
+        <span class="info-label">Banco:</span>
+        <span class="info-value">{{ empresaSeleccionadaBanco?.banco?.nombre || 'N/A' }}</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Tipo de Cuenta:</span>
+        <span class="info-value">{{ empresaSeleccionadaBanco?.tipo_cuenta || 'N/A' }}</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Número de Cuenta:</span>
+        <span class="info-value">{{ empresaSeleccionadaBanco?.numero_cuenta || 'N/A' }}</span>
+      </div>
+    </div>
+    
+    <div class="button-container">
+      <button class="button-bottom success" (click)="closeModal('bancoInfoModal')">
+        Cerrar
       </button>
     </div>
   </div>

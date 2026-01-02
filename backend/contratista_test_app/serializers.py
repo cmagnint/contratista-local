@@ -711,13 +711,31 @@ class CargoSerializer(serializers.ModelSerializer):
         return None  # Retorna None o cualquier valor por defecto si no hay perfil
 
 class EmpresaTransporteSerializer(serializers.ModelSerializer):
+    # Para lectura: devuelve objeto completo del banco
+    banco = serializers.SerializerMethodField(read_only=True)
+    
+    # Para escritura: acepta solo el ID
+    banco_id = serializers.PrimaryKeyRelatedField(
+        queryset=Banco.objects.all(),
+        source='banco',
+        write_only=True,
+        allow_null=True,
+        required=False
+    )
+    
     class Meta:
         model = EmpresasTransporte
-        fields = '__all__'
-        extra_kwargs = {
-            'holding': {'write_only': True},
-            'id':{'read_only': True},
-        }
+        fields = ['id', 'holding', 'nombre', 'rut', 'direccion', 'comuna', 
+                  'metodo_pago', 'banco', 'banco_id', 'tipo_cuenta', 'numero_cuenta']
+    
+    def get_banco(self, obj):
+        if obj.banco:
+            return {
+                'id': obj.banco.id,
+                'nombre': obj.banco.nombre,
+                'codigo_sbif': obj.banco.codigo_sbif
+            }
+        return None
 
 class DocumentosVehiculoSerializer(serializers.ModelSerializer):
     class Meta:

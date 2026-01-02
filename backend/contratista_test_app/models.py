@@ -251,7 +251,11 @@ class EmpresasTransporte(models.Model):
     nombre = models.CharField(max_length=255)
     rut = models.CharField(max_length=255)
     direccion = models.CharField(max_length=255)
-    comuna = models.CharField(max_length=255, null=True)
+    comuna = models.CharField(max_length=255, blank=True, null=True)  # Temporal
+    metodo_pago = models.CharField(max_length=50, blank=True, null=True)
+    banco = models.ForeignKey('Banco', on_delete=models.SET_NULL, blank=True, null=True)
+    tipo_cuenta = models.CharField(max_length=50, blank=True, null=True)
+    numero_cuenta = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
         db_table = 'empresas_transporte'

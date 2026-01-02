@@ -1,4 +1,5 @@
 // empresas-transporte.component.ts - COMPLETO
+
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
@@ -24,21 +25,28 @@ export class EmpresasTransporteComponent implements OnInit {
   public holding: string = '';
   public errorMessage!: string;
   public selectedRows: any[] = [];
-  public dropdownOpen: boolean = false;
   public todasSeleccionadas: boolean = false;
   public empresasCargadas: any[] = [];
   public deletedRow: any[] = [];
   public selectedEmpresaId: number | null = null;
+  public empresaSeleccionadaBanco: any = null;
 
   // VARIABLES PARA EMPRESA
   public nombreEmpresa: string = '';
   public rutEmpresa: string = '';
   public direccionEmpresa: string = '';
   public comunaEmpresa: string = '';
+  public metodoPagoEmpresa: string = '';
+  public tipoCuentaEmpresa: string = '';
+  public numeroCuentaEmpresa: string = '';
+  
   public nombreEmpresaNew: string = '';
   public rutEmpresaNew: string = '';
   public direccionEmpresaNew: string = '';
   public comunaEmpresaNew: string = '';
+  public metodoPagoEmpresaNew: string = '';
+  public tipoCuentaEmpresaNew: string = '';
+  public numeroCuentaEmpresaNew: string = '';
 
   // VARIABLES PARA BÚSQUEDA DE COMUNAS
   public comunasFiltradas: any[] = [];
@@ -47,8 +55,13 @@ export class EmpresasTransporteComponent implements OnInit {
   public dropdownComunaOpen: boolean = false;
   public dropdownComunaNewOpen: boolean = false;
 
+  // VARIABLES PARA BANCOS
+  public bancosCargados: any[] = [];
+  public selectedBancoId: number | null = null;
+  public selectedBancoIdNew: number | null = null;
+
   // COLUMNAS DE LA TABLA
-  columnasDesplegadas = ['nombre', 'rut', 'direccion', 'comuna'];
+  columnasDesplegadas = ['nombre', 'rut', 'direccion', 'comuna', 'banco_info'];
 
   // MODALES
   public modals: { [key: string]: boolean } = {
@@ -57,6 +70,13 @@ export class EmpresasTransporteComponent implements OnInit {
     crearEmpresa: false,
     modificarEmpresa: false,
     confirmacionModal: false,
+    bancoInfoModal: false,
+  };
+
+  // DROPDOWN STATES
+  public dropdownStates = {
+    bancos: false,
+    bancosNew: false
   };
 
   // EMPRESA SELECCIONADA
@@ -67,6 +87,10 @@ export class EmpresasTransporteComponent implements OnInit {
     direccion_empresa_seleccionada: '',
     comuna_empresa_seleccionada: ''
   };
+
+  // LISTAS
+  public metodosPago: string[] = ['EFECTIVO', 'TRANSFERENCIA'];
+  public tiposCuenta: string[] = ['CUENTA RUT', 'CUENTA CORRIENTE', 'CUENTA DE AHORRO', 'VISTA/CHEQUERA ELECTRONICA'];
 
   // COMUNAS DE CHILE HARDCODEADAS
   public todasLasComunas: any[] = [
@@ -459,6 +483,7 @@ export class EmpresasTransporteComponent implements OnInit {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT(); 
       this.cargarEmpresas();
+      this.cargarBancos();
       this.comunasFiltradas = this.todasLasComunas;
     }
   }
@@ -495,6 +520,19 @@ export class EmpresasTransporteComponent implements OnInit {
     });
   }
 
+  cargarBancos(): void {
+    this.apiService.get('api_bancos/').subscribe({
+      next: (response) => {
+        this.bancosCargados = response;
+        console.log('Bancos cargados:', this.bancosCargados);
+      },
+      error: (error) => {
+        console.error('Error al cargar bancos:', error);
+        this.openModal('errorModal');
+      }
+    });
+  }
+
   // OPERACIONES CRUD
   crearEmpresa(): void {
     let data = {
@@ -502,7 +540,11 @@ export class EmpresasTransporteComponent implements OnInit {
       nombre: this.nombreEmpresa,
       rut: this.rutEmpresa.replace(/[\.\-]/g, ''),
       direccion: this.direccionEmpresa,
-      comuna: this.comunaEmpresa
+      comuna: this.comunaEmpresa,
+      metodo_pago: this.metodoPagoEmpresa,
+      banco_id: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.selectedBancoId : null,  // ✅ CAMBIO AQUÍ
+      tipo_cuenta: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.tipoCuentaEmpresa : '',
+      numero_cuenta: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.numeroCuentaEmpresa : ''
     }
     this.apiService.post('api_empresa_transportes/', data).subscribe({
       next: (response) => {
@@ -526,8 +568,13 @@ export class EmpresasTransporteComponent implements OnInit {
       nombre: this.nombreEmpresaNew,
       rut: this.rutEmpresaNew.replace(/[\.\-]/g, ''),
       direccion: this.direccionEmpresaNew,
-      comuna: this.comunaEmpresaNew
+      comuna: this.comunaEmpresaNew,
+      metodo_pago: this.metodoPagoEmpresaNew,
+      banco_id: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.selectedBancoIdNew : null,  // ✅ CAMBIO AQUÍ
+      tipo_cuenta: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.tipoCuentaEmpresaNew : '',
+      numero_cuenta: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.numeroCuentaEmpresaNew : ''
     }
+    console.log('EL id del banco es ', this.selectedBancoIdNew);
     this.apiService.put('api_empresa_transportes/', data).subscribe({
       next: (response) => {
         console.log('Empresa actualizada:', response);
@@ -567,12 +614,24 @@ export class EmpresasTransporteComponent implements OnInit {
     this.rutEmpresa = '';
     this.direccionEmpresa = '';
     this.comunaEmpresa = '';
+    this.metodoPagoEmpresa = '';
+    this.tipoCuentaEmpresa = '';
+    this.numeroCuentaEmpresa = '';
+    this.selectedBancoId = null;
     this.nombreEmpresaNew = '';
     this.rutEmpresaNew = '';
     this.direccionEmpresaNew = '';
     this.comunaEmpresaNew = '';
+    this.metodoPagoEmpresaNew = '';
+    this.tipoCuentaEmpresaNew = '';
+    this.numeroCuentaEmpresaNew = '';
+    this.selectedBancoIdNew = null;
     this.searchComuna = '';
     this.searchComunaNew = '';
+    
+    Object.keys(this.dropdownStates).forEach(key => {
+      this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
+    });
   }
 
   // MANEJO DE SELECCIÓN
@@ -586,19 +645,35 @@ export class EmpresasTransporteComponent implements OnInit {
 
     if (this.selectedRows.length > 0) {
       const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+      
+      console.log('Row seleccionado:', lastSelectedRow);
+      
       this.empresaSeleccionada = {
         nombre_empresa_seleccionada: lastSelectedRow.nombre,
         rut_empresa_seleccionada: lastSelectedRow.rut,
         direccion_empresa_seleccionada: lastSelectedRow.direccion,
         comuna_empresa_seleccionada: lastSelectedRow.comuna,
+        metodo_pago_empresa_seleccionada: lastSelectedRow.metodo_pago,
+        banco_id_empresa_seleccionada: lastSelectedRow.banco?.id || null,
+        banco_nombre_empresa_seleccionada: lastSelectedRow.banco?.nombre || '',
+        tipo_cuenta_empresa_seleccionada: lastSelectedRow.tipo_cuenta,
+        numero_cuenta_empresa_seleccionada: lastSelectedRow.numero_cuenta,
         id_empresa_seleccionada: lastSelectedRow.id
       };
+      
       this.selectedEmpresaId = this.empresaSeleccionada.id_empresa_seleccionada;
       this.nombreEmpresaNew = this.empresaSeleccionada.nombre_empresa_seleccionada;
       this.rutEmpresaNew = this.formatRUTString(this.empresaSeleccionada.rut_empresa_seleccionada);
       this.direccionEmpresaNew = this.empresaSeleccionada.direccion_empresa_seleccionada;
       this.comunaEmpresaNew = this.empresaSeleccionada.comuna_empresa_seleccionada;
       this.searchComunaNew = this.empresaSeleccionada.comuna_empresa_seleccionada;
+      this.metodoPagoEmpresaNew = this.empresaSeleccionada.metodo_pago_empresa_seleccionada;
+      this.selectedBancoIdNew = this.empresaSeleccionada.banco_id_empresa_seleccionada;
+      this.tipoCuentaEmpresaNew = this.empresaSeleccionada.tipo_cuenta_empresa_seleccionada;
+      this.numeroCuentaEmpresaNew = this.empresaSeleccionada.numero_cuenta_empresa_seleccionada;
+      
+      console.log('Banco ID seleccionado:', this.selectedBancoIdNew);
+      console.log('Método pago:', this.metodoPagoEmpresaNew);
     }
   }
 
@@ -631,6 +706,70 @@ export class EmpresasTransporteComponent implements OnInit {
       this.searchComuna = comuna.nombre;
       this.dropdownComunaOpen = false;
     }
+  }
+
+  // FUNCIONES PARA BANCOS
+  toggleDropdown(dropdownName: string): void {
+    Object.keys(this.dropdownStates).forEach(key => {
+      if (key !== dropdownName) {
+        this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
+      }
+    });
+    this.dropdownStates[dropdownName as keyof typeof this.dropdownStates] = 
+      !this.dropdownStates[dropdownName as keyof typeof this.dropdownStates];
+  }
+
+  toggleSelectionBanco(bancoId: number): void {
+    if (this.selectedBancoId === bancoId) {
+      this.selectedBancoId = null;
+    } else {
+      this.selectedBancoId = bancoId;
+    }
+  }
+
+  toggleSelectionBancoNew(bancoId: number): void {
+    if (this.selectedBancoIdNew === bancoId) {
+      this.selectedBancoIdNew = null;
+    } else {
+      this.selectedBancoIdNew = bancoId;
+    }
+  }
+
+  getNombreBancoSeleccionado(): string {
+    if (this.selectedBancoId) {
+      const banco = this.bancosCargados.find(b => b.id === this.selectedBancoId);
+      return banco ? banco.nombre : 'SELECCIONAR BANCO';
+    }
+    return 'SELECCIONAR BANCO';
+  }
+
+  getNombreBancoSeleccionadoNew(): string {
+    if (this.selectedBancoIdNew) {
+      const banco = this.bancosCargados.find(b => b.id === this.selectedBancoIdNew);
+      return banco ? banco.nombre : 'SELECCIONAR BANCO';
+    }
+    return 'SELECCIONAR BANCO';
+  }
+
+  onMetodoPagoChange(isNew: boolean = false): void {
+    if (isNew) {
+      if (this.metodoPagoEmpresaNew !== 'TRANSFERENCIA') {
+        this.selectedBancoIdNew = null;
+        this.tipoCuentaEmpresaNew = '';
+        this.numeroCuentaEmpresaNew = '';
+      }
+    } else {
+      if (this.metodoPagoEmpresa !== 'TRANSFERENCIA') {
+        this.selectedBancoId = null;
+        this.tipoCuentaEmpresa = '';
+        this.numeroCuentaEmpresa = '';
+      }
+    }
+  }
+
+  abrirModalBanco(empresa: any): void {
+    this.empresaSeleccionadaBanco = empresa;
+    this.openModal('bancoInfoModal');
   }
 
   // FORMATO RUT
