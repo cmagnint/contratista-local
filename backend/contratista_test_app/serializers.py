@@ -726,7 +726,8 @@ class EmpresaTransporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmpresasTransporte
         fields = ['id', 'holding', 'nombre', 'rut', 'direccion', 'comuna', 
-                  'metodo_pago', 'banco', 'banco_id', 'tipo_cuenta', 'numero_cuenta']
+                  'metodo_pago', 'banco', 'banco_id', 'tipo_cuenta', 'numero_cuenta',
+                  'emite_factura','alias']
     
     def get_banco(self, obj):
         if obj.banco:

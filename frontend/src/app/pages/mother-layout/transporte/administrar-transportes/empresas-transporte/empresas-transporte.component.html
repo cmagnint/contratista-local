@@ -1,4 +1,4 @@
-<!-- empresas-transporte.component.html - COMPLETO -->
+<!-- empresas-transporte.component.html - COMPLETO CON ALIAS Y EMITE_FACTURA -->
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
   
@@ -49,6 +49,16 @@
           [(ngModel)]="nombreEmpresa" 
           (ngModelChange)="nombreEmpresa = $event.toUpperCase()"
           placeholder="Ingrese el nombre de la empresa">
+
+        <h4 class="h4-subtitle">Alias Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="aliasEmpresa" 
+          name="aliasEmpresa" 
+          [(ngModel)]="aliasEmpresa" 
+          (ngModelChange)="aliasEmpresa = $event.toUpperCase()"
+          placeholder="Ingrese el alias de la empresa (opcional)">
         
         <h4 class="h4-subtitle">RUT Empresa:</h4>
         <input 
@@ -142,6 +152,13 @@
             [(ngModel)]="numeroCuentaEmpresa"
             placeholder="Ingrese el número de cuenta">
         </ng-container>
+
+        <h4 class="h4-subtitle">Emite Factura:</h4>
+        <mat-slide-toggle 
+          [(ngModel)]="emiteFactura"
+          color="primary">
+          {{ emiteFactura ? 'Sí' : 'No' }}
+        </mat-slide-toggle>
       </div>
       
       <div class="button-container">
@@ -175,6 +192,16 @@
           [(ngModel)]="nombreEmpresaNew" 
           (ngModelChange)="nombreEmpresaNew = $event.toUpperCase()"
           placeholder="Modifique el nombre de la empresa">
+
+        <h4 class="h4-subtitle">Modificar Alias Empresa:</h4>
+        <input 
+          type="text" 
+          class="input-usuario" 
+          id="aliasEmpresaNew" 
+          name="aliasEmpresaNew" 
+          [(ngModel)]="aliasEmpresaNew" 
+          (ngModelChange)="aliasEmpresaNew = $event.toUpperCase()"
+          placeholder="Modifique el alias de la empresa (opcional)">
         
         <h4 class="h4-subtitle">Modificar RUT Empresa:</h4>
         <input 
@@ -268,6 +295,13 @@
             [(ngModel)]="numeroCuentaEmpresaNew"
             placeholder="Modifique el número de cuenta">
         </ng-container>
+
+        <h4 class="h4-subtitle">Modificar Emite Factura:</h4>
+        <mat-slide-toggle 
+          [(ngModel)]="emiteFacturaNew"
+          color="primary">
+          {{ emiteFacturaNew ? 'Sí' : 'No' }}
+        </mat-slide-toggle>
       </div>
       
       <div class="button-container">
@@ -286,6 +320,16 @@
     <ng-container matColumnDef="nombre">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Nombre</th>
       <td mat-cell *matCellDef="let empresa" class="mat-cell">{{ empresa.nombre }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="alias">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Alias</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">
+        <span [style.color]="empresa.alias ? '#1188c3' : '#999'" 
+              [style.font-style]="empresa.alias ? 'normal' : 'italic'">
+          {{ empresa.alias || 'Sin alias' }}
+        </span>
+      </td>
     </ng-container>
     
     <ng-container matColumnDef="rut">
@@ -321,6 +365,16 @@
         <div *ngIf="empresa.metodo_pago?.toUpperCase() !== 'TRANSFERENCIA'">
           {{ empresa.metodo_pago || 'EFECTIVO' }}
         </div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="emite_factura">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Emite Factura</th>
+      <td mat-cell *matCellDef="let empresa" class="mat-cell">
+        <span [style.color]="empresa.emite_factura ? '#4CAF50' : '#f44336'" 
+              [style.font-weight]="'600'">
+          {{ empresa.emite_factura ? '✓ Sí' : '✗ No' }}
+        </span>
       </td>
     </ng-container>
     

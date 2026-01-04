@@ -1,4 +1,4 @@
-// empresas-transporte.component.ts - COMPLETO
+// empresas-transporte.component.ts - COMPLETO CON ALIAS Y EMITE_FACTURA
 
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
@@ -6,6 +6,7 @@ import { ContratistaApiService } from '../../../../../services/contratista-api.s
 import { ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { JwtService } from '../../../../../services/jwt.service';
 
 @Component({
@@ -15,6 +16,7 @@ import { JwtService } from '../../../../../services/jwt.service';
     CommonModule,
     ReactiveFormsModule,
     MatTableModule,
+    MatSlideToggleModule,
     FormsModule
   ],
   templateUrl: './empresas-transporte.component.html',
@@ -33,20 +35,24 @@ export class EmpresasTransporteComponent implements OnInit {
 
   // VARIABLES PARA EMPRESA
   public nombreEmpresa: string = '';
+  public aliasEmpresa: string = '';
   public rutEmpresa: string = '';
   public direccionEmpresa: string = '';
   public comunaEmpresa: string = '';
   public metodoPagoEmpresa: string = '';
   public tipoCuentaEmpresa: string = '';
   public numeroCuentaEmpresa: string = '';
+  public emiteFactura: boolean = false;
   
   public nombreEmpresaNew: string = '';
+  public aliasEmpresaNew: string = '';
   public rutEmpresaNew: string = '';
   public direccionEmpresaNew: string = '';
   public comunaEmpresaNew: string = '';
   public metodoPagoEmpresaNew: string = '';
   public tipoCuentaEmpresaNew: string = '';
   public numeroCuentaEmpresaNew: string = '';
+  public emiteFacturaNew: boolean = false;
 
   // VARIABLES PARA BÚSQUEDA DE COMUNAS
   public comunasFiltradas: any[] = [];
@@ -61,7 +67,7 @@ export class EmpresasTransporteComponent implements OnInit {
   public selectedBancoIdNew: number | null = null;
 
   // COLUMNAS DE LA TABLA
-  columnasDesplegadas = ['nombre', 'rut', 'direccion', 'comuna', 'banco_info'];
+  columnasDesplegadas = ['nombre', 'alias', 'rut', 'direccion', 'comuna', 'banco_info', 'emite_factura'];
 
   // MODALES
   public modals: { [key: string]: boolean } = {
@@ -83,9 +89,11 @@ export class EmpresasTransporteComponent implements OnInit {
   public empresaSeleccionada: any = {
     id_empresa_seleccionada: 0,
     nombre_empresa_seleccionada: '',
+    alias_empresa_seleccionada: '',
     rut_empresa_seleccionada: '',
     direccion_empresa_seleccionada: '',
-    comuna_empresa_seleccionada: ''
+    comuna_empresa_seleccionada: '',
+    emite_factura_seleccionada: false
   };
 
   // LISTAS
@@ -538,13 +546,15 @@ export class EmpresasTransporteComponent implements OnInit {
     let data = {
       holding: this.holding,
       nombre: this.nombreEmpresa,
+      alias: this.aliasEmpresa,
       rut: this.rutEmpresa.replace(/[\.\-]/g, ''),
       direccion: this.direccionEmpresa,
       comuna: this.comunaEmpresa,
       metodo_pago: this.metodoPagoEmpresa,
-      banco_id: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.selectedBancoId : null,  // ✅ CAMBIO AQUÍ
+      banco_id: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.selectedBancoId : null,
       tipo_cuenta: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.tipoCuentaEmpresa : '',
-      numero_cuenta: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.numeroCuentaEmpresa : ''
+      numero_cuenta: this.metodoPagoEmpresa === 'TRANSFERENCIA' ? this.numeroCuentaEmpresa : '',
+      emite_factura: this.emiteFactura
     }
     this.apiService.post('api_empresa_transportes/', data).subscribe({
       next: (response) => {
@@ -566,13 +576,15 @@ export class EmpresasTransporteComponent implements OnInit {
       holding: this.holding,
       id: this.selectedEmpresaId,
       nombre: this.nombreEmpresaNew,
+      alias: this.aliasEmpresaNew,
       rut: this.rutEmpresaNew.replace(/[\.\-]/g, ''),
       direccion: this.direccionEmpresaNew,
       comuna: this.comunaEmpresaNew,
       metodo_pago: this.metodoPagoEmpresaNew,
-      banco_id: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.selectedBancoIdNew : null,  // ✅ CAMBIO AQUÍ
+      banco_id: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.selectedBancoIdNew : null,
       tipo_cuenta: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.tipoCuentaEmpresaNew : '',
-      numero_cuenta: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.numeroCuentaEmpresaNew : ''
+      numero_cuenta: this.metodoPagoEmpresaNew === 'TRANSFERENCIA' ? this.numeroCuentaEmpresaNew : '',
+      emite_factura: this.emiteFacturaNew
     }
     console.log('EL id del banco es ', this.selectedBancoIdNew);
     this.apiService.put('api_empresa_transportes/', data).subscribe({
@@ -611,20 +623,24 @@ export class EmpresasTransporteComponent implements OnInit {
   // UTILIDADES
   limpiarFormulario(): void {
     this.nombreEmpresa = '';
+    this.aliasEmpresa = '';
     this.rutEmpresa = '';
     this.direccionEmpresa = '';
     this.comunaEmpresa = '';
     this.metodoPagoEmpresa = '';
     this.tipoCuentaEmpresa = '';
     this.numeroCuentaEmpresa = '';
+    this.emiteFactura = false;
     this.selectedBancoId = null;
     this.nombreEmpresaNew = '';
+    this.aliasEmpresaNew = '';
     this.rutEmpresaNew = '';
     this.direccionEmpresaNew = '';
     this.comunaEmpresaNew = '';
     this.metodoPagoEmpresaNew = '';
     this.tipoCuentaEmpresaNew = '';
     this.numeroCuentaEmpresaNew = '';
+    this.emiteFacturaNew = false;
     this.selectedBancoIdNew = null;
     this.searchComuna = '';
     this.searchComunaNew = '';
@@ -650,6 +666,7 @@ export class EmpresasTransporteComponent implements OnInit {
       
       this.empresaSeleccionada = {
         nombre_empresa_seleccionada: lastSelectedRow.nombre,
+        alias_empresa_seleccionada: lastSelectedRow.alias || '',
         rut_empresa_seleccionada: lastSelectedRow.rut,
         direccion_empresa_seleccionada: lastSelectedRow.direccion,
         comuna_empresa_seleccionada: lastSelectedRow.comuna,
@@ -658,11 +675,13 @@ export class EmpresasTransporteComponent implements OnInit {
         banco_nombre_empresa_seleccionada: lastSelectedRow.banco?.nombre || '',
         tipo_cuenta_empresa_seleccionada: lastSelectedRow.tipo_cuenta,
         numero_cuenta_empresa_seleccionada: lastSelectedRow.numero_cuenta,
+        emite_factura_seleccionada: lastSelectedRow.emite_factura || false,
         id_empresa_seleccionada: lastSelectedRow.id
       };
       
       this.selectedEmpresaId = this.empresaSeleccionada.id_empresa_seleccionada;
       this.nombreEmpresaNew = this.empresaSeleccionada.nombre_empresa_seleccionada;
+      this.aliasEmpresaNew = this.empresaSeleccionada.alias_empresa_seleccionada;
       this.rutEmpresaNew = this.formatRUTString(this.empresaSeleccionada.rut_empresa_seleccionada);
       this.direccionEmpresaNew = this.empresaSeleccionada.direccion_empresa_seleccionada;
       this.comunaEmpresaNew = this.empresaSeleccionada.comuna_empresa_seleccionada;
@@ -671,9 +690,12 @@ export class EmpresasTransporteComponent implements OnInit {
       this.selectedBancoIdNew = this.empresaSeleccionada.banco_id_empresa_seleccionada;
       this.tipoCuentaEmpresaNew = this.empresaSeleccionada.tipo_cuenta_empresa_seleccionada;
       this.numeroCuentaEmpresaNew = this.empresaSeleccionada.numero_cuenta_empresa_seleccionada;
+      this.emiteFacturaNew = this.empresaSeleccionada.emite_factura_seleccionada;
       
       console.log('Banco ID seleccionado:', this.selectedBancoIdNew);
       console.log('Método pago:', this.metodoPagoEmpresaNew);
+      console.log('Emite Factura:', this.emiteFacturaNew);
+      console.log('Alias:', this.aliasEmpresaNew);
     }
   }
 

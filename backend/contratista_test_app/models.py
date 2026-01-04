@@ -256,6 +256,8 @@ class EmpresasTransporte(models.Model):
     banco = models.ForeignKey('Banco', on_delete=models.SET_NULL, blank=True, null=True)
     tipo_cuenta = models.CharField(max_length=50, blank=True, null=True)
     numero_cuenta = models.CharField(max_length=50, blank=True, null=True)
+    emite_factura = models.BooleanField(default=False, null=True)
+    alias = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'empresas_transporte'
