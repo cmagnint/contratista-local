@@ -1,13 +1,10 @@
-// login.component.ts
-
-import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, OnInit, PLATFORM_ID, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../services/contratista-api.service';
 import { JwtService } from '../../services/jwt.service';
-import { AnimationOptions } from 'ngx-lottie';
 import { NewLinePipe } from '../../pipes/newline.pipe';
 
 @Component({
@@ -25,15 +22,24 @@ export class LoginComponent implements OnInit {
   isLoading: boolean = false;
   isError: boolean = false;
 
-  // Estados para los modales de recuperación
+  showPassword: boolean = false;
+  capsLockActive: boolean = false;
+
   public showRutModal: boolean = false;
   public showEmailModal: boolean = false;
   public showCodeModal: boolean = false;
   public rutForRecovery: string = '';
   public emailForRecovery: string = '';
   public codeForRecovery: string = '';
+  public rutErrorMessage: string = '';
+  public emailErrorMessage: string = '';
+  public codeErrorMessage: string = '';
 
-  // ✅ NUEVO: Variables para sociedades
+  
+  public isCheckingRut: boolean = false;
+  public isSendingCode: boolean = false;
+  public isVerifyingCode: boolean = false;
+
   sociedades: Array<{ id: number; nombre: string; rol_sociedad: string }> = [];
   sociedadSeleccionada: { id: number; nombre: string; rol_sociedad: string } | null = null;
 
@@ -47,20 +53,33 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      // ✅ NUEVO: Cargar sociedades guardadas
       this.cargarSociedadesGuardadas();
       
-      // Verificar si ya hay un JWT token válido
       if (this.jwtService.isAuthenticated()) {
         this.verifyAndNavigate();
       }
     }
   }
 
-  /**
-   * Verifica el JWT token actual y navega si es válido
-   * ✅ ACTUALIZADO: Ahora carga sociedades
-   */
+  @HostListener('document:keydown', ['$event'])
+  @HostListener('document:keyup', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    if (isPlatformBrowser(this.platformId)) {
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.id === 'password') {
+        this.capsLockActive = event.getModifierState('CapsLock');
+      }
+    }
+  }
+
+  onPasswordBlur(): void {
+    this.capsLockActive = false;
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+
   verifyAndNavigate(): void {
     const token = this.jwtService.getToken();
     if (!token) {
@@ -70,7 +89,6 @@ export class LoginComponent implements OnInit {
     this.contratistaApiService.verifyJWT(token).subscribe({
       next: (response: any) => {
         if (response.valid) {
-          // ✅ NUEVO: Guardar sociedades si vienen en la respuesta
           if (response.sociedades?.length > 0) {
             this.sociedades = response.sociedades;
             this.guardarSociedades();
@@ -78,14 +96,12 @@ export class LoginComponent implements OnInit {
 
           const userInfo = response.user_info;
           
-          // Navegar según tipo de usuario
           if (userInfo.is_superuser) {
             this.router.navigate(['/super-admin']);
           } else {
             this.router.navigate(['/fs/home']);
           }
         } else {
-          // Token inválido, limpiar
           this.logout();
         }
       },
@@ -96,16 +112,11 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  /**
-   * 🎯 LOGIN PRINCIPAL
-   * ✅ ACTUALIZADO: Ahora maneja sociedades
-   */
   login(): void {
     this.isLoading = true;
     this.isError = false;
     this.mensaje_login = 'Iniciando sesión...';
 
-    // Validar campos
     if (!this.rut || !this.password) {
       this.showErrorMessage('Por favor complete todos los campos');
       return;
@@ -119,19 +130,16 @@ export class LoginComponent implements OnInit {
           console.log('✅ Login exitoso', data);
           
           if (data.autorizado) {
-            // Almacenar tokens JWT
             this.jwtService.storeToken(data.jwt_token);
             if (data.refresh_token) {
               this.jwtService.storeRefreshToken(data.refresh_token);
             }
 
-            // ✅ NUEVO: Guardar sociedades
             if (data.sociedades?.length > 0) {
               console.log('🏢 Sociedades disponibles:', data.sociedades);
               this.sociedades = data.sociedades;
               this.guardarSociedades();
               
-              // Auto-seleccionar si solo hay una sociedad
               if (data.sociedades.length === 1) {
                 this.sociedadSeleccionada = data.sociedades[0];
                 this.guardarSociedadSeleccionada();
@@ -139,17 +147,14 @@ export class LoginComponent implements OnInit {
               }
             }
 
-            // Limpiar tokens OAuth2 legacy
             this.clearLegacyTokens();
 
             this.isLoading = false;
             this.showMessage = false;
 
-            // Navegar según respuesta del backend
             if (data.redirect_to) {
               this.router.navigate([data.redirect_to]);
             } else {
-              // Fallback basado en tipo de usuario
               if (data.user_type === 'SUPERADMIN') {
                 this.router.navigate(['/super-admin']);
               } else {
@@ -179,22 +184,12 @@ export class LoginComponent implements OnInit {
       });
   }
 
-  // ===============================================================
-  // ✅ NUEVOS MÉTODOS PARA GESTIÓN DE SOCIEDADES
-  // ===============================================================
-
-  /**
-   * ✅ NUEVO: Guardar sociedades en localStorage
-   */
   private guardarSociedades(): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('sociedades', JSON.stringify(this.sociedades));
     }
   }
 
-  /**
-   * ✅ NUEVO: Cargar sociedades guardadas desde localStorage
-   */
   private cargarSociedadesGuardadas(): void {
     if (isPlatformBrowser(this.platformId)) {
       const sociedadesStr = localStorage.getItem('sociedades');
@@ -209,71 +204,83 @@ export class LoginComponent implements OnInit {
     }
   }
 
-  /**
-   * ✅ NUEVO: Guardar sociedad seleccionada en localStorage
-   */
   private guardarSociedadSeleccionada(): void {
     if (isPlatformBrowser(this.platformId) && this.sociedadSeleccionada) {
       localStorage.setItem('sociedad_seleccionada', JSON.stringify(this.sociedadSeleccionada));
     }
   }
 
-  // ===============================================================
-  // MÉTODOS DE RECUPERACIÓN DE CONTRASEÑA (SIN CAMBIOS)
-  // ===============================================================
-
   onForgotPassword() {
     this.showRutModal = true;
   }
 
   checkRut() {
-    console.log('🔍 Verificando RUT:', this.rutForRecovery);
-    
     if (!this.rutForRecovery.trim()) {
-      this.toastr.error('Por favor ingrese un RUT', 'Error');
+      this.rutErrorMessage = 'Por favor ingrese un RUT';
       return;
     }
 
     const rutClean = this.rutForRecovery.replace(/[^0-9kK]/g, '').toUpperCase();
     
     if (rutClean.length < 8) {
-      this.toastr.error('RUT incompleto', 'Error');
+      this.rutErrorMessage = 'RUT incompleto';
       return;
     }
 
-    console.log('📤 RUT limpio enviado:', rutClean);
+    this.isCheckingRut = true;
+    this.rutErrorMessage = '';
 
     this.contratistaApiService.post('password-reset/', { 
       action: 'check_user',
       rut_user: rutClean
     }).subscribe({
       next: (response: any) => {
-        console.log('✅ Respuesta verificación RUT:', response);
+        this.isCheckingRut = false;
         
         if (response.valid && response.status === 'success') {
           this.showRutModal = false;
           this.showEmailModal = true;
+          this.rutErrorMessage = '';
           this.toastr.success('RUT encontrado', 'Éxito');
         } else {
-          console.log("RUT no encontrado")
-          this.toastr.error('RUT no encontrado', 'Error');
+          this.rutErrorMessage = 'RUT no encontrado en el sistema';
         }
       },
       error: (error) => {
-        console.error('❌ Error al verificar RUT:', error);
-        this.toastr.error('Error al verificar RUT', 'Error');
+        this.isCheckingRut = false;
+        this.rutErrorMessage = 'RUT no encontrado en el sistema';
       }
     });
   }
 
+  onRutInputChange() {
+    this.rutErrorMessage = '';
+  }
+
+  // Agregar métodos para limpiar errores:
+  onEmailInputChange() {
+    this.emailErrorMessage = '';
+  }
+
+  onCodeInputChange() {
+    this.codeErrorMessage = '';
+  }
+
   sendCode() {
-    console.log('📧 Enviando código para:', this.emailForRecovery);
-    
     if (!this.emailForRecovery.trim()) {
-      this.toastr.error('Por favor ingrese un email', 'Error');
+      this.emailErrorMessage = 'Por favor ingrese un email';
       return;
     }
 
+    // Validación básica de formato email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(this.emailForRecovery)) {
+      this.emailErrorMessage = 'Formato de email inválido';
+      return;
+    }
+
+    this.isSendingCode = true;
+    this.emailErrorMessage = '';
     const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
 
     this.contratistaApiService.post('password-reset/', { 
@@ -282,32 +289,38 @@ export class LoginComponent implements OnInit {
       rut: rutWithoutFormat 
     }).subscribe({
       next: (response: any) => {
-        console.log('✅ Respuesta envío código:', response);
+        this.isSendingCode = false;
         
         if (response.status === 'success') {
           this.showEmailModal = false;
           this.showCodeModal = true;
+          this.emailErrorMessage = '';
           this.toastr.success('Código enviado exitosamente', 'Éxito');
         } else {
-          this.toastr.error(response.message || 'Error al enviar código', 'Error');
+          this.emailErrorMessage = response.message || 'Correo no encontrado o no coincide con el RUT';
         }
       },
       error: (error) => {
-        console.error('❌ Error al enviar código:', error);
-        const errorMsg = error.error?.message || 'Error al enviar código';
-        this.toastr.error(errorMsg, 'Error');
+        this.isSendingCode = false;
+        this.emailErrorMessage = error.error?.message || 'Correo no encontrado o no coincide con el RUT';
       }
     });
   }
 
+
   verifyCode() {
-    console.log('🔐 Verificando código:', this.codeForRecovery);
-    
     if (!this.codeForRecovery.trim()) {
-      this.toastr.error('Por favor ingrese el código', 'Error');
+      this.codeErrorMessage = 'Por favor ingrese el código';
       return;
     }
 
+    if (this.codeForRecovery.length !== 6) {
+      this.codeErrorMessage = 'El código debe tener 6 dígitos';
+      return;
+    }
+
+    this.isVerifyingCode = true;
+    this.codeErrorMessage = '';
     const rutWithoutFormat = this.rutForRecovery.replace(/\D/g, '');
 
     this.contratistaApiService.post('password-reset/', { 
@@ -316,9 +329,10 @@ export class LoginComponent implements OnInit {
       codigo: this.codeForRecovery 
     }).subscribe({
       next: (response: any) => {
-        console.log('✅ Respuesta verificación código:', response);
+        this.isVerifyingCode = false;
         
         if (response.status === 'success') {
+          this.codeErrorMessage = '';
           this.toastr.success('Código verificado exitosamente', 'Éxito');
           this.router.navigate(['/change-password'], { 
             queryParams: { 
@@ -327,13 +341,12 @@ export class LoginComponent implements OnInit {
             }
           });
         } else {
-          this.toastr.error(response.message || 'Código inválido', 'Error');
+          this.codeErrorMessage = response.message || 'Código inválido o expirado';
         }
       },
       error: (error) => {
-        console.error('❌ Error al verificar código:', error);
-        const errorMsg = error.error?.message || 'Error al verificar código';
-        this.toastr.error(errorMsg, 'Error');
+        this.isVerifyingCode = false;
+        this.codeErrorMessage = error.error?.message || 'Código inválido o expirado';
       }
     });
   }
@@ -345,11 +358,10 @@ export class LoginComponent implements OnInit {
     this.rutForRecovery = '';
     this.emailForRecovery = '';
     this.codeForRecovery = '';
+    this.rutErrorMessage = '';
+    this.emailErrorMessage = '';
+    this.codeErrorMessage = '';
   }
-
-  // ===============================================================
-  // MÉTODOS AUXILIARES (SIN CAMBIOS)
-  // ===============================================================
 
   private showErrorMessage(message: string): void {
     this.mensaje_login = message;
@@ -374,14 +386,10 @@ export class LoginComponent implements OnInit {
     }
   }
 
-  /**
-   * ✅ ACTUALIZADO: Logout completo - limpia tokens Y sociedades
-   */
   logout(): void {
     console.log('🚪 Logout...');
     this.jwtService.clearTokens();
     
-    // ✅ NUEVO: Limpiar sociedades
     this.sociedades = [];
     this.sociedadSeleccionada = null;
     

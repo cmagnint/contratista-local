@@ -244,14 +244,7 @@ class CheckHealthAPIView(APIView):
 class PasswordResetAPIView(APIView):
     """
     Vista unificada para todo el proceso de cambio de contraseña
-    
-    Actions:
-    - check_user: Verificar si el RUT existe
-    - generate_code: Generar y enviar código de verificación
-    - verify_code: Verificar código de verificación
-    - change_password: Cambiar la contraseña
     """
-    
     authentication_classes = []
     permission_classes = [AllowAny]
     
@@ -273,20 +266,31 @@ class PasswordResetAPIView(APIView):
             )
     
     def _check_user(self, request):
-        """Verificar si el RUT existe"""
         rut = request.data.get('rut_user')
         
         if not rut:
-            return Response({'status': 'error', 'message': 'RUT es requerido.'})
+            return Response({
+                'status': 'error', 
+                'message': 'RUT es requerido.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             user = Usuarios.objects.get(rut=rut)
-            return Response({'valid': True, 'status': 'success'})
+            print(f"✅ RUT encontrado: {rut}")
+            return Response({
+                'valid': True, 
+                'status': 'success',
+                'message': 'RUT válido'
+            }, status=status.HTTP_200_OK)
         except ObjectDoesNotExist:
-            return Response({'valid': False, 'status': 'error'})
+            print(f"❌ RUT NO encontrado: {rut}")
+            return Response({
+                'valid': False, 
+                'status': 'error',
+                'message': 'RUT no encontrado en el sistema'
+            }, status=status.HTTP_404_NOT_FOUND)
     
     def _generate_code(self, request):
-        """Generar y enviar código de verificación"""
         email = request.data.get('email')
         rut = request.data.get('rut')
         
@@ -294,47 +298,45 @@ class PasswordResetAPIView(APIView):
             return Response({
                 'status': 'error', 
                 'message': 'Email y RUT son requeridos.'
-            })
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             usuario = Usuarios.objects.get(email=email, rut=rut)
             
-            # Generar código de 6 dígitos
             codigo = ''.join([str(random.randint(0, 9)) for _ in range(6)])
             
-            # Guardar código y expiración
             usuario.codigo = codigo
             usuario.codigo_expiracion = timezone.now() + timedelta(days=1)
             usuario.save()
             
-            # Enviar email
             try:
                 send_mail(
-                    'Tu código de verificación',
-                    f'Tu código es: {codigo}',
+                    'Tu código de verificación - Terrasoft',
+                    f'Tu código de verificación es: {codigo}\n\nEste código expira en 24 horas.',
                     'contacto.terrasoft.23@gmail.com',
                     [usuario.email],
                     fail_silently=False,
                 )
+                print(f"✅ Código enviado a {email}: {codigo}")
                 return Response({
                     'status': 'success', 
                     'message': 'Código enviado exitosamente.'
-                })
+                }, status=status.HTTP_200_OK)
             except Exception as e:
-                print(f"Error al enviar el correo: {str(e)}")
+                print(f"❌ Error al enviar email: {str(e)}")
                 return Response({
                     'status': 'error', 
-                    'message': 'Error al enviar el correo. Por favor, intente más tarde.'
-                })
+                    'message': 'Error al enviar el correo.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
         except ObjectDoesNotExist:
+            print(f"❌ RUT/Email NO encontrado: {rut}/{email}")
             return Response({
                 'status': 'error', 
-                'message': 'Correo o RUT no encontrado o no coinciden.'
-            })
+                'message': 'Correo no encontrado.'
+            }, status=status.HTTP_404_NOT_FOUND)
     
     def _verify_code(self, request):
-        """Verificar código de verificación"""
         rut = request.data.get('rut')
         codigo = request.data.get('codigo')
         
@@ -342,76 +344,70 @@ class PasswordResetAPIView(APIView):
             return Response({
                 'status': 'error', 
                 'message': 'RUT y código son requeridos.'
-            })
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             usuario = Usuarios.objects.get(rut=rut, codigo=codigo)
             
             if usuario.codigo_expiracion and usuario.codigo_expiracion > timezone.now():
+                print(f"✅ Código verificado para RUT: {rut}")
                 return Response({
                     'status': 'success', 
-                    'message': 'Código verificado exitosamente.'
-                })
+                    'message': 'Código verificado.'
+                }, status=status.HTTP_200_OK)
             else:
                 return Response({
                     'status': 'error', 
                     'message': 'El código ha expirado.'
-                })
+                }, status=status.HTTP_400_BAD_REQUEST)
                 
         except ObjectDoesNotExist:
             return Response({
                 'status': 'error', 
-                'message': 'RUT o código incorrectos.'
-            })
+                'message': 'Código incorrecto.'
+            }, status=status.HTTP_404_NOT_FOUND)
     
     def _change_password(self, request):
-        """Cambiar la contraseña"""
-        print('Cambiando contraseña...')
         rut = request.data.get('rut')
         nueva_contrasena = request.data.get('nuevaContrasena')
-        codigo = request.data.get('codigo')  # Verificación adicional de seguridad
+        codigo = request.data.get('codigo')
         
         if not rut or not nueva_contrasena:
             return Response({
                 'status': 'error', 
-                'message': 'RUT y nueva contraseña son requeridos.'
-            })
+                'message': 'RUT y contraseña son requeridos.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             usuario = Usuarios.objects.get(rut=rut)
             
-            # Verificación adicional: el código debe existir y ser válido
             if codigo and usuario.codigo == codigo:
                 if usuario.codigo_expiracion and usuario.codigo_expiracion > timezone.now():
-                    # Cambiar contraseña
-                    print(f'La nueva contraseña es: {nueva_contrasena}')
                     usuario.set_password(nueva_contrasena)
-                    
-                    # Limpiar código usado
                     usuario.codigo = None
                     usuario.codigo_expiracion = None
                     usuario.save()
                     
                     return Response({
                         'status': 'success', 
-                        'message': 'Contraseña actualizada con éxito.'
-                    })
+                        'message': 'Contraseña actualizada.'
+                    }, status=status.HTTP_200_OK)
                 else:
                     return Response({
                         'status': 'error', 
-                        'message': 'El código ha expirado.'
-                    })
+                        'message': 'Código expirado.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({
                     'status': 'error', 
-                    'message': 'Código de verificación inválido.'
-                })
+                    'message': 'Código inválido.'
+                }, status=status.HTTP_400_BAD_REQUEST)
                 
         except ObjectDoesNotExist:
             return Response({
                 'status': 'error', 
                 'message': 'Usuario no encontrado.'
-            })
+            }, status=status.HTTP_404_NOT_FOUND)
 
 class VerifyJWTAPIView(APIView):
     """

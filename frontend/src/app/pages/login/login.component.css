@@ -59,6 +59,32 @@ html, body {
         transform: translateX(0);
     }
 }
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes contentFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 @media screen and (max-width: 480px) {
     body::after {
       content: 'Mobile view active';
@@ -68,7 +94,7 @@ html, body {
       background: red;
       color: white;
     }
-  }
+}
 
 .login-background {
     display: flex;
@@ -82,6 +108,7 @@ html, body {
     position: relative;
     overflow: hidden;
 }
+
 .top-bar {
     width: 100%;
     overflow: hidden;
@@ -182,6 +209,42 @@ html, body {
     cursor: pointer;
 }
 
+/* ✅ NUEVO: Botón ver/ocultar contraseña */
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    color: #666;
+    transition: color 0.3s;
+}
+
+.toggle-password:hover {
+    color: #166a82;
+}
+
+.toggle-password svg {
+    stroke-width: 2;
+}
+
+/* ✅ NUEVO: Advertencia Caps Lock */
+.caps-lock-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 5px 0;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
 /* Barras inferiores */
 .low-bar {
     position: absolute;
@@ -223,7 +286,7 @@ html, body {
     height: 60px;
 }
 
-/* Modal de correo */
+/* Modal de correo (legacy - se mantiene por compatibilidad) */
 .correo-modal {
     position: fixed;
     z-index: 10;
@@ -287,6 +350,7 @@ html, body {
     animation: slideUp 1s ease-out forwards;
 }
 
+/* ✅ MODALES MEJORADOS */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -300,38 +364,52 @@ html, body {
     align-items: flex-start;
     padding-top: 12%;
     padding-left: 33%;
-  }
-  
-  .modal-container {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.modal-container {
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     width: 90%;
     max-width: 400px;
-   padding: 20px;
-  }
-  
-  
-  .modal-content {
+    padding: 20px;
+    animation: slideInDown 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.modal-content {
     display: flex;
     flex-direction: column;
-  }
-  
-  .modal-content h2 {
+    animation: contentFade 0.3s ease-out;
+}
+
+.modal-content h2 {
     color: #063e6b;
     margin-bottom: 20px;
     text-align: center;
-  }
-  
-  .modal-content input {
+}
+
+.modal-subtitle {
+    color: #666;
+    font-size: 14px;
+    margin: -10px 0 20px 0;
+    text-align: center;
+}
+
+.modal-content input {
     margin-bottom: 15px;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 16px;
-  }
-  
-  .modal-button {
+}
+
+.modal-content input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.modal-button {
     background-color: #063e6b;
     color: white;
     border: none;
@@ -340,23 +418,65 @@ html, body {
     cursor: pointer;
     font-size: 16px;
     transition: background-color 0.3s;
-  }
-  
-  .modal-button:hover {
+}
+
+.modal-button:hover {
     background-color: #052d4e;
-  }
-  
-  .close {
+}
+
+.modal-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.close {
     color: #aaa;
     float: right;
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
-  }
-  
-  .close:hover,
-  .close:focus {
+}
+
+.close:hover,
+.close:focus {
     color: #000;
     text-decoration: none;
     cursor: pointer;
-  }
+}
+
+/* ✅ LOADING SPINNER */
+.loading-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Agregar al final del archivo: */
+
+.input-error {
+    border: 2px solid #dc3545 !important;
+    background-color: #fff5f5 !important;
+}
+
+.error-message {
+    color: #dc3545;
+    background-color: #fff5f5;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: -10px 0 15px 0;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
