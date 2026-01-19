@@ -480,3 +480,22 @@ html, body {
     text-align: center;
     animation: fadeIn 0.3s ease-in;
 }
+
+/* Ya está en tu CSS, pero asegurar estos estilos: */
+.input-error {
+    border: 2px solid #dc3545 !important;
+    background-color: #fff5f5 !important;
+}
+
+.error-message {
+    color: #dc3545;
+    background-color: #fff5f5;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: -5px 0 10px 0;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}

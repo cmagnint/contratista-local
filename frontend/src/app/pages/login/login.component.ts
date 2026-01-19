@@ -1,3 +1,4 @@
+// login.component.ts
 import { Component, Inject, OnInit, PLATFORM_ID, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -35,6 +36,7 @@ export class LoginComponent implements OnInit {
   public emailErrorMessage: string = '';
   public codeErrorMessage: string = '';
 
+  public rutLoginErrorMessage: string = '';
   
   public isCheckingRut: boolean = false;
   public isSendingCode: boolean = false;
@@ -80,6 +82,32 @@ export class LoginComponent implements OnInit {
     this.showPassword = !this.showPassword;
   }
 
+  private validateRUT(rut: string): boolean {
+    const cleanRut = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+    
+    if (cleanRut.length < 2) return false;
+    
+    const body = cleanRut.slice(0, -1);
+    const verifier = cleanRut.slice(-1);
+    
+    if (!/^\d+$/.test(body)) return false;
+    
+    let sum = 0;
+    let multiplier = 2;
+    
+    for (let i = body.length - 1; i >= 0; i--) {
+      sum += parseInt(body[i]) * multiplier;
+      multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    }
+    
+    const expectedVerifier = 11 - (sum % 11);
+    const calculatedVerifier = expectedVerifier === 11 ? '0' : 
+                              expectedVerifier === 10 ? 'K' : 
+                              expectedVerifier.toString();
+    
+    return verifier === calculatedVerifier;
+  }
+
   verifyAndNavigate(): void {
     const token = this.jwtService.getToken();
     if (!token) {
@@ -119,6 +147,13 @@ export class LoginComponent implements OnInit {
 
     if (!this.rut || !this.password) {
       this.showErrorMessage('Por favor complete todos los campos');
+      return;
+    }
+
+    const cleanRut = this.rut.replace(/[^0-9kK]/g, '').toUpperCase();
+    if (!this.validateRUT(cleanRut)) {
+      this.showErrorMessage('RUT inválido');
+      this.rutLoginErrorMessage = 'RUT inválido';
       return;
     }
 
@@ -227,6 +262,11 @@ export class LoginComponent implements OnInit {
       return;
     }
 
+    if (!this.validateRUT(rutClean)) {
+      this.rutErrorMessage = 'RUT inválido';
+      return;
+    }
+
     this.isCheckingRut = true;
     this.rutErrorMessage = '';
 
@@ -257,7 +297,6 @@ export class LoginComponent implements OnInit {
     this.rutErrorMessage = '';
   }
 
-  // Agregar métodos para limpiar errores:
   onEmailInputChange() {
     this.emailErrorMessage = '';
   }
@@ -272,7 +311,6 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    // Validación básica de formato email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(this.emailForRecovery)) {
       this.emailErrorMessage = 'Formato de email inválido';
@@ -306,7 +344,6 @@ export class LoginComponent implements OnInit {
       }
     });
   }
-
 
   verifyCode() {
     if (!this.codeForRecovery.trim()) {
@@ -418,6 +455,7 @@ export class LoginComponent implements OnInit {
     
     if (rut.length === 0) {
       target.value = '';
+      this.rutLoginErrorMessage = '';
       return;
     }
     
@@ -426,6 +464,7 @@ export class LoginComponent implements OnInit {
     
     if (body.length === 0) {
       target.value = verifier;
+      this.rutLoginErrorMessage = '';
       return;
     }
     
@@ -440,6 +479,16 @@ export class LoginComponent implements OnInit {
     
     const formatted = parts.join('.') + '-' + verifier;
     target.value = formatted;
+    
+    if (rut.length >= 8) {
+      if (!this.validateRUT(rut)) {
+        this.rutLoginErrorMessage = 'RUT inválido';
+      } else {
+        this.rutLoginErrorMessage = '';
+      }
+    } else {
+      this.rutLoginErrorMessage = '';
+    }
     
     const lengthDiff = formatted.length - rut.length;
     target.setSelectionRange(

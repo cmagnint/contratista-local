@@ -1,3 +1,4 @@
+<!-- login.component.html -->
 <div class="login-background">
     <div class="top-bar">
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="80px" viewBox="0 0 4 2" preserveAspectRatio="none">
@@ -23,10 +24,13 @@
                     required 
                     placeholder="RUT" 
                     class="login-field"
+                    [class.input-error]="rutLoginErrorMessage"
                 >
             </div>
+            <div class="error-message" *ngIf="rutLoginErrorMessage">
+                {{ rutLoginErrorMessage }}
+            </div>
             
-            <!-- ✅ CORREGIDO: Input password con detección Caps Lock mejorada -->
             <div class="input-icon-container">
                 <img src="assets/images/key.png" class="input-icon">
                 <input 
@@ -56,7 +60,6 @@
                 </button>
             </div>
 
-            <!-- ✅ Advertencia Caps Lock -->
             <div class="caps-lock-warning" *ngIf="capsLockActive">
                 ⚠️ Mayúsculas activadas
             </div>

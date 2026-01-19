@@ -18566,6 +18566,17 @@ class GenerarTxtBancoAPIView(APIView):
             # Obtener el archivo CSV del request
             csv_file = request.FILES.get('csv_file')
             
+            # Obtener el nombre personalizado para los archivos
+            nombre_base = request.POST.get('nombre_archivo', 'transferencias')
+            
+            # Limpiar nombre: solo alfanuméricos, guiones y guiones bajos
+            import re
+            nombre_base = re.sub(r'[^a-zA-Z0-9_-]', '', nombre_base)
+            
+            # Si después de limpiar queda vacío, usar nombre por defecto
+            if not nombre_base:
+                nombre_base = 'transferencias'
+            
             if not csv_file:
                 return Response({
                     'success': False,
@@ -18640,8 +18651,8 @@ class GenerarTxtBancoAPIView(APIView):
                         'message': f'Error al formatear los datos del grupo {numero_archivo}'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
-                # Crear nombre de archivo
-                nombre_archivo = f'transferencias_banco_chile_parte_{numero_archivo}.txt'
+                # Crear nombre de archivo con el nombre personalizado
+                nombre_archivo = f'{nombre_base}_{numero_archivo}.txt'
                 
                 archivos_generados.append({
                     'nombre': nombre_archivo,

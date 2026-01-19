@@ -1,9 +1,5 @@
-<!-- ============================================ -->
-<!-- 🎯 CONTENEDOR PRINCIPAL -->
-<!-- ============================================ -->
 <div class="container-principal">
   
-  <!-- Encabezado -->
   <div class="header-section">
     <h1 class="titulo-principal">
       🏦 Generador de Archivos TXT - Banco de Chile
@@ -18,9 +14,6 @@
     </button>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 SECCIÓN DE CARGA DE ARCHIVO -->
-  <!-- ============================================ -->
   <div class="seccion-carga">
     <div class="card-upload">
       <div class="upload-icon">📄</div>
@@ -32,7 +25,17 @@
         Cada archivo TXT generado contendrá máximo 100 transferencias.
       </p>
 
-      <!-- Input de archivo -->
+      <div class="nombre-archivo-container">
+        <label class="nombre-label">Nombre base para los archivos TXT:</label>
+        <input 
+          type="text" 
+          class="nombre-input"
+          [(ngModel)]="nombreArchivoBase"
+          placeholder="Ejemplo: transferencias_enero"
+          maxlength="50">
+        <small class="nombre-hint">Los archivos se numerarán automáticamente: nombre_1.txt, nombre_2.txt, etc.</small>
+      </div>
+
       <label class="file-upload-label" for="csvFileInput">
         <input 
           type="file" 
@@ -46,7 +49,6 @@
         </div>
       </label>
 
-      <!-- Información del archivo seleccionado -->
       <div class="archivo-seleccionado" *ngIf="archivoSeleccionado">
         <div class="archivo-info">
           <div class="archivo-icono">✅</div>
@@ -63,10 +65,9 @@
         </div>
       </div>
 
-      <!-- Botón de procesamiento -->
       <button 
         class="button-procesar"
-        [disabled]="!archivoSeleccionado || procesando"
+        [disabled]="!archivoSeleccionado || !nombreArchivoBase.trim() || procesando"
         (click)="procesarArchivo()">
         <span *ngIf="!procesando">
           <span class="button-icon">⚙️</span>
@@ -80,9 +81,6 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 SECCIÓN DE ARCHIVOS GENERADOS -->
-  <!-- ============================================ -->
   <div class="seccion-resultados" *ngIf="hayArchivosGenerados()">
     <div class="card-resultados">
       <div class="resultados-header">
@@ -101,7 +99,6 @@
         </div>
       </div>
 
-      <!-- Lista de archivos -->
       <div class="archivos-lista">
         <div 
           class="archivo-item" 
@@ -125,7 +122,6 @@
         </div>
       </div>
 
-      <!-- Botón para descargar todos -->
       <button 
         class="button-download-all"
         (click)="descargarTodos()">
@@ -135,9 +131,6 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL DE INFORMACIÓN -->
-  <!-- ============================================ -->
   <div 
     class="modal" 
     *ngIf="modals['infoModal']" 
@@ -214,9 +207,6 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL DE ÉXITO -->
-  <!-- ============================================ -->
   <div 
     class="modal" 
     *ngIf="modals['exitoModal']" 
@@ -240,9 +230,6 @@
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 MODAL DE ERROR -->
-  <!-- ============================================ -->
   <div 
     class="modal" 
     *ngIf="modals['errorModal']" 

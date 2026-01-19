@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
 
 interface ArchivoTxt {
@@ -12,23 +13,22 @@ interface ArchivoTxt {
 @Component({
   selector: 'app-generar-txt-banco',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './generar-txt-banco.component.html',
   styleUrl: './generar-txt-banco.component.css'
 })
 export class GenerarTxtBancoComponent {
   archivoSeleccionado: File | null = null;
   nombreArchivoSeleccionado: string = '';
+  nombreArchivoBase: string = '';
   archivosGenerados: ArchivoTxt[] = [];
   procesando: boolean = false;
   errorMensaje: string = '';
   exitoMensaje: string = '';
   
-  // Información del CSV cargado
   totalRegistros: number = 0;
   totalArchivos: number = 0;
   
-  // Modales
   modals: { [key: string]: boolean } = {
     errorModal: false,
     exitoModal: false,
@@ -37,21 +37,16 @@ export class GenerarTxtBancoComponent {
 
   constructor(private apiService: ContratistaApiService) {}
 
-  /**
-   * Maneja la selección del archivo CSV
-   */
   onFileSelect(event: any): void {
     const file = event.target.files[0];
     
     if (file) {
-      // Validar que sea un archivo CSV
       if (!file.name.toLowerCase().endsWith('.csv')) {
         this.mostrarError('Por favor seleccione un archivo CSV válido');
         this.limpiarArchivo();
         return;
       }
       
-      // Validar tamaño del archivo (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         this.mostrarError('El archivo es demasiado grande. Máximo 5MB');
         this.limpiarArchivo();
@@ -66,9 +61,6 @@ export class GenerarTxtBancoComponent {
     }
   }
 
-  /**
-   * Limpia el archivo seleccionado
-   */
   limpiarArchivo(): void {
     this.archivoSeleccionado = null;
     this.nombreArchivoSeleccionado = '';
@@ -76,19 +68,20 @@ export class GenerarTxtBancoComponent {
     this.totalRegistros = 0;
     this.totalArchivos = 0;
     
-    // Limpiar input file
     const fileInput = document.getElementById('csvFileInput') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
     }
   }
 
-  /**
-   * Procesa el archivo CSV y genera los TXT
-   */
   async procesarArchivo(): Promise<void> {
     if (!this.archivoSeleccionado) {
       this.mostrarError('Por favor seleccione un archivo CSV');
+      return;
+    }
+
+    if (!this.nombreArchivoBase.trim()) {
+      this.mostrarError('Por favor ingrese un nombre para los archivos');
       return;
     }
 
@@ -97,20 +90,18 @@ export class GenerarTxtBancoComponent {
     this.archivosGenerados = [];
 
     try {
-      // Crear FormData para enviar el archivo
       const formData = new FormData();
       formData.append('csv_file', this.archivoSeleccionado);
+      formData.append('nombre_archivo', this.nombreArchivoBase.trim());
       formData.append('action', 'generar_txt_banco');
 
       console.log('Enviando archivo al backend...');
 
-      // Enviar al backend usando el servicio
       const response = await this.apiService.postFormData('generar_txt_banco/', formData).toPromise();
 
       console.log('Respuesta del backend:', response);
 
       if (response.success) {
-        // Procesar respuesta exitosa
         this.archivosGenerados = response.archivos;
         this.totalRegistros = response.total_registros;
         this.totalArchivos = response.total_archivos;
@@ -130,27 +121,15 @@ export class GenerarTxtBancoComponent {
     }
   }
 
-  /**
-   * Descarga un archivo TXT específico
-   */
   descargarArchivo(archivo: ArchivoTxt): void {
     try {
-      // Crear blob con el contenido del archivo
       const blob = new Blob([archivo.contenido], { type: 'text/plain;charset=utf-8' });
-      
-      // Crear URL del blob
       const url = window.URL.createObjectURL(blob);
-      
-      // Crear elemento <a> temporal para descargar
       const link = document.createElement('a');
       link.href = url;
       link.download = archivo.nombre;
-      
-      // Simular click para descargar
       document.body.appendChild(link);
       link.click();
-      
-      // Limpiar
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
@@ -161,45 +140,31 @@ export class GenerarTxtBancoComponent {
     }
   }
 
-  /**
-   * Descarga todos los archivos generados
-   */
   descargarTodos(): void {
     if (this.archivosGenerados.length === 0) {
       this.mostrarError('No hay archivos para descargar');
       return;
     }
 
-    // Descargar cada archivo con un pequeño delay para no saturar el navegador
     this.archivosGenerados.forEach((archivo, index) => {
       setTimeout(() => {
         this.descargarArchivo(archivo);
-      }, index * 300); // 300ms de delay entre cada descarga
+      }, index * 300);
     });
   }
 
-  /**
-   * Muestra modal de error
-   */
   mostrarError(mensaje: string): void {
     this.errorMensaje = mensaje;
     this.openModal('errorModal');
   }
 
-  /**
-   * Abre un modal
-   */
   openModal(modalName: string): void {
     this.modals[modalName] = true;
   }
 
-  /**
-   * Cierra un modal
-   */
   closeModal(modalName: string): void {
     this.modals[modalName] = false;
     
-    // Limpiar mensajes al cerrar
     if (modalName === 'errorModal') {
       this.errorMensaje = '';
     }
@@ -208,23 +173,14 @@ export class GenerarTxtBancoComponent {
     }
   }
 
-  /**
-   * Muestra información del formato
-   */
   mostrarInfoFormato(): void {
     this.openModal('infoModal');
   }
 
-  /**
-   * Verifica si hay archivos generados
-   */
   hayArchivosGenerados(): boolean {
     return this.archivosGenerados.length > 0;
   }
 
-  /**
-   * Obtiene el tamaño del archivo en formato legible
-   */
   obtenerTamanoArchivo(): string {
     if (!this.archivoSeleccionado) return '';
     
