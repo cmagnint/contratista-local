@@ -1,3 +1,4 @@
+<!-- folio-comercial.component.html -->
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
     
   <!-- Botones de acción principales -->
@@ -536,14 +537,55 @@
       </td>
     </ng-container>
 
-    <ng-container matColumnDef="transportistas">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Transportista(s)</th>
-      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.nombres_transportistas }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="vehiculos">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Vehículo(s)</th>
-      <td mat-cell *matCellDef="let cliente" class="mat-cell">{{ cliente.nombres_vehiculos }}</td>
+    <ng-container matColumnDef="transportistas_vehiculos">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Transportistas y Vehículos</th>
+      <td mat-cell *matCellDef="let folio" class="mat-cell transportistas-cell-interactive">
+        
+        <div class="transportistas-interactive-container">
+          
+          <div *ngIf="parseTransportistasVehiculos(folio).length > 0; else noTransportistas">
+            
+            <div 
+              *ngFor="let transportista of parseTransportistasVehiculos(folio)" 
+              class="transportista-item-interactive">
+              
+              <div 
+                class="transportista-header-interactive"
+                (click)="toggleTransportistaInTable(folio.id, transportista.nombre, $event)"
+                [class.expanded]="isTransportistaExpandedInTable(folio.id, transportista.nombre)">
+                
+                <div class="transportista-info">
+                  <span class="expand-icon-table">{{ getExpansionIcon(isTransportistaExpandedInTable(folio.id, transportista.nombre)) }}</span>
+                  <span class="transportista-icon">🚛</span>
+                  <span class="transportista-name">{{ transportista.nombre }}</span>
+                </div>
+                
+                <span class="counter-badge">{{ transportista.vehiculos.length }}</span>
+              </div>
+              
+              <div 
+                class="vehiculos-list-table"
+                [class.expanded]="isTransportistaExpandedInTable(folio.id, transportista.nombre)">
+                
+                <div 
+                  *ngFor="let vehiculo of transportista.vehiculos" 
+                  class="vehiculo-item-interactive">
+                  <span class="vehiculo-label">🚗 {{ vehiculo.modelo }}</span>
+                  <span class="vehiculo-chofer">({{ vehiculo.chofer }})</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #noTransportistas>
+            <div class="no-transportistas-interactive">
+              <span class="no-transportistas-icon">⚠️</span>
+              <span>Sin transportistas</span>
+            </div>
+          </ng-template>
+          
+        </div>
+      </td>
     </ng-container>
 
     <ng-container matColumnDef="fecha_inicio_contrato">

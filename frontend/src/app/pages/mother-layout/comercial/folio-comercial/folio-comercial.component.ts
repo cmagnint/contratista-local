@@ -1,3 +1,4 @@
+// folio-comercial.component.ts
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
@@ -80,7 +81,7 @@ export class FolioComercialComponent implements OnInit {
   public choferesCargados: any[] = [];
   public horariosCargados: any[] = [];
 
-  columnasDesplegadas = ['codigo','cliente', 'fundos', 'labores', 'transportistas', 'vehiculos',  'horarios','fecha_inicio_contrato', 
+  columnasDesplegadas = ['codigo','cliente', 'fundos', 'labores', 'transportistas_vehiculos', 'horarios','fecha_inicio_contrato', 
   'fecha_termino_contrato','estado'];
   
   public deletedRow: any[] = [];
@@ -202,9 +203,8 @@ export class FolioComercialComponent implements OnInit {
         
         if (response.length > 0) {
           console.log('🔍 Estructura del primer folio:', response[0]);
-          console.log('🔍 ¿Tiene labores_detalle?', response[0].labores_detalle);
-          console.log('🔍 ¿Tipo de labores_detalle?', typeof response[0].labores_detalle);
-          console.log('🔍 nombres_labores:', response[0].nombres_labores);
+          console.log('🔍 labores:', response[0].labores);
+          console.log('🔍 transportistas:', response[0].transportistas);
         }
         
         this.foliosCargados = response;
@@ -216,12 +216,25 @@ export class FolioComercialComponent implements OnInit {
   }
 
   parseLaboresFromString(folio: any): any[] {
-    if (folio.labores_detalle && folio.labores_detalle.length > 0) {
+    // PRIORIDAD 1: Si el backend envía labores estructuradas directamente
+    if (folio.labores && Array.isArray(folio.labores) && folio.labores.length > 0) {
+      console.log(`✅ Usando labores estructuradas del backend para folio ${folio.id}`);
+      return folio.labores;
+    }
+    
+    // PRIORIDAD 2: Si hay labores_detalle (antiguo formato)
+    if (folio.labores_detalle && Array.isArray(folio.labores_detalle) && folio.labores_detalle.length > 0) {
+      console.log(`✅ Usando labores_detalle del backend para folio ${folio.id}`);
       return folio.labores_detalle;
     }
     
-    if (!folio.nombres_labores) return [];
+    // FALLBACK: Parsear desde nombres_labores (formato string legacy)
+    if (!folio.nombres_labores) {
+      console.log(`⚠️ No hay labores para folio ${folio.id}`);
+      return [];
+    }
     
+    console.log(`⚠️ Parseando labores desde string para folio ${folio.id}`);
     const laboresArray: any[] = [];
     const laboresStrings = folio.nombres_labores.split(/,(?![^()]*\))/);
     
@@ -238,9 +251,91 @@ export class FolioComercialComponent implements OnInit {
       }
     });
     
-    console.log(`🔍 Labores parseadas para folio ${folio.id}:`, laboresArray);
-    
     return laboresArray;
+  }
+
+  parseTransportistasVehiculos(folio: any): any[] {
+    // PRIORIDAD 1: Si el backend envía transportistas estructurados directamente
+    if (folio.transportistas && Array.isArray(folio.transportistas) && folio.transportistas.length > 0) {
+      console.log(`✅ Usando transportistas estructurados del backend para folio ${folio.id}`);
+      return folio.transportistas.map((t: any) => ({
+        id: t.id,
+        nombre: t.nombre,
+        vehiculos: (t.vehiculos || []).map((v: any) => ({
+          id: v.id,
+          modelo: v.modelo,
+          ppu: v.ppu || '',
+          chofer: v.chofer || 'SIN CHOFER'
+        }))
+      }));
+    }
+    
+    // FALLBACK: Parsear desde strings (formato legacy)
+    console.log(`⚠️ Parseando transportistas desde strings para folio ${folio.id}`);
+    const transportistasMap: { [key: string]: any } = {};
+    
+    if (!folio.nombres_transportistas || !folio.nombres_vehiculos) {
+      return [];
+    }
+    
+    const transportistasNombres = folio.nombres_transportistas
+      .split(',')
+      .map((t: string) => t.trim());
+    
+    const vehiculosRaw = folio.nombres_vehiculos
+      .split(',')
+      .map((v: string) => v.trim());
+    
+    // Inicializar transportistas
+    transportistasNombres.forEach((nombre: string) => {
+      if (!transportistasMap[nombre]) {
+        transportistasMap[nombre] = {
+          nombre: nombre,
+          vehiculos: []
+        };
+      }
+    });
+    
+    // Parsear vehículos y asociarlos
+    vehiculosRaw.forEach((vehiculoStr: string, index: number) => {
+      const match = vehiculoStr.match(/^(.+?)\s*\((?:CHOFER:\s*)?(.+?)\)$/);
+      
+      if (match) {
+        const modelo = match[1].trim();
+        const chofer = match[2].trim();
+        
+        // Buscar el vehículo en vehiculosCargados para obtener su empresa
+        const vehiculoData = this.vehiculosCargados
+          .flatMap(e => e.vehiculos)
+          .find((v: any) => v.modelo.trim() === modelo);
+        
+        if (vehiculoData) {
+          const empresaData = this.vehiculosCargados.find(e => 
+            e.vehiculos.some((v: any) => v.id === vehiculoData.id)
+          );
+          
+          if (empresaData && transportistasMap[empresaData.nombre]) {
+            transportistasMap[empresaData.nombre].vehiculos.push({
+              modelo: modelo,
+              chofer: chofer
+            });
+          }
+        } else {
+          // Si no se encuentra el vehículo, distribuir equitativamente
+          const transportistaIndex = index % transportistasNombres.length;
+          const transportistaNombre = transportistasNombres[transportistaIndex];
+          
+          if (transportistasMap[transportistaNombre]) {
+            transportistasMap[transportistaNombre].vehiculos.push({
+              modelo: modelo,
+              chofer: chofer
+            });
+          }
+        }
+      }
+    });
+    
+    return Object.values(transportistasMap);
   }
 
   modificarFolio(): void {
@@ -301,10 +396,18 @@ export class FolioComercialComponent implements OnInit {
       const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
       console.log('🔍 Fila seleccionada:', lastSelectedRow);
       
+      // Cargar cliente
       this.selectedClienteId = lastSelectedRow.cliente;
-      this.selectedFundosNew = lastSelectedRow.fundos ? lastSelectedRow.fundos.map((fundo: any) => fundo.id) : [];
-      this.selectedHorariosNew = lastSelectedRow.horarios ? lastSelectedRow.horarios.map((horario: any) => horario.id) : [];
       
+      // Cargar fundos
+      this.selectedFundosNew = lastSelectedRow.fundos ? 
+        lastSelectedRow.fundos.map((fundo: any) => fundo.id) : [];
+      
+      // Cargar horarios
+      this.selectedHorariosNew = lastSelectedRow.horarios ? 
+        lastSelectedRow.horarios.map((horario: any) => horario.id) : [];
+      
+      // ✅ CARGAR LABORES CON NUEVA ESTRUCTURA
       const laboresParsed = this.parseLaboresFromString(lastSelectedRow);
       console.log('🔍 Labores parseadas para modificar:', laboresParsed);
       
@@ -313,7 +416,13 @@ export class FolioComercialComponent implements OnInit {
         this.laboresValores = {};
         
         laboresParsed.forEach((laborParsed: any) => {
-          const laborReal = this.laboresCargadas.find(l => l.nombre === laborParsed.nombre);
+          // Buscar la labor por ID si viene del backend estructurado
+          let laborReal = this.laboresCargadas.find(l => l.id === laborParsed.id);
+          
+          // Si no se encuentra por ID, buscar por nombre (fallback para formato legacy)
+          if (!laborReal) {
+            laborReal = this.laboresCargadas.find(l => l.nombre === laborParsed.nombre);
+          }
           
           if (laborReal) {
             this.selectedLaboresNew.push(laborReal.id);
@@ -328,7 +437,7 @@ export class FolioComercialComponent implements OnInit {
               fact: laborParsed.valor_facturacion
             });
           } else {
-            console.warn(`⚠️ No se encontró la labor "${laborParsed.nombre}" en laboresCargadas`);
+            console.warn(`⚠️ No se encontró la labor en laboresCargadas:`, laborParsed);
           }
         });
       } else {
@@ -336,23 +445,47 @@ export class FolioComercialComponent implements OnInit {
         this.laboresValores = {};
       }
       
-      if (lastSelectedRow.nombres_transportistas) {
-        const transportistasNames = lastSelectedRow.nombres_transportistas.split(',').map((name: string) => name.trim());
-        this.selectedTransportistasNew = this.transportistasCargados
-          .filter(t => transportistasNames.includes(t.nombre))
-          .map(t => t.id);
+      // ✅ CARGAR TRANSPORTISTAS CON NUEVA ESTRUCTURA
+      if (lastSelectedRow.transportistas && Array.isArray(lastSelectedRow.transportistas)) {
+        // Usar datos estructurados del backend
+        this.selectedTransportistasNew = lastSelectedRow.transportistas.map((t: any) => t.id);
+        
+        // Cargar vehículos de todos los transportistas
+        this.selectedVehiculosNew = lastSelectedRow.transportistas
+          .flatMap((t: any) => (t.vehiculos || []).map((v: any) => v.id))
+          .filter((id: any) => id !== undefined);
+        
+        console.log('✅ Transportistas cargados desde estructura:', this.selectedTransportistasNew);
+        console.log('✅ Vehículos cargados desde estructura:', this.selectedVehiculosNew);
       } else {
-        this.selectedTransportistasNew = [];
-      }
+        // Fallback: parsear desde strings (formato legacy)
+        if (lastSelectedRow.nombres_transportistas) {
+          const transportistasNames = lastSelectedRow.nombres_transportistas
+            .split(',')
+            .map((name: string) => name.trim());
+          
+          this.selectedTransportistasNew = this.transportistasCargados
+            .filter(t => transportistasNames.includes(t.nombre))
+            .map(t => t.id);
+        } else {
+          this.selectedTransportistasNew = [];
+        }
 
-      if (lastSelectedRow.nombres_vehiculos) {
-        const vehiculosModelos = lastSelectedRow.nombres_vehiculos.split(',').map((name: string) => name.trim());
-        this.selectedVehiculosNew = this.vehiculosCargados
-          .flatMap(empresa => empresa.vehiculos)
-          .filter((v: { modelo: any; }) => vehiculosModelos.some((modelo: string | any[]) => modelo.includes(v.modelo)))
-          .map((v: { id: any; }) => v.id);
-      } else {
-        this.selectedVehiculosNew = [];
+        if (lastSelectedRow.nombres_vehiculos) {
+          const vehiculosModelos = lastSelectedRow.nombres_vehiculos
+            .split(',')
+            .map((name: string) => name.trim());
+          
+          this.selectedVehiculosNew = this.vehiculosCargados
+            .flatMap(empresa => empresa.vehiculos)
+            .filter((v: { modelo: any; }) => vehiculosModelos.some((modelo: string | any[]) => modelo.includes(v.modelo)))
+            .map((v: { id: any; }) => v.id);
+        } else {
+          this.selectedVehiculosNew = [];
+        }
+        
+        console.log('⚠️ Transportistas cargados desde strings:', this.selectedTransportistasNew);
+        console.log('⚠️ Vehículos cargados desde strings:', this.selectedVehiculosNew);
       }
       
       this.folioSeleccionado = {
@@ -369,22 +502,38 @@ export class FolioComercialComponent implements OnInit {
       };
       
       console.log('✅ Estado final después de seleccionar:', {
+        cliente: this.selectedClienteId,
+        fundos: this.selectedFundosNew,
         laboresSeleccionadas: this.selectedLaboresNew,
-        valoresLabores: this.laboresValores
+        valoresLabores: this.laboresValores,
+        transportistas: this.selectedTransportistasNew,
+        vehiculos: this.selectedVehiculosNew,
+        horarios: this.selectedHorariosNew
       });
     } else {
       this.resetForm();
     }
   }
 
-  isLaborExpandedInTable(folioId: number, laborId: number): boolean {
+  isLaborExpandedInTable(folioId: number, laborId: number | string): boolean {
     const key = `folio_${folioId}_labor_${laborId}`;
     return this.tableExpansionState[key] || false;
   }
 
-  toggleLaborInTable(folioId: number, laborId: number, event: Event): void {
+  toggleLaborInTable(folioId: number, laborId: number | string, event: Event): void {
     event.stopPropagation();
     const key = `folio_${folioId}_labor_${laborId}`;
+    this.tableExpansionState[key] = !this.tableExpansionState[key];
+  }
+
+  isTransportistaExpandedInTable(folioId: number, transportistaId: number | string): boolean {
+    const key = `folio_${folioId}_transportista_${transportistaId}`;
+    return this.tableExpansionState[key] || false;
+  }
+
+  toggleTransportistaInTable(folioId: number, transportistaId: number | string, event: Event): void {
+    event.stopPropagation();
+    const key = `folio_${folioId}_transportista_${transportistaId}`;
     this.tableExpansionState[key] = !this.tableExpansionState[key];
   }
 

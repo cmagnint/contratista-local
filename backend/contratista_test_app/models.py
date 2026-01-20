@@ -164,6 +164,7 @@ class Clientes(models.Model):
     giro = models.CharField(max_length=255)
     nombre_rep_legal = models.CharField(max_length=255,null=True, blank=True)
     direccion_rep_legal = models.CharField(max_length=255,null=True, blank=True)
+    comuna_cliente = models.CharField(max_length=255, null=True, blank=True)
   
     class Meta:
         db_table = 'clientes'
@@ -204,8 +205,7 @@ class ContactosClientes(models.Model):
     area_cliente =  models.ForeignKey(AreasCliente, on_delete=models.SET_NULL, null=True, blank=True)
     cargo_cliente = models.ForeignKey(CargosCliente, on_delete=models.SET_NULL, null=True, blank=True)
     nombre_contacto = models.CharField(max_length=255)
-    rut_contacto = models.CharField(max_length=255, unique=True)
-    telefono = models.IntegerField()
+    telefono = models.CharField(max_length=20, null=True, blank=True)  # CAMBIO AQUÍ
     correo = models.EmailField(unique=True)
     
     class Meta:

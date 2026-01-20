@@ -67,6 +67,11 @@
           <span class="icon-label">Clientes</span>
         </h3>
         <ul class="sub-menu-list" [class.show]="isGroupOpen('group3')">
+
+          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'ADMINISTRAR CLIENTES')" (click)="navigateToAdministrarClientes()">
+            <mat-icon>business</mat-icon>
+            <span class="icon-label">Administrar Clientes</span>
+          </li>
           
           <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'PARAMETROS CLIENTES')" (click)="toggleGroup('parametrosSubGroupClientes')">
             <mat-icon>settings</mat-icon>
@@ -86,10 +91,7 @@
           
           </ul>
 
-          <li *ngIf="puedeAccederSubmodulo('CLIENTES', 'ADMINISTRAR CLIENTES')" (click)="navigateToAdministrarClientes()">
-            <mat-icon>business</mat-icon>
-            <span class="icon-label">Administrar Clientes</span>
-          </li>
+          
 
         </ul>
       </li>

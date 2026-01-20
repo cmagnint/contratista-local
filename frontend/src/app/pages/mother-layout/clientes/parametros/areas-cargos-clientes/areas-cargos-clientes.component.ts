@@ -19,14 +19,14 @@ import { JwtService } from '../../../../../services/jwt.service';
   styleUrl: './areas-cargos-clientes.component.css'
 })
 export class AreasCargosClientesComponent implements OnInit {
-  // VARIABLES
+  // CONSTRUCTOR
   constructor(
-    private jwtService: JwtService,
     private apiService: ContratistaApiService,
+    private jwtService: JwtService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
-  // Booleanos para abrir o cerrar ventanas
+  // MODALES
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
@@ -34,9 +34,8 @@ export class AreasCargosClientesComponent implements OnInit {
     modificarArea: false,
     crearCargo: false,
     modificarCargo: false,
-    confirmacionModal: false,
-    areasModal: false,
-    clientesModal: false,
+    confirmacionModalArea: false,
+    confirmacionModalCargo: false,
   };
 
   // VARIABLES PARA ÁREAS
@@ -47,9 +46,10 @@ export class AreasCargosClientesComponent implements OnInit {
 
   public nombreArea: string = '';
   public nombreAreaNew: string = '';
-  selectedRows: any[] = [];
+  public selectedAreaRows: any[] = [];
   public areasCargadas: any[] = [];
-  public selectedAreaId: number | null = null;
+  public selectedAreaForCargo: any = null;
+  public deletedAreaRows: any[] = [];
 
   // VARIABLES PARA CARGOS
   public cargoSeleccionado: any = {
@@ -58,29 +58,38 @@ export class AreasCargosClientesComponent implements OnInit {
     id_area_cargo_seleccionado: 0,
   };
 
-  
   public nombreCargo: string = '';
   public nombreCargoNew: string = '';
   public cargosCargados: any[] = [];
+  public selectedCargoRows: any[] = [];
   public selectedCargoId: number | null = null;
+  public deletedCargoRows: any[] = [];
+
+  // VARIABLES GENERALES
   public errorMessage!: string;
   public holding: string = '';
-  public dropdownOpen: boolean = false;
-  public deletedRow: any[] = [];
-  
 
-   // COLUMNAS PARA TABLAS
+  // COLUMNAS PARA TABLAS
   columnasDesplegadas = ['nombre'];
   columnasDesplegadasCargos = ['nombre', 'area'];
 
-    private getHoldingIdFromJWT(): string {
+  // INICIALIZACIÓN
+  ngOnInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      this.holding = this.getHoldingIdFromJWT();
+      this.cargarAreas();
+      this.cargarCargos();
+    }
+  }
+
+  private getHoldingIdFromJWT(): string {
     try {
       const userInfo = this.jwtService.getUserInfo();
       const holdingId = userInfo?.holding_id;
       
       console.log('🔍 Holding ID del JWT:', holdingId);
       
-      if (holdingId && holdingId !== null ) {
+      if (holdingId && holdingId !== null) {
         return holdingId.toString();
       } else {
         console.warn('⚠️ Holding ID no encontrado en JWT o es null');
@@ -92,28 +101,20 @@ export class AreasCargosClientesComponent implements OnInit {
     }
   }
 
-
-  // FUNCIONES
-  ngOnInit(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      this.holding = this.getHoldingIdFromJWT();
-      this.cargarAreas();
-      this.cargarCargos();
-      
-    }
-  }
-
-
+  // ===================================================
   // FUNCIONES CRUD PARA ÁREAS
+  // ===================================================
+
   crearAreas(): void {
     let data = {
       holding: this.holding,
       nombre: this.nombreArea,
-      
     };
+    
     this.apiService.post('api_areas_cliente/', data).subscribe({
       next: (response) => {
         this.closeModal('crearArea');
+        this.nombreArea = '';
         this.cargarAreas();
         this.openModal('exitoModal');
       },
@@ -135,14 +136,28 @@ export class AreasCargosClientesComponent implements OnInit {
   }
 
   modificarAreas(): void {
+    if (!this.areaSeleccionada.id_area_seleccionada || this.areaSeleccionada.id_area_seleccionada === 0) {
+      this.errorMessage = 'No hay área seleccionada para modificar';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
-      id: this.selectedAreaId,
+      id: this.areaSeleccionada.id_area_seleccionada,
       nombre: this.nombreAreaNew,
     };
+    
     this.apiService.put('api_areas_cliente/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarArea');
+        this.nombreAreaNew = '';
+        this.selectedAreaRows = [];
+        this.selectedAreaForCargo = null;
+        this.areaSeleccionada = {
+          nombre_area_seleccionada: '',
+          id_area_seleccionada: 0,
+        };
         this.cargarAreas();
         this.openModal('exitoModal');
       },
@@ -154,14 +169,17 @@ export class AreasCargosClientesComponent implements OnInit {
   }
 
   eliminarAreasSeleccionadas(): void {
-    if (this.deletedRow.length > 0) {
-      const idsToDelete = this.deletedRow.map((row) => row.id);
+    if (this.deletedAreaRows.length > 0) {
+      const idsToDelete = this.deletedAreaRows.map((row) => row.id);
       this.apiService.delete('api_areas_cliente/', { ids: idsToDelete }).subscribe({
         next: () => {
-          this.closeModal('confirmacionModal');
+          this.closeModal('confirmacionModalArea');
+          this.selectedAreaRows = [];
+          this.selectedAreaForCargo = null;
           this.cargarAreas();
+          this.cargarCargos();
           this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
+          this.deletedAreaRows = [];
         },
         error: (error) => {
           this.openModal('errorModal');
@@ -171,17 +189,28 @@ export class AreasCargosClientesComponent implements OnInit {
     }
   }
 
+  // ===================================================
   // FUNCIONES CRUD PARA CARGOS
+  // ===================================================
+
   crearCargos(): void {
+    if (!this.selectedAreaForCargo) {
+      this.errorMessage = 'No hay área seleccionada para crear el cargo';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
       nombre: this.nombreCargo,
-      area: this.selectedAreaId,
+      area: this.selectedAreaForCargo.id,
     };
+    
     this.apiService.post('api_cargos_cliente/', data).subscribe({
       next: (response) => {
         console.log(response);
         this.closeModal('crearCargo');
+        this.nombreCargo = '';
         this.cargarCargos();
         this.openModal('exitoModal');
       },
@@ -203,15 +232,30 @@ export class AreasCargosClientesComponent implements OnInit {
   }
 
   modificarCargos(): void {
+    if (!this.selectedCargoId || this.selectedCargoId === null) {
+      this.errorMessage = 'No hay cargo seleccionado para modificar';
+      this.openModal('errorModal');
+      return;
+    }
+
     let data = {
       holding: this.holding,
       id: this.selectedCargoId,
       nombre: this.nombreCargoNew,
-      area: this.selectedAreaId,
+      area: this.cargoSeleccionado.id_area_cargo_seleccionado,
     };
+    
     this.apiService.put('api_cargos_cliente/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarCargo');
+        this.nombreCargoNew = '';
+        this.selectedCargoRows = [];
+        this.selectedCargoId = null;
+        this.cargoSeleccionado = {
+          nombre_cargo_seleccionado: '',
+          id_cargo_seleccionado: 0,
+          id_area_cargo_seleccionado: 0,
+        };
         this.cargarCargos();
         this.openModal('exitoModal');
       },
@@ -223,14 +267,15 @@ export class AreasCargosClientesComponent implements OnInit {
   }
 
   eliminarCargosSeleccionados(): void {
-    if (this.deletedRow.length > 0) {
-      const idsToDelete = this.deletedRow.map((row) => row.id);
+    if (this.deletedCargoRows.length > 0) {
+      const idsToDelete = this.deletedCargoRows.map((row) => row.id);
       this.apiService.delete('api_cargos_cliente/', { ids: idsToDelete }).subscribe({
         next: () => {
-          this.closeModal('confirmacionModal');
+          this.closeModal('confirmacionModalCargo');
+          this.selectedCargoRows = [];
           this.cargarCargos();
           this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
+          this.deletedCargoRows = [];
         },
         error: (error) => {
           this.openModal('errorModal');
@@ -240,58 +285,137 @@ export class AreasCargosClientesComponent implements OnInit {
     }
   }
 
-  // FUNCIONES COMUNES
-  toggleSelection(areaId: number): void {
-    if (this.selectedAreaId === areaId) {
-      this.selectedAreaId = null; // Deseleccionar si el mismo perfil es clickeado nuevamente
-    } else {
-      this.selectedAreaId = areaId; // Seleccionar el nuevo perfil
-    }
+  // ===================================================
+  // FUNCIONES DE SELECCIÓN DE FILAS - ÁREAS
+  // ===================================================
+
+  isAreaSelected(row: any): boolean {
+    return this.selectedAreaRows.some((r) => r.id === row.id);
   }
 
-  isSelected(row: any): boolean {
-    return this.selectedRows.some((r) => r.id === row.id);
-  }
-
-  selectRow(row: any): void {
-    const index = this.selectedRows.findIndex((selectedRow) => selectedRow.id === row.id);
+  selectAreaRow(row: any): void {
+    const index = this.selectedAreaRows.findIndex((selectedRow) => selectedRow.id === row.id);
+    
     if (index > -1) {
-      // Si la fila ya está seleccionada, deseleccionarla
-      this.selectedRows.splice(index, 1);
+      this.selectedAreaRows.splice(index, 1);
+      
+      if (this.selectedAreaForCargo && this.selectedAreaForCargo.id === row.id) {
+        this.selectedAreaForCargo = null;
+      }
     } else {
-      // Agregar fila a las seleccionadas
-      this.selectedRows.push(row);
+      this.selectedAreaRows.push(row);
     }
 
-    if (this.selectedRows.length > 0) {
-      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
+    if (this.selectedAreaRows.length === 1) {
+      this.selectedAreaForCargo = this.selectedAreaRows[0];
+      
       this.areaSeleccionada = {
-        nombre_area_seleccionada: lastSelectedRow.nombre,
-        id_area_seleccionada: lastSelectedRow.id,
+        nombre_area_seleccionada: this.selectedAreaRows[0].nombre,
+        id_area_seleccionada: this.selectedAreaRows[0].id,
       };
-      this.selectedAreaId = this.areaSeleccionada.id_area_seleccionada;
       this.nombreAreaNew = this.areaSeleccionada.nombre_area_seleccionada;
+    } else {
+      this.selectedAreaForCargo = null;
+      
+      this.areaSeleccionada = {
+        nombre_area_seleccionada: '',
+        id_area_seleccionada: 0,
+      };
+      this.nombreAreaNew = '';
+    }
+  }
 
+  deseleccionarFilaAreas(event: MouseEvent): void {
+    this.selectedAreaRows = [];
+    this.selectedAreaForCargo = null;
+    this.areaSeleccionada = {
+      nombre_area_seleccionada: '',
+      id_area_seleccionada: 0,
+    };
+    this.nombreAreaNew = '';
+  }
+
+  // ===================================================
+  // FUNCIONES DE SELECCIÓN DE FILAS - CARGOS
+  // ===================================================
+
+  isCargoSelected(row: any): boolean {
+    return this.selectedCargoRows.some((r) => r.id === row.id);
+  }
+
+  selectCargoRow(row: any): void {
+    const index = this.selectedCargoRows.findIndex((selectedRow) => selectedRow.id === row.id);
+    
+    if (index > -1) {
+      this.selectedCargoRows.splice(index, 1);
+    } else {
+      this.selectedCargoRows.push(row);
+    }
+
+    if (this.selectedCargoRows.length === 1) {
       this.cargoSeleccionado = {
-        nombre_cargo_seleccionada: lastSelectedRow.nombre,
-        id_cargo_seleccionado: lastSelectedRow.id,
-        id_area_cargo_seleccionado: lastSelectedRow.area,
+        nombre_cargo_seleccionado: this.selectedCargoRows[0].nombre,
+        id_cargo_seleccionado: this.selectedCargoRows[0].id,
+        id_area_cargo_seleccionado: this.selectedCargoRows[0].area,
       };
       this.selectedCargoId = this.cargoSeleccionado.id_cargo_seleccionado;
-      this.nombreCargoNew = this.cargoSeleccionado.nombre_cargo_seleccionada;
-      this.selectedAreaId = this.cargoSeleccionado.id_area_cargo_seleccionado;
-
+      this.nombreCargoNew = this.cargoSeleccionado.nombre_cargo_seleccionado;
     } else {
-      // Limpiar perfilSeleccionado si no hay filas seleccionadas
-      this.areaSeleccionada = {
-        nombre_cliente_seleccionado: '',
+      this.cargoSeleccionado = {
+        nombre_cargo_seleccionado: '',
+        id_cargo_seleccionado: 0,
+        id_area_cargo_seleccionado: 0,
       };
+      this.selectedCargoId = null;
+      this.nombreCargoNew = '';
     }
   }
 
+  deseleccionarFilaCargos(event: MouseEvent): void {
+    this.selectedCargoRows = [];
+    this.cargoSeleccionado = {
+      nombre_cargo_seleccionado: '',
+      id_cargo_seleccionado: 0,
+      id_area_cargo_seleccionado: 0,
+    };
+    this.selectedCargoId = null;
+    this.nombreCargoNew = '';
+  }
+
+  // ===================================================
+  // FUNCIONES DE MODALES
+  // ===================================================
+
+  openModal(key: string): void {
+    this.modals[key] = true;
+    
+    if (key === 'confirmacionModalArea') {
+      this.deletedAreaRows = [...this.selectedAreaRows];
+      console.log('Áreas para eliminar:', this.deletedAreaRows);
+    }
+    
+    if (key === 'confirmacionModalCargo') {
+      this.deletedCargoRows = [...this.selectedCargoRows];
+      console.log('Cargos para eliminar:', this.deletedCargoRows);
+    }
+  }
+
+  closeModal(key: string): void {
+    this.modals[key] = false;
+    
+    if (key === 'exitoModal') {
+      this.cargarAreas();
+      this.cargarCargos();
+    }
+  }
+
+  // ===================================================
+  // FUNCIONES AUXILIARES (MANTENER COMPATIBILIDAD)
+  // ===================================================
+
   formatRUT(event: Event): void {
-    const target = event.target as HTMLInputElement; // Casting seguro
-    if (!target) return; // Verificar que realmente existe un target
+    const target = event.target as HTMLInputElement;
+    if (!target) return;
 
     let rut = target.value.replace(/\D/g, '');
     let parts = [];
@@ -319,30 +443,6 @@ export class AreasCargosClientesComponent implements OnInit {
     }
     parts.unshift(rut);
     return parts.join('.') + '-' + verifier;
-  }
-
-  toggleDropdown() {
-    this.dropdownOpen = !this.dropdownOpen;
-  }
-
-  deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = []; // Deselecciona todas las filas
-  }
-
-  openModal(key: string): void {
-    this.modals[key] = true;
-    if (key == 'confirmacionModal') {
-      this.deletedRow = this.selectedRows;
-      console.log(this.deletedRow);
-    }
-  }
-
-  closeModal(key: string): void {
-    this.modals[key] = false;
-    if (key === 'exitoModal') {
-      this.cargarAreas();
-      this.cargarCargos();
-    }
   }
 
   checkValue(): void {}

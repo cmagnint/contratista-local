@@ -5,6 +5,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { JwtService } from '../../../../../services/jwt.service';
+
 @Component({
   selector: 'app-contactos-clientes',
   standalone: true,
@@ -28,7 +29,6 @@ export class ContactosClientesComponent implements OnInit {
 
   public nuevoContacto: any = {
     nombre_contacto: '',
-    rut_contacto: '',
     telefono: '',
     correo: '',
     cliente: null,
@@ -39,7 +39,6 @@ export class ContactosClientesComponent implements OnInit {
 
   public contactoSeleccionado: any = {
     nombre_contacto: '',
-    rut_contacto: '',
     telefono: '',
     correo: '',
     cliente: null,
@@ -66,8 +65,7 @@ export class ContactosClientesComponent implements OnInit {
   public selectedRows: any[] = [];
   public errorMessage!: string;
   public deletedRow: any[] = [];
-  columnasDesplegadasContactos = ['nombre_contacto', 'rut_contacto', 
-  'telefono', 'correo', 'cliente', 'campo_cliente', 'area_cliente', 'cargo_cliente'];
+  columnasDesplegadasContactos = ['nombre_contacto', 'telefono', 'correo', 'cliente', 'campo_cliente', 'area_cliente', 'cargo_cliente'];
 
   constructor(
     private apiService: ContratistaApiService,
@@ -85,7 +83,7 @@ export class ContactosClientesComponent implements OnInit {
     }
   }
 
-    private getHoldingIdFromJWT(): string {
+  private getHoldingIdFromJWT(): string {
     try {
       const userInfo = this.jwtService.getUserInfo();
       const holdingId = userInfo?.holding_id;
@@ -103,7 +101,6 @@ export class ContactosClientesComponent implements OnInit {
       return '';
     }
   }
-
 
   cargarClientes(): void {
     this.apiService.get(`api_clientes/?holding=${this.holding}`).subscribe({
@@ -175,8 +172,7 @@ export class ContactosClientesComponent implements OnInit {
       campo_cliente: this.nuevoContacto.campo_cliente,
       area_cliente: this.nuevoContacto.area_cliente,
       cargo_cliente: this.nuevoContacto.cargo_cliente,
-      nombre_contacto:  this.nuevoContacto.nombre_contacto,
-      rut_contacto: this.nuevoContacto.rut_contacto.replace(/\D/g, ''),
+      nombre_contacto: this.nuevoContacto.nombre_contacto,
       telefono: this.nuevoContacto.telefono,
       correo: this.nuevoContacto.correo,
     }
@@ -185,6 +181,7 @@ export class ContactosClientesComponent implements OnInit {
         this.closeModal('crearContacto');
         this.cargarContactos();
         this.openModal('exitoModal');
+        this.limpiarFormularioCrear();
       },
       error: (error) => {
         this.openModal('errorModal');
@@ -192,18 +189,42 @@ export class ContactosClientesComponent implements OnInit {
     });
   }
 
-  modificarContacto(): void {
-    this.apiService.put('api_contactos_clientes/', this.contactoSeleccionado).subscribe({
-      next: (response) => {
-        this.closeModal('modificarContacto');
-        this.cargarContactos();
-        this.openModal('exitoModal');
-      },
-      error: (error) => {
-        this.openModal('errorModal');
-      },
-    });
+  limpiarFormularioCrear(): void {
+    this.nuevoContacto = {
+      nombre_contacto: '',
+      telefono: '',
+      correo: '',
+      cliente: null,
+      campo_cliente: null,
+      area_cliente: null,
+      cargo_cliente: null
+    };
   }
+
+  modificarContacto(): void {
+  let data = {
+    id: this.contactoSeleccionado.id,
+    holding: this.holding,  // AGREGAR ESTA LÍNEA
+    cliente: this.contactoSeleccionado.cliente,
+    campo_cliente: this.contactoSeleccionado.campo_cliente,
+    area_cliente: this.contactoSeleccionado.area_cliente,
+    cargo_cliente: this.contactoSeleccionado.cargo_cliente,
+    nombre_contacto: this.contactoSeleccionado.nombre_contacto,
+    telefono: this.contactoSeleccionado.telefono,
+    correo: this.contactoSeleccionado.correo,
+  };
+  
+  this.apiService.put('api_contactos_clientes/', data).subscribe({
+    next: (response) => {
+      this.closeModal('modificarContacto');
+      this.cargarContactos();
+      this.openModal('exitoModal');
+    },
+    error: (error) => {
+      this.openModal('errorModal');
+    },
+  });
+}
 
   eliminarContactosSeleccionados(): void {
     if (this.deletedRow.length > 0) {
@@ -213,7 +234,7 @@ export class ContactosClientesComponent implements OnInit {
           this.closeModal('confirmacionModal');
           this.cargarContactos();
           this.openModal('exitoModal');
-          this.deletedRow = []; // Limpiar la selección después de eliminar
+          this.deletedRow = [];
         },
         error: (error) => {
           this.openModal('errorModal');
@@ -225,9 +246,9 @@ export class ContactosClientesComponent implements OnInit {
 
   toggleSelection(contactoId: number): void {
     if (this.contactoSeleccionado.id === contactoId) {
-      this.contactoSeleccionado.id = null; // Deseleccionar si el mismo contacto es clickeado nuevamente
+      this.contactoSeleccionado.id = null;
     } else {
-      this.contactoSeleccionado.id = contactoId; // Seleccionar el nuevo contacto
+      this.contactoSeleccionado.id = contactoId;
     }
   }
 
@@ -249,27 +270,27 @@ export class ContactosClientesComponent implements OnInit {
 
   toggleSelectionCliente(clienteId: number): void {
     if (this.nuevoContacto.cliente === clienteId) {
-      this.nuevoContacto.cliente = null;  // Deseleccionar si el mismo cliente es clickeado nuevamente
+      this.nuevoContacto.cliente = null;
     } else {
-      this.nuevoContacto.cliente = clienteId;  // Seleccionar el nuevo cliente
+      this.nuevoContacto.cliente = clienteId;
     }
-    this.nuevoContacto.campo_cliente = null;  // Reset campo cuando se cambia el cliente
+    this.nuevoContacto.campo_cliente = null;
   }
 
   toggleSelectionArea(areaId: number): void {
     if (this.nuevoContacto.area_cliente === areaId) {
-      this.nuevoContacto.area_cliente = null;  // Deseleccionar si el mismo área es clickeado nuevamente
+      this.nuevoContacto.area_cliente = null;
     } else {
-      this.nuevoContacto.area_cliente = areaId;  // Seleccionar el nuevo área
+      this.nuevoContacto.area_cliente = areaId;
     }
-    this.nuevoContacto.cargo_cliente = null;  // Reset cargo cuando se cambia el área
+    this.nuevoContacto.cargo_cliente = null;
   }
 
   toggleSelectionCargo(cargoId: number): void {
     if (this.nuevoContacto.cargo_cliente === cargoId) {
-      this.nuevoContacto.cargo_cliente = null;  // Deseleccionar si el mismo cargo es clickeado nuevamente
+      this.nuevoContacto.cargo_cliente = null;
     } else {
-      this.nuevoContacto.cargo_cliente = cargoId;  // Seleccionar el nuevo cargo
+      this.nuevoContacto.cargo_cliente = cargoId;
     }
   }
 
@@ -280,9 +301,9 @@ export class ContactosClientesComponent implements OnInit {
   selectRow(row: any): void {
     const index = this.selectedRows.findIndex((selectedRow) => selectedRow.id === row.id);
     if (index > -1) {
-      this.selectedRows.splice(index, 1); // Si la fila ya está seleccionada, deseleccionarla
+      this.selectedRows.splice(index, 1);
     } else {
-      this.selectedRows.push(row); // Agregar fila a las seleccionadas
+      this.selectedRows.push(row);
     }
 
     if (this.selectedRows.length > 0) {
@@ -291,7 +312,6 @@ export class ContactosClientesComponent implements OnInit {
     } else {
       this.contactoSeleccionado = {
         nombre_contacto: '',
-        rut_contacto: '',
         telefono: '',
         correo: '',
         cliente: null,
@@ -303,7 +323,7 @@ export class ContactosClientesComponent implements OnInit {
   }
 
   deseleccionarFila(event: MouseEvent) {
-    this.selectedRows = []; // Deselecciona todas las filas
+    this.selectedRows = [];
   }
 
   openModal(key: string): void {
@@ -318,25 +338,6 @@ export class ContactosClientesComponent implements OnInit {
     this.modals[key] = false;
     if (key === 'exitoModal') {
       this.cargarContactos();
-    }
-  }
-
-  formatRUT(event: Event): void {
-    const target = event.target as HTMLInputElement; // Casting seguro
-    if (!target) return; // Verificar que realmente existe un target
-
-    let rut = target.value.replace(/\D/g, '');
-    let parts = [];
-    const verifier = rut.slice(-1);
-    rut = rut.slice(0, -1);
-    while (rut.length > 3) {
-      parts.unshift(rut.slice(-3));
-      rut = rut.slice(0, -3);
-    }
-    parts.unshift(rut);
-    target.value = parts.join('.') + '-' + verifier;
-    if (target.value === '-') {
-      target.value = '';
     }
   }
 

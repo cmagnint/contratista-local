@@ -593,7 +593,8 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Clientes
-        fields = ['id','holding', 'rut', 'nombre', 'direccion', 'giro', 'campos_personalizados','nombre_rep_legal','direccion_rep_legal']
+        fields = ['id','holding', 'rut', 'nombre', 'direccion', 'giro', 
+                  'campos_personalizados','nombre_rep_legal','direccion_rep_legal','comuna_cliente']
         extra_kwargs = {
             'holding': {'write_only': True},
             'id': {'read_only': True},
@@ -656,8 +657,8 @@ class ContactosClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model =  ContactosClientes
-        fields = ['id','holding','cliente','campo_cliente','area_cliente','cargo_cliente','nombre_contacto',
-                  'rut_contacto','telefono','correo','nombre_cliente','nombre_campo_cliente','nombre_area_cliente',
+        fields = ['id','holding','cliente','campo_cliente','area_cliente','cargo_cliente','nombre_contacto'
+                  ,'telefono','correo','nombre_cliente','nombre_campo_cliente','nombre_area_cliente',
                   'nombre_cargo_cliente']
         extra_kwargs = {
             'holding': {'write_only': True},
@@ -1346,14 +1347,46 @@ class FolioComercialLaborSerializer(serializers.ModelSerializer):
         model = FolioComercialLabor
         fields = ['id', 'nombre', 'valor_pago_trabajador', 'valor_facturacion']
 
+class TransportistaNestedSerializer(serializers.ModelSerializer):
+    """Serializer para transportistas con vehículos anidados"""
+    vehiculos = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = EmpresasTransporte
+        fields = ['id', 'nombre', 'rut', 'direccion', 'vehiculos']
+    
+    def get_vehiculos(self, obj):
+        # Obtener el folio del contexto
+        folio = self.context.get('folio')
+        if not folio:
+            return []
+        
+        # Filtrar solo los vehículos de esta empresa que están en el folio
+        vehiculos = folio.vehiculos.filter(empresa=obj)
+        
+        # Serializar los vehículos con información del chofer
+        vehiculos_data = []
+        for vehiculo in vehiculos:
+            # Buscar el chofer asignado a este vehículo
+            chofer = ChoferesTransporte.objects.filter(vehiculo=vehiculo).first()
+            
+            vehiculos_data.append({
+                'id': vehiculo.id,
+                'modelo': vehiculo.modelo,
+                'ppu': vehiculo.ppu,
+                'chofer': chofer.nombre if chofer else 'SIN CHOFER'
+            })
+        
+        return vehiculos_data
+
 
 class FolioComercialSerializer(serializers.ModelSerializer):
     cliente = serializers.PrimaryKeyRelatedField(queryset=Clientes.objects.all())
     nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
     fundos = FundoSimpleSerializer(many=True, read_only=True)
     
-    # 🔥 CAMBIO PRINCIPAL: Usar labores en lugar de labores_detalle
-    labores = serializers.SerializerMethodField()  # ✅ Campo para leer
+    # Labores con valores
+    labores = serializers.SerializerMethodField()
     
     horarios = HorarioSimpleSerializer(many=True, read_only=True)
     nombres_fundos = serializers.SerializerMethodField()
@@ -1361,7 +1394,9 @@ class FolioComercialSerializer(serializers.ModelSerializer):
     nombres_horarios = serializers.SerializerMethodField()
     nombres_transportistas = serializers.SerializerMethodField()
     nombres_vehiculos = serializers.SerializerMethodField()
-    transportistas = TransportistaNestedSerializer(many=True, read_only=True)
+    
+    # 🔥 CAMBIO: Usar método para pasar contexto
+    transportistas = serializers.SerializerMethodField()
     
     # Write-only fields
     fundos_ids = serializers.PrimaryKeyRelatedField(
@@ -1396,7 +1431,7 @@ class FolioComercialSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'cliente', 'nombre_cliente', 'holding',
             'fundos', 'fundos_ids', 'nombres_fundos',
-            'labores', 'labores_data', 'nombres_labores',  # ✅ Cambió labores_detalle a labores
+            'labores', 'labores_data', 'nombres_labores',
             'horarios', 'horarios_ids', 'nombres_horarios',
             'transportistas', 'transportistas_data', 'nombres_transportistas',
             'nombres_vehiculos',
@@ -1404,7 +1439,6 @@ class FolioComercialSerializer(serializers.ModelSerializer):
             'estado'
         ]
 
-    # 🔥 NUEVO MÉTODO: Obtener labores con valores desde tabla intermedia
     def get_labores(self, obj):
         """Devuelve las labores con sus valores desde FolioComercialLabor"""
         folios_labores = FolioComercialLabor.objects.filter(folio=obj)
@@ -1414,6 +1448,15 @@ class FolioComercialSerializer(serializers.ModelSerializer):
             'valor_pago_trabajador': fl.valor_pago_trabajador,
             'valor_facturacion': fl.valor_facturacion
         } for fl in folios_labores]
+    
+    def get_transportistas(self, obj):
+        """Devuelve transportistas con sus vehículos anidados"""
+        transportistas_queryset = obj.transportistas.all()
+        return TransportistaNestedSerializer(
+            transportistas_queryset, 
+            many=True, 
+            context={'folio': obj}
+        ).data
 
     def get_nombres_fundos(self, obj):
         return ', '.join([fundo.nombre_campo for fundo in obj.fundos.all()])
@@ -1430,7 +1473,12 @@ class FolioComercialSerializer(serializers.ModelSerializer):
 
     def get_nombres_vehiculos(self, obj):
         vehiculos = obj.vehiculos.all()
-        return ', '.join([f"{vehiculo.modelo} ({vehiculo.ppu})" for vehiculo in vehiculos])
+        vehiculos_con_chofer = []
+        for vehiculo in vehiculos:
+            chofer = ChoferesTransporte.objects.filter(vehiculo=vehiculo).first()
+            chofer_nombre = chofer.nombre if chofer else 'SIN CHOFER'
+            vehiculos_con_chofer.append(f"{vehiculo.modelo} (CHOFER: {chofer_nombre})")
+        return ', '.join(vehiculos_con_chofer)
 
     def create(self, validated_data):
         fundos = validated_data.pop('fundos', [])

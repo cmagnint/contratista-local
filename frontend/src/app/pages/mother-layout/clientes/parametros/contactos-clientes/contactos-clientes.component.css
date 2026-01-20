@@ -1,277 +1,651 @@
+/*contactos-clientes.component.css - ADAPTADO CON ESTILOS MODERNOS*/
+
+/* ============================================ */
+/* 🎯 SLIDE TOGGLE PERSONALIZADO */
+/* ============================================ */
+
+::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__shadow {
+  background-color: rgb(255, 255, 255);
+}
+
+::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__track::after {
+  background-color: #166a82 !important;
+}
+
+/* ============================================ */
+/* 🎯 CONTENEDOR PRINCIPAL */
+/* ============================================ */
+
 .admin-container {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .admin-contactos {
-    width: 100%;
+  width: 100%;
+  margin: 20px 20px 100px 20px;
+}
+
+.admin-usuarios-container {
+  margin: 20px 20px 100px 20px;
 }
 
 .admin-usuarios-container table {
-    width: 100%;
-    border-collapse: collapse;
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
 }
 
+/* ============================================ */
+/* 🎯 ESTILOS DE TABLA MAT-TABLE */
+/* ============================================ */
+
 .mat-header {
-    background-color: rgb(20, 179, 92) !important;
-    color: white !important;
-    border-right: 1px solid black !important;
+  background-color: #0f5163 !important; 
+  color: white !important;
+  border-right: 1px solid black !important;
 }
 
 .mat-header-row th:last-child {
-    border-right: none;
+  border-right: none;
 }
 
 .mat-cell {
-    border-right: 1px solid black;
-    background-color: white;
+  border-right: 1px solid black; 
+  background-color: white; 
 }
 
 .mat-row td:last-child {
-    border-right: none;
+  border-right: none;
 }
 
 .mat-cell:not(.selected) {
-    animation: none;
+  animation: none;
 }
 
 .selected .mat-cell {
-    background-color: #00A693 !important;
+  background-color: #6dbeb5 !important;
+}
+
+/* ============================================ */
+/* 🎯 BOTONES BASE */
+/* ============================================ */
+
+.custom-button,
+.custom-button-cancelar,
+.custom-button-modificar,
+.custom-button-ingreso {
+  padding: 12px 24px;
+  margin-right: 20px;
+  margin-top: 20px;
+  background-color: #1188c3;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  width: auto;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 
+              0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  background-image: radial-gradient(circle, transparent 1%, #1188c3 1%);
+  background-position: center;
+  background-size: 15000%;
 }
 
 button:disabled {
-    color: gray;
-    background-color: #ccc;
+  color: gray;
+  background-color: #ccc;
 }
 
+/* Variaciones de hover */
+.custom-button:not(:disabled):hover,
 button:not(:disabled):hover {
-    background-color: green;
-    color: white;
+  background-color: #63b54e;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-h3 {
-    margin-top: 0px;
-    margin-bottom: 5px;
+.custom-button-cancelar:not(:disabled):hover {
+  background-color: #f30c0c;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-.modal-content .crearholding-button-modal {
-    width: 70%;
-    padding: 20px 30px;
-    margin: 20px auto;
-    display: block;
+.custom-button-modificar:not(:disabled):hover {
+  background-color: #ee8a0f;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-.modal-content input[type="text"],
-.modal-content input[type="button"],
-.modal-content input[type="usuario"],
-.modal-content button {
-    margin-top: 0px;
-    margin-bottom: 5px;
-    width: 80%;
-    padding: 8px;
+.custom-button-ingreso:not(:disabled):hover {
+  background-color: #63b54e;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-.checklist-container {
-    display: flex;
-    justify-content: space-around;
-    width: 100%;
-    margin: 10px 0;
-}
-
-input[type="checkbox"] {
-    transform: scale(1.5);
-    margin-right: 5px;
-}
+/* ============================================ */
+/* 🎯 MODALES BASE */
+/* ============================================ */
 
 .modal-perfiles {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: -10%;
-    width: 100%;
-    height: 110%;
-    overflow: hidden;
-    background-color: rgba(0,0,0,0.4);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .modal-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 10px;
-    margin: auto;
-    border: 1px solid #888;
-    width: 50%;
-    max-height: 80vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background-color: #fefefe;
-    border: 3px solid black;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 30px;
+  border: none;
+  width: 85%;
+  max-width: 700px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
 }
 
+.modal-content h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.modal-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 250px;
+  height: 3px;
+  background: linear-gradient(90deg, #4CAF50, #2196F3);
+  border-radius: 2px;
+}
+
+/* ============================================ */
+/* 🎯 MODAL HEADER */
+/* ============================================ */
+
 .modal-header {
-    width: 100%;
-    position: relative;
-    margin-bottom: 20px;
+  width: 100%;
+  position: relative;
+  margin-bottom: 20px;
 }
 
 .header-bar {
-    position: absolute;
-    height: 35px;
-    background-color: #00A693;
-    width: 105.2%;
-    top: -25%;
-    left: -2.9%;
-    border: 3px solid black;
+  display: none;
 }
 
 .title-container {
-    background-color: rgb(20, 179, 92);
-    border: 3px solid black;
-    padding: 0px 0;
-    width: 50%;
-    text-align: center;
-    color: white;
-    margin: auto;
-    margin-top: 20px;
+  display: none;
 }
 
 .close {
-    position: absolute;
-    top: -25%;
-    right: 0%;
-    color: #aaa;
-    font-size: 40px;
-    font-weight: bold;
-    z-index: 1;
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  color: #666;
+  font-size: 32px;
+  font-weight: bold;
+  z-index: 1001;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.9);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
 }
 
 .close:hover,
 .close:focus {
-    color: red;
-    cursor: pointer;
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+  transform: scale(1.1);
 }
 
-.checklist-box {
-    border: 1px solid black;
-    padding: 10px;
-    width: 90%;
+/* ============================================ */
+/* 🎯 FORMULARIOS EN MODALES */
+/* ============================================ */
+
+.input-usuario,
+.modal-content input[type="text"],
+.modal-content input[type="email"],
+.modal-content input[type="button"] {
+  width: 90%;
+  padding: 16px 20px;
+  margin-top: 0px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 500;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #2c3e50;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
-.checklist-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+.input-usuario:focus,
+.modal-content input[type="text"]:focus,
+.modal-content input[type="email"]:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
-.checkbox-label {
-    flex: 1 1 30%;
-    text-align: center;
-    margin: 10px;
+.input-usuario::placeholder,
+.modal-content input[type="text"]::placeholder,
+.modal-content input[type="email"]::placeholder {
+  color: #8e9ba8;
+  font-weight: 400;
+  transition: color 0.3s ease;
 }
 
-input[type="checkbox"] {
-    transform: scale(1.5);
-    margin-right: 5px;
+.input-usuario:focus::placeholder,
+.modal-content input[type="text"]:focus::placeholder,
+.modal-content input[type="email"]:focus::placeholder {
+  color: #bdc3c7;
 }
 
-.custom-button {
-    padding: 12px 24px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 5px;
-    margin-top: 30px;
-    width: auto;
-    font-size: 18px;
+h3 {
+  margin-top: 20px;
+  margin-bottom: 15px;
+  color: #4CAF50;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: left;
+  width: 100%;
 }
 
-.yes-button {
-    background-color: #4ca5af;
+h1 {
+  color: #2c3e50;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 10px 0;
 }
 
-.no-button {
-    background-color: #f44336;
+/* ============================================ */
+/* 🎯 DROPDOWN ELEMENTS */
+/* ============================================ */
+
+.dropdown-button {
+  position: relative;
+  padding: 16px 20px;
+  width: 100%;
+  margin-bottom: 15px;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
 }
 
-.modal-actions {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-}
-
-#errorModal .modal-content {
-    position: absolute;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-around;
-    padding: 20px;
-    margin: 5% auto;
-    border: 1px solid #000000;
-    width: 20%;
-    background-color: #ff5050;
-    z-index: 1005;
-    left: 38%;
-    top: 25%;
-}
-
-#exitoModal .modal-content {
-    background-color: #4CAF50;
-    width: 20%;
-    z-index: 1005;
-}
-
-#confirmacionModal .modal-content {
-    background-color: #4CAF50;
-    width: 30%;
-    z-index: 1005;
-    text-align: center;
-}
-
-.exito-message {
-    text-align: center;
-    color: white;
+.dropdown-button:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.3);
 }
 
 .dropdown {
-    position: relative;
-    display: inline-block;
-    width: 300px;
-    margin-bottom: 10px;
-    left: 10%;
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 10px;
 }
 
 .dropdown-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
-    width: 300px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    padding: 10px;
-    z-index: 1;
-    max-height: 200px;
-    overflow-y: auto;
-    
+  display: none;
+  position: absolute;
+  background-color: #ffffff;
+  min-width: 100%;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  padding: 15px;
+  z-index: 1;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
 }
 
 .dropdown-content.show {
-    display: block;
+  display: block;
 }
 
 .dropdown-content label {
-    display: block;
-    cursor: pointer;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  transition: background-color 0.2s ease;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+.dropdown-content label:hover {
+  background-color: #f5f5f5;
+  padding-left: 8px;
+}
+
+.disabled {
+  color: #ccc;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* ============================================ */
+/* 🎯 CHECKBOX STYLING */
+/* ============================================ */
+
+input[type="checkbox"] {
+  transform: scale(1.2);
+  margin-right: 10px;
+  accent-color: #4CAF50;
+}
+
+.checklist-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.checkbox-label {
+  flex: 1 1 30%;
+  text-align: center;
+  margin: 10px;
+}
+
+.checklist-box {
+  border: 1px solid #e0e0e0;
+  padding: 15px;
+  width: 90%;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+/* ============================================ */
+/* 🎯 MODALES DE MENSAJE MEJORADOS */
+/* ============================================ */
+
+/* Modal de éxito */
+#exitoModal .modal-content {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  width: 90%;
+  max-width: 450px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(76, 175, 80, 0.3);
+  color: white;
+  text-align: center;
+  padding: 40px 30px;
+}
+
+#exitoModal .modal-content h2 {
+  color: white;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+#exitoModal .modal-content h2::after {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Modal de error */
+#errorModal .modal-content {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  width: 90%;
+  max-width: 450px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(244, 67, 54, 0.3);
+  color: white;
+  text-align: center;
+  padding: 40px 30px;
+}
+
+#errorModal .modal-content h2 {
+  color: white;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+#errorModal .modal-content h2::after {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Modal de confirmación */
+#confirmacionModal .modal-content {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  color: #2c3e50;
+  text-align: center;
+  padding: 40px 30px;
+}
+
+#confirmacionModal .modal-content h2 {
+  color: #e24110;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+#confirmacionModal .modal-content h2::after {
+  background: linear-gradient(90deg, #e24110, #F57C00);
+}
+
+/* ============================================ */
+/* 🎯 MENSAJES DE MODALES */
+/* ============================================ */
+
+.exito-message,
+.error-message {
+  text-align: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+/* ============================================ */
+/* 🎯 BOTONES ESPECIALIZADOS */
+/* ============================================ */
+
+.yes-button,
+.no-button {
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 0 10px;
+}
+
+.yes-button::before,
+.no-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.yes-button:hover::before,
+.no-button:hover::before {
+  left: 100%;
+}
+
+/* Botón de confirmación Sí */
+.yes-button {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+}
+
+.yes-button:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+}
+
+/* Botón de cancelar No */
+.no-button {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+}
+
+.no-button:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 CONTENEDOR DE BOTONES */
+/* ============================================ */
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================ */
+/* 🎯 ICONOS Y EFECTOS */
+/* ============================================ */
+
+.error-icon-container {
+  margin-bottom: 15px;
+}
+
+.icon-exclamation-triangle {
+  font-size: 50px;
+  color: white;
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE DESIGN */
+/* ============================================ */
+
+@media (max-width: 1200px) {
+  .admin-contactos,
+  .admin-usuarios-container {
+    margin: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-contactos,
+  .admin-usuarios-container {
+    margin: 15px 15px 80px 15px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+    max-height: 85vh;
+  }
+  
+  .modal-content h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .yes-button,
+  .no-button {
+    padding: 12px 24px;
+    font-size: 14px;
+    margin: 0 5px;
+  }
+  
+  .checklist-container {
+    flex-direction: column;
+  }
+  
+  .checkbox-label {
+    flex: 1 1 100%;
+    margin: 5px 0;
+  }
+
+  .dropdown {
+    width: 100%;
+  }
+
+  .dropdown-content {
+    width: calc(100% - 30px);
+  }
 }

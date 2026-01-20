@@ -1,346 +1,610 @@
+/*areas-cargos-clientes.css - VERSIÓN ACTUALIZADA CON SEPARACIÓN DE SECCIONES*/
+
+/* ============================================ */
+/* 🎯 SLIDE TOGGLE PERSONALIZADO */
+/* ============================================ */
+
+::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__shadow {
+  background-color: rgb(255, 255, 255);
+}
+
+::ng-deep .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked:not(.mat-disabled) .mdc-switch__track::after {
+  background-color: #166a82 !important;
+}
+
+/* ============================================ */
+/* 🎯 CONTENEDOR PRINCIPAL Y LAYOUT */
+/* ============================================ */
+
 .admin-container {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 20px 20px 100px 20px;
+}
+
+.admin-areas, 
+.admin-cargos {
+  width: 48%;
+}
+
+.admin-usuarios-container {
+  width: 100%;
+}
+
+/* ============================================ */
+/* 🎯 MENSAJE INFORMATIVO */
+/* ============================================ */
+
+.info-message {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-left: 4px solid #2196F3;
+  padding: 15px 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+.info-message.warning {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffcc02 20%);
+  border-left: 4px solid #ff9800;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+}
+
+.info-message p {
+  margin: 0;
+  color: #1976D2;
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-message.warning p {
+  color: #f57c00;
+}
+
+/* ============================================ */
+/* 🎯 ESTILOS DE TABLA MAT-TABLE */
+/* ============================================ */
+
+.admin-usuarios-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.mat-header {
+  background-color: #0f5163 !important; 
+  color: white !important;
+  border-right: 1px solid black !important;
+}
+
+.mat-header-row th:last-child {
+  border-right: none;
+}
+
+.mat-cell {
+  border-right: 1px solid black; 
+  background-color: white; 
+  font-size: 13px !important;
+  font-weight: 500;
+}
+
+.mat-row td:last-child {
+  border-right: none;
+}
+
+.selected .mat-cell {
+  background-color: #6dbeb5 !important;
+}
+
+.admin-principal {
+  background-color: #f0f0f0;
+  color: #888;
+  pointer-events: none;
+}
+
+.admin-principal .mat-slide-toggle {
+  opacity: 0.5;
+}
+
+/* ============================================ */
+/* 🎯 BOTONES BASE (ADAPTADO DE PERFILES) */
+/* ============================================ */
+
+.custom-button,
+.custom-button-cancelar,
+.custom-button-modificar,
+.custom-button-ingreso,
+.custom-button-sociedades {
+  padding: 12px 24px;
+  margin-right: 20px;
+  margin-top: 20px;
+  background-color: #1188c3;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  width: auto;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 
+              0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  background-image: radial-gradient(circle, transparent 1%, #1188c3 1%);
+  background-position: center;
+  background-size: 15000%;
+}
+
+.custom-button:disabled,
+.custom-button-cancelar:disabled,
+.custom-button-modificar:disabled {
+  color: gray;
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Variaciones de hover */
+.custom-button:not(:disabled):hover {
+  background-color: #63b54e;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.custom-button-cancelar:not(:disabled):hover {
+  background-color: #f30c0c;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.custom-button-modificar:not(:disabled):hover {
+  background-color: #ee8a0f;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.custom-button-ingreso:not(:disabled):hover {
+  background-color: #63b54e;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.custom-button-sociedades:not(:disabled):hover {
+  background-color: #63b54e;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
+              0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* ============================================ */
+/* 🎯 MODALES BASE */
+/* ============================================ */
+
+.modal-perfiles {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 30px;
+  border: none;
+  width: 85%;
+  max-width: 700px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.modal-content h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.modal-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 250px;
+  height: 3px;
+  background: linear-gradient(90deg, #4CAF50, #2196F3);
+  border-radius: 2px;
+}
+
+/* ============================================ */
+/* 🎯 MODAL HEADER PERSONALIZADO (MANTENER COMPATIBILIDAD) */
+/* ============================================ */
+
+.modal-header {
+  width: 100%;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.header-bar {
+  display: none; /* Ocultamos el viejo header bar */
+}
+
+.title-container {
+  display: none; /* Ocultamos el viejo title container */
+}
+
+.close {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  color: #666;
+  font-size: 32px;
+  font-weight: bold;
+  z-index: 1001;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.9);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close:hover,
+.close:focus {
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+  transform: scale(1.1);
+}
+
+/* ============================================ */
+/* 🎯 FORMULARIOS EN MODALES */
+/* ============================================ */
+
+.input-usuario,
+.input-perfil {
+  width: 90%;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 500;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #2c3e50;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.input-usuario:focus,
+.input-perfil:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.input-usuario::placeholder,
+.input-perfil::placeholder {
+  color: #8e9ba8;
+  font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+.input-usuario:focus::placeholder,
+.input-perfil:focus::placeholder {
+  color: #bdc3c7;
+}
+
+h3 {
+  margin-top: 0px;
+  margin-bottom: 15px;
+  color: #4CAF50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ============================================ */
+/* 🎯 MODALES DE MENSAJE MEJORADOS (PARA ÉXITO, ERROR, CONFIRMACIÓN) */
+/* ============================================ */
+
+/* Modal de éxito */
+#exitoModal .modal-content {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  width: 90%;
+  max-width: 450px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(76, 175, 80, 0.3);
+  color: white;
+  text-align: center;
+  padding: 40px 30px;
+}
+
+#exitoModal .modal-content h2 {
+  color: white;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+#exitoModal .modal-content h2::after {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Modal de error */
+#errorModal .modal-content {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  width: 90%;
+  max-width: 450px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(244, 67, 54, 0.3);
+  color: white;
+  text-align: center;
+  padding: 40px 30px;
+}
+
+#errorModal .modal-content h2 {
+  color: white;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+#errorModal .modal-content h2::after {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Modal de confirmación */
+#confirmacionModalArea .modal-content,
+#confirmacionModalCargo .modal-content {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  color: #2c3e50;
+  text-align: center;
+  padding: 40px 30px;
+}
+
+#confirmacionModalArea .modal-content h2,
+#confirmacionModalCargo .modal-content h2 {
+  color: #e24110;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+#confirmacionModalArea .modal-content h2::after,
+#confirmacionModalCargo .modal-content h2::after {
+  background: linear-gradient(90deg, #e24110, #F57C00);
+}
+
+/* ============================================ */
+/* 🎯 ICONOS DE ESTADO */
+/* ============================================ */
+
+.icon-container {
+  margin-bottom: 20px;
+}
+
+.error-icon-container {
+  margin-bottom: 20px;
+}
+
+.icon-exclamation-triangle {
+  font-size: 50px;
+  color: white;
+}
+
+/* ============================================ */
+/* 🎯 MENSAJES DE MODALES */
+/* ============================================ */
+
+.exito-message,
+.error-message {
+  text-align: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+/* ============================================ */
+/* 🎯 BOTONES ESPECIALIZADOS */
+/* ============================================ */
+
+.yes-button,
+.no-button {
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 0 10px;
+}
+
+.yes-button::before,
+.no-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.yes-button:hover::before,
+.no-button:hover::before {
+  left: 100%;
+}
+
+/* Botón de confirmación Sí */
+.yes-button {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+}
+
+.yes-button:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+}
+
+/* Botón de cancelar No */
+.no-button {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+}
+
+.no-button:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 CONTENEDOR DE BOTONES */
+/* ============================================ */
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================ */
+/* 🎯 ANIMACIONES */
+/* ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeInUp 0.3s ease-in;
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE DESIGN */
+/* ============================================ */
+
+@media (max-width: 1200px) {
+  .admin-container {
+    flex-direction: column;
   }
   
-  .admin-areas, .admin-cargos {
-    width: 48%; /* Adjust width as needed */
-  }
-  
-  .admin-usuarios-container table {
+  .admin-areas, 
+  .admin-cargos {
     width: 100%;
-    border-collapse: collapse;
   }
-  
-  .mat-header {
-    background-color: rgb(20, 179, 92) !important;
-    color: white !important;
-    border-right: 1px solid black !important;
-  }
-  
-  .mat-header-row th:last-child {
-    border-right: none;
-  }
-  
-  .mat-cell {
-    border-right: 1px solid black;
-    background-color: white;
-  }
-  
-  .mat-row td:last-child {
-    border-right: none;
-  }
-  
-  .mat-cell:not(.selected) {
-    animation: none;
-  }
-  
-  .selected .mat-cell {
-    background-color: #00A693 !important;
-  }
-  
-  button:disabled {
-    color: gray;
-    background-color: #ccc;
-  }
-  
-  button:not(:disabled):hover {
-    background-color: green;
-    color: white;
-  }
-  
-  h3 {
-    margin-top: 0px;
-    margin-bottom: 5px;
-  }
-  
-  .modal-content .crearholding-button-modal {
-    width: 70%;
-    padding: 20px 30px;
-    margin: 20px auto;
-    display: block;
-  }
-  
-  .modal-content input[type="text"],
-  .modal-content input[type="button"],
-  .modal-content input[type="usuario"],
-  .modal-content button {
-    margin-top: 0px;
-    margin-bottom: 5px;
-    width: 80%;
-    padding: 8px;
-  }
-  
-  .checklist-container {
-    display: flex;
-    justify-content: space-around;
-    width: 100%;
-    margin: 10px 0;
-  }
-  
-  input[type="checkbox"] {
-    transform: scale(1.5);
-    margin-right: 5px;
-  }
-  
-  .modal-perfiles {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: -10%;
-    width: 100%;
-    height: 110%;
-    overflow: hidden;
-    background-color: rgba(0,0,0,0.4);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+}
+
+@media (max-width: 768px) {
+  .admin-container {
+    margin: 15px 15px 80px 15px;
   }
   
   .modal-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 10px;
-    margin: auto;
-    border: 1px solid #888;
-    width: 50%;
-    max-height: 100vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background-color: #fefefe;
-    border: 3px solid black;
+    width: 95%;
+    padding: 20px;
+    max-height: 85vh;
   }
   
-  .modal-header {
-    width: 100%;
-    position: relative;
+  .modal-content h2 {
+    font-size: 24px;
     margin-bottom: 20px;
   }
   
-  .header-bar {
-    position: absolute;
-    height: 35px;
-    background-color: #00A693;
-    width: 105.2%;
-    top: -25%;
-    left: -2.9%;
-    border: 3px solid black;
+  .info-message {
+    margin: 15px 0;
+    padding: 12px 16px;
   }
   
-  .title-container {
-    background-color: rgb(20, 179, 92);
-    border: 3px solid black;
-    padding: 0px 0;
-    width: 50%;
-    text-align: center;
-    color: white;
-    margin: auto;
-    margin-top: 20px;
+  .info-message p {
+    font-size: 13px;
   }
   
-  .close {
-    position: absolute;
-    top: -25%;
-    right: 0%;
-    color: #aaa;
-    font-size: 40px;
-    font-weight: bold;
-    z-index: 1;
-  }
-  
-  .close:hover,
-  .close:focus {
-    color: red;
-    cursor: pointer;
-  }
-  
-  .checklist-box {
-    border: 1px solid black;
-    padding: 10px;
-    width: 90%;
-  }
-  
-  .checklist-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-  }
-  
-  .checkbox-label {
-    flex: 1 1 30%;
-    text-align: center;
-    margin: 10px;
-  }
-  
-  input[type="checkbox"] {
-    transform: scale(1.5);
-    margin-right: 5px;
-  }
-  
-  .custom-button {
-    padding: 12px 24px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 5px;
-    margin-top: 20px;
-    width: auto;
-    font-size: 18px;
-  }
-  
-  .yes-button {
-    background-color: #4ca5af;
-  }
-  
+  .yes-button,
   .no-button {
-    background-color: #f44336;
+    padding: 12px 24px;
+    font-size: 14px;
+    margin: 0 5px;
   }
-  
-  .modal-actions {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-  }
-  
-  #errorModal .modal-content {
-    position: absolute;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-around;
-    padding: 20px;
-    margin: 5% auto;
-    border: 1px solid #000000;
-    width: 20%;
-    background-color: #ff5050;
-    z-index: 1005;
-    left: 38%;
-    top: 25%;
-  }
-  
-  #exitoModal .modal-content {
-    background-color: #4CAF50;
-    width: 20%;
-    z-index: 1005;
-  }
-  
-  #confirmacionModal .modal-content {
-    background-color: #4CAF50;
-    width: 30%;
-    z-index: 1005;
-    text-align: center;
-  }
-  
-  .exito-message {
-    text-align: center;
-    color: white;
-  }
-  
-  .mini-modal {
-    display: flex;
-    position: absolute;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 20px;
-    margin: auto;
-    border: 1px solid #888;
-    width: 40%;
-    height: 30%;
-    max-height: 90vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background-color: #fefefe;
-    border: 3px solid black;
-    z-index: 5;
-    left: 28%;
-    top: 30%;
-  }
-  
-  .dropdown-button {
-    position: relative;
-    padding: 10px !important;
-    width: 100% !important;
-    margin-bottom: 10px !important;
-    background-color: #4CAF50 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    text-align: center !important;
-    bottom: 50% !important;
-    z-index: auto;
-  }
-  
-  .dropdown {
-    position: absolute;
-    display: inline-block;
-    width: 400px;
-  }
-  
-  .dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    padding: 10px;
-    z-index: 1;
-    max-height: 200px;
-    overflow-y: auto;
-    width: 100%;
-  }
-  
-  .dropdown-content.show {
-    display: block;
-  }
-  
-  .dropdown-content label {
-    display: block;
-    cursor: pointer;
-  }
-  
-  .custom-button-sociedades {
-    position: absolute;
-    padding: 8px 16px !important;
-    background-color: #4CAF50 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    border-radius: 5px !important;
-    margin-top: 10px !important;
-    width: auto !important;
-    font-size: 16px !important;
-    display: inline-block !important;
-    bottom: 0 !important;
-    z-index: auto;
-  }
-  
-  .table-button {
-    position: relative;
-    z-index: 2;
-  }
-  
-  .custom-button-ingreso {
-    position: relative;
-    padding: 8px 16px !important;
-    background-color: #4CAF50 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    border-radius: 5px !important;
-    margin-top: 10px !important;
-    width: 50% !important;
-    font-size: 16px !important;
-    display: inline-block !important;
-    bottom: 0 !important;
-    z-index: auto;
-  }
-  
-  .disabled {
-    color: #ccc;
-    pointer-events: none;
-  }
-  
+}
