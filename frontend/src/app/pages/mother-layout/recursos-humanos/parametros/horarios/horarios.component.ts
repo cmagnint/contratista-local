@@ -1,19 +1,25 @@
-// horarios.component.ts - VERSIÓN CON HORAS POR DÍA
-
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
+import { JwtService } from '../../../../../services/jwt.service';
+
+interface Turno {
+  id?: number;
+  dia_semana: number;
+  nombre_turno: string;
+  hora_inicio: string;
+  hora_fin: string;
+  tiene_colacion: boolean;
+  minutos_colacion: number;
+  orden: number;
+}
 
 @Component({
   selector: 'app-horarios',
   standalone: true,
-  imports: [
-    MatTableModule,
-    FormsModule,
-    CommonModule,
-  ],
+  imports: [MatTableModule, FormsModule, CommonModule],
   templateUrl: './horarios.component.html',
   styleUrl: './horarios.component.css'
 })
@@ -21,98 +27,135 @@ export class HorariosComponent implements OnInit {
   
   constructor(
     private apiService: ContratistaApiService,
+    private jwtService: JwtService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
-  // Booleanos para abrir o cerrar ventanas
   public modals: { [key: string]: boolean } = {
     exitoModal: false,
     errorModal: false,
     crearHorario: false,
     modificarHorario: false,
     confirmacionModal: false,
-    eliminarModal: false,
   };
-
-  // Horario seleccionado
-  public horarioSeleccionado: any = {
-    id_horario_seleccionado: 0,
-    nombre_horario_seleccionado: '',
-    jornada_horario_seleccionado: 0.0,
-  }
 
   public holding: string = '';
   public nombreHorario: string = '';
+  public nombreHorarioNew: string = '';
   
-  // Horas por día para CREAR
-  public horasLunes: number = 9.0;
-  public horasMartes: number = 9.0;
-  public horasMiercoles: number = 9.0;
-  public horasJueves: number = 9.0;
-  public horasViernes: number = 9.0;
-  public horasSabado: number = 0.0;
-  public horasDomingo: number = 0.0;
- 
   errorMessage!: string;
   selectedRows: any[] = [];
-  dropdownOpen: boolean = false;
-  public todasSeleccionadas: boolean = false;
   public horariosCargados: any[] = [];
-  columnasDesplegadas = ['codigo', 'nombre', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
   public deletedRow: any[] = [];
   public selectedHorarioId: number | null = null;
+
+  public diasSemana = [
+    { valor: 0, nombre: 'Lunes' },
+    { valor: 1, nombre: 'Martes' },
+    { valor: 2, nombre: 'Miércoles' },
+    { valor: 3, nombre: 'Jueves' },
+    { valor: 4, nombre: 'Viernes' },
+    { valor: 5, nombre: 'Sábado' },
+    { valor: 6, nombre: 'Domingo' }
+  ];
+
+  // Para crear
+  public turnosCrear: Turno[] = [];
   
-  // Variables para MODIFICAR
-  public nombreHorarioNew: string = '';
-  public horasLunesNew: number = 9.0;
-  public horasMartesNew: number = 9.0;
-  public horasMiercolesNew: number = 9.0;
-  public horasJuevesNew: number = 9.0;
-  public horasViernesNew: number = 9.0;
-  public horasSabadoNew: number = 0.0;
-  public horasDomingoNew: number = 0.0;
-  
+  // Para modificar
+  public turnosModificar: Turno[] = [];
+
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      this.holding = localStorage.getItem('holding_id') || '';
+      this.holding = this.getHoldingIdFromJWT(); 
       this.cargarHorarios();
     }
   }
 
+  private getHoldingIdFromJWT(): string {
+    try {
+      const userInfo = this.jwtService.getUserInfo();
+      const holdingId = userInfo?.holding_id;
+      return holdingId ? holdingId.toString() : '';
+    } catch (error) {
+      console.error('Error extrayendo holding_id:', error);
+      return '';
+    }
+  }
+
+  agregarTurnoCrear(dia: number): void {
+    const orden = this.turnosCrear.filter(t => t.dia_semana === dia).length;
+    this.turnosCrear.push({
+      dia_semana: dia,
+      nombre_turno: '',
+      hora_inicio: '08:00',
+      hora_fin: '17:00',
+      tiene_colacion: false,
+      minutos_colacion: 0,
+      orden: orden
+    });
+  }
+
+  eliminarTurnoCrear(index: number): void {
+    this.turnosCrear.splice(index, 1);
+  }
+
+  agregarTurnoModificar(dia: number): void {
+    const orden = this.turnosModificar.filter(t => t.dia_semana === dia).length;
+    this.turnosModificar.push({
+      dia_semana: dia,
+      nombre_turno: '',
+      hora_inicio: '08:00',
+      hora_fin: '17:00',
+      tiene_colacion: false,
+      minutos_colacion: 0,
+      orden: orden
+    });
+  }
+
+  eliminarTurnoModificar(index: number): void {
+    this.turnosModificar.splice(index, 1);
+  }
+
+  getTurnosPorDia(turnos: Turno[], dia: number): Turno[] {
+    return turnos.filter(t => t.dia_semana === dia).sort((a, b) => a.orden - b.orden);
+  }
+
+  getNombreDia(dia: number): string {
+    return this.diasSemana.find(d => d.valor === dia)?.nombre || '';
+  }
+
   crearHorario(): void {
-    let data = {
+    if (!this.nombreHorario) {
+      this.errorMessage = 'Debe ingresar un nombre para el horario';
+      this.openModal('errorModal');
+      return;
+    }
+
+    if (this.turnosCrear.length === 0) {
+      this.errorMessage = 'Debe crear al menos un turno';
+      this.openModal('errorModal');
+      return;
+    }
+
+    const data: any = {
       holding: this.holding,
       nombre: this.nombreHorario,
-      jornada: 9.0, // Mantener por compatibilidad
-      horas_lunes: this.horasLunes,
-      horas_martes: this.horasMartes,
-      horas_miercoles: this.horasMiercoles,
-      horas_jueves: this.horasJueves,
-      horas_viernes: this.horasViernes,
-      horas_sabado: this.horasSabado,
-      horas_domingo: this.horasDomingo
-    }
+      turnos: this.turnosCrear
+    };
     
     this.apiService.post('horarios/', data).subscribe({
       next: (response) => {
-        console.log(response);
         this.closeModal('crearHorario');
         this.cargarHorarios();
         this.openModal('exitoModal');
-        // Resetear campos
-        this.nombreHorario = '';
-        this.horasLunes = 9.0;
-        this.horasMartes = 9.0;
-        this.horasMiercoles = 9.0;
-        this.horasJueves = 9.0;
-        this.horasViernes = 9.0;
-        this.horasSabado = 0.0;
-        this.horasDomingo = 0.0;
+        this.resetCrear();
       }, 
       error: (error) => {
+        this.errorMessage = 'Error al crear el horario';
         this.openModal('errorModal');
       }
-    })
+    });
   }
 
   cargarHorarios(): void {
@@ -127,31 +170,37 @@ export class HorariosComponent implements OnInit {
   }
 
   modificarHorario(): void {
-    let data = {
+    if (!this.nombreHorarioNew) {
+      this.errorMessage = 'Debe ingresar un nombre para el horario';
+      this.openModal('errorModal');
+      return;
+    }
+
+    if (this.turnosModificar.length === 0) {
+      this.errorMessage = 'Debe crear al menos un turno';
+      this.openModal('errorModal');
+      return;
+    }
+
+    const data: any = {
       holding: this.holding,
       id: this.selectedHorarioId,
       nombre: this.nombreHorarioNew,
-      jornada: 9.0, // Mantener por compatibilidad
-      horas_lunes: this.horasLunesNew,
-      horas_martes: this.horasMartesNew,
-      horas_miercoles: this.horasMiercolesNew,
-      horas_jueves: this.horasJuevesNew,
-      horas_viernes: this.horasViernesNew,
-      horas_sabado: this.horasSabadoNew,
-      horas_domingo: this.horasDomingoNew
-    }
+      turnos: this.turnosModificar
+    };
     
     this.apiService.put('horarios/', data).subscribe({
       next: (response) => {
         this.closeModal('modificarHorario');
         this.cargarHorarios();
         this.openModal('exitoModal');
+        this.resetModificar();
       }, 
       error: (error) => {
-        console.log(error);
+        this.errorMessage = 'Error al modificar el horario';
         this.openModal('errorModal');
       }
-    })
+    });
   }
   
   eliminarHorariosSeleccionadas(): void {
@@ -159,24 +208,16 @@ export class HorariosComponent implements OnInit {
       const idsToDelete = this.deletedRow.map(row => row.id);
       this.apiService.delete('horarios/', {ids: idsToDelete}).subscribe({
         next: () => {
-          this.closeModal('confirmacionModal')
+          this.closeModal('confirmacionModal');
           this.cargarHorarios();
           this.openModal('exitoModal');
           this.deletedRow = [];
         },
         error: (error) => {
+          this.errorMessage = 'Error al eliminar horarios';
           this.openModal('errorModal');
-          console.error('Error al eliminar horarios:', error);
         }
       });
-    }
-  }
-
-  toggleSelection(horarioId: number): void {
-    if (this.selectedHorarioId === horarioId) {
-      this.selectedHorarioId = null;
-    } else {
-      this.selectedHorarioId = horarioId;
     }
   }
 
@@ -189,49 +230,25 @@ export class HorariosComponent implements OnInit {
     if (index > -1) {
       this.selectedRows.splice(index, 1);
     } else {
-      this.selectedRows.push(row);
+      this.selectedRows = [row];
     }
 
     if (this.selectedRows.length > 0) {
-      const lastSelectedRow = this.selectedRows[this.selectedRows.length - 1];
-      this.horarioSeleccionado = {
-        id_horario_seleccionado: lastSelectedRow.id,
-        nombre_horario_seleccionado: lastSelectedRow.nombre,
-        jornada_horario_seleccionado: lastSelectedRow.jornada,
-      };
-      this.selectedHorarioId = this.horarioSeleccionado.id_horario_seleccionado;
-      this.nombreHorarioNew = this.horarioSeleccionado.nombre_horario_seleccionado;
-      
-      // Cargar horas por día
-      this.horasLunesNew = lastSelectedRow.horas_lunes || 9.0;
-      this.horasMartesNew = lastSelectedRow.horas_martes || 9.0;
-      this.horasMiercolesNew = lastSelectedRow.horas_miercoles || 9.0;
-      this.horasJuevesNew = lastSelectedRow.horas_jueves || 9.0;
-      this.horasViernesNew = lastSelectedRow.horas_viernes || 9.0;
-      this.horasSabadoNew = lastSelectedRow.horas_sabado || 0.0;
-      this.horasDomingoNew = lastSelectedRow.horas_domingo || 0.0;
-    } else {
-      this.horarioSeleccionado = {
-        id_horario_seleccionado: 0,
-        nombre_horario_seleccionado: '',
-        jornada_horario_seleccionado: 0.0,
-      }
+      const lastSelectedRow = this.selectedRows[0];
+      this.selectedHorarioId = lastSelectedRow.id;
+      this.nombreHorarioNew = lastSelectedRow.nombre;
+      this.turnosModificar = JSON.parse(JSON.stringify(lastSelectedRow.turnos || []));
     }
   }
 
-  toggleDropdown() {
-    this.dropdownOpen = !this.dropdownOpen;
-  }
-
-  deseleccionarFila(event: MouseEvent) {
+  deseleccionarFila(event: MouseEvent): void {
     this.selectedRows = [];
   }
 
   openModal(key: string): void {
     this.modals[key] = true;
-    if (key == 'confirmacionModal') {
+    if (key === 'confirmacionModal') {
       this.deletedRow = this.selectedRows;
-      console.log(this.deletedRow);
     }
   }
 
@@ -240,5 +257,19 @@ export class HorariosComponent implements OnInit {
     if (key === 'exitoModal') {
       this.cargarHorarios();  
     }
+  }
+
+  resetCrear(): void {
+    this.nombreHorario = '';
+    this.turnosCrear = [];
+  }
+
+  resetModificar(): void {
+    this.nombreHorarioNew = '';
+    this.turnosModificar = [];
+  }
+
+  verDetalleHorario(horario: any): void {
+    this.selectRow(horario);
   }
 }

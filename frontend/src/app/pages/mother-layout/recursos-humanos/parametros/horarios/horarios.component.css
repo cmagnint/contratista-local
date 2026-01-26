@@ -1,132 +1,160 @@
-/*horarios.component.css - VERSIÓN MEJORADA CON ESTILOS DE PERFILES Y VEHÍCULOS*/
-
-/* ============================================ */
-/* 🎯 CONTENEDOR PRINCIPAL */
-/* ============================================ */
-
 .admin-usuarios-container {
-  margin: 20px 20px 100px 20px;
+  margin: 20px;
+  padding-bottom: 100px;
 }
 
-.admin-usuarios-container table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-/* ============================================ */
-/* 🎯 ESTILOS DE TABLA MAT-TABLE */
-/* ============================================ */
-
-.mat-header {
-  background-color: #0f5163 !important; 
-  color: white !important;
-  border-right: 1px solid black !important;
-  font-weight: 600;
-  font-size: 14px !important;
-}
-
-.mat-header-row th:last-child {
-  border-right: none;
-}
-
-.mat-cell {
-  border-right: 1px solid black;
-  background-color: white;
-  font-size: 13px !important;
-  font-weight: 500;
-  padding: 8px;
-}
-
-.mat-row td:last-child {
-  border-right: none;
-}
-
-.mat-cell:not(.selected) {
-  animation: none;
-}
-
-.selected .mat-cell {
-  background-color: #6dbeb5 !important;
-  transition: background-color 0.3s ease;
-}
-
-/* ============================================ */
-/* 🎯 BOTONES BASE (CONSOLIDADO) */
-/* ============================================ */
-
+/* BOTONES */
 .custom-button,
 .custom-button-cancelar,
-.custom-button-modificar,
-.custom-button-ingreso {
+.custom-button-modificar {
   padding: 12px 24px;
   margin-right: 20px;
-  margin-top: 20px;
+  margin-bottom: 20px;
   background-color: #1188c3;
   color: white;
   border: none;
   cursor: pointer;
   border-radius: 8px;
-  width: auto;
   font-size: 16px;
   font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 
-              0 1px 3px rgba(0, 0, 0, 0.08);
-  position: relative;
-  overflow: hidden;
-  background-image: radial-gradient(circle, transparent 1%, #1188c3 1%);
-  background-position: center;
-  background-size: 15000%;
+  transition: all 0.3s ease;
 }
 
-.custom-button:disabled,
-.custom-button-cancelar:disabled,
-.custom-button-modificar:disabled,
-.custom-button-ingreso:disabled {
-  color: gray;
-  background-color: #ccc;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Variaciones de hover */
 .custom-button:not(:disabled):hover {
   background-color: #63b54e;
-  color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
-              0 2px 6px rgba(0, 0, 0, 0.12);
-}
-
-.custom-button-cancelar:not(:disabled):hover {
-  background-color: #f30c0c;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
-              0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .custom-button-modificar:not(:disabled):hover {
   background-color: #ee8a0f;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
-              0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-.custom-button-ingreso:not(:disabled):hover {
-  background-color: #63b54e;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 
-              0 2px 6px rgba(0, 0, 0, 0.12);
+.custom-button-cancelar:not(:disabled):hover {
+  background-color: #f30c0c;
 }
 
-/* ============================================ */
-/* 🎯 MODALES BASE */
-/* ============================================ */
+.custom-button:disabled,
+.custom-button-modificar:disabled,
+.custom-button-cancelar:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
 
+/* LISTA DE HORARIOS */
+.horarios-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.horario-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 3px solid transparent;
+}
+
+.horario-card:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.horario-card.selected {
+  border-color: #4CAF50;
+  background: #f0f8f0;
+}
+
+.horario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e1e8ed;
+}
+
+.horario-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 20px;
+}
+
+.horario-id {
+  color: #7f8c8d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* TABLA DE DÍAS */
+.tabla-dias table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-dias th {
+  background-color: #0f5163;
+  color: white;
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid #0a3d4d;
+}
+
+.tabla-dias td {
+  border: 1px solid #e1e8ed;
+  padding: 10px;
+  vertical-align: top;
+  min-height: 80px;
+  background: white;
+}
+
+.dia-celda {
+  min-width: 140px;
+}
+
+.turno-item {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  border-left: 3px solid #2196F3;
+  font-size: 12px;
+}
+
+.turno-nombre {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.turno-horario {
+  color: #555;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.turno-colacion {
+  background: #fff3cd;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #856404;
+  margin-top: 4px;
+}
+
+.sin-turnos {
+  text-align: center;
+  color: #95a5a6;
+  font-style: italic;
+  padding: 20px;
+  font-size: 12px;
+}
+
+/* MODALES */
 .modal-perfiles {
   position: fixed;
   z-index: 1000;
@@ -138,145 +166,232 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  animation: fadeIn 0.3s ease-out;
 }
 
-.modal-content {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+.modal-content-large {
+  background: white;
   padding: 30px;
-  border: none;
-  width: 85%;
-  max-width: 600px;
   border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  width: 95%;
+  max-width: 1400px;
   max-height: 90vh;
   overflow-y: auto;
-  overflow-x: hidden;
   position: relative;
-  animation: slideInUp 0.3s ease-out;
 }
 
-.modal-content h2 {
-  font-size: 32px;
+.modal-content-large h2 {
+  font-size: 28px;
   font-weight: 700;
   color: #2c3e50;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
   text-align: center;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  position: relative;
 }
-
-.modal-content h2::after {
-  content: '';
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 250px;
-  height: 3px;
-  background: linear-gradient(90deg, #4CAF50, #2196F3);
-  border-radius: 2px;
-}
-
-/* ============================================ */
-/* 🎯 SECCIONES DE MODAL */
-/* ============================================ */
 
 .modal-section {
-  width: 100%;
   margin-bottom: 25px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 249, 250, 0.6));
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  padding: 25px;
-  border-radius: 15px;
-  position: relative;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.modal-section::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 2px;
-  background: linear-gradient(135deg, #4CAF50, #2196F3, #FF9800);
-  border-radius: 15px;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  z-index: -1;
-}
-
-.modal-section:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
 }
 
 .modal-section h3 {
   margin-top: 0;
   color: #4CAF50;
   font-size: 18px;
-  font-weight: 600;
-  text-align: left;
   margin-bottom: 15px;
 }
 
-/* ============================================ */
-/* 🎯 INPUTS Y FORMULARIOS */
-/* ============================================ */
-
 .input-usuario {
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px;
   border: 2px solid #e1e8ed;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 16px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  background-color: #f8f9fa;
-  color: #2c3e50;
 }
 
 .input-usuario:focus {
   outline: none;
   border-color: #4CAF50;
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-  transform: translateY(-1px);
 }
 
-.input-usuario:hover {
-  border-color: #c3cfe2;
-  background-color: white;
+/* TABLA DE CONFIGURACIÓN */
+.tabla-config-dias table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-/* ============================================ */
-/* 🎯 MODALES DE MENSAJE MEJORADOS */
-/* ============================================ */
+.tabla-config-dias th {
+  background-color: #0f5163;
+  color: white;
+  padding: 15px 10px;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #0a3d4d;
+  position: relative;
+}
 
-.modal-content-message {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  padding: 40px 30px;
+.btn-agregar-turno {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #4CAF50;
+  color: white;
   border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-agregar-turno:hover {
+  background: #45a049;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.config-celda {
+  border: 1px solid #e1e8ed;
+  padding: 10px;
+  vertical-align: top;
+  min-width: 180px;
+  background: white;
+}
+
+.turno-config-item {
+  background: #f8f9fa;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border-left: 3px solid #2196F3;
+  position: relative;
+}
+
+.btn-eliminar-turno {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-eliminar-turno:hover {
+  background: #d32f2f;
+  transform: scale(1.1);
+}
+
+.input-small {
+  width: 100%;
+  padding: 8px;
+  border: 2px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.input-small:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.horario-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.input-time {
+  flex: 1;
+  padding: 6px;
+  border: 2px solid #e1e8ed;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.input-time:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.horario-inputs span {
+  font-weight: 600;
+  color: #555;
+}
+
+.colacion-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.input-minutos {
+  width: 60px;
+  padding: 4px 8px;
+  border: 2px solid #e1e8ed;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.input-minutos:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.custom-button-ingreso {
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.custom-button-ingreso:hover {
+  background: linear-gradient(135deg, #45a049, #388e3c);
+  transform: translateY(-2px);
+}
+
+/* MODALES DE MENSAJE */
+.modal-content-message {
+  background: white;
+  padding: 40px 30px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   width: 90%;
   max-width: 500px;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
   text-align: center;
-  animation: fadeInUp 0.3s ease-out;
 }
-
-/* ============================================ */
-/* 🎯 ICONOS DE ESTADO */
-/* ============================================ */
 
 .icon-container {
   margin-bottom: 20px;
@@ -286,41 +401,29 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 40px;
-  font-weight: bold;
   color: white;
-  position: relative;
-  animation: scaleIn 0.3s ease-out;
 }
 
 .icon-circle.success {
   background: linear-gradient(135deg, #4CAF50, #45a049);
-  box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
 }
 
 .icon-circle.error {
   background: linear-gradient(135deg, #f44336, #d32f2f);
-  box-shadow: 0 8px 16px rgba(244, 67, 54, 0.3);
 }
 
 .icon-circle.confirmation {
   background: linear-gradient(135deg, #FF9800, #F57C00);
-  box-shadow: 0 8px 16px rgba(255, 152, 0, 0.3);
 }
 
-/* ============================================ */
-/* 🎯 TÍTULOS DE MODALES */
-/* ============================================ */
-
 .modal-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   margin-bottom: 15px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
 }
 
 .modal-title.success {
@@ -332,334 +435,76 @@
 }
 
 .modal-title.confirmation {
-  background: linear-gradient(135deg, #FF9800, #F57C00);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #FF9800;
 }
 
-/* ============================================ */
-/* 🎯 MENSAJES DE MODALES */
-/* ============================================ */
-
-.modal-message,
-.exito-message,
-.error-message {
+.modal-message {
   font-size: 16px;
-  font-weight: 500;
   color: #2c3e50;
-  margin-bottom: 30px;
-  line-height: 1.5;
-  max-width: 400px;
+  margin-bottom: 25px;
 }
-
-/* ============================================ */
-/* 🎯 BOTONES DE MODAL (ESTILOS ESPECIALES) */
-/* ============================================ */
-
-.button-bottom {
-  padding: 12px 32px;
-  margin: 10px;
-  border: none;
-  cursor: pointer;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  width: 100%;
-  max-width: 300px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-/* Botón de éxito */
-.button-bottom.success {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-}
-
-.button-bottom.success:hover {
-  background: linear-gradient(135deg, #45a049 0%, #388e3c 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
-}
-
-/* Botón de error */
-.button-bottom.error {
-  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-  color: white;
-}
-
-.button-bottom.error:hover {
-  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
-}
-
-/* Botón de confirmación Sí */
-.button-bottom.confirm-yes {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  color: white;
-}
-
-.button-bottom.confirm-yes:hover {
-  background: linear-gradient(135deg, #45a049 0%, #388e3c 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
-}
-
-/* Botón de cancelar/No */
-.button-bottom.confirm-no {
-  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-  color: white;
-}
-
-.button-bottom.confirm-no:hover {
-  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
-}
-
-/* ============================================ */
-/* 🎯 CONTENEDOR DE BOTONES */
-/* ============================================ */
 
 .button-container {
   display: flex;
   justify-content: center;
-  width: 100%;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  gap: 15px;
 }
 
-.button-container.confirmation {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  border-top: none;
-  padding-top: 10px;
-  margin-top: 20px;
+.button-bottom {
+  padding: 10px 30px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-.button-container.confirmation .button-bottom {
-  flex: none;
-  width: 120px !important;
-  max-width: 120px !important;
-  min-width: 120px !important;
-  padding: 12px 16px;
-  font-size: 14px;
-}
-
-/* ============================================ */
-/* 🎯 MODAL ACTIONS (COMPATIBILIDAD) */
-/* ============================================ */
-
-.modal-actions {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  padding: 20px;
-  width: 100%;
-}
-
-.yes-button {
+.button-bottom.success {
   background: linear-gradient(135deg, #4CAF50, #45a049);
   color: white;
-  padding: 12px 32px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  transition: all 0.3s ease;
 }
 
-.yes-button:hover {
-  background: linear-gradient(135deg, #45a049, #388e3c);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
-}
-
-.no-button {
+.button-bottom.error {
   background: linear-gradient(135deg, #f44336, #d32f2f);
   color: white;
-  padding: 12px 32px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  transition: all 0.3s ease;
 }
 
-.no-button:hover {
-  background: linear-gradient(135deg, #d32f2f, #b71c1c);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+.button-bottom.confirm-yes {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
 }
 
-/* ============================================ */
-/* 🎯 CLOSE BUTTON */
-/* ============================================ */
+.button-bottom.confirm-no {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+}
 
 .close {
   position: absolute;
   right: 20px;
   top: 20px;
   color: #7f8c8d;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  line-height: 1;
-  z-index: 10;
 }
 
-.close:hover,
-.close:focus {
+.close:hover {
   color: #f44336;
-  transform: rotate(90deg) scale(1.2);
+  transform: rotate(90deg);
 }
 
-/* ============================================ */
-/* 🎯 ANIMACIONES */
-/* ============================================ */
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
+@media (max-width: 1200px) {
+  .tabla-dias th,
+  .tabla-config-dias th {
+    font-size: 11px;
+    padding: 10px 5px;
   }
-  to {
-    opacity: 1;
+  
+  .dia-celda,
+  .config-celda {
+    min-width: 120px;
   }
-}
-
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    transform: scale(0);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* ============================================ */
-/* 🎯 RESPONSIVE DESIGN */
-/* ============================================ */
-
-@media (max-width: 768px) {
-  .admin-usuarios-container {
-    margin: 15px 15px 80px 15px;
-  }
-
-  .modal-content {
-    width: 95%;
-    padding: 20px;
-    max-height: 85vh;
-  }
-
-  .modal-content h2 {
-    font-size: 24px;
-    margin-bottom: 20px;
-  }
-
-  .modal-section {
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-
-  .button-bottom {
-    width: 250px !important;
-    max-width: 90%;
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-
-  .custom-button,
-  .custom-button-cancelar,
-  .custom-button-modificar,
-  .custom-button-ingreso {
-    width: 100%;
-    margin-right: 0;
-    margin-bottom: 10px;
-  }
-}
-
-/* ============================================ */
-/* 🎯 ESTILOS LEGACY (MANTENER COMPATIBILIDAD) */
-/* ============================================ */
-
-.modal-header {
-  width: 100%;
-  position: relative;
-  margin-bottom: 20px;
-}
-
-.header-bar {
-  display: none; /* Ocultamos el viejo header bar */
-}
-
-.title-container {
-  display: none; /* Ocultamos el viejo title container */
-}
-
-/* ============================================ */
-/* 🎯 ICONOS DE ERROR */
-/* ============================================ */
-
-.error-icon-container {
-  margin-bottom: 20px;
-}
-
-.icon-exclamation-triangle {
-  font-size: 60px;
-  color: #f44336;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
-.modal-section label {
-  display: block;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 5px;
-  font-size: 14px;
-}
-
-.modal-section input[type="number"] {
-  width: 100%;
 }

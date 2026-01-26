@@ -3577,66 +3577,59 @@ class HorarioAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
-    # Define required_scopes como un atributo de instancia
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required_scopes = []
 
     def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
+        if request.method in ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']:
+            self.required_scopes = ['admin', 'write']
         return super().dispatch(request, *args, **kwargs)
 
-    #Metodo GET
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
         if holding_id:
-            jornada = Horarios.objects.filter(holding_id=holding_id)
-            serializer = HorarioSerializer(jornada, many=True)
+            horarios = Horarios.objects.filter(holding_id=holding_id).prefetch_related('turnos')
+            serializer = HorarioSerializer(horarios, many=True)
             return Response(serializer.data)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo POST    
+        return Response({"error": "holding_id requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        
     def post(self, request, format=None):
         serializer = HorarioSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    #Metodo DELETE
     def delete(self, request, format=None): 
-        jornada_ids = request.data.get('ids', [])
-        Horarios.objects.filter(id__in=jornada_ids).delete()
+        horario_ids = request.data.get('ids', [])
+        Horarios.objects.filter(id__in=horario_ids).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-    #Metodo PATCH
     def patch(self, request, format=None):
-        jornada_id = request.data.get('id')
-        if not jornada_id:
-            return Response({"message": "ID de perfil es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+        horario_id = request.data.get('id')
+        if not horario_id:
+            return Response({"error": "ID requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            jornada = Horarios.objects.get(id=jornada_id)
+            horario = Horarios.objects.get(id=horario_id)
         except Horarios.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = HorarioSerializer(jornada, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
+            return Response({"error": "No encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = HorarioSerializer(horario, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    #Metodo PUT
     def put(self, request, format=None):
-        cliente_id = request.data.get('id')
+        horario_id = request.data.get('id')
         try:
-            vehiculos = Horarios.objects.get(id=cliente_id)
+            horario = Horarios.objects.get(id=horario_id)
         except Horarios.DoesNotExist:
-            return Response({"message": "Cargo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "No encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = HorarioSerializer(vehiculos, data=request.data)  # Sin partial=True
+        serializer = HorarioSerializer(horario, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

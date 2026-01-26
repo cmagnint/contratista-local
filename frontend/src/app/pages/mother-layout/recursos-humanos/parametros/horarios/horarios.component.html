@@ -1,327 +1,224 @@
-<!-- horarios.component.html - VERSIÓN CON HORAS POR DÍA -->
-
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
 
-    <!-- Botones de Acción -->
     <button class="custom-button" (click)="openModal('crearHorario')">Crear Horario</button>
     <button class="custom-button-modificar" 
-            [disabled]="!(selectedRows.length>0 && selectedRows.length<2)"  
+            [disabled]="selectedRows.length !== 1"  
             (click)="openModal('modificarHorario')">
       Modificar Horario
     </button>
     <button class="custom-button-cancelar" 
-            [disabled]="!(selectedRows.length>0)" 
+            [disabled]="selectedRows.length === 0" 
             (click)="openModal('confirmacionModal')">
       Eliminar Horario(s)
     </button>
     
-    <!-- Tabla de Horarios -->
-    
-    <table mat-table [dataSource]="horariosCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
-        
-        <ng-container matColumnDef="codigo">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Código </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.id }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="nombre">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Nombre </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.nombre }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="lunes">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Lunes </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_lunes || 0 }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="martes">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Martes </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_martes || 0 }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="miercoles">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Miércoles </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_miercoles || 0 }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="jueves">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Jueves </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_jueves || 0 }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="viernes">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Viernes </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_viernes || 0 }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="sabado">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Sábado </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_sabado || 0 }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="domingo">
-            <th mat-header-cell *matHeaderCellDef class="mat-header"> Domingo </th>
-            <td mat-cell *matCellDef="let horario" class="mat-cell"> {{ horario.horas_domingo || 0 }} </td>
-        </ng-container>
-        
-        <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
-        <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;" 
-            [class.selected]="isSelected(row)" 
-            (click)="selectRow(row)">
-        </tr>
-    </table>
-    
+    <!-- Lista de Horarios -->
+    <div class="horarios-lista">
+        <div *ngFor="let horario of horariosCargados" 
+             class="horario-card"
+             [class.selected]="isSelected(horario)"
+             (click)="selectRow(horario); $event.stopPropagation()">
+            <div class="horario-header">
+                <h3>{{ horario.nombre }}</h3>
+                <span class="horario-id">ID: {{ horario.id }}</span>
+            </div>
+            
+            <!-- Tabla de Días y Turnos -->
+            <div class="tabla-dias">
+                <table>
+                    <thead>
+                        <tr>
+                            <th *ngFor="let dia of diasSemana">{{ dia.nombre }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td *ngFor="let dia of diasSemana" class="dia-celda">
+                                <div *ngFor="let turno of getTurnosPorDia(horario.turnos, dia.valor)" 
+                                     class="turno-item">
+                                    <div class="turno-nombre">{{ turno.nombre_turno }}</div>
+                                    <div class="turno-horario">{{ turno.hora_inicio }} - {{ turno.hora_fin }}</div>
+                                    <div *ngIf="turno.tiene_colacion" class="turno-colacion">
+                                        🍽️ Colación: {{ turno.minutos_colacion }} min
+                                    </div>
+                                </div>
+                                <div *ngIf="getTurnosPorDia(horario.turnos, dia.valor).length === 0" class="sin-turnos">
+                                    Sin turnos
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL CREAR HORARIO -->
-<!-- ============================================ -->
+<!-- MODAL CREAR HORARIO -->
 <div id="modalCrearArea" class="modal-perfiles" *ngIf="modals['crearHorario']" (click)="closeModal('crearHorario')">
-    <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-content-large" (click)="$event.stopPropagation()">
         <span class="close" (click)="closeModal('crearHorario')">&times;</span>
         
         <h2>Crear Horario</h2>
         
         <div class="modal-section">
             <h3>Nombre del Horario:</h3>
-            <input type="text" 
-                   class="input-usuario" 
-                   id="nombreHorario" 
-                   name="nombreHorario" 
-                   [(ngModel)]="nombreHorario"
-                   placeholder="Ej: Jornada Estándar">
+            <input type="text" class="input-usuario" [(ngModel)]="nombreHorario" placeholder="Ej: Jornada Estándar">
         </div>
 
         <div class="modal-section">
-            <h3>Horas por Día:</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <label>Lunes:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasLunes" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Martes:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasMartes" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Miércoles:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasMiercoles" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Jueves:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasJueves" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Viernes:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasViernes" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Sábado:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasSabado" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="0.0">
-                </div>
-                <div>
-                    <label>Domingo:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasDomingo" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="0.0">
-                </div>
+            <h3>Configurar Turnos por Día:</h3>
+            
+            <div class="tabla-config-dias">
+                <table>
+                    <thead>
+                        <tr>
+                            <th *ngFor="let dia of diasSemana">
+                                {{ dia.nombre }}
+                                <button class="btn-agregar-turno" (click)="agregarTurnoCrear(dia.valor)">+</button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td *ngFor="let dia of diasSemana" class="config-celda">
+                                <div *ngFor="let turno of getTurnosPorDia(turnosCrear, dia.valor); let i = index" 
+                                     class="turno-config-item">
+                                    <button class="btn-eliminar-turno" 
+                                            (click)="eliminarTurnoCrear(turnosCrear.indexOf(turno))">×</button>
+                                    
+                                    <input type="text" 
+                                           class="input-small" 
+                                           [(ngModel)]="turno.nombre_turno" 
+                                           placeholder="Nombre">
+                                    
+                                    <div class="horario-inputs">
+                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_inicio">
+                                        <span>-</span>
+                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_fin">
+                                    </div>
+                                    
+                                    <div class="colacion-config">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" [(ngModel)]="turno.tiene_colacion">
+                                            Colación
+                                        </label>
+                                        <input *ngIf="turno.tiene_colacion" 
+                                               type="number" 
+                                               class="input-minutos" 
+                                               [(ngModel)]="turno.minutos_colacion" 
+                                               placeholder="Min"
+                                               min="0">
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         
-        <button class="custom-button-ingreso" 
-                id="ingresarUnidadControlBtn" 
-                (click)="crearHorario()">
-          Crear Horario
-        </button>
+        <button class="custom-button-ingreso" (click)="crearHorario()">Crear Horario</button>
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL MODIFICAR HORARIO -->
-<!-- ============================================ -->
+<!-- MODAL MODIFICAR HORARIO -->
 <div id="modalmodificarArea" class="modal-perfiles" *ngIf="modals['modificarHorario']" (click)="closeModal('modificarHorario')">
-    <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-content-large" (click)="$event.stopPropagation()">
         <span class="close" (click)="closeModal('modificarHorario')">&times;</span>
         
         <h2>Modificar Horario</h2>
         
         <div class="modal-section">
-            <h3>Nuevo Nombre del Horario:</h3>
-            <input type="text" 
-                   class="input-usuario" 
-                   id="nombreHorarioNew" 
-                   name="nombreHorarioNew" 
-                   [(ngModel)]="nombreHorarioNew"
-                   placeholder="Ej: Jornada Estándar">
+            <h3>Nombre del Horario:</h3>
+            <input type="text" class="input-usuario" [(ngModel)]="nombreHorarioNew" placeholder="Ej: Jornada Estándar">
         </div>
 
         <div class="modal-section">
-            <h3>Horas por Día:</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <label>Lunes:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasLunesNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Martes:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasMartesNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Miércoles:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasMiercolesNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Jueves:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasJuevesNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Viernes:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasViernesNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="9.0">
-                </div>
-                <div>
-                    <label>Sábado:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasSabadoNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="0.0">
-                </div>
-                <div>
-                    <label>Domingo:</label>
-                    <input type="number" 
-                           class="input-usuario" 
-                           [(ngModel)]="horasDomingoNew" 
-                           step="0.5" 
-                           min="0" 
-                           max="24"
-                           placeholder="0.0">
-                </div>
+            <h3>Configurar Turnos por Día:</h3>
+            
+            <div class="tabla-config-dias">
+                <table>
+                    <thead>
+                        <tr>
+                            <th *ngFor="let dia of diasSemana">
+                                {{ dia.nombre }}
+                                <button class="btn-agregar-turno" (click)="agregarTurnoModificar(dia.valor)">+</button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td *ngFor="let dia of diasSemana" class="config-celda">
+                                <div *ngFor="let turno of getTurnosPorDia(turnosModificar, dia.valor); let i = index" 
+                                     class="turno-config-item">
+                                    <button class="btn-eliminar-turno" 
+                                            (click)="eliminarTurnoModificar(turnosModificar.indexOf(turno))">×</button>
+                                    
+                                    <input type="text" 
+                                           class="input-small" 
+                                           [(ngModel)]="turno.nombre_turno" 
+                                           placeholder="Nombre">
+                                    
+                                    <div class="horario-inputs">
+                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_inicio">
+                                        <span>-</span>
+                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_fin">
+                                    </div>
+                                    
+                                    <div class="colacion-config">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" [(ngModel)]="turno.tiene_colacion">
+                                            Colación
+                                        </label>
+                                        <input *ngIf="turno.tiene_colacion" 
+                                               type="number" 
+                                               class="input-minutos" 
+                                               [(ngModel)]="turno.minutos_colacion" 
+                                               placeholder="Min"
+                                               min="0">
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         
-        <button class="custom-button-ingreso"  
-                (click)="modificarHorario()" 
-                id="ingresarHoldingBtn">
-          Modificar Horario
-        </button>
+        <button class="custom-button-ingreso" (click)="modificarHorario()">Modificar Horario</button>
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL ÉXITO -->
-<!-- ============================================ -->
+<!-- MODAL ÉXITO -->
 <div id="exitoModal" class="modal-perfiles" *ngIf="modals['exitoModal']">
     <div class="modal-content-message">
         <div class="icon-container">
             <div class="icon-circle success">✓</div>
         </div>
         <h2 class="modal-title success">¡Operación Exitosa!</h2>
-        <p class="modal-message">
-          La operación se ha completado correctamente.
-        </p>
+        <p class="modal-message">La operación se ha completado correctamente.</p>
         <div class="button-container">
-            <button class="button-bottom success" (click)="closeModal('exitoModal')">
-              Cerrar
-            </button>
+            <button class="button-bottom success" (click)="closeModal('exitoModal')">Cerrar</button>
         </div>
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL ERROR -->
-<!-- ============================================ -->
+<!-- MODAL ERROR -->
 <div id="errorModal" class="modal-perfiles" *ngIf="modals['errorModal']">
     <div class="modal-content-message">
         <div class="icon-container">
             <div class="icon-circle error">✕</div>
         </div>
         <h2 class="modal-title error">¡Error!</h2>
-        <p class="modal-message">
-          {{ errorMessage || 'Ha ocurrido un error inesperado. Por favor, inténtelo nuevamente.' }}
-        </p>
+        <p class="modal-message">{{ errorMessage }}</p>
         <div class="button-container">
-            <button class="button-bottom error" (click)="closeModal('errorModal')">
-              Cerrar
-            </button>
+            <button class="button-bottom error" (click)="closeModal('errorModal')">Cerrar</button>
         </div>
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- 🎯 MODAL CONFIRMACIÓN ELIMINAR -->
-<!-- ============================================ -->
+<!-- MODAL CONFIRMACIÓN -->
 <div id="confirmacionModal" class="modal-perfiles" *ngIf="modals['confirmacionModal']">
     <div class="modal-content-message">
         <div class="icon-container">
@@ -329,16 +226,11 @@
         </div>
         <h2 class="modal-title confirmation">Confirmar Eliminación</h2>
         <p class="modal-message">
-          ¿Está seguro que desea eliminar {{selectedRows.length}} horario(s) seleccionado(s)?<br>
-          Esta acción no se puede deshacer.
+          ¿Eliminar {{selectedRows.length}} horario(s)?
         </p>
         <div class="button-container confirmation">
-            <button class="button-bottom confirm-yes" (click)="eliminarHorariosSeleccionadas()">
-              Sí, Eliminar
-            </button>
-            <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">
-              Cancelar
-            </button>
+            <button class="button-bottom confirm-yes" (click)="eliminarHorariosSeleccionadas()">Sí</button>
+            <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">No</button>
         </div>
     </div>
 </div>

@@ -436,34 +436,36 @@ class Labores(models.Model):
 class Horarios(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    nombre = models.CharField(max_length=100, blank=True, null=True) 
-    jornada = models.FloatField()  # Mantener por compatibilidad
-    
-    # Horas por día
-    horas_lunes = models.FloatField(default=9.0)
-    horas_martes = models.FloatField(default=9.0)
-    horas_miercoles = models.FloatField(default=9.0)
-    horas_jueves = models.FloatField(default=9.0)
-    horas_viernes = models.FloatField(default=9.0)
-    horas_sabado = models.FloatField(default=0.0)
-    horas_domingo = models.FloatField(default=0.0)
+    nombre = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         db_table = 'horarios'
+
+
+class TurnoHorario(models.Model):
+    DIAS_SEMANA = [
+        (0, 'Lunes'),
+        (1, 'Martes'),
+        (2, 'Miércoles'),
+        (3, 'Jueves'),
+        (4, 'Viernes'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
     
-    def get_horas_dia(self, fecha):
-        """Obtiene horas según día de la semana (0=Lunes, 6=Domingo)"""
-        dia_semana = fecha.weekday()
-        mapeo = {
-            0: self.horas_lunes,
-            1: self.horas_martes,
-            2: self.horas_miercoles,
-            3: self.horas_jueves,
-            4: self.horas_viernes,
-            5: self.horas_sabado,
-            6: self.horas_domingo,
-        }
-        return mapeo.get(dia_semana, 9.0)
+    id = models.AutoField(primary_key=True)
+    horario = models.ForeignKey(Horarios, on_delete=models.CASCADE, related_name='turnos')
+    dia_semana = models.IntegerField(choices=DIAS_SEMANA)
+    nombre_turno = models.CharField(max_length=100)
+    hora_inicio = models.TimeField(null=True, blank=True)
+    hora_fin = models.TimeField(null=True, blank=True)
+    tiene_colacion = models.BooleanField(default=False)
+    minutos_colacion = models.IntegerField(default=0)
+    orden = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'turnos_horario'
+        ordering = ['dia_semana', 'orden']
   
 class FolioComercial(models.Model):
     id = models.AutoField(primary_key=True)

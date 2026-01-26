@@ -73,6 +73,7 @@ from .models import (
     RegistroManoObraPersona,
     ContratoTrabajador,
     FolioComercialLabor,
+    TurnoHorario,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -1606,26 +1607,43 @@ class DataProduccionSerializer(serializers.Serializer):
         unidades_control = UnidadControl.objects.filter(holding_id=holding_id)
         return [{'id': uc.id, 'nombre': uc.nombre} for uc in unidades_control]
 
+class TurnoHorarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TurnoHorario
+        fields = ['id', 'dia_semana', 'nombre_turno', 'hora_inicio', 'hora_fin', 'tiene_colacion', 'minutos_colacion', 'orden']
+
+
 class HorarioSerializer(serializers.ModelSerializer):
+    turnos = TurnoHorarioSerializer(many=True, required=False)
+    
     class Meta:
         model = Horarios
-        fields = [
-            'id', 
-            'holding', 
-            'nombre', 
-            'jornada',
-            'horas_lunes',
-            'horas_martes',
-            'horas_miercoles',
-            'horas_jueves',
-            'horas_viernes',
-            'horas_sabado',
-            'horas_domingo'
-        ]
+        fields = ['id', 'holding', 'nombre', 'turnos']
         extra_kwargs = {
             'holding': {'write_only': True},
             'id': {'read_only': True},
         }
+    
+    def create(self, validated_data):
+        turnos_data = validated_data.pop('turnos', [])
+        horario = Horarios.objects.create(**validated_data)
+        
+        for turno_data in turnos_data:
+            TurnoHorario.objects.create(horario=horario, **turno_data)
+        
+        return horario
+    
+    def update(self, instance, validated_data):
+        turnos_data = validated_data.pop('turnos', None)
+        instance.nombre = validated_data.get('nombre', instance.nombre)
+        instance.save()
+        
+        if turnos_data is not None:
+            instance.turnos.all().delete()
+            for turno_data in turnos_data:
+                TurnoHorario.objects.create(horario=instance, **turno_data)
+        
+        return instance
         
 class ProduccionTrabajadorSerializer(serializers.ModelSerializer):
     nombre_sociedad = serializers.SerializerMethodField()
