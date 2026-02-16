@@ -824,26 +824,28 @@
   </div>
 </div>
 
-<!-- MODAL DOCUMENTOS CON FUNCIONALIDAD DE SUBIR/ACTUALIZAR -->
+<!-- MODAL DOCUMENTOS CON HUELLA DIGITAL (4 CARDS) -->
 <div 
   id="modalDocumentos" 
   class="modal-perfiles" 
   *ngIf="modals['documentosModal']" 
   (click)="closeModal('documentosModal')">
   
-  <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 800px;">
+  <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 900px;">
     <span class="close" (click)="closeModal('documentosModal')">&times;</span>
     
     <h2>DOCUMENTOS DEL TRABAJADOR</h2>
     
     <div class="documentos-grid">
+      <!-- CARNET FRONTAL -->
       <div class="documento-card">
         <h3>Carnet (Frontal)</h3>
         <div class="imagen-preview">
           <img 
             *ngIf="tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)" 
             [src]="getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image)"
-            alt="Carnet Frontal">
+            alt="Carnet Frontal"
+            (error)="onImageError($event)">
           <div *ngIf="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)" class="sin-imagen">
             <p>Sin imagen disponible</p>
           </div>
@@ -879,13 +881,15 @@
         </div>
       </div>
 
+      <!-- CARNET POSTERIOR -->
       <div class="documento-card">
         <h3>Carnet (Posterior)</h3>
         <div class="imagen-preview">
           <img 
             *ngIf="tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)" 
             [src]="getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image)"
-            alt="Carnet Posterior">
+            alt="Carnet Posterior"
+            (error)="onImageError($event)">
           <div *ngIf="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)" class="sin-imagen">
             <p>Sin imagen disponible</p>
           </div>
@@ -921,13 +925,15 @@
         </div>
       </div>
 
+      <!-- FIRMA -->
       <div class="documento-card">
         <h3>Firma</h3>
         <div class="imagen-preview">
           <img 
             *ngIf="trabajadorSeleccionadoDocs?.firma" 
             [src]="getUrlCompleta(trabajadorSeleccionadoDocs.firma)"
-            alt="Firma">
+            alt="Firma"
+            (error)="onImageError($event)">
           <div *ngIf="!trabajadorSeleccionadoDocs?.firma" class="sin-imagen">
             <p>Sin firma disponible</p>
           </div>
@@ -962,13 +968,57 @@
           </button>
         </div>
       </div>
+
+      <!-- HUELLA DIGITAL -->
+      <div class="documento-card">
+        <h3>Huella Digital</h3>
+        <div class="imagen-preview">
+          <img 
+            *ngIf="trabajadorSeleccionadoDocs?.huella_digital" 
+            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.huella_digital)"
+            alt="Huella Digital"
+            (error)="onImageError($event)">
+          <div *ngIf="!trabajadorSeleccionadoDocs?.huella_digital" class="sin-imagen">
+            <p>Sin huella disponible</p>
+          </div>
+        </div>
+        
+        <input 
+          type="file" 
+          #huellaInput
+          accept="image/jpeg,image/jpg,image/png"
+          (change)="onFileSelected($event, 'huella')"
+          style="display: none;">
+        
+        <div *ngIf="nombreArchivoHuella" style="font-size: 12px; color: #4CAF50; margin-top: 5px;">
+          ✓ Archivo seleccionado: {{nombreArchivoHuella}}
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button 
+            class="custom-button-ingreso"
+            (click)="huellaInput.click(); $event.stopPropagation()">
+            {{ trabajadorSeleccionadoDocs?.huella_digital ? 'Cambiar' : 'Subir' }}
+          </button>
+          
+          <button 
+            class="custom-button-ingreso"
+            [disabled]="!trabajadorSeleccionadoDocs?.huella_digital"
+            (click)="descargarDocumento(
+              getUrlCompleta(trabajadorSeleccionadoDocs.huella_digital),
+              'huella_' + trabajadorSeleccionadoDocs.rut + '.png'
+            ); $event.stopPropagation()">
+            Descargar
+          </button>
+        </div>
+      </div>
     </div>
     
     <div class="button-container" style="margin-top: 30px;">
       <button 
         class="custom-button-ingreso" 
         (click)="subirDocumentos(); $event.stopPropagation()"
-        [disabled]="!archivoCarnetFrontal && !archivoCarnetTrasero && !archivoFirma">
+        [disabled]="!archivoCarnetFrontal && !archivoCarnetTrasero && !archivoFirma && !archivoHuellaDigital">
         GUARDAR CAMBIOS
       </button>
       <button class="custom-button" (click)="closeModal('documentosModal'); $event.stopPropagation()">

@@ -13,8 +13,8 @@ interface Ubicacion {
   id: string;
   pageWidth: number;
   pageHeight: number;
-  width?: number;   // ⭐ NUEVO: para firma_empleador
-  height?: number;  // ⭐ NUEVO: para firma_empleador
+  width?: number;   // Para firma_empleador, firma y huella
+  height?: number;  // Para firma_empleador, firma y huella
 }
 
 interface VariableDocumento {
@@ -93,13 +93,23 @@ export class FormatosComponent implements OnInit {
   pdfNativeWidth: number = 0;
   pdfNativeHeight: number = 0;
   
-  // ⭐ NUEVAS PROPIEDADES PARA FIRMA EMPLEADOR
+  // ⭐ PROPIEDADES PARA FIRMA EMPLEADOR
   firmaEmpleadorDisponible: boolean = false;
   firmaEmpleadorUrl: string | null = null;
   mostrarModalFirmaEmpleador: boolean = false;
   
+  // ⭐ PROPIEDADES PARA FIRMA TRABAJADOR (PLACEHOLDER)
+  readonly FIRMA_TRABAJADOR_PLACEHOLDER = 'assets/images/firma_trabajador_placeholder.png';
+  readonly FIRMA_TRABAJADOR_WIDTH = 150;
+  readonly FIRMA_TRABAJADOR_HEIGHT = 50;
+  
+  // ⭐ NUEVO: PROPIEDADES PARA HUELLA TRABAJADOR (PLACEHOLDER)
+  readonly HUELLA_TRABAJADOR_PLACEHOLDER = 'assets/images/huella_trabajador_placeholder.png';
+  readonly HUELLA_TRABAJADOR_WIDTH = 80;
+  readonly HUELLA_TRABAJADOR_HEIGHT = 100;
+  
   // Control de redimensionamiento de imagen
-  imagenFirmaEmpleadorEnEdicion: {
+  imagenFirmaEnEdicion: {
     element: HTMLElement;
     originalWidth: number;
     originalHeight: number;
@@ -184,14 +194,12 @@ export class FormatosComponent implements OnInit {
       document.addEventListener('mousemove', this.handleMouseMove.bind(this));
       document.addEventListener('mouseup', this.handleMouseUp.bind(this));
       
-      // ⭐ OBTENER HOLDING DESDE JWT
       this.holding = this.getHoldingIdFromJWT();
     }
     
     this.documentoSeleccionado = null;
     this.modoModificacion = false;
     
-    // ⭐ Cargar firma solo si hay holding
     if (this.holding) {
       this.cargarFirmaEmpleador();
     }
@@ -217,7 +225,7 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * ⭐ NUEVO: Cargar firma del empleador desde backend
+   * Cargar firma del empleador desde backend
    */
   cargarFirmaEmpleador(): void {
     if (!this.holding) {
@@ -244,21 +252,21 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Abrir modal para subir firma
+   * Abrir modal para subir firma
    */
   abrirModalFirmaEmpleador(): void {
     this.mostrarModalFirmaEmpleador = true;
   }
   
   /**
-   * ⭐ NUEVO: Cerrar modal
+   * Cerrar modal
    */
   cerrarModalFirmaEmpleador(): void {
     this.mostrarModalFirmaEmpleador = false;
   }
   
   /**
-   * ⭐ NUEVO: Subir firma del empleador
+   * Subir firma del empleador
    */
   onFirmaEmpleadorSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -282,7 +290,7 @@ export class FormatosComponent implements OnInit {
       // Subir al backend
       const formData = new FormData();
       formData.append('firma_empleador', file);
-      formData.append('holding_id', this.holding);  // ⭐ AGREGAR holding_id
+      formData.append('holding_id', this.holding);
       
       this.isLoading = true;
       
@@ -306,7 +314,7 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Eliminar firma del empleador
+   * Eliminar firma del empleador
    */
   eliminarFirmaEmpleador(): void {
     if (!confirm('¿Está seguro de eliminar la firma del empleador?')) {
@@ -333,12 +341,13 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Verificar si variable está disponible
+   * Verificar si variable está disponible
    */
   variableEstaDisponible(variable: VariableDocumento): boolean {
     if (variable.nombre === 'firma_empleador') {
       return this.firmaEmpleadorDisponible;
     }
+    // ⭐ FIRMA Y HUELLA TRABAJADOR: siempre disponibles (son placeholders)
     return true;
   }
 
@@ -394,7 +403,7 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * ⭐ NUEVO: Inicializa las dimensiones nativas del PDF sin renderizarlo
+   * Inicializa las dimensiones nativas del PDF sin renderizarlo
    */
   private async inicializarDimensionesPDF(pdfArrayBuffer: ArrayBuffer): Promise<void> {
     return new Promise(async (resolve, reject) => {
@@ -718,7 +727,7 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * ⭐ MODIFICADO: Carga el PDF desde una URL e inicializa dimensiones SIEMPRE
+   * Carga el PDF desde una URL e inicializa dimensiones SIEMPRE
    */
   cargarPDFDesdeURL(pdfUrl: string): void {
     if (!pdfUrl) {
@@ -914,8 +923,8 @@ export class FormatosComponent implements OnInit {
           variable.ubicaciones[ubicacionIndex].posX = coords.posX;
           variable.ubicaciones[ubicacionIndex].posY = coords.posY;
           
-          // ⭐ NUEVO: Guardar dimensiones para firma_empleador
-          if (variable.nombre === 'firma_empleador') {
+          // ⭐ Guardar dimensiones para firma_empleador, firma Y huella
+          if (variable.nombre === 'firma_empleador' || variable.nombre === 'firma' || variable.nombre === 'huella') {
             const elementRect = this.elementoArrastrandose!.getBoundingClientRect();
             const pageRect = this.paginaActualArrastre!.getBoundingClientRect();
             
@@ -928,7 +937,7 @@ export class FormatosComponent implements OnInit {
             variable.ubicaciones[ubicacionIndex].width = nativeWidth;
             variable.ubicaciones[ubicacionIndex].height = nativeHeight;
             
-            console.log(`✅ Dimensiones guardadas al arrastrar: ${nativeWidth}x${nativeHeight}`);
+            console.log(`✅ Dimensiones guardadas al arrastrar ${variable.nombre}: ${nativeWidth}x${nativeHeight}`);
           }
         }
         
@@ -1324,7 +1333,7 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * ⭐ MODIFICADO: Mostrar variable en PDF (soporta firma_empleador como imagen con dimensiones guardadas)
+   * ⭐ MODIFICADO: Mostrar variable en PDF (soporta firma_empleador, firma Y huella como imágenes)
    */
   mostrarVariableEnPdf(variable: VariablePosicionada, pageElement: HTMLElement): void {
     
@@ -1351,7 +1360,7 @@ export class FormatosComponent implements OnInit {
       variableElement.classList.add('edit-mode');
     }
     
-    // ⭐ CASO ESPECIAL: firma_empleador es IMAGEN
+    // ⭐ CASO 1: firma_empleador es IMAGEN
     if (variable.nombre === 'firma_empleador') {
       if (!this.firmaEmpleadorDisponible || !this.firmaEmpleadorUrl) {
         console.warn('⚠️ firma_empleador no disponible');
@@ -1360,29 +1369,23 @@ export class FormatosComponent implements OnInit {
       
       variableElement.classList.add('firma-empleador-imagen');
       
-      // ⭐ CREAR IMAGEN CON CARGA VERIFICADA
       const img = document.createElement('img');
       img.src = this.firmaEmpleadorUrl;
       
-      // ⭐ OBTENER DIMENSIONES GUARDADAS
       const mainVarIndex = variable.variableIndex;
       const mainVariable = this.variables[mainVarIndex];
       const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
       
-      // Calcular escalas para convertir de coordenadas nativas a píxeles
       const scaleX = pageRect.width / this.pdfNativeWidth;
       const scaleY = pageRect.height / this.pdfNativeHeight;
       
-      // Usar dimensiones guardadas si existen, sino usar defaults
-      let displayWidth = 150;  // default
-      let displayHeight = 50;  // default
+      let displayWidth = 150;
+      let displayHeight = 50;
       
       if (ubicacion && ubicacion.width && ubicacion.height) {
-        displayWidth = ubicacion.width * scaleX;   // ⭐ Convertir de nativo a píxeles
-        displayHeight = ubicacion.height * scaleY; // ⭐ Convertir de nativo a píxeles
-        console.log(`✅ Usando dimensiones guardadas: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px (nativas: ${ubicacion.width.toFixed(1)}x${ubicacion.height.toFixed(1)})`);
-      } else {
-        console.log(`⚠️ Sin dimensiones guardadas, usando defaults: ${displayWidth}x${displayHeight}px`);
+        displayWidth = ubicacion.width * scaleX;
+        displayHeight = ubicacion.height * scaleY;
+        console.log(`✅ Usando dimensiones guardadas firma_empleador: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
       }
       
       img.style.width = `${displayWidth}px`;
@@ -1391,22 +1394,104 @@ export class FormatosComponent implements OnInit {
       img.style.display = 'block';
       img.style.pointerEvents = 'none';
       
-      // ⭐ MANEJAR ERRORES DE CARGA
       img.onerror = () => {
-        console.error('❌ Error al cargar imagen de firma desde:', this.firmaEmpleadorUrl);
+        console.error('❌ Error al cargar imagen firma_empleador');
         img.alt = '[Error: No se pudo cargar la firma]';
         img.style.border = '2px solid red';
       };
       
-      // ⭐ LOG CUANDO SE CARGA EXITOSAMENTE
       img.onload = () => {
-        console.log('✅ Imagen de firma cargada correctamente');
+        console.log('✅ Imagen firma_empleador cargada');
+      };
+      
+      variableElement.appendChild(img);
+      
+    } 
+    // ⭐ CASO 2: firma trabajador es IMAGEN PLACEHOLDER
+    else if (variable.nombre === 'firma') {
+      variableElement.classList.add('firma-trabajador-imagen');
+      
+      const img = document.createElement('img');
+      img.src = this.FIRMA_TRABAJADOR_PLACEHOLDER;
+      
+      const mainVarIndex = variable.variableIndex;
+      const mainVariable = this.variables[mainVarIndex];
+      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+      
+      const scaleX = pageRect.width / this.pdfNativeWidth;
+      const scaleY = pageRect.height / this.pdfNativeHeight;
+      
+      let displayWidth = this.FIRMA_TRABAJADOR_WIDTH;
+      let displayHeight = this.FIRMA_TRABAJADOR_HEIGHT;
+      
+      if (ubicacion && ubicacion.width && ubicacion.height) {
+        displayWidth = ubicacion.width * scaleX;
+        displayHeight = ubicacion.height * scaleY;
+        console.log(`✅ Usando dimensiones guardadas firma: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
+      }
+      
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+      
+      img.onerror = () => {
+        console.error('❌ Error al cargar imagen placeholder firma');
+        img.alt = '[Error: No se pudo cargar placeholder]';
+        img.style.border = '2px solid red';
+      };
+      
+      img.onload = () => {
+        console.log('✅ Imagen placeholder firma cargada');
+      };
+      
+      variableElement.appendChild(img);
+      
+    }
+    // ⭐ NUEVO CASO 3: huella trabajador es IMAGEN PLACEHOLDER
+    else if (variable.nombre === 'huella') {
+      variableElement.classList.add('huella-trabajador-imagen');
+      
+      const img = document.createElement('img');
+      img.src = this.HUELLA_TRABAJADOR_PLACEHOLDER;
+      
+      const mainVarIndex = variable.variableIndex;
+      const mainVariable = this.variables[mainVarIndex];
+      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+      
+      const scaleX = pageRect.width / this.pdfNativeWidth;
+      const scaleY = pageRect.height / this.pdfNativeHeight;
+      
+      let displayWidth = this.HUELLA_TRABAJADOR_WIDTH;
+      let displayHeight = this.HUELLA_TRABAJADOR_HEIGHT;
+      
+      if (ubicacion && ubicacion.width && ubicacion.height) {
+        displayWidth = ubicacion.width * scaleX;
+        displayHeight = ubicacion.height * scaleY;
+        console.log(`✅ Usando dimensiones guardadas huella: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
+      }
+      
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+      
+      img.onerror = () => {
+        console.error('❌ Error al cargar imagen placeholder huella');
+        img.alt = '[Error: No se pudo cargar placeholder]';
+        img.style.border = '2px solid red';
+      };
+      
+      img.onload = () => {
+        console.log('✅ Imagen placeholder huella cargada');
       };
       
       variableElement.appendChild(img);
       
     } else {
-      // ⭐ VARIABLES DE TEXTO NORMALES
+      // ⭐ CASO 4: VARIABLES DE TEXTO NORMALES
       variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
     }
     
@@ -1435,16 +1520,22 @@ export class FormatosComponent implements OnInit {
     variableElement.style.left = `${displayX}px`;
     variableElement.style.top = `${displayY}px`;
     
-    // ⭐ ESTILOS BASE (sin afectar la imagen interna)
+    // ⭐ ESTILOS BASE
     variableElement.style.fontFamily = 'Arial, sans-serif';
     variableElement.style.fontSize = '12px';
     variableElement.style.fontWeight = 'normal';
     variableElement.style.padding = '3px 6px';
     
-    // ⭐ COLORES DIFERENTES PARA FIRMA
+    // ⭐ COLORES DIFERENTES PARA CADA TIPO
     if (variable.nombre === 'firma_empleador') {
       variableElement.style.backgroundColor = 'rgba(40, 167, 69, 0.08)';
       variableElement.style.border = '2px dashed #28a745';
+    } else if (variable.nombre === 'firma') {
+      variableElement.style.backgroundColor = 'rgba(255, 152, 0, 0.08)';
+      variableElement.style.border = '2px dashed #ff9800';
+    } else if (variable.nombre === 'huella') {
+      variableElement.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
+      variableElement.style.border = '2px dashed #3b82f6';
     } else {
       variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.08)';
       variableElement.style.border = '1px dashed #4a80f5';
@@ -1455,7 +1546,7 @@ export class FormatosComponent implements OnInit {
     variableElement.style.whiteSpace = 'nowrap';
     variableElement.style.maxWidth = 'none';
     
-    if (this.esCampocentrado(variable.nombre) && variable.nombre !== 'firma_empleador') {
+    if (this.esCampocentrado(variable.nombre) && variable.nombre !== 'firma_empleador' && variable.nombre !== 'firma' && variable.nombre !== 'huella') {
       variableElement.style.textAlign = 'center';
       variableElement.style.transform = 'translateX(-50%)';
     } else {
@@ -1475,8 +1566,8 @@ export class FormatosComponent implements OnInit {
       this.handleVariableMouseDown(event, variable, variableElement, pageElement);
     });
     
-    // ⭐ Agregar handles de redimensionamiento SOLO para firma_empleador
-    if (variable.nombre === 'firma_empleador') {
+    // ⭐ Agregar handles de redimensionamiento SOLO para firma_empleador, firma Y huella
+    if (variable.nombre === 'firma_empleador' || variable.nombre === 'firma' || variable.nombre === 'huella') {
       this.agregarHandlesRedimension(variableElement, variable, pageElement);
     }
     
@@ -1516,7 +1607,7 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Agregar handles de redimensionamiento
+   * Agregar handles de redimensionamiento
    */
   agregarHandlesRedimension(element: HTMLElement, variable: VariablePosicionada, pageElement: HTMLElement): void {
     const positions = [
@@ -1549,7 +1640,7 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Posicionar handles
+   * Posicionar handles
    */
   posicionarHandle(handle: HTMLElement, position: string): void {
     switch(position) {
@@ -1589,7 +1680,7 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Obtener cursor apropiado
+   * Obtener cursor apropiado
    */
   getCursorForHandle(position: string): string {
     const cursors: {[key: string]: string} = {
@@ -1606,7 +1697,7 @@ export class FormatosComponent implements OnInit {
   }
   
   /**
-   * ⭐ NUEVO: Iniciar redimensionamiento
+   * Iniciar redimensionamiento
    */
   iniciarRedimension(
     event: MouseEvent, 
@@ -1624,7 +1715,7 @@ export class FormatosComponent implements OnInit {
     const startLeft = element.offsetLeft;
     const startTop = element.offsetTop;
     
-    this.imagenFirmaEmpleadorEnEdicion = {
+    this.imagenFirmaEnEdicion = {
       element: element,
       originalWidth: startWidth,
       originalHeight: startHeight,
@@ -1643,37 +1734,37 @@ export class FormatosComponent implements OnInit {
       
       switch(handlePosition) {
         case 'bottom-right':
-          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth + deltaX);
-          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight + deltaY);
+          newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth + deltaX);
+          newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight + deltaY);
           break;
         case 'bottom-left':
-          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth - deltaX);
-          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight + deltaY);
+          newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth - deltaX);
+          newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight + deltaY);
           newLeft = startLeft + (startWidth - newWidth);
           break;
         case 'top-right':
-          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth + deltaX);
-          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight - deltaY);
+          newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth + deltaX);
+          newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight - deltaY);
           newTop = startTop + (startHeight - newHeight);
           break;
         case 'top-left':
-          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth - deltaX);
-          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight - deltaY);
+          newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth - deltaX);
+          newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight - deltaY);
           newLeft = startLeft + (startWidth - newWidth);
           newTop = startTop + (startHeight - newHeight);
           break;
         case 'right':
-          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth + deltaX);
+          newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth + deltaX);
           break;
         case 'left':
-          newWidth = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minWidth, startWidth - deltaX);
+          newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth - deltaX);
           newLeft = startLeft + (startWidth - newWidth);
           break;
         case 'bottom':
-          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight + deltaY);
+          newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight + deltaY);
           break;
         case 'top':
-          newHeight = Math.max(this.imagenFirmaEmpleadorEnEdicion!.minHeight, startHeight - deltaY);
+          newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight - deltaY);
           newTop = startTop + (startHeight - newHeight);
           break;
       }
@@ -1732,9 +1823,9 @@ export class FormatosComponent implements OnInit {
         this.haycambiosPendientes = true;
       }
       
-      console.log(`✅ Firma redimensionada: ${nativeWidth}x${nativeHeight} en (${nativeX}, ${nativeY})`);
+      console.log(`✅ ${variable.nombre} redimensionada: ${nativeWidth}x${nativeHeight} en (${nativeX}, ${nativeY})`);
       
-      this.imagenFirmaEmpleadorEnEdicion = null;
+      this.imagenFirmaEnEdicion = null;
     };
     
     document.addEventListener('mousemove', onMouseMove);
@@ -1844,7 +1935,7 @@ export class FormatosComponent implements OnInit {
   }
 
   /**
-   * ⭐ MODIFICADO: Mejor manejo del estado y limpieza
+   * Mejor manejo del estado y limpieza
    */
   modificarDocumentoSeleccionado(): void {
     if (!this.documentoSeleccionado || !this.documentoGuardadoId) {

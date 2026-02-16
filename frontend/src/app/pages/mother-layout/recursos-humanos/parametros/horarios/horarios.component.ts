@@ -4,16 +4,13 @@ import { ContratistaApiService } from '../../../../../services/contratista-api.s
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { JwtService } from '../../../../../services/jwt.service';
+import { SociedadGlobalService } from '../../../../../services/sociedad-global.service';
 
-interface Turno {
-  id?: number;
-  dia_semana: number;
-  nombre_turno: string;
-  hora_inicio: string;
-  hora_fin: string;
-  tiene_colacion: boolean;
+interface DiaHorario {
+  inicio: string;
+  fin: string;
+  colacion: boolean;
   minutos_colacion: number;
-  orden: number;
 }
 
 @Component({
@@ -28,6 +25,7 @@ export class HorariosComponent implements OnInit {
   constructor(
     private apiService: ContratistaApiService,
     private jwtService: JwtService,
+    private sociedadGlobalService: SociedadGlobalService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -49,25 +47,47 @@ export class HorariosComponent implements OnInit {
   public deletedRow: any[] = [];
   public selectedHorarioId: number | null = null;
 
+  // Sociedades
+  public sociedadesDisponibles: Array<{ id: number; nombre: string }> = [];
+  public sociedadSeleccionada: { id: number; nombre: string } | null = null;
+  public sociedadSeleccionadaModificar: { id: number; nombre: string } | null = null;
+
   public diasSemana = [
-    { valor: 0, nombre: 'Lunes' },
-    { valor: 1, nombre: 'Martes' },
-    { valor: 2, nombre: 'Miércoles' },
-    { valor: 3, nombre: 'Jueves' },
-    { valor: 4, nombre: 'Viernes' },
-    { valor: 5, nombre: 'Sábado' },
-    { valor: 6, nombre: 'Domingo' }
+    { key: 'lunes', nombre: 'Lunes' },
+    { key: 'martes', nombre: 'Martes' },
+    { key: 'miercoles', nombre: 'Miércoles' },
+    { key: 'jueves', nombre: 'Jueves' },
+    { key: 'viernes', nombre: 'Viernes' },
+    { key: 'sabado', nombre: 'Sábado' },
+    { key: 'domingo', nombre: 'Domingo' }
   ];
 
   // Para crear
-  public turnosCrear: Turno[] = [];
-  
+  public horariosCrear: { [key: string]: DiaHorario } = {
+    lunes: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+    martes: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+    miercoles: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+    jueves: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+    viernes: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+    sabado: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    domingo: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 }
+  };
+
   // Para modificar
-  public turnosModificar: Turno[] = [];
+  public horariosModificar: { [key: string]: DiaHorario } = {
+    lunes: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    martes: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    miercoles: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    jueves: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    viernes: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    sabado: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+    domingo: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 }
+  };
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.holding = this.getHoldingIdFromJWT(); 
+      this.cargarSociedadesDisponibles();
       this.cargarHorarios();
     }
   }
@@ -83,65 +103,77 @@ export class HorariosComponent implements OnInit {
     }
   }
 
-  agregarTurnoCrear(dia: number): void {
-    const orden = this.turnosCrear.filter(t => t.dia_semana === dia).length;
-    this.turnosCrear.push({
-      dia_semana: dia,
-      nombre_turno: '',
-      hora_inicio: '08:00',
-      hora_fin: '17:00',
-      tiene_colacion: false,
-      minutos_colacion: 0,
-      orden: orden
+  cargarSociedadesDisponibles(): void {
+    const sociedadesStr = localStorage.getItem('sociedades');
+    if (sociedadesStr) {
+      this.sociedadesDisponibles = JSON.parse(sociedadesStr);
+    }
+  }
+
+  calcularHorasDia(dia: DiaHorario): number {
+    if (!dia.inicio || !dia.fin) return 0;
+    
+    const [horaIni, minIni] = dia.inicio.split(':').map(Number);
+    const [horaFin, minFin] = dia.fin.split(':').map(Number);
+    
+    const totalMinutos = (horaFin * 60 + minFin) - (horaIni * 60 + minIni);
+    
+    return totalMinutos / 60;
+  }
+
+  calcularTotalSemanal(horarios: { [key: string]: DiaHorario }): number {
+    let total = 0;
+    this.diasSemana.forEach(dia => {
+      total += this.calcularHorasDia(horarios[dia.key]);
     });
-  }
-
-  eliminarTurnoCrear(index: number): void {
-    this.turnosCrear.splice(index, 1);
-  }
-
-  agregarTurnoModificar(dia: number): void {
-    const orden = this.turnosModificar.filter(t => t.dia_semana === dia).length;
-    this.turnosModificar.push({
-      dia_semana: dia,
-      nombre_turno: '',
-      hora_inicio: '08:00',
-      hora_fin: '17:00',
-      tiene_colacion: false,
-      minutos_colacion: 0,
-      orden: orden
-    });
-  }
-
-  eliminarTurnoModificar(index: number): void {
-    this.turnosModificar.splice(index, 1);
-  }
-
-  getTurnosPorDia(turnos: Turno[], dia: number): Turno[] {
-    return turnos.filter(t => t.dia_semana === dia).sort((a, b) => a.orden - b.orden);
-  }
-
-  getNombreDia(dia: number): string {
-    return this.diasSemana.find(d => d.valor === dia)?.nombre || '';
+    return total;
   }
 
   crearHorario(): void {
+    if (!this.sociedadSeleccionada) {
+      this.errorMessage = 'Debe seleccionar una sociedad';
+      this.openModal('errorModal');
+      return;
+    }
+
     if (!this.nombreHorario) {
       this.errorMessage = 'Debe ingresar un nombre para el horario';
       this.openModal('errorModal');
       return;
     }
 
-    if (this.turnosCrear.length === 0) {
-      this.errorMessage = 'Debe crear al menos un turno';
-      this.openModal('errorModal');
-      return;
-    }
-
     const data: any = {
       holding: this.holding,
+      sociedad: this.sociedadSeleccionada.id,
       nombre: this.nombreHorario,
-      turnos: this.turnosCrear
+      lunes_inicio: this.horariosCrear['lunes'].inicio || null,
+      lunes_fin: this.horariosCrear['lunes'].fin || null,
+      lunes_colacion: this.horariosCrear['lunes'].colacion,
+      lunes_minutos_colacion: this.horariosCrear['lunes'].minutos_colacion,
+      martes_inicio: this.horariosCrear['martes'].inicio || null,
+      martes_fin: this.horariosCrear['martes'].fin || null,
+      martes_colacion: this.horariosCrear['martes'].colacion,
+      martes_minutos_colacion: this.horariosCrear['martes'].minutos_colacion,
+      miercoles_inicio: this.horariosCrear['miercoles'].inicio || null,
+      miercoles_fin: this.horariosCrear['miercoles'].fin || null,
+      miercoles_colacion: this.horariosCrear['miercoles'].colacion,
+      miercoles_minutos_colacion: this.horariosCrear['miercoles'].minutos_colacion,
+      jueves_inicio: this.horariosCrear['jueves'].inicio || null,
+      jueves_fin: this.horariosCrear['jueves'].fin || null,
+      jueves_colacion: this.horariosCrear['jueves'].colacion,
+      jueves_minutos_colacion: this.horariosCrear['jueves'].minutos_colacion,
+      viernes_inicio: this.horariosCrear['viernes'].inicio || null,
+      viernes_fin: this.horariosCrear['viernes'].fin || null,
+      viernes_colacion: this.horariosCrear['viernes'].colacion,
+      viernes_minutos_colacion: this.horariosCrear['viernes'].minutos_colacion,
+      sabado_inicio: this.horariosCrear['sabado'].inicio || null,
+      sabado_fin: this.horariosCrear['sabado'].fin || null,
+      sabado_colacion: this.horariosCrear['sabado'].colacion,
+      sabado_minutos_colacion: this.horariosCrear['sabado'].minutos_colacion,
+      domingo_inicio: this.horariosCrear['domingo'].inicio || null,
+      domingo_fin: this.horariosCrear['domingo'].fin || null,
+      domingo_colacion: this.horariosCrear['domingo'].colacion,
+      domingo_minutos_colacion: this.horariosCrear['domingo'].minutos_colacion
     };
     
     this.apiService.post('horarios/', data).subscribe({
@@ -159,7 +191,15 @@ export class HorariosComponent implements OnInit {
   }
 
   cargarHorarios(): void {
-    this.apiService.get(`horarios/?holding=${this.holding}`).subscribe({
+    let url = `horarios/?holding=${this.holding}`;
+    
+    // Filtrar por sociedad global si está seleccionada
+    const sociedadGlobal = this.sociedadGlobalService.getSociedad();
+    if (sociedadGlobal) {
+      url += `&sociedad=${sociedadGlobal.id}`;
+    }
+    
+    this.apiService.get(url).subscribe({
       next: (response) => {
         this.horariosCargados = response;
       },
@@ -170,14 +210,14 @@ export class HorariosComponent implements OnInit {
   }
 
   modificarHorario(): void {
-    if (!this.nombreHorarioNew) {
-      this.errorMessage = 'Debe ingresar un nombre para el horario';
+    if (!this.sociedadSeleccionadaModificar) {
+      this.errorMessage = 'Debe seleccionar una sociedad';
       this.openModal('errorModal');
       return;
     }
 
-    if (this.turnosModificar.length === 0) {
-      this.errorMessage = 'Debe crear al menos un turno';
+    if (!this.nombreHorarioNew) {
+      this.errorMessage = 'Debe ingresar un nombre para el horario';
       this.openModal('errorModal');
       return;
     }
@@ -185,8 +225,36 @@ export class HorariosComponent implements OnInit {
     const data: any = {
       holding: this.holding,
       id: this.selectedHorarioId,
+      sociedad: this.sociedadSeleccionadaModificar.id,
       nombre: this.nombreHorarioNew,
-      turnos: this.turnosModificar
+      lunes_inicio: this.horariosModificar['lunes'].inicio || null,
+      lunes_fin: this.horariosModificar['lunes'].fin || null,
+      lunes_colacion: this.horariosModificar['lunes'].colacion,
+      lunes_minutos_colacion: this.horariosModificar['lunes'].minutos_colacion,
+      martes_inicio: this.horariosModificar['martes'].inicio || null,
+      martes_fin: this.horariosModificar['martes'].fin || null,
+      martes_colacion: this.horariosModificar['martes'].colacion,
+      martes_minutos_colacion: this.horariosModificar['martes'].minutos_colacion,
+      miercoles_inicio: this.horariosModificar['miercoles'].inicio || null,
+      miercoles_fin: this.horariosModificar['miercoles'].fin || null,
+      miercoles_colacion: this.horariosModificar['miercoles'].colacion,
+      miercoles_minutos_colacion: this.horariosModificar['miercoles'].minutos_colacion,
+      jueves_inicio: this.horariosModificar['jueves'].inicio || null,
+      jueves_fin: this.horariosModificar['jueves'].fin || null,
+      jueves_colacion: this.horariosModificar['jueves'].colacion,
+      jueves_minutos_colacion: this.horariosModificar['jueves'].minutos_colacion,
+      viernes_inicio: this.horariosModificar['viernes'].inicio || null,
+      viernes_fin: this.horariosModificar['viernes'].fin || null,
+      viernes_colacion: this.horariosModificar['viernes'].colacion,
+      viernes_minutos_colacion: this.horariosModificar['viernes'].minutos_colacion,
+      sabado_inicio: this.horariosModificar['sabado'].inicio || null,
+      sabado_fin: this.horariosModificar['sabado'].fin || null,
+      sabado_colacion: this.horariosModificar['sabado'].colacion,
+      sabado_minutos_colacion: this.horariosModificar['sabado'].minutos_colacion,
+      domingo_inicio: this.horariosModificar['domingo'].inicio || null,
+      domingo_fin: this.horariosModificar['domingo'].fin || null,
+      domingo_colacion: this.horariosModificar['domingo'].colacion,
+      domingo_minutos_colacion: this.horariosModificar['domingo'].minutos_colacion
     };
     
     this.apiService.put('horarios/', data).subscribe({
@@ -237,7 +305,20 @@ export class HorariosComponent implements OnInit {
       const lastSelectedRow = this.selectedRows[0];
       this.selectedHorarioId = lastSelectedRow.id;
       this.nombreHorarioNew = lastSelectedRow.nombre;
-      this.turnosModificar = JSON.parse(JSON.stringify(lastSelectedRow.turnos || []));
+      
+      // Buscar sociedad
+      const sociedad = this.sociedadesDisponibles.find(s => s.id === lastSelectedRow.sociedad);
+      this.sociedadSeleccionadaModificar = sociedad || null;
+      
+      // Cargar horarios
+      this.diasSemana.forEach(dia => {
+        this.horariosModificar[dia.key] = {
+          inicio: lastSelectedRow[`${dia.key}_inicio`] || '',
+          fin: lastSelectedRow[`${dia.key}_fin`] || '',
+          colacion: lastSelectedRow[`${dia.key}_colacion`] || false,
+          minutos_colacion: lastSelectedRow[`${dia.key}_minutos_colacion`] || 0
+        };
+      });
     }
   }
 
@@ -261,15 +342,38 @@ export class HorariosComponent implements OnInit {
 
   resetCrear(): void {
     this.nombreHorario = '';
-    this.turnosCrear = [];
+    this.sociedadSeleccionada = null;
+    this.horariosCrear = {
+      lunes: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+      martes: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+      miercoles: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+      jueves: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+      viernes: { inicio: '08:00', fin: '17:00', colacion: true, minutos_colacion: 60 },
+      sabado: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 },
+      domingo: { inicio: '', fin: '', colacion: false, minutos_colacion: 0 }
+    };
   }
 
   resetModificar(): void {
     this.nombreHorarioNew = '';
-    this.turnosModificar = [];
+    this.sociedadSeleccionadaModificar = null;
   }
 
-  verDetalleHorario(horario: any): void {
-    this.selectRow(horario);
+  getHorasDia(horario: any, dia: string): number {
+    const diaData: DiaHorario = {
+      inicio: horario[`${dia}_inicio`] || '',
+      fin: horario[`${dia}_fin`] || '',
+      colacion: horario[`${dia}_colacion`] || false,
+      minutos_colacion: horario[`${dia}_minutos_colacion`] || 0
+    };
+    return this.calcularHorasDia(diaData);
+  }
+
+  getTotalSemanal(horario: any): number {
+    let total = 0;
+    this.diasSemana.forEach(dia => {
+      total += this.getHorasDia(horario, dia.key);
+    });
+    return total;
   }
 }

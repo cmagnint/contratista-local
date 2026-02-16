@@ -73,7 +73,6 @@ from .models import (
     RegistroManoObraPersona,
     ContratoTrabajador,
     FolioComercialLabor,
-    TurnoHorario,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -143,9 +142,29 @@ class AdminSerializer(serializers.ModelSerializer):
         return data
 
 class HorarioSimpleSerializer(serializers.ModelSerializer):
+    jornada = serializers.SerializerMethodField()
+    
     class Meta:
         model = Horarios
         fields = ['id', 'nombre', 'jornada']
+    
+    def get_jornada(self, obj):
+        from datetime import datetime
+        
+        total_minutos = 0
+        dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+        
+        for dia in dias:
+            inicio = getattr(obj, f'{dia}_inicio')
+            fin = getattr(obj, f'{dia}_fin')
+            colacion = getattr(obj, f'{dia}_minutos_colacion', 0)
+            
+            if inicio and fin:
+                minutos_dia = (datetime.combine(datetime.today(), fin) - 
+                             datetime.combine(datetime.today(), inicio)).seconds // 60
+                total_minutos += minutos_dia - colacion
+        
+        return round(total_minutos / 60, 1)
 class FundoSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = CamposClientes
@@ -1052,6 +1071,7 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
     carnet_front_image = serializers.ImageField(required=False, allow_null=True)
     carnet_back_image = serializers.ImageField(required=False, allow_null=True)
     firma = serializers.ImageField(required=False, allow_null=True)
+    huella_digital = serializers.ImageField(required=False, allow_null=True)  # ✅ NUEVO
     sueldo_base = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     
     class Meta:
@@ -1061,7 +1081,7 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
             'rut', 'dni', 'nic', 'direccion', 'afp', 'nombre_afp', 'salud','nombre_salud', 'fecha_ingreso',
             'metodo_pago', 'banco','nombre_banco', 'tipo_cuenta_bancaria',
             'numero_cuenta', 'nacionalidad', 'sexo', 'telefono', 'correo', 'estado', 'carnet_front_image','carnet_back_image',
-            'firma', 'estado_civil', 'fecha_nacimiento', 'sueldo_base'
+            'firma', 'huella_digital', 'estado_civil', 'fecha_nacimiento', 'sueldo_base'  # ✅ AGREGADO huella_digital
         ]
         extra_kwargs = {
             'holding': {'write_only': True},
@@ -1099,10 +1119,10 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        # Manejar la carga de archivos de manera específica si es necesario
         carnet_front = validated_data.pop('carnet_front_image', None)
         carnet_back = validated_data.pop('carnet_back_image', None)
         firma = validated_data.pop('firma', None)
+        huella = validated_data.pop('huella_digital', None)  # ✅ NUEVO
 
         personal = PersonalTrabajadores.objects.create(**validated_data)
 
@@ -1112,19 +1132,20 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
             personal.carnet_back_image = carnet_back
         if firma:
             personal.firma = firma
+        if huella:  # ✅ NUEVO
+            personal.huella_digital = huella
 
         personal.save()
         return personal
 
     def update(self, instance, validated_data):
-        # Evitar la actualización de imágenes si no se proporcionaron nuevas
         validated_data.pop('carnet_front_image', None)
         validated_data.pop('carnet_back_image', None)
         validated_data.pop('firma', None)
+        validated_data.pop('huella_digital', None)  # ✅ NUEVO
         
         return super().update(instance, validated_data)
-
-
+    
 class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
     """
     Serializer para la creación de trabajadores desde móviles.
@@ -1132,6 +1153,8 @@ class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
     carnet_front_image = serializers.ImageField(required=False, allow_null=True)
     carnet_back_image = serializers.ImageField(required=False, allow_null=True)
     firma = serializers.ImageField(required=False, allow_null=True)
+    huella_digital = serializers.ImageField(required=False, allow_null=True)  # ✅ NUEVO
+
     
     rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
@@ -1151,7 +1174,7 @@ class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
             
             'metodo_pago', 'tipo_cuenta_bancaria', 'numero_cuenta',
             
-            'carnet_front_image', 'carnet_back_image', 'firma',
+            'carnet_front_image', 'carnet_back_image', 'firma','huella_digital',
             
             'estado', 'sueldo_base','area', 'cargo'  
         ]
@@ -1292,11 +1315,7 @@ class LaborSimpleSerializer(serializers.ModelSerializer):
         model = Labores
         fields = ['id', 'nombre']
 
-class HorarioSimpleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Horarios
-        fields = ['id', 'nombre', 'jornada']
-        
+
 class FolioComercialPreContratacionSerializer(serializers.ModelSerializer):
     """
     Serializer específico para la pantalla de pre-contratación.
@@ -1467,7 +1486,27 @@ class FolioComercialSerializer(serializers.ModelSerializer):
         return ', '.join([f"{l.labor.nombre} (Pago: ${l.valor_pago_trabajador}, Fact: ${l.valor_facturacion})" for l in labores])
     
     def get_nombres_horarios(self, obj):
-        return ', '.join([f"{horario.nombre} ({horario.jornada}h)" for horario in obj.horarios.all()])
+        from datetime import datetime
+        
+        nombres = []
+        for horario in obj.horarios.all():
+            total_minutos = 0
+            dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+            
+            for dia in dias:
+                inicio = getattr(horario, f'{dia}_inicio')
+                fin = getattr(horario, f'{dia}_fin')
+                colacion = getattr(horario, f'{dia}_minutos_colacion', 0)
+                
+                if inicio and fin:
+                    minutos_dia = (datetime.combine(datetime.today(), fin) - 
+                                datetime.combine(datetime.today(), inicio)).seconds // 60
+                    total_minutos += minutos_dia - colacion
+            
+            jornada = round(total_minutos / 60, 1)
+            nombres.append(f"{horario.nombre} ({jornada}h)")
+        
+        return ', '.join(nombres)
 
     def get_nombres_transportistas(self, obj):
         return ', '.join([transportista.nombre for transportista in obj.transportistas.all()])
@@ -1607,43 +1646,25 @@ class DataProduccionSerializer(serializers.Serializer):
         unidades_control = UnidadControl.objects.filter(holding_id=holding_id)
         return [{'id': uc.id, 'nombre': uc.nombre} for uc in unidades_control]
 
-class TurnoHorarioSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TurnoHorario
-        fields = ['id', 'dia_semana', 'nombre_turno', 'hora_inicio', 'hora_fin', 'tiene_colacion', 'minutos_colacion', 'orden']
-
-
 class HorarioSerializer(serializers.ModelSerializer):
-    turnos = TurnoHorarioSerializer(many=True, required=False)
+    sociedad_nombre = serializers.CharField(source='sociedad.nombre', read_only=True)
     
     class Meta:
         model = Horarios
-        fields = ['id', 'holding', 'nombre', 'turnos']
+        fields = [
+            'id', 'holding', 'sociedad', 'sociedad_nombre', 'nombre',
+            'lunes_inicio', 'lunes_fin', 'lunes_colacion', 'lunes_minutos_colacion',
+            'martes_inicio', 'martes_fin', 'martes_colacion', 'martes_minutos_colacion',
+            'miercoles_inicio', 'miercoles_fin', 'miercoles_colacion', 'miercoles_minutos_colacion',
+            'jueves_inicio', 'jueves_fin', 'jueves_colacion', 'jueves_minutos_colacion',
+            'viernes_inicio', 'viernes_fin', 'viernes_colacion', 'viernes_minutos_colacion',
+            'sabado_inicio', 'sabado_fin', 'sabado_colacion', 'sabado_minutos_colacion',
+            'domingo_inicio', 'domingo_fin', 'domingo_colacion', 'domingo_minutos_colacion'
+        ]
         extra_kwargs = {
             'holding': {'write_only': True},
             'id': {'read_only': True},
         }
-    
-    def create(self, validated_data):
-        turnos_data = validated_data.pop('turnos', [])
-        horario = Horarios.objects.create(**validated_data)
-        
-        for turno_data in turnos_data:
-            TurnoHorario.objects.create(horario=horario, **turno_data)
-        
-        return horario
-    
-    def update(self, instance, validated_data):
-        turnos_data = validated_data.pop('turnos', None)
-        instance.nombre = validated_data.get('nombre', instance.nombre)
-        instance.save()
-        
-        if turnos_data is not None:
-            instance.turnos.all().delete()
-            for turno_data in turnos_data:
-                TurnoHorario.objects.create(horario=instance, **turno_data)
-        
-        return instance
         
 class ProduccionTrabajadorSerializer(serializers.ModelSerializer):
     nombre_sociedad = serializers.SerializerMethodField()

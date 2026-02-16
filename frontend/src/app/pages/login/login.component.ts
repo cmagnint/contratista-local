@@ -22,6 +22,7 @@ export class LoginComponent implements OnInit {
   showMessage: boolean = true;
   isLoading: boolean = false;
   isError: boolean = false;
+  pageLoaded: boolean = false;
 
   showPassword: boolean = false;
   capsLockActive: boolean = false;
@@ -55,6 +56,10 @@ export class LoginComponent implements OnInit {
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
+      setTimeout(() => {
+        this.pageLoaded = true;
+      }, 500);
+      
       this.cargarSociedadesGuardadas();
       
       if (this.jwtService.isAuthenticated()) {

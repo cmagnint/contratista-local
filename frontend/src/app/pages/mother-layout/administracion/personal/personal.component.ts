@@ -146,14 +146,16 @@ export class PersonalComponent implements OnInit {
   public dniTrabajadorNew: string = '';
   public nicTrabajadorNew: string = '';
 
-  // Nuevas propiedades para subir documentos
+  // Propiedades para subir documentos (INCLUYE HUELLA)
   public archivoCarnetFrontal: File | null = null;
   public archivoCarnetTrasero: File | null = null;
   public archivoFirma: File | null = null;
+  public archivoHuellaDigital: File | null = null;
   
   public nombreArchivoFrontal: string = '';
   public nombreArchivoTrasero: string = '';
   public nombreArchivoFirma: string = '';
+  public nombreArchivoHuella: string = '';
 
   errorMessage!: string;
   selectedRows: any[] = [];
@@ -438,13 +440,12 @@ export class PersonalComponent implements OnInit {
     }
   }
 
-  // NUEVOS MÉTODOS PARA SUBIR DOCUMENTOS
-  onFileSelected(event: Event, tipo: 'frontal' | 'trasero' | 'firma'): void {
+  // MÉTODO PARA SELECCIONAR ARCHIVOS (INCLUYE HUELLA)
+  onFileSelected(event: Event, tipo: 'frontal' | 'trasero' | 'firma' | 'huella'): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       
-      // Validar tipo de archivo
       const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png'];
       if (!tiposPermitidos.includes(file.type)) {
         alert('Solo se permiten archivos JPG, JPEG o PNG');
@@ -452,7 +453,6 @@ export class PersonalComponent implements OnInit {
         return;
       }
       
-      // Validar tamaño (máx 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('El archivo no debe superar 5MB');
         input.value = '';
@@ -472,17 +472,22 @@ export class PersonalComponent implements OnInit {
           this.archivoFirma = file;
           this.nombreArchivoFirma = file.name;
           break;
+        case 'huella':
+          this.archivoHuellaDigital = file;
+          this.nombreArchivoHuella = file.name;
+          break;
       }
     }
   }
 
+  // MÉTODO PARA SUBIR DOCUMENTOS (INCLUYE HUELLA)
   subirDocumentos(): void {
     if (!this.trabajadorSeleccionadoDocs) {
       alert('No hay trabajador seleccionado');
       return;
     }
 
-    if (!this.archivoCarnetFrontal && !this.archivoCarnetTrasero && !this.archivoFirma) {
+    if (!this.archivoCarnetFrontal && !this.archivoCarnetTrasero && !this.archivoFirma && !this.archivoHuellaDigital) {
       alert('Debe seleccionar al menos un documento');
       return;
     }
@@ -503,6 +508,10 @@ export class PersonalComponent implements OnInit {
     if (this.archivoFirma) {
       console.log('✅ Agregando firma:', this.archivoFirma.name);
       formData.append('firma', this.archivoFirma, this.archivoFirma.name);
+    }
+    if (this.archivoHuellaDigital) {
+      console.log('✅ Agregando huella digital:', this.archivoHuellaDigital.name);
+      formData.append('huella_digital', this.archivoHuellaDigital, this.archivoHuellaDigital.name);
     }
 
     console.log('📦 Enviando FormData...');
@@ -530,15 +539,17 @@ export class PersonalComponent implements OnInit {
     });
   }
 
+  // MÉTODO PARA LIMPIAR ARCHIVOS (INCLUYE HUELLA)
   limpiarArchivosSeleccionados(): void {
     this.archivoCarnetFrontal = null;
     this.archivoCarnetTrasero = null;
     this.archivoFirma = null;
+    this.archivoHuellaDigital = null;
     this.nombreArchivoFrontal = '';
     this.nombreArchivoTrasero = '';
     this.nombreArchivoFirma = '';
+    this.nombreArchivoHuella = '';
   }
-  // FIN NUEVOS MÉTODOS
 
   toggleSelection(id: number, list: number[], total: any[]): void {
     const index = list.indexOf(id);
@@ -658,7 +669,6 @@ export class PersonalComponent implements OnInit {
     const target = event.target as HTMLInputElement;
     if (!target) return;
 
-    // ✅ Permite K/k además de números
     let rut = target.value.replace(/[^0-9kK]/g, '').toUpperCase();
     
     if (rut.length === 0) {
@@ -754,12 +764,14 @@ export class PersonalComponent implements OnInit {
     this.openModal('bancoInfoModal');
   }
 
+  // MÉTODO PARA ABRIR MODAL DOCUMENTOS (INCLUYE HUELLA EN CONSOLE.LOG)
   abrirModalDocumentos(trabajador: any): void {
     this.trabajadorSeleccionadoDocs = trabajador;
     console.log('Documentos del trabajador:', {
       carnet_front: trabajador.carnet_front_image,
       carnet_back: trabajador.carnet_back_image,
-      firma: trabajador.firma
+      firma: trabajador.firma,
+      huella: trabajador.huella_digital
     });
     this.openModal('documentosModal');
   }
@@ -778,8 +790,6 @@ export class PersonalComponent implements OnInit {
     link.click();
     document.body.removeChild(link);
   }
-  //IMPORTANTE, Para contratista-docker-cloud usar baseUrl : http://contratista.terramobile.cl
-  //Para contratista usar http://localhost
   
   getUrlCompleta(path: string): string {
     if (!path) return '';
@@ -832,7 +842,7 @@ export class PersonalComponent implements OnInit {
       this.selectedAfpId = selectedRow.afp;
       this.selectedSaludId = selectedRow.salud;
       this.selectedBancoId = selectedRow.banco;
-      // Normalizar método de pago
+
       if (this.metodoPagoNew?.toUpperCase() === 'TRANSFERENCIA') {
         this.metodoPagoNew = 'Transferencia';
       } else if (this.metodoPagoNew?.toUpperCase() === 'EFECTIVO') {

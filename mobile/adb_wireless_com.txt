@@ -1,0 +1,5 @@
+adb -s 320114295775 tcpip 5555
+
+adb -s 320114295775 shell ip addr show wlan0 | grep inet
+    
+adb connect 192.168.1.6:5555

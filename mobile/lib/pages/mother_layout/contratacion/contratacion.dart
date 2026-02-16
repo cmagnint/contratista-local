@@ -53,7 +53,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     'DIRECCION': TextEditingController(),
   };
 
-  // ✅ AGREGAR FocusNodes para cada campo
   final Map<String, FocusNode> _focusNodes = {};
   bool _isCameraInitialized = false;
 
@@ -91,7 +90,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _dniController.text = _dni;
     _fetchBancos();
 
-    // ✅ INICIALIZAR FocusNodes
     for (var key in _controllers.keys) {
       _focusNodes[key] = FocusNode();
     }
@@ -105,7 +103,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _numeroCuentaController.dispose();
     _dniController.dispose();
 
-    // ✅ LIBERAR FocusNodes
     _focusNodes.forEach((key, node) {
       node.dispose();
     });
@@ -114,52 +111,141 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     super.dispose();
   }
 
-  //HUELLA DIGITAL
   Future<void> capturarHuellaDigital() async {
     try {
-      // Conectar dispositivo
-      bool conectado = await _fingerprintService.conectarDispositivo();
-
-      if (!conectado) {
-        throw Exception('No se pudo conectar al lector de huellas');
-      }
-
-      // Capturar huella
-      final huellaData = await _fingerprintService.capturarHuella();
-
-      if (huellaData != null) {
-        setState(() {
-          huellaDigital = base64Encode(huellaData);
-        });
-      }
-
-      await _fingerprintService.desconectar();
-    } catch (e) {
-      print('Error capturando huella: $e');
-    }
-  }
-
-  Future<void> _debugCaptureFingerprint() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      loggerGlobal.d('=== DEBUG: Iniciando captura de huella ===');
-
-      bool conectado = await _fingerprintService.conectarDispositivo();
-      loggerGlobal.d('Dispositivo conectado: $conectado');
-
-      if (!conectado) {
-        throw Exception('No se pudo conectar al lector de huellas');
-      }
-
-      final huellaData = await _fingerprintService.capturarHuella();
-      loggerGlobal.d(
-        'Datos de huella recibidos: ${huellaData?.length ?? 0} bytes',
+      // PASO 1: Instrucciones para conectar
+      bool? continuar = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Conectar Escáner'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.usb, size: 48, color: Colors.blue),
+              SizedBox(height: 16),
+              Text(
+                '1. Conecta el escáner Grow R102A al puerto USB\n'
+                '2. Acepta el diálogo de permisos\n'
+                '3. Marca "Usar por defecto"\n'
+                '4. Presiona CONTINUAR',
+                textAlign: TextAlign.left,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('CONTINUAR'),
+            ),
+          ],
+        ),
       );
+
+      if (continuar != true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Captura cancelada'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // PASO 2: Intentar conectar con reintentos
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Detectando escáner...'),
+              ],
+            ),
+          ),
+        );
+      }
+
+      bool conectado = false;
+      int intentos = 0;
+
+      while (!conectado && intentos < 5) {
+        await Future.delayed(Duration(seconds: 1));
+        conectado = await _fingerprintService.conectarDispositivo();
+        intentos++;
+        loggerGlobal.d('Intento $intentos: conectado=$conectado');
+      }
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (!conectado) {
+        if (mounted) {
+          bool? reintentar = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Escáner No Detectado'),
+              content: const Text(
+                'Verifica:\n'
+                '• Scanner conectado al USB\n'
+                '• Cable OTG funcionando\n'
+                '• Permisos USB aceptados\n'
+                '• LED verde encendido',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Continuar Sin Huella'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          );
+
+          if (reintentar == true) {
+            await capturarHuellaDigital();
+          }
+        }
+        return;
+      }
+
+      // PASO 3: Capturar huella
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Coloca tu dedo en el escáner...'),
+              ],
+            ),
+          ),
+        );
+      }
+
+      final huellaData = await _fingerprintService.capturarHuella();
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
 
       if (huellaData != null) {
         setState(() {
@@ -167,50 +253,62 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         });
 
         if (mounted) {
-          Navigator.pop(context);
-          // Mostrar huella capturada
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Huella Capturada'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.memory(
-                    huellaData,
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 10),
-                  Text('Tamaño: ${huellaData.length} bytes'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
-                ),
-              ],
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Huella capturada exitosamente'),
+              backgroundColor: Colors.green,
             ),
           );
         }
       } else {
-        throw Exception('No se capturaron datos de huella');
+        if (mounted) {
+          bool? reintentar = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Huella No Capturada'),
+              content: const Text(
+                'No se detectó el dedo.\n'
+                '• Limpia el sensor\n'
+                '• Presiona firmemente\n'
+                '• Mantén 3-5 segundos',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Continuar Sin Huella'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          );
+
+          if (reintentar == true) {
+            await capturarHuellaDigital();
+          }
+        }
       }
 
       await _fingerprintService.desconectar();
-    } catch (e, stackTrace) {
-      loggerGlobal.e('Error en debug de huella: $e');
-      loggerGlobal.e('StackTrace: $stackTrace');
+    } catch (e) {
+      loggerGlobal.e('Error: $e');
 
       if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
+        Navigator.of(context, rootNavigator: true).pop();
+
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('$e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       }
@@ -262,12 +360,14 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     }
   }
 
-  // ✅ MODIFICADO: Ahora enfoca el primer campo vacío después de firmar
-  void _openSignaturePad() {
+  void _openSignaturePad({bool autoPromptFingerprint = true}) {
+    // CAPTURAR EL CONTEXTO DEL STATE ANTES DE ABRIR EL DIÁLOGO
+    final screenContext = context;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return OrientationBuilder(
           builder: (context, orientation) {
             final isLandscape = orientation == Orientation.landscape;
@@ -292,19 +392,66 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     Expanded(
                       child: SignatureWidget(
                         onSignatureCapture: (Uint8List signature) async {
-                          // ← async
+                          // 1. Guardar firma
                           setState(() {
                             _signatureImage = signature;
                           });
-                          Navigator.of(context).pop();
-                          _focusFirstEmptyField();
 
-                          // ✅ AGREGAR CAPTURA DE HUELLA DESPUÉS DE FIRMA
+                          // 2. Cerrar diálogo de firma USANDO SU PROPIO CONTEXTO
+                          Navigator.of(dialogContext).pop();
+
+                          // 3. Esperar a que se cierre completamente
                           await Future.delayed(
                             const Duration(milliseconds: 500),
                           );
+
+                          // 4. Mostrar SnackBar USANDO EL CONTEXTO DE LA PANTALLA
                           if (mounted) {
-                            await capturarHuellaDigital();
+                            ScaffoldMessenger.of(screenContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Firma capturada exitosamente'),
+                                backgroundColor: Colors.green,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+
+                          // 5. Esperar un poco más
+                          await Future.delayed(
+                            const Duration(milliseconds: 700),
+                          );
+
+                          // 6. MOSTRAR DIÁLOGO DE HUELLA USANDO EL CONTEXTO DE LA PANTALLA
+                          if (autoPromptFingerprint && mounted) {
+                            final capturar = await showDialog<bool>(
+                              context:
+                                  screenContext, // USAR CONTEXTO DE LA PANTALLA, NO DEL DIÁLOGO
+                              barrierDismissible: false,
+                              builder: (BuildContext ctx) => AlertDialog(
+                                title: const Text('Capturar Huella'),
+                                content: const Text(
+                                  '¿Deseas capturar la huella digital ahora?\n\n'
+                                  'También puedes hacerlo después usando el botón "Huella".',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(false),
+                                    child: const Text('Después'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(true),
+                                    child: const Text('Sí, Capturar'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            // 7. Si acepta, capturar huella
+                            if (capturar == true && mounted) {
+                              await capturarHuellaDigital();
+                            }
                           }
                         },
                       ),
@@ -317,47 +464,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         );
       },
     );
-  }
-
-  // ✅ NUEVO MÉTODO: Enfocar el primer campo vacío
-  void _focusFirstEmptyField() {
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (!mounted) return;
-
-      // Lista de campos en orden de prioridad para enfocar
-      final fieldsOrder = [
-        'RUN',
-        'NOMBRES',
-        'APELLIDOS',
-        'NACIONALIDAD',
-        'TELEFONO',
-        'CORREO',
-        'DIRECCION',
-      ];
-
-      // Si es documento chileno y falta RUT
-      if (_tipoDocumento == 'Cédula Chilena' &&
-          _controllers['RUN']!.text.isEmpty) {
-        _focusNodes['RUN']?.requestFocus();
-        return;
-      }
-
-      // Buscar el primer campo vacío en orden
-      for (String field in fieldsOrder) {
-        if (_controllers.containsKey(field) &&
-            _controllers[field]!.text.isEmpty) {
-          _focusNodes[field]?.requestFocus();
-
-          // Hacer scroll hasta el campo si es necesario
-          Scrollable.ensureVisible(
-            _focusNodes[field]!.context!,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
-          return;
-        }
-      }
-    });
   }
 
   Future<bool> asociarQR() async {
@@ -597,7 +703,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     }
   }
 
-  // ✅ MODIFICADO: Flujo automático entre fotos y firma
+  // FLUJO AUTOMÁTICO RESTAURADO
   void _confirmPictureAndRecognizeText(String imagePath, bool isFront) async {
     final confirm = await _confirmPhoto(imagePath, isFront);
 
@@ -630,21 +736,20 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                 _selectedAnio = fechaParts[2];
               }
             }
-            // Mantener estado civil Soltero(a) por defecto  // ⭐ NUEVO
-            _estadoCivil = 'Soltero(a)'; // ⭐ NUEVO
+            _estadoCivil = 'Soltero(a)';
           });
           _hideLoadingOverlay();
 
-          // ✅ AUTOMÁTICAMENTE IR A LA FOTO TRASERA
+          // AUTOMÁTICAMENTE IR A LA FOTO TRASERA
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
             _takePictureAndRecognizeText(false);
           }
         } else {
-          // ✅ DESPUÉS DE LA FOTO TRASERA, IR AUTOMÁTICAMENTE A LA FIRMA
+          // DESPUÉS DE LA FOTO TRASERA, IR AUTOMÁTICAMENTE A LA FIRMA
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
-            _openSignaturePad();
+            _openSignaturePad(autoPromptFingerprint: true); // Flujo automático
           }
         }
       } else if (_tipoDocumento == 'Cédula Extranjera') {
@@ -663,7 +768,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           });
           _hideLoadingOverlay();
 
-          // ✅ AUTOMÁTICAMENTE IR A LA FOTO TRASERA
+          // AUTOMÁTICAMENTE IR A LA FOTO TRASERA
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
             _takePictureAndRecognizeText(false);
@@ -693,10 +798,10 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           });
           _hideLoadingOverlay();
 
-          // ✅ DESPUÉS DE LA FOTO TRASERA, IR AUTOMÁTICAMENTE A LA FIRMA
+          // DESPUÉS DE LA FOTO TRASERA, IR AUTOMÁTICAMENTE A LA FIRMA
           await Future.delayed(const Duration(milliseconds: 500));
           if (mounted) {
-            _openSignaturePad();
+            _openSignaturePad(autoPromptFingerprint: true); // Flujo automático
           }
         }
       }
@@ -1148,6 +1253,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       }
       loggerGlobal.d('Firma presente');
 
+      // LA HUELLA AHORA ES OPCIONAL
+      if (huellaDigital == null || huellaDigital!.isEmpty) {
+        loggerGlobal.w('Advertencia: Huella digital no capturada (opcional)');
+      } else {
+        loggerGlobal.d('Huella digital presente');
+      }
+
       if (_tipoDocumento == 'Cédula Chilena' &&
           (_controllers['RUN']!.text.isEmpty ||
               _controllers['NOMBRES']!.text.isEmpty ||
@@ -1188,8 +1300,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
         final Map<String, String> fields = {
           'holding': holding ?? '',
-          'sociedad':
-              userInfo.sociedadSeleccionada, // ✅ USAR LA SOCIEDAD SELECCIONADA
+          'sociedad': userInfo.sociedadSeleccionada,
           'fecha_ingreso': DateTime.now().toIso8601String().split('T')[0],
           'codigo_supervisor': widget.initialData['supervisor'] ?? '',
           'jefe_cuadrilla': widget.initialData['jefe_cuadrilla'] ?? '',
@@ -1198,7 +1309,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'labor': widget.initialData['labor'] ?? '',
           'transportista': widget.initialData['transportista'] ?? '',
           'casa': widget.initialData['casa'] ?? '',
-          'area': widget.initialData['area'] ?? '', // ✅ NUEVO
+          'area': widget.initialData['area'] ?? '',
           'cargo': widget.initialData['cargo'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
               ? _controllers['RUN']!.text.toUpperCase()
@@ -1301,6 +1412,32 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           }
         }
 
+        // AGREGAR HUELLA SOLO SI ESTÁ PRESENTE
+        if (huellaDigital != null && huellaDigital!.isNotEmpty) {
+          loggerGlobal.d('Preparando huella digital');
+          try {
+            final tempDir = await getTemporaryDirectory();
+            String fileName = _tipoDocumento == 'Cédula Chilena'
+                ? 'huella_${_controllers['RUN']!.text.replaceAll('.', '').replaceAll('-', '')}.png'
+                : 'huella_$_dni.png';
+
+            loggerGlobal.d('Nombre de archivo de huella: $fileName');
+
+            final huellaBytes = base64Decode(huellaDigital!);
+            final file = await File('${tempDir.path}/$fileName').create();
+            await file.writeAsBytes(huellaBytes);
+            files.add(MapEntry('huella_digital', file));
+            loggerGlobal.d(
+              'Huella guardada y agregada - Tamaño final: ${await file.length()} bytes',
+            );
+          } catch (e) {
+            loggerGlobal.e('Error procesando huella digital: $e');
+            throw Exception('Error al procesar la huella digital: $e');
+          }
+        } else {
+          loggerGlobal.d('Huella digital no proporcionada (opcional)');
+        }
+
         loggerGlobal.d('Total de archivos preparados: ${files.length}');
 
         if (!_validateFiles(files)) {
@@ -1315,8 +1452,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'empresa_transporte_id': widget.initialData['transportista'] ?? '',
           'vehiculo_id': widget.initialData['vehiculo'] ?? '',
           'horario': widget.initialData['horario'] ?? '',
-          'codigo_supervisor':
-              widget.initialData['supervisor'] ?? '', // ⭐ AGREGAR
+          'codigo_supervisor': widget.initialData['supervisor'] ?? '',
         };
 
         loggerGlobal.d('Campos adicionales para BD local:');
@@ -1540,6 +1676,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _nic = '';
       _tipoDocumento = 'Cédula Chilena';
       _signatureImage = null;
+      huellaDigital = null;
     });
   }
 
@@ -1695,30 +1832,34 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(width: 60),
-                      ElevatedButton(
-                        onPressed: _openSignaturePad,
-                        child: Text(
-                          _signatureImage == null
-                              ? 'Agregar firma *'
-                              : 'Modificar firma *',
-                        ),
-                      ),
-                      const SizedBox(width: 20),
                       ElevatedButton(
                         onPressed: asociarQR,
                         child: const Text('Asociar QR'),
                       ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            _openSignaturePad(autoPromptFingerprint: false),
+                        icon: const Icon(Icons.draw),
+                        label: const Text('Firmar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _signatureImage != null
+                              ? Colors.green
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: capturarHuellaDigital,
+                        icon: const Icon(Icons.fingerprint),
+                        label: const Text('Huella'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: huellaDigital != null
+                              ? Colors.green
+                              : null,
+                        ),
+                      ),
                     ],
-                  ),
-                  const SizedBox(width: 20),
-                  // ✅ BOTÓN DEBUG HUELLA
-                  ElevatedButton(
-                    onPressed: _debugCaptureFingerprint,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                    ),
-                    child: const Text('Debug Huella'),
                   ),
                   if (_tipoDocumento == 'Cédula Chilena')
                     Padding(
@@ -1825,7 +1966,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       ),
                     ),
                   ),
-                  // Luego agregar CORREO manualmente sin textCapitalization
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: TextFormField(
@@ -2010,8 +2150,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                             _numeroCuenta = '';
                             _numeroCuentaController.clear();
                           } else if (_metodoPago == 'Transferencia') {
-                            // ⭐ NUEVO
-                            // Setear Banco Estado por defecto
                             final bancoEstado = _bancos.firstWhere(
                               (b) => b['nombre']
                                   .toString()
@@ -2024,9 +2162,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                                   .toString();
                               _banco = bancoEstado['id'].toString();
                             }
-                            // Setear Cuenta Rut por defecto
                             _tipoCuenta = 'CUENTA RUT';
-                            // Setear número de cuenta desde RUT
                             if (_controllers['RUN']!.text.isNotEmpty) {
                               _numeroCuenta = _getRutWithoutFormatting(
                                 _controllers['RUN']!.text,
@@ -2102,10 +2238,10 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         ),
                         items:
                             <String>[
-                              'CUENTA RUT', // Era: 'Cuenta Rut'
-                              'VISTA/CHEQUERA ELECTRÓNICA', // Era: 'Vista/Chequera electrónica'
-                              'CUENTA DE AHORRO', // Era: 'Cuenta de Ahorro'
-                              'CUENTA CORRIENTE', // Era: 'Cuenta Corriente'
+                              'CUENTA RUT',
+                              'VISTA/CHEQUERA ELECTRÓNICA',
+                              'CUENTA DE AHORRO',
+                              'CUENTA CORRIENTE',
                             ].map<DropdownMenuItem<String>>((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
@@ -2138,15 +2274,27 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: GestureDetector(
-                              onTap: () =>
-                                  _showFullImage(File(_imagePaths[0]!)),
-                              child: Image.file(
-                                File(_imagePaths[0]!),
-                                fit: BoxFit.cover,
-                                width: 100,
-                                height: 100,
-                              ),
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showFullImage(File(_imagePaths[0]!)),
+                                  child: Image.file(
+                                    File(_imagePaths[0]!),
+                                    fit: BoxFit.cover,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Carnet Frontal',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -2154,15 +2302,27 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: GestureDetector(
-                              onTap: () =>
-                                  _showFullImage(File(_imagePaths[1]!)),
-                              child: Image.file(
-                                File(_imagePaths[1]!),
-                                fit: BoxFit.cover,
-                                width: 100,
-                                height: 100,
-                              ),
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showFullImage(File(_imagePaths[1]!)),
+                                  child: Image.file(
+                                    File(_imagePaths[1]!),
+                                    fit: BoxFit.cover,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Carnet Trasero',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -2170,14 +2330,55 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: GestureDetector(
-                              onTap: () => _showFullImage(_signatureImage!),
-                              child: Image.memory(
-                                _signatureImage!,
-                                fit: BoxFit.cover,
-                                width: 100,
-                                height: 100,
-                              ),
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _showFullImage(_signatureImage!),
+                                  child: Image.memory(
+                                    _signatureImage!,
+                                    fit: BoxFit.cover,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Firma',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (huellaDigital != null)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _showFullImage(
+                                    base64Decode(huellaDigital!),
+                                  ),
+                                  child: Image.memory(
+                                    base64Decode(huellaDigital!),
+                                    fit: BoxFit.cover,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Huella Digital',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

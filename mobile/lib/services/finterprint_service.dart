@@ -36,15 +36,15 @@ class FingerPrintService {
         final devices = jsonDecode(response.body) as List;
         loggerGlobal.d('Dispositivos encontrados: ${devices.length}');
 
-        // ✅ CORRECCIÓN: Buscar por campo is_uareu
+        // Buscar Grow R102A (VID: 8210, PID: 8209)
         final device = devices.firstWhere(
-          (d) => d['is_uareu'] == true,
+          (d) => d['vid'] == 8210 && d['pid'] == 8209,
           orElse: () => null,
         );
 
         if (device != null) {
           _mode = 'bridge';
-          loggerGlobal.d('=== Modo BRIDGE activado ===');
+          loggerGlobal.d('=== Modo BRIDGE activado (Grow R102A) ===');
           loggerGlobal.d(
             'Dispositivo: VID=${device['vid']}, PID=${device['pid']}',
           );
@@ -52,7 +52,7 @@ class FingerPrintService {
         }
       }
 
-      loggerGlobal.e('Dispositivo U.are.U no encontrado');
+      loggerGlobal.e('Dispositivo Grow R102A no encontrado');
       return false;
     } catch (e) {
       loggerGlobal.e('Error conectando: $e');

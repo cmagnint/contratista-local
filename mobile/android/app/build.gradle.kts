@@ -30,6 +30,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+            
+            // ✅ SOLUCIÓN SIMPLE: Deshabilitar minificación
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
@@ -40,5 +44,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
+    // Grow R102A SDK
+    implementation(files("libs/syno_usb.jar"))
 }

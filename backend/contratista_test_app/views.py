@@ -3343,6 +3343,29 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             if os.path.isfile(full_path):
                 os.remove(full_path)
 
+    def calcular_horas_dia(self, horario, fecha):
+        """Calcula horas trabajadas en un día específico"""
+        from datetime import datetime
+        
+        if not horario:
+            return 9.0
+        
+        dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+        dia_nombre = dias[fecha.weekday()]
+        
+        inicio = getattr(horario, f'{dia_nombre}_inicio', None)
+        fin = getattr(horario, f'{dia_nombre}_fin', None)
+        colacion = getattr(horario, f'{dia_nombre}_minutos_colacion', 0)
+        
+        if not inicio or not fin:
+            return 0.0
+        
+        inicio_dt = datetime.combine(fecha, inicio)
+        fin_dt = datetime.combine(fecha, fin)
+        minutos = (fin_dt - inicio_dt).seconds // 60 - colacion
+        
+        return round(minutos / 60, 1)
+        
     @transaction.atomic
     def post(self, request, format=None):
         print("=== DEBUG: INICIO POST ===")
@@ -3381,20 +3404,29 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        print(f"Área: {data.get('area')}, Cargo: {data.get('cargo')}")
+        print(f"📋 Área: {data.get('area')}, Cargo: {data.get('cargo')}")
 
+        # ✅ BUSCAR TRABAJADOR EXISTENTE
         existing_personal = None
         if data.get('rut'):
             existing_personal = PersonalTrabajadores.objects.filter(rut=data['rut']).first()
         elif data.get('dni'):
             existing_personal = PersonalTrabajadores.objects.filter(dni=data['dni']).first()
 
-        print(f"Trabajador existente: {existing_personal.id if existing_personal else 'None'}")
+        print(f"👤 Trabajador existente: {existing_personal.id if existing_personal else 'None'}")
 
+        # ✅ GUARDAR REFERENCIAS DE ARCHIVOS VIEJOS (INCLUYENDO HUELLA)
         if existing_personal:
             old_front_image = existing_personal.carnet_front_image.name if existing_personal.carnet_front_image else None
             old_back_image = existing_personal.carnet_back_image.name if existing_personal.carnet_back_image else None
             old_signature = existing_personal.firma.name if existing_personal.firma else None
+            old_fingerprint = existing_personal.huella_digital.name if existing_personal.huella_digital else None
+
+            print(f"🗂️ Archivos viejos guardados:")
+            print(f"   Carnet frontal: {old_front_image}")
+            print(f"   Carnet trasero: {old_back_image}")
+            print(f"   Firma: {old_signature}")
+            print(f"   Huella: {old_fingerprint}")
 
             current_data = PersonalTrabajadoresMobileSerializer(existing_personal).data
             merged_data = self.merge_data(current_data, data)
@@ -3404,16 +3436,23 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                 partial=True
             )
         else:
-            print("Creando nuevo trabajador")
+            print("➕ Creando nuevo trabajador")
             if 'fecha_ingreso' not in data or not data['fecha_ingreso']:
                 data['fecha_ingreso'] = timezone.now().date()
-                print(f"✅ Fecha de ingreso asignada: {data['fecha_ingreso']}")
+                print(f"📅 Fecha de ingreso asignada: {data['fecha_ingreso']}")
             serializer = PersonalTrabajadoresMobileSerializer(data=data)
 
         print("=== VALIDANDO SERIALIZER ===")
         if serializer.is_valid():
             print("✅ Serializer válido")
             personal = serializer.save()
+            
+            # ✅ LOGGING DE ARCHIVOS RECIBIDOS (INCLUYENDO HUELLA)
+            print(f"📦 Archivos recibidos:")
+            print(f"   carnet_front_image: {'✅' if 'carnet_front_image' in request.FILES else '❌'}")
+            print(f"   carnet_back_image: {'✅' if 'carnet_back_image' in request.FILES else '❌'}")
+            print(f"   firma: {'✅' if 'firma' in request.FILES else '❌'}")
+            print(f"   huella_digital: {'✅' if 'huella_digital' in request.FILES else '❌'}")
             
             supervisor_id = data.get('codigo_supervisor')
             print(f"🔍 supervisor_id recibido: {supervisor_id} (tipo: {type(supervisor_id)})")
@@ -3477,12 +3516,11 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     folio = FolioComercial.objects.get(id=folio_id)
                     print(f"🔍 Folio encontrado: {folio.id}")
                     
+                    # ✅ BUSCAR HORARIO (SIN CALCULAR HORAS AÚN)
                     horario = None
                     if horario_id:
                         horario = Horarios.objects.filter(id=horario_id).first()
                         print(f"🔍 Horario buscado - ID: {horario_id}, Encontrado: {horario}")
-                        if horario:
-                            print(f"✅ Horario: {horario.nombre} - {horario.jornada}h")
                     else:
                         print(f"⚠️ No se recibió horario_id")
                     
@@ -3509,8 +3547,13 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     )
                     print(f"✅ Contrato ID: {contrato.id}, horario_id: {contrato.horario_id}")
                     
+                    # ✅ AHORA SÍ: DEFINIR FECHA Y CALCULAR HORAS
                     fecha_asistencia = personal.fecha_ingreso if personal.fecha_ingreso else timezone.now().date()
+                    horas_dia = self.calcular_horas_dia(horario, fecha_asistencia) if horario else 9.0
                     
+                    if horario:
+                        print(f"✅ Horario: {horario.nombre} - {horas_dia}h para {fecha_asistencia}")
+
                     asistencia, created = RegistroAsistencia.objects.get_or_create(
                         trabajador=personal,
                         fecha_asistencia=fecha_asistencia,
@@ -3518,12 +3561,12 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                             'holding_id': data.get('holding'),
                             'supervisor': supervisor,
                             'estado': 'A',
-                            'horas_registradas': horario.jornada if horario else 9.0,
+                            'horas_registradas': horas_dia,
                             'modificado_por': request.user
                         }
                     )
                     if created:
-                        print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horario.jornada if horario else 9.0}h - Supervisor: {supervisor.id}")
+                        print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horas_dia}h - Supervisor: {supervisor.id}")
                     else:
                         print(f"ℹ️ Ya existe asistencia para {personal.nombres}")
                     
@@ -3534,21 +3577,29 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                 import traceback
                 print(traceback.format_exc())
             
+            # ✅ ELIMINAR ARCHIVOS VIEJOS (INCLUYENDO HUELLA)
             if existing_personal:
                 if 'carnet_front_image' in request.FILES:
                     self.delete_old_file(old_front_image)
+                    print(f"🗑️ Carnet frontal viejo eliminado: {old_front_image}")
                 if 'carnet_back_image' in request.FILES:
                     self.delete_old_file(old_back_image)
+                    print(f"🗑️ Carnet trasero viejo eliminado: {old_back_image}")
                 if 'firma' in request.FILES:
                     self.delete_old_file(old_signature)
+                    print(f"🗑️ Firma vieja eliminada: {old_signature}")
+                if 'huella_digital' in request.FILES:
+                    self.delete_old_file(old_fingerprint)
+                    print(f"🗑️ Huella digital vieja eliminada: {old_fingerprint}")
 
             response_data = PersonalTrabajadoresMobileSerializer(personal).data
+            print(f"✅ TRABAJADOR GUARDADO EXITOSAMENTE - ID: {personal.id}")
+            print(f"   Huella guardada: {'✅' if personal.huella_digital else '❌'}")
             return Response(response_data, status=status.HTTP_201_CREATED)
         else:
             print("❌ Errores de validación:")
             print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -3588,12 +3639,16 @@ class HorarioAPIView(APIView):
 
     def get(self, request, format=None):
         holding_id = request.query_params.get('holding')
+        sociedad_id = request.query_params.get('sociedad')
+        
         if holding_id:
-            horarios = Horarios.objects.filter(holding_id=holding_id).prefetch_related('turnos')
+            horarios = Horarios.objects.filter(holding_id=holding_id)
+            if sociedad_id:
+                horarios = horarios.filter(sociedad_id=sociedad_id)
             serializer = HorarioSerializer(horarios, many=True)
             return Response(serializer.data)
         return Response({"error": "holding_id requerido"}, status=status.HTTP_400_BAD_REQUEST)
-        
+    
     def post(self, request, format=None):
         serializer = HorarioSerializer(data=request.data)
         if serializer.is_valid():
@@ -18378,7 +18433,7 @@ class DocumentoVariablesNativasAPIView(APIView):
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """
-        ⭐ MODIFICADO: Maneja firma_empleador como imagen
+        ⭐ MODIFICADO: Maneja firma_empleador, firma Y huella como imágenes con dimensiones guardadas
         """
         from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
@@ -18410,8 +18465,8 @@ class DocumentoVariablesNativasAPIView(APIView):
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
                     'posY': ubicacion.get('posY', 0),
-                    'width': ubicacion.get('width'),   # ⭐ NUEVO
-                    'height': ubicacion.get('height')  # ⭐ NUEVO
+                    'width': ubicacion.get('width'),   # ⭐ Para firmas y huella
+                    'height': ubicacion.get('height')  # ⭐ Para firmas y huella
                 })
         
         campos_centrados = [
@@ -18424,6 +18479,15 @@ class DocumentoVariablesNativasAPIView(APIView):
         holding = documento.holding
         firma_empleador_disponible = bool(holding.firma_empleador)
         
+        # ⭐ Obtener trabajador para firma y huella (si está en datos_variables)
+        trabajador = None
+        if 'trabajador_id' in datos_variables:
+            try:
+                from .models import PersonalTrabajadores
+                trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
+            except PersonalTrabajadores.DoesNotExist:
+                print(f"⚠️ Trabajador ID {datos_variables['trabajador_id']} no encontrado")
+        
         # Procesar cada página
         for page_num in range(len(reader.pages)):
             ui_page_num = page_num + 1
@@ -18434,97 +18498,169 @@ class DocumentoVariablesNativasAPIView(APIView):
                 page_width = float(page.mediabox.width)
                 page_height = float(page.mediabox.height)
                 
-                can = canvas.Canvas(packet, pagesize=(page_width, page_height))
+                c = canvas.Canvas(packet, pagesize=(page_width, page_height))
+                c.setFont("Helvetica", BASE_FONT_SIZE)
                 
-                print(f"Página {ui_page_num}: {page_width} x {page_height}")
-                
-                for variable in variables_por_pagina[ui_page_num]:
-                    nombre = variable['nombre']
+                for var_data in variables_por_pagina[ui_page_num]:
+                    nombre_variable = var_data['nombre']
+                    x_nativo = var_data['posX']
+                    y_nativo = var_data['posY']
                     
-                    # ⭐ CASO ESPECIAL: firma_empleador es IMAGEN
-                    if nombre == 'firma_empleador':
+                    y_coord = page_height - y_nativo + BASE_OFFSET_Y
+                    x_coord = x_nativo + BASE_OFFSET_X
+                    
+                    # ⭐ CASO 1: FIRMA EMPLEADOR (IMAGEN)
+                    if nombre_variable == 'firma_empleador':
                         if firma_empleador_disponible:
+                            print(f"✅ Insertando firma_empleador en página {ui_page_num}")
+                            
                             try:
-                                # Obtener imagen
                                 firma_path = holding.firma_empleador.path
                                 
-                                # Coordenadas desde frontend
-                                frontend_x = variable['posX']
-                                frontend_y = variable['posY']
-                                img_width = variable.get('width', 150)   # Default 150px
-                                img_height = variable.get('height', 50)  # Default 50px
-                                
-                                # Transformar coordenadas
-                                pdf_x = frontend_x + BASE_OFFSET_X
-                                pdf_y = page_height - frontend_y + BASE_OFFSET_Y
-                                
-                                # Ajustar por la altura de la imagen
-                                pdf_y = pdf_y - img_height
-                                
-                                # Dibujar imagen
-                                can.drawImage(
-                                    firma_path,
-                                    pdf_x,
-                                    pdf_y,
-                                    width=img_width,
-                                    height=img_height,
-                                    preserveAspectRatio=True,
-                                    mask='auto'
-                                )
-                                
-                                print(f"✅ Firma empleador insertada en ({pdf_x}, {pdf_y}) - {img_width}x{img_height}")
-                                
+                                if os.path.exists(firma_path):
+                                    img = ImageReader(firma_path)
+                                    
+                                    # Usar dimensiones guardadas o defaults
+                                    img_width = var_data.get('width') or 100
+                                    img_height = var_data.get('height') or 40
+                                    
+                                    print(f"   Dimensiones: {img_width}x{img_height} en ({x_nativo}, {y_nativo})")
+                                    
+                                    # Dibujar imagen
+                                    c.drawImage(
+                                        img, x_coord, y_coord,
+                                        width=img_width, 
+                                        height=img_height,
+                                        preserveAspectRatio=True,
+                                        mask='auto'
+                                    )
+                                else:
+                                    print(f"⚠️ Archivo de firma_empleador no existe: {firma_path}")
+                                    c.drawString(x_coord, y_coord, '[FIRMA EMPLEADOR NO ENCONTRADA]')
+                                    
                             except Exception as e:
-                                print(f"❌ Error al insertar firma empleador: {str(e)}")
+                                print(f"❌ Error insertando firma_empleador: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                c.drawString(x_coord, y_coord, '[ERROR FIRMA EMPLEADOR]')
                         else:
-                            print(f"⚠️ firma_empleador solicitada pero no disponible")
-                        
-                        continue  # Saltar al siguiente variable
+                            print(f"⚠️ Holding {holding.id} no tiene firma_empleador configurada")
+                            c.drawString(x_coord, y_coord, '[SIN FIRMA EMPLEADOR]')
                     
-                    # ⭐ RESTO DE VARIABLES (TEXTO NORMAL)
-                    if nombre in datos_variables and datos_variables[nombre]:
-                        frontend_x = variable['posX']
-                        frontend_y = variable['posY']
-                        
-                        pdf_x = frontend_x + BASE_OFFSET_X
-                        pdf_y = page_height - frontend_y + BASE_OFFSET_Y + FONT_BASELINE
-                        
-                        if nombre == 'rut':
-                            pdf_x += BASE_OFFSET_X * 0.5
-                        elif nombre == 'nombre':
-                            pdf_x += BASE_OFFSET_X * 0.1
-                        
-                        valor = str(datos_variables[nombre])
-                        can.setFont("Helvetica", BASE_FONT_SIZE)
-                        
-                        if nombre in campos_centrados:
-                            text_width = can.stringWidth(valor, "Helvetica", BASE_FONT_SIZE)
-                            can.drawString(pdf_x - (text_width/2), pdf_y, valor)
+                    # ⭐ CASO 2: FIRMA TRABAJADOR (IMAGEN INDIVIDUAL)
+                    elif nombre_variable == 'firma':
+                        if trabajador:
+                            firma_trabajador_disponible = bool(
+                                trabajador.firma and 
+                                os.path.exists(trabajador.firma.path)
+                            )
+                            
+                            if firma_trabajador_disponible:
+                                print(f"✅ Insertando firma de {trabajador.nombres} {trabajador.apellidos}")
+                                
+                                try:
+                                    firma_path = trabajador.firma.path
+                                    img = ImageReader(firma_path)
+                                    
+                                    # Usar dimensiones guardadas o defaults
+                                    img_width = var_data.get('width') or 100
+                                    img_height = var_data.get('height') or 40
+                                    
+                                    print(f"   Dimensiones: {img_width}x{img_height} en ({x_nativo}, {y_nativo})")
+                                    
+                                    # Dibujar imagen
+                                    c.drawImage(
+                                        img, x_coord, y_coord,
+                                        width=img_width, 
+                                        height=img_height,
+                                        preserveAspectRatio=True,
+                                        mask='auto'
+                                    )
+                                    
+                                except Exception as e:
+                                    print(f"❌ Error insertando firma de trabajador: {e}")
+                                    import traceback
+                                    traceback.print_exc()
+                                    c.drawString(x_coord, y_coord, '[ERROR FIRMA]')
+                            else:
+                                print(f"⚠️ {trabajador.nombres} no tiene firma registrada")
+                                c.drawString(x_coord, y_coord, '[FIRMA PENDIENTE]')
                         else:
-                            can.drawString(pdf_x, pdf_y, valor)
+                            print(f"ℹ️ Modo prueba - Insertando texto placeholder para firma")
+                            valor_firma = datos_variables.get('firma', '[Firma Trabajador]')
+                            c.drawString(x_coord, y_coord + FONT_BASELINE, str(valor_firma))
+                    
+                    # ⭐ NUEVO CASO 3: HUELLA TRABAJADOR (IMAGEN INDIVIDUAL)
+                    elif nombre_variable == 'huella':
+                        if trabajador:
+                            huella_trabajador_disponible = bool(
+                                trabajador.huella_digital and 
+                                os.path.exists(trabajador.huella_digital.path)
+                            )
+                            
+                            if huella_trabajador_disponible:
+                                print(f"✅ Insertando huella de {trabajador.nombres} {trabajador.apellidos}")
+                                
+                                try:
+                                    huella_path = trabajador.huella_digital.path
+                                    img = ImageReader(huella_path)
+                                    
+                                    # Usar dimensiones guardadas o defaults
+                                    img_width = var_data.get('width') or 80
+                                    img_height = var_data.get('height') or 100
+                                    
+                                    print(f"   Dimensiones huella: {img_width}x{img_height} en ({x_nativo}, {y_nativo})")
+                                    
+                                    # Dibujar imagen
+                                    c.drawImage(
+                                        img, x_coord, y_coord,
+                                        width=img_width, 
+                                        height=img_height,
+                                        preserveAspectRatio=True,
+                                        mask='auto'
+                                    )
+                                    
+                                except Exception as e:
+                                    print(f"❌ Error insertando huella de trabajador: {e}")
+                                    import traceback
+                                    traceback.print_exc()
+                                    c.drawString(x_coord, y_coord, '[ERROR HUELLA]')
+                            else:
+                                print(f"⚠️ {trabajador.nombres} no tiene huella registrada")
+                                c.drawString(x_coord, y_coord, '[HUELLA PENDIENTE]')
+                        else:
+                            print(f"ℹ️ Modo prueba - Insertando texto placeholder para huella")
+                            valor_huella = datos_variables.get('huella', '[Huella Digital]')
+                            c.drawString(x_coord, y_coord + FONT_BASELINE, str(valor_huella))
+                    
+                    # ⭐ CASO 4: VARIABLES DE TEXTO NORMALES
+                    else:
+                        valor = datos_variables.get(nombre_variable, '')
                         
-                        if debug:
-                            can.saveState()
-                            can.setStrokeColorRGB(1, 0, 0)
-                            can.setLineWidth(1)
-                            can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
-                            can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
-                            can.restoreState()
+                        if valor:
+                            if nombre_variable in campos_centrados:
+                                text_width = c.stringWidth(str(valor), "Helvetica", BASE_FONT_SIZE)
+                                x_coord = x_coord - (text_width / 2)
+                            
+                            y_final = y_coord + FONT_BASELINE
+                            c.drawString(x_coord, y_final, str(valor))
+                            
+                            if debug:
+                                print(f"   {nombre_variable}: '{valor}' en ({x_coord:.1f}, {y_final:.1f})")
                 
-                can.save()
+                c.save()
                 packet.seek(0)
                 
-                overlay = PdfReader(packet)
-                page.merge_page(overlay.pages[0])
+                overlay_pdf = PdfReader(packet)
+                page.merge_page(overlay_pdf.pages[0])
             
             writer.add_page(page)
         
-        buffer = io.BytesIO()
-        writer.write(buffer)
-        buffer.seek(0)
+        output_buffer = io.BytesIO()
+        writer.write(output_buffer)
+        output_buffer.seek(0)
         
-        print("✅ PDF generado con firma empleador como imagen")
-        return buffer
+        return output_buffer
     
 #===================================================================
 #===================== GENERADOR TXT BANCO DE CHILE ================
@@ -18909,13 +19045,15 @@ class GenerarDocumentosMasivoAPIView(APIView):
                         sociedad_id
                     )
                     
+                    # ⭐ AGREGAR ESTA LÍNEA - CRÍTICA PARA FIRMA
+                    datos_variables['trabajador_id'] = trabajador.id
+                    
                     pdf_buffer = self._generar_documento_coordenadas_nativas(
                         documento_id,
                         datos_variables,
                         debug=False
                     )
                     
-                    # ✅ CORRECCIÓN: pasar marcar_como_generado como parámetro
                     pdf_url = self._guardar_contrato_generado(
                         pdf_buffer,
                         trabajador,
@@ -19117,16 +19255,17 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'contacto_emergencia_nombre': '',
             'contacto_emergencia_telefono': '',
             # ❌ ELIMINADO: 'firma_empleador': '[FIRMA DIGITAL]',
-            'firma': '[FIRMA TRABAJADOR]',
+            # ❌ LÍNEA ELIMINADA: 'firma': '[FIRMA TRABAJADOR]',
             'huella': '[HUELLA DIGITAL]',
         }
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         """
-        ⭐ MODIFICADO: Maneja firma_empleador como imagen con dimensiones guardadas
+        ⭐ MODIFICADO: Maneja firma_empleador, firma Y huella como imágenes con dimensiones guardadas
         """
         from pypdf import PdfReader, PdfWriter
         from reportlab.pdfgen import canvas
+        from reportlab.lib.utils import ImageReader
         import io
         
         documento = ContratoVariables.objects.get(id=documento_id)
@@ -19152,8 +19291,8 @@ class GenerarDocumentosMasivoAPIView(APIView):
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
                     'posY': ubicacion.get('posY', 0),
-                    'width': ubicacion.get('width'),   # ⭐ AGREGADO
-                    'height': ubicacion.get('height')  # ⭐ AGREGADO
+                    'width': ubicacion.get('width'),   # ⭐ Para firmas y huella
+                    'height': ubicacion.get('height')  # ⭐ Para firmas y huella
                 })
         
         campos_centrados = [
@@ -19162,9 +19301,17 @@ class GenerarDocumentosMasivoAPIView(APIView):
             'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
         ]
         
-        # ⭐ Obtener firma del empleador del holding
+        # ⭐ Obtener firma del empleador
         holding = documento.holding
         firma_empleador_disponible = bool(holding.firma_empleador)
+        
+        # ⭐ Obtener trabajador para firma y huella
+        trabajador = None
+        if 'trabajador_id' in datos_variables:
+            try:
+                trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
+            except PersonalTrabajadores.DoesNotExist:
+                print(f"⚠️ Trabajador ID {datos_variables['trabajador_id']} no encontrado")
         
         # Procesar cada página INDIVIDUALMENTE
         final_writer = PdfWriter()
@@ -19172,7 +19319,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
         for page_num in range(len(reader.pages)):
             ui_page_num = page_num + 1
             
-            # ✅ Crear documento temporal para ESTA página
+            # Crear documento temporal para ESTA página
             temp_doc_buffer = io.BytesIO()
             temp_doc_writer = PdfWriter()
             original_page = reader.pages[page_num]
@@ -19201,41 +19348,42 @@ class GenerarDocumentosMasivoAPIView(APIView):
             for variable in variables_por_pagina[ui_page_num]:
                 nombre = variable['nombre']
                 
-                # ⭐ CASO ESPECIAL: firma_empleador como IMAGEN
+                # ⭐ CASO 1: FIRMA EMPLEADOR (IMAGEN)
                 if nombre == 'firma_empleador':
                     if firma_empleador_disponible:
                         try:
                             firma_path = holding.firma_empleador.path
                             
-                            frontend_x = variable['posX']
-                            frontend_y = variable['posY']
-                            
-                            # ⭐ USAR DIMENSIONES GUARDADAS (si existen)
-                            img_width = variable.get('width', 150)
-                            img_height = variable.get('height', 50)
-                            
-                            print(f"✅ Usando dimensiones guardadas firma: {img_width}x{img_height}")
-                            
-                            # Transformar coordenadas
-                            pdf_x = frontend_x + BASE_OFFSET_X
-                            pdf_y = page_height - frontend_y + BASE_OFFSET_Y - img_height
-                            
-                            # Dibujar imagen
-                            can.drawImage(
-                                firma_path,
-                                pdf_x,
-                                pdf_y,
-                                width=img_width,
-                                height=img_height,
-                                preserveAspectRatio=True,
-                                mask='auto'
-                            )
-                            
-                            print(f"✅ Firma insertada: ({pdf_x:.1f}, {pdf_y:.1f}) - {img_width:.1f}x{img_height:.1f}")
-                            variables_escritas += 1
-                            
+                            if os.path.exists(firma_path):
+                                frontend_x = variable['posX']
+                                frontend_y = variable['posY']
+                                
+                                # Usar dimensiones guardadas o defaults
+                                img_width = variable.get('width', 150)
+                                img_height = variable.get('height', 50)
+                                
+                                # Transformar coordenadas
+                                pdf_x = frontend_x + BASE_OFFSET_X
+                                pdf_y = page_height - frontend_y + BASE_OFFSET_Y - img_height
+                                
+                                # Dibujar imagen
+                                can.drawImage(
+                                    firma_path,
+                                    pdf_x,
+                                    pdf_y,
+                                    width=img_width,
+                                    height=img_height,
+                                    preserveAspectRatio=True,
+                                    mask='auto'
+                                )
+                                
+                                print(f"✅ Firma empleador insertada: ({pdf_x:.1f}, {pdf_y:.1f}) - {img_width:.1f}x{img_height:.1f}")
+                                variables_escritas += 1
+                            else:
+                                print(f"⚠️ Archivo firma_empleador no existe: {firma_path}")
+                                
                         except Exception as e:
-                            print(f"❌ Error insertando firma: {str(e)}")
+                            print(f"❌ Error insertando firma_empleador: {str(e)}")
                             import traceback
                             traceback.print_exc()
                     else:
@@ -19243,7 +19391,119 @@ class GenerarDocumentosMasivoAPIView(APIView):
                     
                     continue  # Siguiente variable
                 
-                # ⭐ RESTO DE VARIABLES (TEXTO)
+                # ⭐ CASO 2: FIRMA TRABAJADOR (IMAGEN)
+                elif nombre == 'firma':
+                    if trabajador:
+                        firma_trabajador_disponible = bool(
+                            trabajador.firma and 
+                            os.path.exists(trabajador.firma.path)
+                        )
+                        
+                        if firma_trabajador_disponible:
+                            try:
+                                firma_path = trabajador.firma.path
+                                
+                                frontend_x = variable['posX']
+                                frontend_y = variable['posY']
+                                
+                                # Usar dimensiones guardadas o defaults
+                                img_width = variable.get('width', 100)
+                                img_height = variable.get('height', 40)
+                                
+                                # Transformar coordenadas
+                                pdf_x = frontend_x + BASE_OFFSET_X
+                                pdf_y = page_height - frontend_y + BASE_OFFSET_Y - img_height
+                                
+                                # Dibujar imagen
+                                can.drawImage(
+                                    firma_path,
+                                    pdf_x,
+                                    pdf_y,
+                                    width=img_width,
+                                    height=img_height,
+                                    preserveAspectRatio=True,
+                                    mask='auto'
+                                )
+                                
+                                print(f"✅ Firma de {trabajador.nombres} insertada: ({pdf_x:.1f}, {pdf_y:.1f}) - {img_width:.1f}x{img_height:.1f}")
+                                variables_escritas += 1
+                                
+                            except Exception as e:
+                                print(f"❌ Error insertando firma trabajador: {str(e)}")
+                                import traceback
+                                traceback.print_exc()
+                                # Fallback a texto
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                                can.drawString(pdf_x, pdf_y, '[ERROR FIRMA]')
+                        else:
+                            print(f"⚠️ {trabajador.nombres} no tiene firma registrada")
+                            # Mostrar texto indicativo
+                            pdf_x = variable['posX'] + BASE_OFFSET_X
+                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                            can.drawString(pdf_x, pdf_y, '[FIRMA PENDIENTE]')
+                    else:
+                        print(f"⚠️ No hay trabajador disponible para firma")
+                    
+                    continue  # Siguiente variable
+                
+                # ⭐ NUEVO CASO 3: HUELLA TRABAJADOR (IMAGEN)
+                elif nombre == 'huella':
+                    if trabajador:
+                        huella_trabajador_disponible = bool(
+                            trabajador.huella_digital and 
+                            os.path.exists(trabajador.huella_digital.path)
+                        )
+                        
+                        if huella_trabajador_disponible:
+                            try:
+                                huella_path = trabajador.huella_digital.path
+                                
+                                frontend_x = variable['posX']
+                                frontend_y = variable['posY']
+                                
+                                # Usar dimensiones guardadas o defaults
+                                img_width = variable.get('width', 80)
+                                img_height = variable.get('height', 100)
+                                
+                                # Transformar coordenadas
+                                pdf_x = frontend_x + BASE_OFFSET_X
+                                pdf_y = page_height - frontend_y + BASE_OFFSET_Y - img_height
+                                
+                                # Dibujar imagen
+                                can.drawImage(
+                                    huella_path,
+                                    pdf_x,
+                                    pdf_y,
+                                    width=img_width,
+                                    height=img_height,
+                                    preserveAspectRatio=True,
+                                    mask='auto'
+                                )
+                                
+                                print(f"✅ Huella de {trabajador.nombres} insertada: ({pdf_x:.1f}, {pdf_y:.1f}) - {img_width:.1f}x{img_height:.1f}")
+                                variables_escritas += 1
+                                
+                            except Exception as e:
+                                print(f"❌ Error insertando huella trabajador: {str(e)}")
+                                import traceback
+                                traceback.print_exc()
+                                # Fallback a texto
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                                can.drawString(pdf_x, pdf_y, '[ERROR HUELLA]')
+                        else:
+                            print(f"⚠️ {trabajador.nombres} no tiene huella registrada")
+                            # Mostrar texto indicativo
+                            pdf_x = variable['posX'] + BASE_OFFSET_X
+                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                            can.drawString(pdf_x, pdf_y, '[HUELLA PENDIENTE]')
+                    else:
+                        print(f"⚠️ No hay trabajador disponible para huella")
+                    
+                    continue  # Siguiente variable
+                
+                # ⭐ CASO 4: VARIABLES DE TEXTO NORMALES
                 if nombre not in datos_variables:
                     continue
                 
@@ -19301,7 +19561,7 @@ class GenerarDocumentosMasivoAPIView(APIView):
         final_writer.write(output_buffer)
         output_buffer.seek(0)
         
-        print(f"✅ PDF generado con firma empleador - {len(output_buffer.getvalue())} bytes")
+        print(f"✅ PDF generado - {len(output_buffer.getvalue())} bytes")
         
         return output_buffer
     

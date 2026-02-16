@@ -1,12 +1,10 @@
 <!-- login.component.html -->
-<div class="login-background">
-    <div class="top-bar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="80px" viewBox="0 0 4 2" preserveAspectRatio="none">
-            <rect width="4" height="2" fill="#081072 " opacity="1"/>
-            <path d="M 0 0 Q 0 3.5 4 0" fill="#1cba98" opacity="1"/>
-            <path d="M 0 2 Q 2 1.5 4 2" fill="#1cba98" opacity="1"/>
-        </svg>
-    </div>
+<div class="page-loader" [class.hidden]="pageLoaded">
+    <div class="loader-spinner"></div>
+</div>
+
+<div class="login-background" [style.opacity]="pageLoaded ? '1' : '0'">
+    <div class="top-bar"></div>
     <img src="assets/images/terrasoft-white.png" class="terra-white-image" alt="Logo">
 	
     <div class="floating-rectangle" *ngIf="showMessage || isLoading" [innerHTML]="mensaje_login | newline"></div>
@@ -168,11 +166,5 @@
 
     <div class="low-bar">
         <div class="bar-text">By Terrasoft Ⓡ Todos los derechos reservados</div>
-    </div>
-    <div class="curved-bar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 20" preserveAspectRatio="none">
-            <rect width="100" height="20" fill="#0F52BA" opacity="1"/>
-            <path d="M 0 20 C 30 0, 100 -15, 100 20" fill="#00A693" opacity="1"/>
-        </svg>
     </div>
 </div>

@@ -19,11 +19,14 @@
              [class.selected]="isSelected(horario)"
              (click)="selectRow(horario); $event.stopPropagation()">
             <div class="horario-header">
-                <h3>{{ horario.nombre }}</h3>
-                <span class="horario-id">ID: {{ horario.id }}</span>
+                <div>
+                    <h3>{{ horario.nombre }}</h3>
+                    <span class="sociedad-badge">{{ horario.sociedad_nombre }}</span>
+                </div>
+                <div class="total-semanal-badge">{{ getTotalSemanal(horario).toFixed(1) }} hrs/sem</div>
             </div>
             
-            <!-- Tabla de Días y Turnos -->
+            <!-- Tabla de Días y Horarios -->
             <div class="tabla-dias">
                 <table>
                     <thead>
@@ -34,16 +37,19 @@
                     <tbody>
                         <tr>
                             <td *ngFor="let dia of diasSemana" class="dia-celda">
-                                <div *ngFor="let turno of getTurnosPorDia(horario.turnos, dia.valor)" 
-                                     class="turno-item">
-                                    <div class="turno-nombre">{{ turno.nombre_turno }}</div>
-                                    <div class="turno-horario">{{ turno.hora_inicio }} - {{ turno.hora_fin }}</div>
-                                    <div *ngIf="turno.tiene_colacion" class="turno-colacion">
-                                        🍽️ Colación: {{ turno.minutos_colacion }} min
+                                <div *ngIf="horario[dia.key + '_inicio']" class="dia-info">
+                                    <div class="horario-tiempo">
+                                        {{ horario[dia.key + '_inicio'] }} - {{ horario[dia.key + '_fin'] }}
+                                    </div>
+                                    <div *ngIf="horario[dia.key + '_colacion']" class="colacion-info">
+                                        🍽️ {{ horario[dia.key + '_minutos_colacion'] }} min
+                                    </div>
+                                    <div class="total-dia">
+                                        {{ getHorasDia(horario, dia.key).toFixed(1) }} hrs
                                     </div>
                                 </div>
-                                <div *ngIf="getTurnosPorDia(horario.turnos, dia.valor).length === 0" class="sin-turnos">
-                                    Sin turnos
+                                <div *ngIf="!horario[dia.key + '_inicio']" class="sin-horario">
+                                    Descanso
                                 </div>
                             </td>
                         </tr>
@@ -61,60 +67,62 @@
         
         <h2>Crear Horario</h2>
         
+        <!-- Selector de Sociedad -->
+        <div class="modal-section">
+            <h3>Seleccionar Sociedad:</h3>
+            <select class="input-usuario" [(ngModel)]="sociedadSeleccionada">
+                <option [ngValue]="null">Seleccione una sociedad</option>
+                <option *ngFor="let sociedad of sociedadesDisponibles" [ngValue]="sociedad">
+                    {{ sociedad.nombre }}
+                </option>
+            </select>
+        </div>
+
+        <!-- Nombre del Horario -->
         <div class="modal-section">
             <h3>Nombre del Horario:</h3>
             <input type="text" class="input-usuario" [(ngModel)]="nombreHorario" placeholder="Ej: Jornada Estándar">
         </div>
 
+        <!-- Configuración de Horarios -->
         <div class="modal-section">
-            <h3>Configurar Turnos por Día:</h3>
+            <h3>Configurar Horarios:</h3>
             
-            <div class="tabla-config-dias">
-                <table>
-                    <thead>
-                        <tr>
-                            <th *ngFor="let dia of diasSemana">
-                                {{ dia.nombre }}
-                                <button class="btn-agregar-turno" (click)="agregarTurnoCrear(dia.valor)">+</button>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td *ngFor="let dia of diasSemana" class="config-celda">
-                                <div *ngFor="let turno of getTurnosPorDia(turnosCrear, dia.valor); let i = index" 
-                                     class="turno-config-item">
-                                    <button class="btn-eliminar-turno" 
-                                            (click)="eliminarTurnoCrear(turnosCrear.indexOf(turno))">×</button>
-                                    
-                                    <input type="text" 
-                                           class="input-small" 
-                                           [(ngModel)]="turno.nombre_turno" 
-                                           placeholder="Nombre">
-                                    
-                                    <div class="horario-inputs">
-                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_inicio">
-                                        <span>-</span>
-                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_fin">
-                                    </div>
-                                    
-                                    <div class="colacion-config">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" [(ngModel)]="turno.tiene_colacion">
-                                            Colación
-                                        </label>
-                                        <input *ngIf="turno.tiene_colacion" 
-                                               type="number" 
-                                               class="input-minutos" 
-                                               [(ngModel)]="turno.minutos_colacion" 
-                                               placeholder="Min"
-                                               min="0">
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="config-horarios-grid">
+                <div *ngFor="let dia of diasSemana" class="dia-config-card">
+                    <h4>{{ dia.nombre }}</h4>
+                    
+                    <div class="horario-inputs">
+                        <label>Inicio:</label>
+                        <input type="time" class="input-time" [(ngModel)]="horariosCrear[dia.key].inicio">
+                    </div>
+                    
+                    <div class="horario-inputs">
+                        <label>Fin:</label>
+                        <input type="time" class="input-time" [(ngModel)]="horariosCrear[dia.key].fin">
+                    </div>
+                    
+                    <div class="colacion-config">
+                        <label class="checkbox-label">
+                            <input type="checkbox" [(ngModel)]="horariosCrear[dia.key].colacion">
+                            Colación
+                        </label>
+                        <input *ngIf="horariosCrear[dia.key].colacion" 
+                               type="number" 
+                               class="input-minutos" 
+                               [(ngModel)]="horariosCrear[dia.key].minutos_colacion" 
+                               placeholder="Min"
+                               min="0">
+                    </div>
+                    
+                    <div class="total-horas-dia">
+                        <strong>Total: {{ calcularHorasDia(horariosCrear[dia.key]).toFixed(1) }} hrs</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="total-semanal-container">
+                <h3>Total Semanal: {{ calcularTotalSemanal(horariosCrear).toFixed(1) }} horas</h3>
             </div>
         </div>
         
@@ -129,60 +137,62 @@
         
         <h2>Modificar Horario</h2>
         
+        <!-- Selector de Sociedad -->
+        <div class="modal-section">
+            <h3>Seleccionar Sociedad:</h3>
+            <select class="input-usuario" [(ngModel)]="sociedadSeleccionadaModificar">
+                <option [ngValue]="null">Seleccione una sociedad</option>
+                <option *ngFor="let sociedad of sociedadesDisponibles" [ngValue]="sociedad">
+                    {{ sociedad.nombre }}
+                </option>
+            </select>
+        </div>
+
+        <!-- Nombre del Horario -->
         <div class="modal-section">
             <h3>Nombre del Horario:</h3>
             <input type="text" class="input-usuario" [(ngModel)]="nombreHorarioNew" placeholder="Ej: Jornada Estándar">
         </div>
 
+        <!-- Configuración de Horarios -->
         <div class="modal-section">
-            <h3>Configurar Turnos por Día:</h3>
+            <h3>Configurar Horarios:</h3>
             
-            <div class="tabla-config-dias">
-                <table>
-                    <thead>
-                        <tr>
-                            <th *ngFor="let dia of diasSemana">
-                                {{ dia.nombre }}
-                                <button class="btn-agregar-turno" (click)="agregarTurnoModificar(dia.valor)">+</button>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td *ngFor="let dia of diasSemana" class="config-celda">
-                                <div *ngFor="let turno of getTurnosPorDia(turnosModificar, dia.valor); let i = index" 
-                                     class="turno-config-item">
-                                    <button class="btn-eliminar-turno" 
-                                            (click)="eliminarTurnoModificar(turnosModificar.indexOf(turno))">×</button>
-                                    
-                                    <input type="text" 
-                                           class="input-small" 
-                                           [(ngModel)]="turno.nombre_turno" 
-                                           placeholder="Nombre">
-                                    
-                                    <div class="horario-inputs">
-                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_inicio">
-                                        <span>-</span>
-                                        <input type="time" class="input-time" [(ngModel)]="turno.hora_fin">
-                                    </div>
-                                    
-                                    <div class="colacion-config">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" [(ngModel)]="turno.tiene_colacion">
-                                            Colación
-                                        </label>
-                                        <input *ngIf="turno.tiene_colacion" 
-                                               type="number" 
-                                               class="input-minutos" 
-                                               [(ngModel)]="turno.minutos_colacion" 
-                                               placeholder="Min"
-                                               min="0">
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="config-horarios-grid">
+                <div *ngFor="let dia of diasSemana" class="dia-config-card">
+                    <h4>{{ dia.nombre }}</h4>
+                    
+                    <div class="horario-inputs">
+                        <label>Inicio:</label>
+                        <input type="time" class="input-time" [(ngModel)]="horariosModificar[dia.key].inicio">
+                    </div>
+                    
+                    <div class="horario-inputs">
+                        <label>Fin:</label>
+                        <input type="time" class="input-time" [(ngModel)]="horariosModificar[dia.key].fin">
+                    </div>
+                    
+                    <div class="colacion-config">
+                        <label class="checkbox-label">
+                            <input type="checkbox" [(ngModel)]="horariosModificar[dia.key].colacion">
+                            Colación
+                        </label>
+                        <input *ngIf="horariosModificar[dia.key].colacion" 
+                               type="number" 
+                               class="input-minutos" 
+                               [(ngModel)]="horariosModificar[dia.key].minutos_colacion" 
+                               placeholder="Min"
+                               min="0">
+                    </div>
+                    
+                    <div class="total-horas-dia">
+                        <strong>Total: {{ calcularHorasDia(horariosModificar[dia.key]).toFixed(1) }} hrs</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="total-semanal-container">
+                <h3>Total Semanal: {{ calcularTotalSemanal(horariosModificar).toFixed(1) }} horas</h3>
             </div>
         </div>
         

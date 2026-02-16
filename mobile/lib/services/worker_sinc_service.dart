@@ -11,7 +11,6 @@ import 'package:contratista/pages/mother_layout/contratacion/enrollment_db.dart'
 import 'package:path_provider/path_provider.dart';
 
 class WorkerSyncService {
-  // ignore: constant_identifier_names
   static const String LAST_SYNC_KEY = 'last_worker_sync_time';
   static Timer? _syncTimer;
   static bool _isSyncing = false;
@@ -25,7 +24,6 @@ class WorkerSyncService {
   }
 
   static Future<void> _initializeNotifications() async {
-    // Configurar canal para sincronización
     const AndroidNotificationChannel syncChannel = AndroidNotificationChannel(
       'worker_sync_channel',
       'Sincronización de Trabajadores',
@@ -37,7 +35,6 @@ class WorkerSyncService {
       enableVibration: true,
     );
 
-    // Configurar canal para errores
     const AndroidNotificationChannel errorChannel = AndroidNotificationChannel(
       'worker_sync_error_channel',
       'Errores de Sincronización',
@@ -48,7 +45,6 @@ class WorkerSyncService {
       enableVibration: true,
     );
 
-    // Crear los canales
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -61,7 +57,6 @@ class WorkerSyncService {
         >()
         ?.createNotificationChannel(errorChannel);
 
-    // Configurar inicialización
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -71,9 +66,7 @@ class WorkerSyncService {
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse:
-          (NotificationResponse notificationResponse) {
-            // Manejar tap en la notificación si es necesario
-          },
+          (NotificationResponse notificationResponse) {},
     );
   }
 
@@ -93,7 +86,6 @@ class WorkerSyncService {
     try {
       await _showSyncNotification(0);
 
-      // Obtener inscripciones no sincronizadas
       final unsyncedEnrollments = await _enrollmentDb.getUnsyncedEnrollments();
 
       if (unsyncedEnrollments.isEmpty) {
@@ -130,7 +122,6 @@ class WorkerSyncService {
       Map<String, String> fields = {};
       List<MapEntry<String, File>> files = [];
 
-      // Lista de campos válidos que acepta el serializer
       const validFields = {
         'holding',
         'sociedad',
@@ -159,11 +150,10 @@ class WorkerSyncService {
         'tipo_cuenta_bancaria',
         'numero_cuenta',
         'estado',
-        'area', // ✅ AGREGAR
-        'cargo', // ✅ AGREGAR
+        'area',
+        'cargo',
       };
 
-      // Procesar solo los campos válidos
       for (var entry in enrollment.entries) {
         if (validFields.contains(entry.key) &&
             entry.key != 'synced' &&
@@ -173,7 +163,6 @@ class WorkerSyncService {
         }
       }
 
-      // Mapear campos con nombres diferentes
       if (enrollment.containsKey('labor_id')) {
         fields['labor'] = enrollment['labor_id'].toString();
       }
@@ -182,25 +171,20 @@ class WorkerSyncService {
             .toString();
       }
 
-      // Corregir el campo supervisor si existe
       if (enrollment.containsKey('supervisor_contratador')) {
         fields['codigo_supervisor'] = enrollment['supervisor_contratador']
             .toString();
       }
 
-      // Asegurar que estado esté presente
       fields['estado'] = 'true';
 
-      // Solo agregar codigo_qr si existe y no está vacío
       if (enrollment['codigo_qr'] != null &&
           enrollment['codigo_qr'].toString().isNotEmpty) {
         fields['codigo_qr'] = enrollment['codigo_qr'].toString();
       }
 
-      // Procesar los archivos
       final tempDir = await getTemporaryDirectory();
 
-      // Procesar la foto frontal del carnet
       if (enrollment['carnet_front_image'] != null) {
         final frontBytes = base64Decode(enrollment['carnet_front_image']);
         final frontFile = File(
@@ -210,7 +194,6 @@ class WorkerSyncService {
         files.add(MapEntry('carnet_front_image', frontFile));
       }
 
-      // Procesar la foto trasera del carnet
       if (enrollment['carnet_back_image'] != null) {
         final backBytes = base64Decode(enrollment['carnet_back_image']);
         final backFile = File(
@@ -220,7 +203,6 @@ class WorkerSyncService {
         files.add(MapEntry('carnet_back_image', backFile));
       }
 
-      // Procesar la firma
       if (enrollment['firma'] != null) {
         Uint8List signatureBytes;
         if (enrollment['firma'] is String) {
@@ -239,15 +221,34 @@ class WorkerSyncService {
         files.add(MapEntry('firma', signatureFile));
       }
 
-      // Debug: Mostrar campos que se enviarán
+      // ✅ AGREGAR HUELLA DIGITAL
+      if (enrollment['huella_digital'] != null) {
+        Uint8List huellaBytes;
+        if (enrollment['huella_digital'] is String) {
+          huellaBytes = base64Decode(enrollment['huella_digital']);
+        } else {
+          huellaBytes = Uint8List.fromList(enrollment['huella_digital']);
+        }
+
+        String fileName =
+            enrollment['rut'] != null && enrollment['rut'].toString().isNotEmpty
+            ? 'huella_${enrollment['rut'].toString().replaceAll('.', '').replaceAll('-', '')}.png'
+            : 'huella_${enrollment['dni']}.png';
+
+        final huellaFile = await File('${tempDir.path}/$fileName').create();
+        await huellaFile.writeAsBytes(huellaBytes);
+        files.add(MapEntry('huella_digital', huellaFile));
+        loggerGlobal.d('Huella digital agregada para sincronización');
+      }
+
       loggerGlobal.d('=== CAMPOS QUE SE ENVÍAN ===');
       loggerGlobal.d('codigo_supervisor: ${fields['codigo_supervisor']}');
       loggerGlobal.d('horario: ${fields['horario']}');
-      loggerGlobal.d('area: ${fields['area']}'); // ✅ AGREGAR LOG
-      loggerGlobal.d('cargo: ${fields['cargo']}'); // ✅ AGREGAR LOG
+      loggerGlobal.d('area: ${fields['area']}');
+      loggerGlobal.d('cargo: ${fields['cargo']}');
       loggerGlobal.d('Todos los campos: ${fields.keys.toList()}');
+      loggerGlobal.d('Total archivos: ${files.length}');
 
-      // Enviar al servidor
       final response = await _apiService.postMultipart(
         'personal_trabajadores_mobile/',
         fields,
@@ -262,7 +263,6 @@ class WorkerSyncService {
         );
       }
 
-      // Limpiar archivos temporales
       for (var file in files) {
         if (await file.value.exists()) {
           await file.value.delete();
@@ -286,9 +286,9 @@ class WorkerSyncService {
           showProgress: true,
           maxProgress: 100,
           progress: progress.round(),
-          ongoing: true, // Mantiene la notificación visible
-          autoCancel: false, // No se puede descartar
-          playSound: false, // Sin sonido para actualizaciones de progreso
+          ongoing: true,
+          autoCancel: false,
+          playSound: false,
           enableVibration: false,
           channelShowBadge: true,
           category: AndroidNotificationCategory.progress,
@@ -299,14 +299,13 @@ class WorkerSyncService {
     );
 
     await _notificationsPlugin.show(
-      1, // ID único para la notificación de sincronización
+      1,
       'Sincronizando Trabajadores',
       'Progreso: ${progress.round()}%',
       platformChannelSpecifics,
       payload: 'sync_progress',
     );
 
-    // Si llegamos al 100%, mostrar notificación final y permitir descartarla
     if (progress >= 100) {
       await Future.delayed(const Duration(seconds: 1));
       androidPlatformChannelSpecifics = const AndroidNotificationDetails(
@@ -355,7 +354,7 @@ class WorkerSyncService {
     );
 
     await _notificationsPlugin.show(
-      2, // ID único para notificaciones de error
+      2,
       'Error de Sincronización',
       'No se pudieron sincronizar todos los trabajadores. Se reintentará más tarde.',
       platformChannelSpecifics,

@@ -436,37 +436,54 @@ class Labores(models.Model):
 class Horarios(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    nombre = models.CharField(max_length=100, blank=True, null=True)
+    sociedad = models.ForeignKey(Sociedad,null=True, blank=True, on_delete=models.CASCADE)
+    nombre = models.CharField(null=True, blank=True, max_length=100)
+    
+    # Lunes
+    lunes_inicio = models.TimeField(null=True, blank=True)
+    lunes_fin = models.TimeField(null=True, blank=True)
+    lunes_colacion = models.BooleanField(default=False)
+    lunes_minutos_colacion = models.IntegerField(default=0)
+    
+    # Martes
+    martes_inicio = models.TimeField(null=True, blank=True)
+    martes_fin = models.TimeField(null=True, blank=True)
+    martes_colacion = models.BooleanField(default=False)
+    martes_minutos_colacion = models.IntegerField(default=0)
+    
+    # Miércoles
+    miercoles_inicio = models.TimeField(null=True, blank=True)
+    miercoles_fin = models.TimeField(null=True, blank=True)
+    miercoles_colacion = models.BooleanField(default=False)
+    miercoles_minutos_colacion = models.IntegerField(default=0)
+    
+    # Jueves
+    jueves_inicio = models.TimeField(null=True, blank=True)
+    jueves_fin = models.TimeField(null=True, blank=True)
+    jueves_colacion = models.BooleanField(default=False)
+    jueves_minutos_colacion = models.IntegerField(default=0)
+    
+    # Viernes
+    viernes_inicio = models.TimeField(null=True, blank=True)
+    viernes_fin = models.TimeField(null=True, blank=True)
+    viernes_colacion = models.BooleanField(default=False)
+    viernes_minutos_colacion = models.IntegerField(default=0)
+    
+    # Sábado
+    sabado_inicio = models.TimeField(null=True, blank=True)
+    sabado_fin = models.TimeField(null=True, blank=True)
+    sabado_colacion = models.BooleanField(default=False)
+    sabado_minutos_colacion = models.IntegerField(default=0)
+    
+    # Domingo
+    domingo_inicio = models.TimeField(null=True, blank=True)
+    domingo_fin = models.TimeField(null=True, blank=True)
+    domingo_colacion = models.BooleanField(default=False)
+    domingo_minutos_colacion = models.IntegerField(default=0)
 
     class Meta:
         db_table = 'horarios'
 
-
-class TurnoHorario(models.Model):
-    DIAS_SEMANA = [
-        (0, 'Lunes'),
-        (1, 'Martes'),
-        (2, 'Miércoles'),
-        (3, 'Jueves'),
-        (4, 'Viernes'),
-        (5, 'Sábado'),
-        (6, 'Domingo'),
-    ]
-    
-    id = models.AutoField(primary_key=True)
-    horario = models.ForeignKey(Horarios, on_delete=models.CASCADE, related_name='turnos')
-    dia_semana = models.IntegerField(choices=DIAS_SEMANA)
-    nombre_turno = models.CharField(max_length=100)
-    hora_inicio = models.TimeField(null=True, blank=True)
-    hora_fin = models.TimeField(null=True, blank=True)
-    tiene_colacion = models.BooleanField(default=False)
-    minutos_colacion = models.IntegerField(default=0)
-    orden = models.IntegerField(default=0)
-
-    class Meta:
-        db_table = 'turnos_horario'
-        ordering = ['dia_semana', 'orden']
-  
 class FolioComercial(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
@@ -576,6 +593,8 @@ class PersonalTrabajadores(models.Model):
     carnet_front_image = models.ImageField(upload_to='carnets/', default='carnets/dni.jpg', null=True, blank=True)
     carnet_back_image = models.ImageField(upload_to='carnets/', default='carnets/dni.jpg', null=True, blank=True)
     firma = models.ImageField(upload_to='firmas/', null=True, blank=True)
+    huella_digital = models.ImageField(upload_to='huellas/', null=True, blank=True)  # ✅ NUEVO
+
     
     #Contrato
     fecha_ingreso = models.DateField(null=True, blank=True)

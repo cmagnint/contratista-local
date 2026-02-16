@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- U.are.U 4500 - VID en decimal: 1466 (0x05ba), PID en decimal: 10 (0x000a) -->
-    <usb-device vendor-id="1466" product-id="10" />
+    <!-- Grow R102A Fingerprint Scanner -->
+    <!-- VID: 17938 (0x4612), PID: 1204 (0x04b4) -->
+    <usb-device vendor-id="17938" product-id="1204" />
 </resources>
