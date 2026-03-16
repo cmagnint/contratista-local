@@ -42,7 +42,9 @@ export class EnrolamientoComponent implements OnInit {
   vehiculosCargados: any[] = [];
   casasCargadas: any[] = [];
   supervisoresCargados: any[] = [];
-  jefesCuadrillaCargados: any[] = [];
+  jefesCuadrillaCardgados: any[] = [];
+  areasCargadas: any[] = [];
+  cargosCargados: any[] = [];
   
   selectedFolioId: number | null = null;
   selectedFundoId: number | null = null;
@@ -54,6 +56,8 @@ export class EnrolamientoComponent implements OnInit {
   selectedSupervisorId: number | null = null;
   selectedJefeCuadrillaId: number | null = null;
   jefesCuadrillaFiltrados: any[] = [];
+  selectedAreaId: number | null = null;
+  selectedCargoId: number | null = null;
   
   // PASO 3: CONTRATACIÓN
   tipoDocumento: string = 'CEDULA_CHILENA';
@@ -93,8 +97,6 @@ export class EnrolamientoComponent implements OnInit {
   previewCarnetFrente: string | null = null;
   previewCarnetReverso: string | null = null;
   
-
-  
   // Estados
   cargandoOCR: boolean = false;
   guardando: boolean = false;
@@ -112,7 +114,9 @@ export class EnrolamientoComponent implements OnInit {
     supervisores: false,
     jefes: false,
     bancos: false,
-    nacionalidades: false
+    nacionalidades: false,
+    areas: false,
+    cargos: false
   };
 
   constructor(
@@ -230,6 +234,17 @@ export class EnrolamientoComponent implements OnInit {
       },
       error: (error) => console.error('Error cargando casas:', error)
     });
+
+    this.contratistaApiService.get(`api_areas_administracion/?holding=${this.holding}`).subscribe({
+      next: (response) => {
+        this.areasCargadas = response;
+        if (response.length === 1) {
+          this.selectedAreaId = response[0].id;
+          this.onAreaChange();
+        }
+      },
+      error: (error) => console.error('Error cargando areas:', error)
+    });
   }
 
   onFolioChange(): void {
@@ -269,6 +284,19 @@ export class EnrolamientoComponent implements OnInit {
     });
   }
 
+  onAreaChange(): void {
+    this.selectedCargoId = null;
+    this.cargosCargados = [];
+    if (!this.selectedAreaId) return;
+    this.contratistaApiService.get(`api_cargos_administracion/?holding=${this.holding}`).subscribe({
+      next: (response) => {
+        this.cargosCargados = response.filter((c: any) => c.area === this.selectedAreaId);
+        if (this.cargosCargados.length === 1) this.selectedCargoId = this.cargosCargados[0].id;
+      },
+      error: (error) => console.error('Error cargando cargos:', error)
+    });
+  }
+
   toggleSelectionFolio(id: number): void {
     this.selectedFolioId = this.selectedFolioId === id ? null : id;
     this.onFolioChange();
@@ -303,6 +331,15 @@ export class EnrolamientoComponent implements OnInit {
     this.selectedJefeCuadrillaId = this.selectedJefeCuadrillaId === id ? null : id;
   }
 
+  toggleSelectionArea(id: number): void {
+    this.selectedAreaId = this.selectedAreaId === id ? null : id;
+    this.onAreaChange();
+  }
+
+  toggleSelectionCargo(id: number): void {
+    this.selectedCargoId = this.selectedCargoId === id ? null : id;
+  }
+
   siguienteContratacion(): void {
     if (!this.validarPreContratacion()) {
       alert('Debe completar todos los campos de pre-contratación');
@@ -319,7 +356,9 @@ export class EnrolamientoComponent implements OnInit {
       this.selectedLaborId &&
       this.selectedHorarioId &&
       this.selectedCasaId &&
-      this.selectedSupervisorId
+      this.selectedSupervisorId &&
+      this.selectedAreaId &&
+      this.selectedCargoId
     );
   }
 
@@ -347,19 +386,15 @@ export class EnrolamientoComponent implements OnInit {
       this.previewImage(file, 'frente');
       this.procesarOCR(file, 'frente');
     } else {
-    // ⬇️ ESTE ES EL ÚNICO CAMBIO
-    if (file.type === 'application/pdf') {
-      // Si es PDF, convertir primero
-      this.convertirPDFaImagen(file, 'reverso');
-    } else {
-        // Si es imagen, funciona como antes
+      if (file.type === 'application/pdf') {
+        this.convertirPDFaImagen(file, 'reverso');
+      } else {
         this.imagenCarnetReverso = file;
         this.previewImage(file, 'reverso');
       }
     }
   }
 
-  // MÉTODO NUEVO - Agregar después de onFileSelected
   convertirPDFaImagen(file: File, tipo: 'reverso'): void {
     this.modals['loadingModal'] = true;
     const formData = new FormData();
@@ -393,7 +428,7 @@ export class EnrolamientoComponent implements OnInit {
   }
 
   procesarOCR(file: File, tipo: 'frente' | 'reverso'): void {
-    this.modals['loadingModal'] = true; // ✅ Mostrar loading
+    this.modals['loadingModal'] = true;
     const formData = new FormData();
     formData.append('image', file);
     
@@ -401,7 +436,6 @@ export class EnrolamientoComponent implements OnInit {
       next: (response) => {
         if (response.success && response.datos) {
           this.rellenarDatosOCR(response.datos);
-          // Si el backend convirtió PDF a imagen
           if (response.imagen_convertida) {
             this.reemplazarConImagenConvertida(response.imagen_convertida, tipo);
           }
@@ -417,7 +451,6 @@ export class EnrolamientoComponent implements OnInit {
   }
 
   reemplazarConImagenConvertida(base64Image: string, tipo: 'frente' | 'reverso'): void {
-    // Convertir base64 a Blob
     const byteString = atob(base64Image);
     const ab = new ArrayBuffer(byteString.length);
     const ia = new Uint8Array(ab);
@@ -426,11 +459,9 @@ export class EnrolamientoComponent implements OnInit {
     }
     const blob = new Blob([ab], { type: 'image/png' });
     
-    // Convertir Blob a File
     const nombreArchivo = tipo === 'frente' ? 'carnet_frente.png' : 'carnet_reverso.png';
     const archivoConvertido = new File([blob], nombreArchivo, { type: 'image/png' });
     
-    // Reemplazar archivo original
     if (tipo === 'frente') {
       this.imagenCarnetFrente = archivoConvertido;
       this.previewCarnetFrente = `data:image/png;base64,${base64Image}`;
@@ -448,31 +479,27 @@ export class EnrolamientoComponent implements OnInit {
       this.rut = this.formatearRUT(rutLimpio);
     }
     if (datos.sexo) {
-      console.log('🔍 Sexo del OCR:', datos.sexo); // DEBUG
+      console.log('🔍 Sexo del OCR:', datos.sexo);
       this.sexo = datos.sexo;
     }
     if (datos.fecha_nacimiento) this.fechaNacimiento = datos.fecha_nacimiento;
     if (datos.nacionalidad) this.nacionalidad = datos.nacionalidad;
     
-    console.log('🔍 Estado final - Sexo:', this.sexo); // DEBUG
+    console.log('🔍 Estado final - Sexo:', this.sexo);
   }
 
   formatearRUT(rut: string): string {
-    // Eliminar puntos y guiones
     let rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
     
     if (rutLimpio.length > 1) {
       const body = rutLimpio.slice(0, -1);
       const dv = rutLimpio.slice(-1);
-      
-      // Agregar puntos cada 3 dígitos
       const bodyFormateado = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
       return `${bodyFormateado}-${dv}`;
     }
     return rutLimpio;
   }
 
-  // Modificar onMetodoPagoChange():
   onMetodoPagoChange(): void {
     if (this.metodoPago === 'TRANSFERENCIA') {
       const bancoEstado = this.bancosCargados.find(b => 
@@ -483,12 +510,11 @@ export class EnrolamientoComponent implements OnInit {
         this.banco = bancoEstado.id.toString();
       }
       
-      this.tipoCuenta = 'CUENTA RUT'; // Cambiar a CUENTA RUT
+      this.tipoCuenta = 'CUENTA RUT';
       
-      // Cuenta RUT = RUT sin guion, puntos NI dígito verificador
       if (this.rut) {
         const rutLimpio = this.rut.replace(/\./g, '').replace(/-/g, '');
-        this.numeroCuenta = rutLimpio.slice(0, -1); // Quitar último dígito
+        this.numeroCuenta = rutLimpio.slice(0, -1);
       }
     }
   }
@@ -496,15 +522,11 @@ export class EnrolamientoComponent implements OnInit {
   onRutChange(): void {
     if (this.metodoPago === 'TRANSFERENCIA') {
       const rutLimpio = this.rut.replace(/\./g, '').replace(/-/g, '');
-      this.numeroCuenta = rutLimpio.slice(0, -1); // Quitar último dígito
+      this.numeroCuenta = rutLimpio.slice(0, -1);
     }
   }
 
-
-
-
-
-
+  // ==================== GETTERS ====================
 
   get sociedadSeleccionadaNombre(): string {
     if (!this.selectedSociedadId) return 'SELECCIONAR SOCIEDAD';
@@ -553,12 +575,25 @@ export class EnrolamientoComponent implements OnInit {
   }
   
   get bancoSeleccionadoNombre(): string {
-  if (!this.banco) return 'SELECCIONAR BANCO';
-  const bancoEncontrado = this.bancosCargados.find(b => b.id.toString() === this.banco);
-  return bancoEncontrado?.nombre || 'SELECCIONAR BANCO';
-}
+    if (!this.banco) return 'SELECCIONAR BANCO';
+    const bancoEncontrado = this.bancosCargados.find(b => b.id.toString() === this.banco);
+    return bancoEncontrado?.nombre || 'SELECCIONAR BANCO';
+  }
 
-  // Cambiar URL del endpoint:
+  get areaSeleccionadaNombre(): string {
+    if (!this.selectedAreaId) return 'SELECCIONAR ÁREA';
+    return this.areasCargadas.find(a => a.id === this.selectedAreaId)?.nombre || 'SELECCIONAR ÁREA';
+  }
+
+  get cargoSeleccionadoNombre(): string {
+    if (!this.selectedCargoId) return 'SELECCIONAR CARGO';
+    return this.cargosCargados.find(c => c.id === this.selectedCargoId)?.nombre || 'SELECCIONAR CARGO';
+  }
+
+  
+
+  // ==================== GUARDAR ====================
+
   guardarTrabajador(): void {
     if (!this.validarFormulario()) {
       alert('Complete todos los campos obligatorios');
@@ -577,6 +612,8 @@ export class EnrolamientoComponent implements OnInit {
     formData.append('horario', this.selectedHorarioId!.toString());
     formData.append('casa', this.selectedCasaId!.toString());
     formData.append('codigo_supervisor', this.selectedSupervisorId!.toString());
+    formData.append('area', this.selectedAreaId!.toString());
+    formData.append('cargo', this.selectedCargoId!.toString());
     
     if (this.selectedTransportistaId) {
       formData.append('transportista', this.selectedTransportistaId.toString());
@@ -592,7 +629,6 @@ export class EnrolamientoComponent implements OnInit {
     formData.append('apellidos', this.apellidos.toUpperCase());
     
     if (this.tipoDocumento === 'CEDULA_CHILENA') {
-      // Limpiar RUT: quitar puntos y guión
       const rutLimpio = this.rut.replace(/\./g, '').replace(/-/g, '');
       formData.append('rut', rutLimpio);
     } else {
@@ -678,6 +714,10 @@ export class EnrolamientoComponent implements OnInit {
     this.selectedCasaId = null;
     this.selectedSupervisorId = null;
     this.selectedJefeCuadrillaId = null;
+    this.selectedAreaId = null;
+    this.selectedCargoId = null;
+    this.areasCargadas = [];
+    this.cargosCargados = [];
     
     this.nombres = '';
     this.apellidos = '';

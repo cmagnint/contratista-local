@@ -820,7 +820,7 @@ export class PersonalComponent implements OnInit {
       this.selectedTrabajadorId = selectedRow.id;
       
       this.nombreTrabajadorNew = selectedRow.nombres;
-      this.rutTrabajadorNew = this.formatRUTString(selectedRow.rut);
+      this.rutTrabajadorNew = selectedRow.rut ? this.formatRUTString(selectedRow.rut) : '';
       this.dniTrabajadorNew = selectedRow.dni || '';
       this.nicTrabajadorNew = selectedRow.nic || '';
       this.correoTrabajadorNew = selectedRow.correo;

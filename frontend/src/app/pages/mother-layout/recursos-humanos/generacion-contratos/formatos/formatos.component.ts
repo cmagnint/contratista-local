@@ -734,6 +734,10 @@ export class FormatosComponent implements OnInit {
       this.errorMessage = 'No se encontró la URL del PDF';
       return;
     }
+
+    //pdfUrl = pdfUrl.replace('http://', 'https://'); solo produccion
+    
+    console.log('PDF URL:', pdfUrl);
     
     this.isLoading = true;
     
@@ -1491,8 +1495,11 @@ export class FormatosComponent implements OnInit {
       variableElement.appendChild(img);
       
     } else {
-      // ⭐ CASO 4: VARIABLES DE TEXTO NORMALES
-      variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
+      // ⭐ ANTES: variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
+      const textSpan = document.createElement('span');
+      textSpan.textContent = this.obtenerValorEjemplo(variable.nombre);
+      textSpan.style.pointerEvents = 'none';
+      variableElement.appendChild(textSpan);
     }
     
     variableElement.id = variable.elementId;

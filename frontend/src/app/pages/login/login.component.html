@@ -4,7 +4,39 @@
 </div>
 
 <div class="login-background" [style.opacity]="pageLoaded ? '1' : '0'">
+    <svg width="0" height="0" style="position: absolute;">
+    <defs>
+        <!-- Barra superior original -->
+        <clipPath id="curved-bar" clipPathUnits="objectBoundingBox">
+            <path d="M 0,0 
+                     L 1,0 
+                     L 1,0.4 
+                     Q 0.5,1.3 0,0.4 
+                     Z" />
+        </clipPath>
+        
+        <!-- Segunda barra que continúa -->
+        <clipPath id="curved-bar-second" clipPathUnits="objectBoundingBox">
+            <path d="M 0,0.4 
+                     Q 0.5,0.8 1,0.4 
+                     L 1,0.7
+                     Q 0.5,1.15 0,0.7
+                     Z" />
+        </clipPath>
+        
+        <!-- Barra inferior -->
+        <clipPath id="curved-bar-bottom" clipPathUnits="objectBoundingBox">
+            <path d="M 0,0.6 
+                     Q 0.5,-0.3 1,0.6 
+                     L 1,1 
+                     L 0,1 
+                     Z" />
+        </clipPath>
+    </defs>
+</svg>
     <div class="top-bar"></div>
+    <!-- Segunda barra curva -->
+    <div class="top-bar-second"></div>
     <img src="assets/images/terrasoft-white.png" class="terra-white-image" alt="Logo">
 	
     <div class="floating-rectangle" *ngIf="showMessage || isLoading" [innerHTML]="mensaje_login | newline"></div>

@@ -81,6 +81,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   bool _isDisposing = false;
   final FingerPrintService _fingerprintService = FingerPrintService();
   String? huellaDigital;
+  final TextEditingController _nicController = TextEditingController();
 
   @override
   void initState() {
@@ -102,6 +103,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
     _isDisposing = true;
     _numeroCuentaController.dispose();
     _dniController.dispose();
+    _nicController.dispose();
 
     _focusNodes.forEach((key, node) {
       node.dispose();
@@ -1677,6 +1679,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _tipoDocumento = 'Cédula Chilena';
       _signatureImage = null;
       huellaDigital = null;
+      _nicController.clear();
     });
   }
 
@@ -1891,10 +1894,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         ),
                         controller: _dniController,
                         onChanged: (value) {
-                          setState(() {
-                            _dni = value;
-                          });
+                          _dni = value; // sin setState
                         },
+
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'DNI es requerido para trabajadores extranjeros';
@@ -1911,8 +1913,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                           labelText: 'NIC',
                           border: OutlineInputBorder(),
                         ),
-                        controller: TextEditingController(text: _nic),
-                        onChanged: (value) => setState(() => _nic = value),
+                        controller: _nicController,
+                        onChanged: (value) => _nic = value,
                       ),
                     ),
                   ],

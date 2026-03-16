@@ -225,6 +225,44 @@
           </ng-container>
         </div>
       </div>
+
+      <!-- Área -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('areas')">
+          {{areaSeleccionadaNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.areas">
+          <ng-container *ngFor="let area of areasCargadas">
+            <label [class.disabled]="selectedAreaId !== null && selectedAreaId !== area.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedAreaId === area.id"
+                (change)="toggleSelectionArea(area.id)"
+                [disabled]="selectedAreaId !== null && selectedAreaId !== area.id">
+              {{ area.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- Cargo -->
+      <div class="dropdown">
+        <button class="dropdown-button" (click)="toggleDropdown('cargos')" [disabled]="!selectedAreaId">
+          {{cargoSeleccionadoNombre}}
+        </button>
+        <div class="dropdown-content" [class.show]="dropdownStates.cargos">
+          <ng-container *ngFor="let cargo of cargosCargados">
+            <label [class.disabled]="selectedCargoId !== null && selectedCargoId !== cargo.id">
+              <input 
+                type="checkbox"
+                [checked]="selectedCargoId === cargo.id"
+                (change)="toggleSelectionCargo(cargo.id)"
+                [disabled]="selectedCargoId !== null && selectedCargoId !== cargo.id">
+              {{ cargo.nombre }}
+            </label>
+          </ng-container>
+        </div>
+      </div>
     </div>
 
     <div class="button-container">

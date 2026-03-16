@@ -1639,12 +1639,6 @@ class UsuarioAPIViews(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, format=None):
-        """
-        ✅ Modificar usuario con validaciones completas:
-        1. Validar supervisor requerido al cambiar a JEFE DE CUADRILLA
-        2. Validar que JEFE DE CUADRILLA no tenga trabajadores antes de cambiar perfil
-        3. Validar que SUPERVISOR no tenga jefes de cuadrilla antes de cambiar perfil
-        """
         with transaction.atomic():
             perfil_id = request.data.get('id')
             try:
@@ -1652,13 +1646,11 @@ class UsuarioAPIViews(APIView):
                 old_perfil = usuario.perfil
                 old_perfil_nombre = old_perfil.nombre_perfil if old_perfil else None
                 
-                # ✅ VALIDACIÓN 1: Si cambia a JEFE DE CUADRILLA, validar supervisor
                 new_perfil_id = request.data.get('perfil')
                 if new_perfil_id:
                     new_perfil = Perfiles.objects.get(id=new_perfil_id)
                     new_perfil_nombre = new_perfil.nombre_perfil
                     
-                    # Validar cambio a JEFE DE CUADRILLA
                     if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
                         supervisor_id = request.data.get('supervisor')
                         if not supervisor_id:
@@ -1666,8 +1658,6 @@ class UsuarioAPIViews(APIView):
                                 {"message": "Se requiere un supervisor para asignar el perfil de Jefe de Cuadrilla"}, 
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                        
-                        # Validar que el supervisor exista
                         try:
                             Supervisores.objects.get(usuario_id=supervisor_id)
                         except Supervisores.DoesNotExist:
@@ -1676,44 +1666,46 @@ class UsuarioAPIViews(APIView):
                                 status=status.HTTP_404_NOT_FOUND
                             )
                     
-                    # ✅ VALIDACIÓN 2: Si cambia desde JEFE DE CUADRILLA, validar que no tenga trabajadores
                     if old_perfil_nombre == 'JEFE DE CUADRILLA' and new_perfil_nombre != 'JEFE DE CUADRILLA':
                         try:
                             jefe = JefesDeCuadrilla.objects.get(usuario=usuario)
                             trabajadores_count = jefe.trabajadores.count()
-                            
                             if trabajadores_count > 0:
                                 return Response(
                                     {"message": f"No puede cambiar el perfil. El Jefe de Cuadrilla tiene {trabajadores_count} trabajador(es) asignado(s). Debe reasignarlos primero."}, 
                                     status=status.HTTP_400_BAD_REQUEST
                                 )
                         except JefesDeCuadrilla.DoesNotExist:
-                            pass  # No tiene registro de jefe, puede continuar
+                            pass
                     
-                    # ✅ VALIDACIÓN 3: Si cambia desde SUPERVISOR, validar que no tenga jefes de cuadrilla
                     if old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
                         try:
                             supervisor = Supervisores.objects.get(usuario=usuario)
                             jefes_count = JefesDeCuadrilla.objects.filter(supervisor=supervisor).count()
-                            
                             if jefes_count > 0:
                                 return Response(
                                     {"message": f"No puede cambiar el perfil. El Supervisor tiene {jefes_count} Jefe(s) de Cuadrilla asignado(s). Debe reasignarlos primero."}, 
                                     status=status.HTTP_400_BAD_REQUEST
                                 )
                         except Supervisores.DoesNotExist:
-                            pass  # No tiene registro de supervisor, puede continuar
+                            pass
                 
-                # Continuar con la actualización normal
                 serializer = UserSerializer(usuario, data=request.data)
                 if serializer.is_valid():
                     usuario = serializer.save()
+                    
+                    print(f"\n✏️ === ACTUALIZANDO USUARIO ===")
+                    print(f"📥 Datos para actualizar:")
+                    print(f"   ID: {perfil_id}")
+                    print(f"   RUT nuevo: {request.data.get('rut')}")
+                    print(f"   Supervisor recibido: {request.data.get('supervisor')}")
+                    print(f"✅ Usuario actualizado:")
+                    print(f"   RUT guardado: '{usuario.rut}' (longitud: {len(str(usuario.rut))})")
                     
                     if 'perfil' in request.data:
                         new_perfil_nombre = usuario.perfil.nombre_perfil if usuario.perfil else None
                         old_perfil_nombre = old_perfil.nombre_perfil if old_perfil else None
 
-                        # Crear/eliminar registro de Supervisor
                         if new_perfil_nombre == 'SUPERVISOR' and old_perfil_nombre != 'SUPERVISOR':
                             Supervisores.objects.create(
                                 holding_id=usuario.holding_id,
@@ -1722,7 +1714,6 @@ class UsuarioAPIViews(APIView):
                         elif old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
                             Supervisores.objects.filter(usuario=usuario).delete()
 
-                        # Crear/eliminar registro de Jefe de Cuadrilla
                         if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
                             supervisor_id = request.data.get('supervisor')
                             if supervisor_id:
@@ -1734,7 +1725,19 @@ class UsuarioAPIViews(APIView):
                                 )
                         elif old_perfil_nombre == 'JEFE DE CUADRILLA' and new_perfil_nombre != 'JEFE DE CUADRILLA':
                             JefesDeCuadrilla.objects.filter(usuario=usuario).delete()
-                    
+                        
+                        # ✅ NUEVO: Ya es JEFE DE CUADRILLA y cambia de supervisor
+                        elif new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre == 'JEFE DE CUADRILLA':
+                            supervisor_id = request.data.get('supervisor')
+                            if supervisor_id:
+                                try:
+                                    nuevo_supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
+                                    JefesDeCuadrilla.objects.filter(usuario=usuario).update(supervisor=nuevo_supervisor)
+                                    print(f"✅ Supervisor del Jefe de Cuadrilla actualizado a: {nuevo_supervisor.id}")
+                                except Supervisores.DoesNotExist:
+                                    pass
+
+                    print(f"🎉 Actualización completada")
                     return Response(serializer.data)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             except Usuarios.DoesNotExist:
@@ -3369,6 +3372,8 @@ class PersonalTrabajadoresMobileAPIView(APIView):
     @transaction.atomic
     def post(self, request, format=None):
         print("=== DEBUG: INICIO POST ===")
+        print(f"📥 request.data: {dict(request.data)}")
+        print(f"📁 request.FILES: {dict(request.FILES)}")
         
         data = {}
         
@@ -3600,6 +3605,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             print("❌ Errores de validación:")
             print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -18432,27 +18438,24 @@ class DocumentoVariablesNativasAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
-        """
-        ⭐ MODIFICADO: Maneja firma_empleador, firma Y huella como imágenes con dimensiones guardadas
-        """
-        from pypdf import PdfReader, PdfWriter
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.utils import ImageReader
-        from PIL import Image
+        import fitz
         import io
-        
+        import os
+
         documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
-        
-        reader = PdfReader(open(input_pdf_path, "rb"))
-        writer = PdfWriter()
-        
+
         BASE_FONT_SIZE = 9
-        BASE_OFFSET_X = -8
+        OFFSET_X = -8
         BASE_OFFSET_Y = -15.2
         FONT_BASELINE = BASE_FONT_SIZE * 0.3
-        
-        # Organizar variables por página
+
+        campos_centrados = [
+            'rut', 'dni', 'nic', 'estado_civil',
+            'fecha_nacimiento', 'fecha_emision',
+            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
+        ]
+
         variables_por_pagina = {}
         for variable_data in documento.variables:
             nombre_variable = variable_data.get('nombre')
@@ -18460,208 +18463,112 @@ class DocumentoVariablesNativasAPIView(APIView):
                 pagina = ubicacion.get('pagina', 1)
                 if pagina not in variables_por_pagina:
                     variables_por_pagina[pagina] = []
-                
                 variables_por_pagina[pagina].append({
                     'nombre': nombre_variable,
                     'posX': ubicacion.get('posX', 0),
                     'posY': ubicacion.get('posY', 0),
-                    'width': ubicacion.get('width'),   # ⭐ Para firmas y huella
-                    'height': ubicacion.get('height')  # ⭐ Para firmas y huella
+                    'width': ubicacion.get('width'),
+                    'height': ubicacion.get('height')
                 })
-        
-        campos_centrados = [
-            'rut', 'dni', 'nic', 'estado_civil', 
-            'fecha_nacimiento', 'fecha_emision', 
-            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
-        ]
-        
-        # ⭐ Obtener firma del empleador
+
         holding = documento.holding
         firma_empleador_disponible = bool(holding.firma_empleador)
-        
-        # ⭐ Obtener trabajador para firma y huella (si está en datos_variables)
+
         trabajador = None
         if 'trabajador_id' in datos_variables:
             try:
                 from .models import PersonalTrabajadores
                 trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
             except PersonalTrabajadores.DoesNotExist:
-                print(f"⚠️ Trabajador ID {datos_variables['trabajador_id']} no encontrado")
-        
-        # Procesar cada página
-        for page_num in range(len(reader.pages)):
+                pass
+
+        doc = fitz.open(input_pdf_path)
+
+        for page_num in range(len(doc)):
             ui_page_num = page_num + 1
-            page = reader.pages[page_num]
-            
-            if ui_page_num in variables_por_pagina:
-                packet = io.BytesIO()
-                page_width = float(page.mediabox.width)
-                page_height = float(page.mediabox.height)
-                
-                c = canvas.Canvas(packet, pagesize=(page_width, page_height))
-                c.setFont("Helvetica", BASE_FONT_SIZE)
-                
-                for var_data in variables_por_pagina[ui_page_num]:
-                    nombre_variable = var_data['nombre']
-                    x_nativo = var_data['posX']
-                    y_nativo = var_data['posY']
-                    
-                    y_coord = page_height - y_nativo + BASE_OFFSET_Y
-                    x_coord = x_nativo + BASE_OFFSET_X
-                    
-                    # ⭐ CASO 1: FIRMA EMPLEADOR (IMAGEN)
-                    if nombre_variable == 'firma_empleador':
-                        if firma_empleador_disponible:
-                            print(f"✅ Insertando firma_empleador en página {ui_page_num}")
-                            
-                            try:
-                                firma_path = holding.firma_empleador.path
-                                
-                                if os.path.exists(firma_path):
-                                    img = ImageReader(firma_path)
-                                    
-                                    # Usar dimensiones guardadas o defaults
-                                    img_width = var_data.get('width') or 100
-                                    img_height = var_data.get('height') or 40
-                                    
-                                    print(f"   Dimensiones: {img_width}x{img_height} en ({x_nativo}, {y_nativo})")
-                                    
-                                    # Dibujar imagen
-                                    c.drawImage(
-                                        img, x_coord, y_coord,
-                                        width=img_width, 
-                                        height=img_height,
-                                        preserveAspectRatio=True,
-                                        mask='auto'
-                                    )
-                                else:
-                                    print(f"⚠️ Archivo de firma_empleador no existe: {firma_path}")
-                                    c.drawString(x_coord, y_coord, '[FIRMA EMPLEADOR NO ENCONTRADA]')
-                                    
-                            except Exception as e:
-                                print(f"❌ Error insertando firma_empleador: {e}")
-                                import traceback
-                                traceback.print_exc()
-                                c.drawString(x_coord, y_coord, '[ERROR FIRMA EMPLEADOR]')
+            if ui_page_num not in variables_por_pagina:
+                continue
+
+            page = doc[page_num]
+            page_height = page.rect.height
+
+            for var_data in variables_por_pagina[ui_page_num]:
+                nombre_variable = var_data['nombre']
+                x_nativo = var_data['posX']
+                y_nativo = var_data['posY']
+
+                # Conversión: posY es top-down (fitz), ReportLab era bottom-up
+                # y_rl = page_height - y_nativo + BASE_OFFSET_Y
+                y_rl = page_height - y_nativo + BASE_OFFSET_Y
+                x_rl = x_nativo + OFFSET_X
+
+                if nombre_variable == 'firma_empleador':
+                    if firma_empleador_disponible:
+                        firma_path = holding.firma_empleador.path
+                        if os.path.exists(firma_path):
+                            w = var_data.get('width') or 100
+                            h = var_data.get('height') or 40
+                            # ReportLab anchor es bottom-left → fitz Rect
+                            rect = fitz.Rect(x_rl, page_height - y_rl - h, x_rl + w, page_height - y_rl)
+                            page.insert_image(rect, filename=firma_path, keep_proportion=True)
                         else:
-                            print(f"⚠️ Holding {holding.id} no tiene firma_empleador configurada")
-                            c.drawString(x_coord, y_coord, '[SIN FIRMA EMPLEADOR]')
-                    
-                    # ⭐ CASO 2: FIRMA TRABAJADOR (IMAGEN INDIVIDUAL)
-                    elif nombre_variable == 'firma':
-                        if trabajador:
-                            firma_trabajador_disponible = bool(
-                                trabajador.firma and 
-                                os.path.exists(trabajador.firma.path)
-                            )
-                            
-                            if firma_trabajador_disponible:
-                                print(f"✅ Insertando firma de {trabajador.nombres} {trabajador.apellidos}")
-                                
-                                try:
-                                    firma_path = trabajador.firma.path
-                                    img = ImageReader(firma_path)
-                                    
-                                    # Usar dimensiones guardadas o defaults
-                                    img_width = var_data.get('width') or 100
-                                    img_height = var_data.get('height') or 40
-                                    
-                                    print(f"   Dimensiones: {img_width}x{img_height} en ({x_nativo}, {y_nativo})")
-                                    
-                                    # Dibujar imagen
-                                    c.drawImage(
-                                        img, x_coord, y_coord,
-                                        width=img_width, 
-                                        height=img_height,
-                                        preserveAspectRatio=True,
-                                        mask='auto'
-                                    )
-                                    
-                                except Exception as e:
-                                    print(f"❌ Error insertando firma de trabajador: {e}")
-                                    import traceback
-                                    traceback.print_exc()
-                                    c.drawString(x_coord, y_coord, '[ERROR FIRMA]')
-                            else:
-                                print(f"⚠️ {trabajador.nombres} no tiene firma registrada")
-                                c.drawString(x_coord, y_coord, '[FIRMA PENDIENTE]')
+                            page.insert_text(fitz.Point(x_rl, page_height - y_rl - FONT_BASELINE),
+                                            '[SIN FIRMA EMPLEADOR]', fontsize=BASE_FONT_SIZE, fontname="helv")
+
+                elif nombre_variable == 'firma':
+                    if trabajador and bool(getattr(trabajador, 'firma', None)):
+                        firma_path = trabajador.firma.path
+                        if os.path.exists(firma_path):
+                            w = var_data.get('width') or 100
+                            h = var_data.get('height') or 40
+                            rect = fitz.Rect(x_rl, page_height - y_rl - h, x_rl + w, page_height - y_rl)
+                            page.insert_image(rect, filename=firma_path, keep_proportion=True)
                         else:
-                            print(f"ℹ️ Modo prueba - Insertando texto placeholder para firma")
-                            valor_firma = datos_variables.get('firma', '[Firma Trabajador]')
-                            c.drawString(x_coord, y_coord + FONT_BASELINE, str(valor_firma))
-                    
-                    # ⭐ NUEVO CASO 3: HUELLA TRABAJADOR (IMAGEN INDIVIDUAL)
-                    elif nombre_variable == 'huella':
-                        if trabajador:
-                            huella_trabajador_disponible = bool(
-                                trabajador.huella_digital and 
-                                os.path.exists(trabajador.huella_digital.path)
-                            )
-                            
-                            if huella_trabajador_disponible:
-                                print(f"✅ Insertando huella de {trabajador.nombres} {trabajador.apellidos}")
-                                
-                                try:
-                                    huella_path = trabajador.huella_digital.path
-                                    img = ImageReader(huella_path)
-                                    
-                                    # Usar dimensiones guardadas o defaults
-                                    img_width = var_data.get('width') or 80
-                                    img_height = var_data.get('height') or 100
-                                    
-                                    print(f"   Dimensiones huella: {img_width}x{img_height} en ({x_nativo}, {y_nativo})")
-                                    
-                                    # Dibujar imagen
-                                    c.drawImage(
-                                        img, x_coord, y_coord,
-                                        width=img_width, 
-                                        height=img_height,
-                                        preserveAspectRatio=True,
-                                        mask='auto'
-                                    )
-                                    
-                                except Exception as e:
-                                    print(f"❌ Error insertando huella de trabajador: {e}")
-                                    import traceback
-                                    traceback.print_exc()
-                                    c.drawString(x_coord, y_coord, '[ERROR HUELLA]')
-                            else:
-                                print(f"⚠️ {trabajador.nombres} no tiene huella registrada")
-                                c.drawString(x_coord, y_coord, '[HUELLA PENDIENTE]')
-                        else:
-                            print(f"ℹ️ Modo prueba - Insertando texto placeholder para huella")
-                            valor_huella = datos_variables.get('huella', '[Huella Digital]')
-                            c.drawString(x_coord, y_coord + FONT_BASELINE, str(valor_huella))
-                    
-                    # ⭐ CASO 4: VARIABLES DE TEXTO NORMALES
+                            page.insert_text(fitz.Point(x_rl, page_height - y_rl - FONT_BASELINE),
+                                            '[FIRMA PENDIENTE]', fontsize=BASE_FONT_SIZE, fontname="helv")
                     else:
-                        valor = datos_variables.get(nombre_variable, '')
-                        
-                        if valor:
-                            if nombre_variable in campos_centrados:
-                                text_width = c.stringWidth(str(valor), "Helvetica", BASE_FONT_SIZE)
-                                x_coord = x_coord - (text_width / 2)
-                            
-                            y_final = y_coord + FONT_BASELINE
-                            c.drawString(x_coord, y_final, str(valor))
-                            
-                            if debug:
-                                print(f"   {nombre_variable}: '{valor}' en ({x_coord:.1f}, {y_final:.1f})")
-                
-                c.save()
-                packet.seek(0)
-                
-                overlay_pdf = PdfReader(packet)
-                page.merge_page(overlay_pdf.pages[0])
-            
-            writer.add_page(page)
-        
+                        valor = datos_variables.get('firma', '[Firma Trabajador]')
+                        page.insert_text(fitz.Point(x_rl, page_height - (y_rl + FONT_BASELINE)),
+                                        str(valor), fontsize=BASE_FONT_SIZE, fontname="helv")
+
+                elif nombre_variable == 'huella':
+                    if trabajador and bool(getattr(trabajador, 'huella_digital', None)):
+                        huella_path = trabajador.huella_digital.path
+                        if os.path.exists(huella_path):
+                            w = var_data.get('width') or 80
+                            h = var_data.get('height') or 100
+                            rect = fitz.Rect(x_rl, page_height - y_rl - h, x_rl + w, page_height - y_rl)
+                            page.insert_image(rect, filename=huella_path, keep_proportion=True)
+                        else:
+                            page.insert_text(fitz.Point(x_rl, page_height - y_rl - FONT_BASELINE),
+                                            '[HUELLA PENDIENTE]', fontsize=BASE_FONT_SIZE, fontname="helv")
+                    else:
+                        valor = datos_variables.get('huella', '[Huella Digital]')
+                        page.insert_text(fitz.Point(x_rl, page_height - (y_rl + FONT_BASELINE)),
+                                        str(valor), fontsize=BASE_FONT_SIZE, fontname="helv")
+
+                else:
+                    valor = datos_variables.get(nombre_variable, '')
+                    if valor:
+                        x_text = x_rl
+                        if nombre_variable in campos_centrados:
+                            tw = fitz.get_text_length(str(valor), fontname="helv", fontsize=BASE_FONT_SIZE)
+                            x_text = x_rl - tw / 2
+                        y_text = page_height - (y_rl + FONT_BASELINE)
+                        page.insert_text(
+                            fitz.Point(x_text, y_text),
+                            str(valor),
+                            fontsize=BASE_FONT_SIZE,
+                            fontname="helv",
+                            color=(0, 0, 0)
+                        )
+
         output_buffer = io.BytesIO()
-        writer.write(output_buffer)
+        doc.save(output_buffer, garbage=4, deflate=True, clean=True)
         output_buffer.seek(0)
-        
+        doc.close()
         return output_buffer
-    
+        
 #===================================================================
 #===================== GENERADOR TXT BANCO DE CHILE ================
 #===================================================================
@@ -21711,26 +21618,77 @@ class FirmaEmpleadorAPIView(APIView):
                 {"error": str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        """
-        DELETE /api_firma_empleador/ - Elimina la firma
-        """
-        try:
-            holding = request.user.holding
-            
-            if not holding.firma_empleador:
-                return Response(
-                    {"error": "No hay firma para eliminar"}, 
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            holding.firma_empleador.delete(save=True)
-            
-            return Response({
-                'mensaje': 'Firma del empleador eliminada exitosamente'
-            })
-            
-        except Exception as e:
+class FirmaHuellaAPIView(APIView):
+    """
+    GET  /api_firma_huella/?holding=<id>
+         Devuelve lista de trabajadores activos del holding.
+         Campos: id, nombres, apellidos, rut, dni.
+
+    PATCH /api_firma_huella/<trabajador_id>/
+         Recibe multipart: firma (ImageField) y/o huella_digital (ImageField).
+         Borra el archivo anterior antes de guardar el nuevo.
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method in ['GET', 'PATCH']:
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        holding_id = request.query_params.get('holding')
+        if not holding_id:
             return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': 'Parámetro holding requerido'},
+                status=status.HTTP_400_BAD_REQUEST
             )
+        trabajadores = PersonalTrabajadores.objects.filter(
+            holding_id=holding_id,
+            estado=True
+        ).order_by('apellidos', 'nombres').values(
+            'id', 'nombres', 'apellidos', 'rut', 'dni'
+        )
+        return Response(list(trabajadores), status=status.HTTP_200_OK)
+
+    def patch(self, request, trabajador_id):
+        try:
+            trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
+        except PersonalTrabajadores.DoesNotExist:
+            return Response(
+                {'error': 'Trabajador no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if 'firma' not in request.FILES and 'huella_digital' not in request.FILES:
+            return Response(
+                {'error': 'Se requiere firma o huella_digital'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if 'firma' in request.FILES:
+            # Borrar archivo viejo
+            if trabajador.firma and os.path.isfile(trabajador.firma.path):
+                os.remove(trabajador.firma.path)
+            trabajador.firma = request.FILES['firma']
+
+        if 'huella_digital' in request.FILES:
+            # Borrar archivo viejo
+            if trabajador.huella_digital and os.path.isfile(trabajador.huella_digital.path):
+                os.remove(trabajador.huella_digital.path)
+            trabajador.huella_digital = request.FILES['huella_digital']
+
+        trabajador.save()
+
+        return Response(
+            {
+                'id': trabajador.id,
+                'firma': trabajador.firma.url if trabajador.firma else None,
+                'huella_digital': trabajador.huella_digital.url if trabajador.huella_digital else None,
+            },
+            status=status.HTTP_200_OK
+        )

@@ -503,10 +503,20 @@
         
         
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="70px" viewBox="0 0 4 2" preserveAspectRatio="none">
-          <rect width="4" height="2" fill="#0f5163" opacity="1"/>
-          <path d="M 0 0 Q 0 3.5 4 0" fill="#00A693" opacity="1"/>
-          <path d="M 0 2 Q 2 1.5 4 2" fill="#00A693" opacity="1"/>
-        </svg>
+          <defs>
+              <linearGradient id="arcticGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:rgb(0, 60, 40);stop-opacity:1" />      <!-- Verde pino muy oscuro -->
+                  <stop offset="25%" style="stop-color:rgb(0, 75, 50);stop-opacity:1" />     <!-- Verde bosque oscuro -->
+                  <stop offset="50%" style="stop-color:rgb(10, 90, 60);stop-opacity:1" />    <!-- Verde esmeralda oscuro -->
+                  <stop offset="75%" style="stop-color:rgb(15, 100, 70);stop-opacity:1" />   <!-- Verde jade oscuro -->
+                  <stop offset="100%" style="stop-color:rgb(5, 70, 50);stop-opacity:1" />    <!-- Verde musgo oscuro -->
+              </linearGradient>
+          </defs>
+          
+          <rect width="4" height="2" fill="url(#arcticGradient)"/>
+          <path d="M 0 0 Q 0 3.5 4 0" fill="url(#arcticGradient)"/>
+          <path d="M 0 2 Q 2 1.5 4 2" fill="url(#arcticGradient)"/>
+      </svg>
         
         <!-- Dropdown Sociedad Global -->
         <div class="dropdown-sociedad-global" *ngIf="sociedadesDisponibles.length > 0">
@@ -523,7 +533,7 @@
                 [class.selected]="sociedadActual?.id === sociedad.id">
               {{ sociedad.nombre }}
               <mat-icon *ngIf="sociedadActual?.id === sociedad.id">check</mat-icon>
-            </div>
+            </div>    
           </div>
         </div>
 

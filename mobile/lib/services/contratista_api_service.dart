@@ -7,8 +7,10 @@ import 'package:logger/logger.dart';
 Logger logger = Logger();
 
 class ApiService {
-  final String baseUrl = 'http://192.168.1.8:8182/contratista_test_api/';
+  final String baseUrl =
+      'https://contratista.terramobile.cl/contratista_test_api/';
   //'http://contratista.terramobile.cl/contratista_test_api/'
+  //http://192.168.1.7:8182/contratista_test_api/
   //192.168.43.122
   //192.168.100.15 = OFICINA PARRAL
   // hostname -I | awk '{print $1}'

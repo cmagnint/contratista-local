@@ -38,7 +38,7 @@
     }
 }
 
-/* ============ CONTENEDOR PRINCIPAL ============ */
+/* ============ CONTENEDOR PRINCIPAL (FONDO) ============ */
 .mat-drawer-container {
     position: fixed;
     top: 0;
@@ -48,7 +48,16 @@
     z-index: 1000;
     color: white;
     overflow: hidden;
-    background: linear-gradient(135deg, #003049 0%, #669BBC 100%);
+    backdrop-filter: blur(2px);
+    background: linear-gradient(
+        135deg, 
+        rgba(0, 48, 73, 0.60) 0%,       /* Azul petróleo profundo */
+        rgba(0, 95, 115, 0.60) 20%,     /* Verde petróleo */
+        rgba(10, 147, 150, 0.60) 40%,   /* Azul verdoso ártico */
+        rgba(148, 210, 189, 0.60) 60%,  /* Azul hielo claro */
+        rgba(123, 200, 226, 0.60) 80%,  /* Azul agua fría */
+        rgba(74, 159, 184, 0.60) 100%   /* Azul océano */
+    );
 }
 
 /* ============ DRAWERS (MENÚS LATERALES) ============ */
@@ -181,11 +190,19 @@
 .top-bar {
     width: 100%;
     height: 70px;
-    background: linear-gradient(135deg, #003049 0%, #669BBC 100%);
+    background: linear-gradient(
+        135deg, 
+        #002233 0%,      /* Azul petróleo más oscuro */
+        #003450 25%,     /* Azul medianoche oscuro */
+        #004a5c 50%,     /* Verde petróleo oscuro */
+        #077478 75%,     /* Verde azulado oscuro */
+        #0f3e46 100%     /* Verde petróleo muy oscuro */
+    );
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     position: relative;
     z-index: 10;
 }
+
 
 .svg-container {
     position: relative;
@@ -223,9 +240,9 @@
 }
 
 .menu-button-left mat-icon, .menu-button-right mat-icon {
-    font-size: 28px;
-    height: 28px;
-    width: 28px;
+    font-size: 40px;
+    height: 40px;
+    width: 40px;
     transition: all 0.3s ease;
 }
 
@@ -255,7 +272,10 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 24px;
+    font-size: 40px;  /* Agranda el tamaño base */
+    width: 40px;      /* Agranda el contenedor */
+    height: 40px; 
+       /* Agranda el contenedor */
 }
 
 .icon-label-left {
@@ -277,11 +297,11 @@
 }
 
 .menu-label-left {
-    left: 110px;
+    left: 123px;
 }
 
 .menu-label-left-2 {
-    left: calc(35% + 35px);
+    left: calc(35% + 45px);
 }
 
 /* ============ DROPDOWN SOCIEDAD GLOBAL ============ */
@@ -368,14 +388,20 @@
     bottom: 0;
     width: 100%;
     height: 45px;
-    background: linear-gradient(135deg, #003049 0%, #669BBC 100%);
+    background: linear-gradient(
+        135deg, 
+        #003049 0%,      /* Azul petróleo oscuro */
+        #004966 25%,     /* Azul medianoche */
+        #005f73 50%,     /* Verde petróleo */
+        #0a9396 75%,     /* Verde azulado */
+        #14535f 100%     /* Verde petróleo profundo */
+    );
     z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
 }
-
 .bar-text {
     font-family: 'Segoe UI', sans-serif;
     font-size: 13px;

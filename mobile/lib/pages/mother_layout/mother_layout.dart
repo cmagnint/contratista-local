@@ -1,5 +1,6 @@
 //contratista-local
 import 'package:contratista/pages/mother_layout/contratacion/contratacion.dart';
+import 'package:contratista/pages/mother_layout/contratacion/huella_firma.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pending_enrollments_screen.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pre_contratacion.dart';
 import 'package:contratista/pages/mother_layout/contratacion/asociar_qr.dart';
@@ -40,6 +41,7 @@ class MotherLayoutState extends State<MotherLayout> {
     Container(), // _selectedIndex = 8 INGRESO MANO OBRA
     Container(),
     Container(),
+    const HuellaFirmaScreen(),
   ];
 
   @override
@@ -417,6 +419,14 @@ class MotherLayoutState extends State<MotherLayout> {
                   onTap: () {
                     Navigator.pop(context);
                     goToPreContratacion();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.fingerprint),
+                  title: const Text('Huella y Firma'),
+                  onTap: () {
+                    setState(() => _selectedIndex = 11);
+                    Navigator.pop(context);
                   },
                 ),
                 ListTile(

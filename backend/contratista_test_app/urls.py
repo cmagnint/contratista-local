@@ -124,6 +124,7 @@ from .views import (
     PDFToImageAPIView,
     FirmaEmpleadorAPIView,
     PersonalDocumentosAPIView,
+    FirmaHuellaAPIView,
 )
 
 app_name = 'contratista_test'
@@ -178,6 +179,8 @@ urlpatterns = [
     path('api_casas_trabajadores/<int:holding_id>/', CasasTrabajadoresAPIView.as_view(), name='api_casas_trabajadores_by_holding'),
     path('api_personal/', PersonalTrabajadoresAPIView.as_view(), name='api_personal_trabajadores'),
     path('api_personal/<int:holding_id>/', PersonalTrabajadoresAPIView.as_view(), name='api_personal_trabajadores_by_holding'),
+    path('api_firma_huella/', FirmaHuellaAPIView.as_view(), name='api_firma_huella'),
+    path('api_firma_huella/<int:trabajador_id>/', FirmaHuellaAPIView.as_view(), name='api_firma_huella_patch'),
     path('api_personal_documentos/<int:trabajador_id>/', PersonalDocumentosAPIView.as_view(), name='api_personal_documentos'),
     path('unidad_control_comercial/', UnidadControlAPIView.as_view(), name='unidad_control_comercial'),
     path('unidad_control_comercial/<int:holding_id>/', UnidadControlAPIView.as_view(), name='unidad_control_comercial_by_holding'),
