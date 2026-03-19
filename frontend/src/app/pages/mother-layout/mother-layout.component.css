@@ -49,15 +49,7 @@
     color: white;
     overflow: hidden;
     backdrop-filter: blur(2px);
-    background: linear-gradient(
-        135deg, 
-        rgba(0, 48, 73, 0.60) 0%,       /* Azul petróleo profundo */
-        rgba(0, 95, 115, 0.60) 20%,     /* Verde petróleo */
-        rgba(10, 147, 150, 0.60) 40%,   /* Azul verdoso ártico */
-        rgba(148, 210, 189, 0.60) 60%,  /* Azul hielo claro */
-        rgba(123, 200, 226, 0.60) 80%,  /* Azul agua fría */
-        rgba(74, 159, 184, 0.60) 100%   /* Azul océano */
-    );
+    background: #ffffff;
 }
 
 /* ============ DRAWERS (MENÚS LATERALES) ============ */
