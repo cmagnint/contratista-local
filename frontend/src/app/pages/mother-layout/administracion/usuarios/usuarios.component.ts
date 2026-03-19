@@ -276,10 +276,19 @@ export class UsuariosComponent implements OnInit {
         this.openModal('exitoModal');
       },
       error: (error) => {
-        console.error('❌ Error al crear usuario:', error);
         this.closeModal('loadingModal');
-        this.openModal('errorModal')
-        this.errorMessage = 'Error al crear usuario: ' + error.error.message;
+        this.openModal('errorModal');
+        const data = error?.error;
+        if (typeof data === 'object' && !Array.isArray(data)) {
+          this.errorMessage = Object.entries(data)
+            .map(([campo, mensajes]) => {
+              const lista = Array.isArray(mensajes) ? (mensajes as any[]).join(', ') : mensajes;
+              return `${campo.toUpperCase()}: ${lista}`;
+            })
+            .join('\n');
+        } else {
+          this.errorMessage = data?.message || data?.detail || JSON.stringify(data) || 'Error desconocido';
+        }
       }
     })
   }

@@ -376,7 +376,8 @@ export class PersonalComponent implements OnInit {
         this.openModal('exitoModal');
       }, 
       error: (error) => {
-        this.openModal('errorModal')
+        this.errorMessage = this.extraerMensajeError(error);  // ← AGREGAR
+        this.openModal('errorModal');
       }
     });
   }
@@ -416,7 +417,7 @@ export class PersonalComponent implements OnInit {
         this.limpiarFormularioModificacion();
       },
       error: (error) => {
-        console.error('Error:', error);
+        this.errorMessage = this.extraerMensajeError(error);  // ← AGREGAR
         this.openModal('errorModal');
       }
     });
@@ -912,4 +913,22 @@ export class PersonalComponent implements OnInit {
       this.dropdownStates[key as keyof typeof this.dropdownStates] = false;
     });
   }
+
+  private extraerMensajeError(error: any): string {
+  const data = error?.error;
+  if (!data) return 'Error desconocido. Intente nuevamente.';
+
+  // Errores de campo: { rut: ["Ya existe..."], nombres: ["..."] }
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    return Object.entries(data)
+      .map(([campo, mensajes]) => {
+        const lista = Array.isArray(mensajes) ? mensajes.join(', ') : mensajes;
+        return `${campo.toUpperCase()}: ${lista}`;
+      })
+      .join('\n');
+  }
+
+  // Error genérico: { detail: "..." } o string
+  return data?.detail || data?.error || JSON.stringify(data);
+}
 }

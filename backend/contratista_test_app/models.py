@@ -572,7 +572,7 @@ class PersonalTrabajadores(models.Model):
     cargo = models.ForeignKey(CargosAdministracion, on_delete=models.SET_NULL, null=True, blank=True)
     nombres = models.CharField(max_length=255)
     apellidos = models.TextField(null=True, blank=True)
-    rut = models.TextField(null=True, blank=True)
+    rut = models.TextField(null=True, blank=True, unique=True)
     dni = models.TextField(null=True, blank=True)
     nic = models.TextField(null=True, blank=True)
     direccion = models.CharField(max_length=255, null=True, blank=True)

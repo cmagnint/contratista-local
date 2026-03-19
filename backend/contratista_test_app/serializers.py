@@ -7,6 +7,10 @@ import random
 import string
 from django.core.mail import send_mail
 from django.conf import settings
+import logging
+from rest_framework.validators import UniqueValidator
+
+logger = logging.getLogger('contratista_test_app')
 
 from .models import (
     Holding, 
@@ -254,71 +258,75 @@ class UserSerializer(serializers.ModelSerializer):
     supervisor_id = serializers.SerializerMethodField(read_only=True)
     supervisor_nombre = serializers.SerializerMethodField(read_only=True)
     enviar_credenciales = serializers.BooleanField(write_only=True, required=False, default=True)
-    
+    email = serializers.EmailField(
+        validators=[
+            UniqueValidator(
+                queryset=Usuarios.objects.all(),
+                message='Ya existe un usuario con este correo electrónico.'
+            )
+        ],
+        error_messages={
+            'required': 'El correo electrónico es obligatorio.',
+            'blank': 'El correo electrónico no puede estar vacío.',
+            'invalid': 'Ingrese un correo electrónico válido.',
+        }
+    )
+    rut = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True,
+        validators=[
+            UniqueValidator(
+                queryset=Usuarios.objects.all(),
+                message='Ya existe un usuario con este RUT.'
+            )
+        ]
+    )
     class Meta:
         model = Usuarios
         fields = ['id', 'holding', 'empresas_asignadas', 'nombre_persona', 'persona', 'rut', 'email', 
                   'perfil', 'nombre_perfil', 'nombre_empresas_asignadas', 'estado', 'enviar_credenciales',
                   'supervisor_id', 'supervisor_nombre']
         extra_kwargs = {
-            'holding': {'write_only': True},
             'is_admin': {'default': False},
             'estado': {'default': True},
+
+            'perfil': {
+                'error_messages': {
+                    'required': 'El perfil es obligatorio.',
+                    'null': 'Debe seleccionar un perfil.',
+                }
+            },
+            'holding': {
+                'write_only': True,
+                'error_messages': {
+                    'required': 'El holding es obligatorio.',
+                    'null': 'Debe seleccionar un holding.',
+                }
+            },
         }
 
-    # ========================================
-    # ✅ NUEVO: VALIDACIÓN DE RUT
-    # ========================================
     def validate_rut(self, value):
-        """
-        🧹 Limpia el RUT en el backend como medida de seguridad
-        Remueve puntos, guiones, espacios y convierte a mayúsculas
-        
-        Ejemplos:
-        - "18.287.999-5" → "182879995"
-        - "18.287.999-K" → "18287999K"
-        - "18287999-k" → "18287999K"
-        """
         if not value:
             return value
         
-        # Guardar valor original para logging
         valor_original = value
+        rut_limpio = (value.replace('.', '').replace('-', '').replace(' ', '').strip().upper())
         
-        # Limpiar RUT: remover puntos, guiones y espacios
-        rut_limpio = (value
-            .replace('.', '')
-            .replace('-', '')
-            .replace(' ', '')
-            .strip()
-            .upper())
-        
-        # Logging para debug
         if valor_original != rut_limpio:
-            print(f"🧹 RUT limpiado en backend:")
-            print(f"   Antes: '{valor_original}'")
-            print(f"   Después: '{rut_limpio}'")
+            logger.info(f"RUT limpiado - Antes: '{valor_original}' | Después: '{rut_limpio}'")
         
-        # Validar que tenga al menos 7 caracteres (RUT mínimo: 1.000.000-0)
         if len(rut_limpio) < 7:
             raise serializers.ValidationError("RUT inválido: debe tener al menos 7 dígitos")
         
-        # Validar que el último caracter sea un dígito o K
         verificador = rut_limpio[-1]
         if not (verificador.isdigit() or verificador == 'K'):
             raise serializers.ValidationError("RUT inválido: el dígito verificador debe ser un número o K")
         
-        # Validar que todo excepto el último caracter sean números
         cuerpo = rut_limpio[:-1]
         if not cuerpo.isdigit():
             raise serializers.ValidationError("RUT inválido: debe contener solo números y dígito verificador")
         
         return rut_limpio
 
-    # ========================================
-    # MÉTODOS EXISTENTES (sin cambios)
-    # ========================================
-    
     def get_supervisor_id(self, obj):
         if obj.perfil and obj.perfil.nombre_perfil == 'JEFE DE CUADRILLA':
             jefe = JefesDeCuadrilla.objects.get(usuario=obj)
@@ -330,10 +338,8 @@ class UserSerializer(serializers.ModelSerializer):
             jefe = JefesDeCuadrilla.objects.get(usuario=obj)
             nombre = jefe.supervisor.usuario.persona.nombres
             apellido = jefe.supervisor.usuario.persona.apellidos
-            nombre_completo = nombre+''+apellido
-            return nombre_completo
+            return nombre + '' + apellido
         return None
-
 
     def get_nombre_perfil(self, obj):
         if obj.perfil:
@@ -349,9 +355,6 @@ class UserSerializer(serializers.ModelSerializer):
         return [empresa.nombre for empresa in obj.empresas_asignadas.all()]
 
     def generate_random_password(self, length=10):
-        """Genera una contraseña random segura"""
-        print(f"🔐 Generando contraseña de {length} caracteres...")
-        
         uppercase = string.ascii_uppercase
         lowercase = string.ascii_lowercase  
         digits = string.digits
@@ -364,19 +367,14 @@ class UserSerializer(serializers.ModelSerializer):
             random.choice(digits),
             random.choice(symbols)
         ]
-        
         for _ in range(length - 4):
             password.append(random.choice(all_chars))
         
         random.shuffle(password)
-        password_str = ''.join(password)
-        print(f"✅ Contraseña generada exitosamente")
-        
-        return password_str
+        return ''.join(password)
 
     def send_credentials_email(self, usuario, password):
-        """Envía credenciales por email con formato profesional"""
-        print(f"📧 Intentando enviar credenciales a: {usuario.email}")
+        logger.info(f"Intentando enviar credenciales a: {usuario.email}")
         
         try:
             nombre_usuario = "Usuario"
@@ -395,7 +393,6 @@ class UserSerializer(serializers.ModelSerializer):
                 holding_nombre = usuario.holding.nombre
             
             subject = f'🔐 Credenciales de acceso - {holding_nombre}'
-            
             message = f"""
                 ¡Hola {nombre_usuario}!
 
@@ -447,77 +444,54 @@ class UserSerializer(serializers.ModelSerializer):
                 fail_silently=False,
             )
             
-            print(f"✅ Email enviado exitosamente a {usuario.email}")
+            logger.info(f"Email enviado exitosamente a {usuario.email}")
             return True
             
         except Exception as e:
-            print(f"❌ Error enviando email a {usuario.email}: {str(e)}")
-            print(f"   Detalles del error: {type(e).__name__}")
+            logger.error(f"Error enviando email a {usuario.email}: {type(e).__name__}: {str(e)}", exc_info=True)
             return False
 
     def create(self, validated_data):
-        """Crea usuario con contraseña random y envío automático de credenciales"""
-        print(f"\n🚀 === CREANDO USUARIO ===")
-        print(f"📥 Datos validados recibidos:")
-        print(f"   RUT: {validated_data.get('rut')}")
-        print(f"   Email: {validated_data.get('email')}")
+        logger.info(f"CREANDO USUARIO - RUT: {validated_data.get('rut')} | Email: {validated_data.get('email')}")
         
         empresas_asignadas_data = validated_data.pop('empresas_asignadas', [])
         enviar_credenciales = validated_data.pop('enviar_credenciales', True)
         
-        # Generar contraseña temporal
         password_temporal = self.generate_random_password()
         
-        # Crear usuario
         usuario = Usuarios.objects.create(**validated_data)
-        
-        # Establecer contraseña hasheada
         usuario.set_password(password_temporal)
         usuario.save()
         
-        print(f"✅ Usuario guardado en base de datos:")
-        print(f"   ID: {usuario.id}")
-        print(f"   RUT guardado: '{usuario.rut}' (longitud: {len(usuario.rut)})")
+        logger.info(f"Usuario guardado - ID: {usuario.id} | RUT: '{usuario.rut}'")
         
-        # Asignar empresas
         if empresas_asignadas_data:
             usuario.empresas_asignadas.set(empresas_asignadas_data)
-            print(f"🏢 Empresas asignadas: {len(empresas_asignadas_data)}")
+            logger.info(f"Empresas asignadas: {len(empresas_asignadas_data)}")
         
-        # Enviar credenciales por email
         if enviar_credenciales and usuario.email:
-            email_enviado = self.send_credentials_email(usuario, password_temporal)
-            if email_enviado:
-                print(f"📧 Credenciales enviadas exitosamente")
+            if self.send_credentials_email(usuario, password_temporal):
+                logger.info("Credenciales enviadas exitosamente")
             else:
-                print(f"⚠️ No se pudieron enviar las credenciales por email")
+                logger.error("No se pudieron enviar las credenciales por email")
         
-        print(f"🎉 Usuario creado completamente\n")
         return usuario
 
     def update(self, instance, validated_data):
-        """Actualizar usuario (sin modificar contraseña)"""
-        print(f"\n✏️ === ACTUALIZANDO USUARIO ===")
-        print(f"📥 Datos para actualizar:")
-        print(f"   ID: {instance.id}")
-        print(f"   RUT nuevo: {validated_data.get('rut', instance.rut)}")
+        logger.info(f"ACTUALIZANDO USUARIO - ID: {instance.id} | RUT nuevo: {validated_data.get('rut', instance.rut)}")
         
         empresas_asignadas_data = validated_data.pop('empresas_asignadas', [])
         validated_data.pop('enviar_credenciales', None)
         
-        # Actualizar campos
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         
-        print(f"✅ Usuario actualizado:")
-        print(f"   RUT guardado: '{instance.rut}' (longitud: {len(instance.rut)})")
+        logger.info(f"Usuario actualizado - RUT guardado: '{instance.rut}'")
         
-        # Actualizar empresas
         if 'empresas_asignadas' in validated_data or empresas_asignadas_data:
             instance.empresas_asignadas.set(empresas_asignadas_data)
         
-        print(f"🎉 Actualización completada\n")
         return instance
 
 class SupervisorSerializer(serializers.ModelSerializer):
@@ -1117,6 +1091,31 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
         if obj.sociedad:
             return obj.sociedad.nombre
         return None
+
+    def validate_rut(self, value):
+        # Convertir string vacío a None
+        if value == '' or value is None:
+            return None
+        
+        # Validar unicidad manualmente
+        qs = PersonalTrabajadores.objects.filter(rut=value)
+        if self.instance:  # En update, excluir el mismo registro
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Ya existe un trabajador registrado con este RUT.")
+        
+        return value
+    
+    def validate(self, data):
+        campos_nullable = [
+            'dni', 'nic', 'correo', 'direccion',
+            'telefono', 'metodo_pago', 'tipo_cuenta_bancaria',
+            'nacionalidad', 'sexo', 'estado_civil', 'apellidos'
+        ]
+        for campo in campos_nullable:
+            if campo in data and data[campo] == '':
+                data[campo] = None
+        return data
 
     def create(self, validated_data):
         carnet_front = validated_data.pop('carnet_front_image', None)
