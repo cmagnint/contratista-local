@@ -36,7 +36,6 @@ class UserInfo {
   //SUPERVISOR O JEFE DE CUADRILLA
   bool isSupervisorOrJefe = false;
   int? idSupervisor = 0;
-  int? idJefeCuadrilla = 0;
 
   void clear() {
     rut = '';
@@ -56,7 +55,6 @@ class UserInfo {
     maquinaria = false;
     manoObra = false;
     idSupervisor = 0;
-    idJefeCuadrilla = 0;
   }
 }
 

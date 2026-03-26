@@ -43,10 +43,8 @@ from .models import (
     Horarios,
     ProduccionTrabajador,
     CodigoQR,
-    Cuadrillas,
     EnlaceAutoRegistro,
     Supervisores,
-    JefesDeCuadrilla,
     APKLink,
     Banco,
     CuentaOrigen,
@@ -326,20 +324,20 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("RUT inválido: debe contener solo números y dígito verificador")
         
         return rut_limpio
+    
+    def get_supervisor_nombre(self, obj):
+        try:
+            supervisor = Supervisores.objects.get(usuario=obj)
+            return supervisor.usuario.persona.nombres
+        except Supervisores.DoesNotExist:
+            return None
 
     def get_supervisor_id(self, obj):
-        if obj.perfil and obj.perfil.nombre_perfil == 'JEFE DE CUADRILLA':
-            jefe = JefesDeCuadrilla.objects.get(usuario=obj)
-            return jefe.supervisor.usuario.id
-        return None
-
-    def get_supervisor_nombre(self, obj):
-        if obj.perfil and obj.perfil.nombre_perfil == 'JEFE DE CUADRILLA':
-            jefe = JefesDeCuadrilla.objects.get(usuario=obj)
-            nombre = jefe.supervisor.usuario.persona.nombres
-            apellido = jefe.supervisor.usuario.persona.apellidos
-            return nombre + '' + apellido
-        return None
+        try:
+            supervisor = Supervisores.objects.get(usuario=obj)
+            return supervisor.id
+        except Supervisores.DoesNotExist:
+            return None
 
     def get_nombre_perfil(self, obj):
         if obj.perfil:
@@ -499,25 +497,21 @@ class SupervisorSerializer(serializers.ModelSerializer):
     usuario_rut = serializers.CharField(source='usuario.rut', read_only=True)
     trabajadores_count = serializers.SerializerMethodField()
     trabajadores_detail = serializers.SerializerMethodField()
-    jefes_cuadrilla = serializers.SerializerMethodField()
     
     class Meta:
         model = Supervisores
         fields = ['id', 'holding', 'usuario', 'usuario_nombre', 'usuario_rut', 
                  'trabajadores', 'trabajadores_count', 'trabajadores_detail',
-                 'jefes_cuadrilla']
+                 ]
         read_only_fields = ['id']
 
     def get_trabajadores_count(self, obj):
-        # Cuenta trabajadores directos + trabajadores bajo jefes de cuadrilla
+        # Cuenta trabajadores directos
         trabajadores_directos = obj.trabajadores.count()
-        trabajadores_indirectos = PersonalTrabajadores.objects.filter(
-            jefe_cuadrilla__supervisor=obj
-        ).count()
+        
         return {
             'directos': trabajadores_directos,
-            'indirectos': trabajadores_indirectos,
-            'total': trabajadores_directos + trabajadores_indirectos
+            'total': trabajadores_directos
         }
 
     def get_trabajadores_detail(self, obj):
@@ -528,44 +522,7 @@ class SupervisorSerializer(serializers.ModelSerializer):
             'tipo': 'directo'
         } for t in obj.trabajadores.all()]
 
-    def get_jefes_cuadrilla(self, obj):
-        jefes = JefesDeCuadrilla.objects.filter(supervisor=obj)
-        return [{
-            'id': j.id,
-            'nombre': j.usuario.persona.nombres if j.usuario and j.usuario.persona else 'Sin nombre',
-            'rut': j.usuario.rut if j.usuario else 'Sin RUT',
-            'trabajadores_count': j.trabajadores.count()
-        } for j in jefes]
-
-class JefesDeCuadrillaSerializer(serializers.ModelSerializer):
-    usuario_nombre = serializers.CharField(source='usuario.persona.nombres', read_only=True)
-    usuario_rut = serializers.CharField(source='usuario.rut', read_only=True)
-    supervisor_nombre = serializers.CharField(source='supervisor.usuario.persona.nombres', read_only=True)
-    supervisor_rut = serializers.CharField(source='supervisor.usuario.rut', read_only=True)
-    trabajadores_count = serializers.SerializerMethodField()
-    trabajadores_detail = serializers.SerializerMethodField()
-
-    class Meta:
-        model = JefesDeCuadrilla
-        fields = ['id', 'holding', 'supervisor', 'usuario', 'trabajadores', 
-                 'usuario_nombre', 'usuario_rut', 'supervisor_nombre', 
-                 'supervisor_rut', 'trabajadores_count', 'trabajadores_detail']
-        read_only_fields = ['id']
-
-    def get_trabajadores_count(self, obj):
-        return obj.trabajadores.count()
-
-    def get_trabajadores_detail(self, obj):
-        return [
-            {
-                'id': t.id,
-                'nombre': t.nombres,
-                'rut': t.rut,
-            } for t in obj.trabajadores.all()
-        ]
-
-#------------------------------------------------------------------------------------------------------------------------------------------------------
-
+    
 class CamposClientesSerializer(serializers.ModelSerializer):
     nombre_cliente = serializers.SerializerMethodField()
 
@@ -1710,23 +1667,6 @@ class TrabajadoresCosechaQRSerializer(serializers.Serializer):
     apellidos = serializers.CharField()
     rut = serializers.CharField()
 
-class PersonalTrabajadoresCuadrillaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PersonalTrabajadores
-        fields = ['id', 'nombres', 'apellidos', 'folio', 'codigo_supervisor']
-
-class GrupoTrabajadoresSerializer(serializers.Serializer):
-    folio_id = serializers.IntegerField()
-    supervisor_id = serializers.IntegerField()
-    folio_nombre = serializers.CharField()
-    supervisor_nombre = serializers.CharField()
-    trabajadores = PersonalTrabajadoresCuadrillaSerializer(many=True)
-
-class CuadrillasSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Cuadrillas
-        fields = ['id', 'holding', 'usuario', 'trabajadores']
-
 class EnlaceAutoRegistroSerializer(serializers.ModelSerializer):
     perfil_nombre = serializers.CharField(source='perfil.nombre_perfil', read_only=True)
     duracion_horas = serializers.IntegerField(write_only=True)
@@ -1847,7 +1787,6 @@ class PersonalAsignadoSerializer(serializers.ModelSerializer):
 class ProduccionTrabajadorReporteSerializer(serializers.ModelSerializer):
     trabajador_nombre = serializers.CharField(source='trabajador.nombres', read_only=True)
     supervisor_nombre = serializers.CharField(source='trabajador.supervisor_directo.first.usuario.persona.nombres', read_only=True)
-    jefe_cuadrilla_nombre = serializers.CharField(source='trabajador.jefe_cuadrilla.first.usuario.persona.nombres', read_only=True)
     labor_nombre = serializers.CharField(source='labor.nombre', read_only=True)
     unidad_control_nombre = serializers.CharField(source='unidad_control.nombre', read_only=True)
     

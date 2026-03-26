@@ -2,32 +2,41 @@
 
 <div class="admin-perfiles-container" (click)="deseleccionarFila($event)">
   
-  <button 
-    mat-raised-button 
-    color="primary" 
-    class="custom-button" 
-    (click)="openModal('crearTrabajador')">
-    CREAR TRABAJADOR
-  </button>
-  
-  <button 
-    mat-raised-button 
-    color="primary" 
-    class="custom-button-modificar" 
-    [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" 
-    (click)="openModal('modificarTrabajador'); $event.stopPropagation()">
-    MODIFICAR TRABAJADOR
-  </button>
-  
-  <button 
-    mat-raised-button 
-    color="primary" 
-    class="custom-button-cancelar" 
-    [disabled]="!(selectedRows.length>0)" 
-    (click)="openModal('confirmacionModal')">
-    ELIMINAR TRABAJADOR
-  </button>
+  <div class="botones-fijos">
+    <button 
+      mat-raised-button 
+      color="primary" 
+      class="custom-button" 
+      (click)="openModal('crearTrabajador')">
+      CREAR TRABAJADOR
+    </button>
     
+    <button 
+      mat-raised-button 
+      color="primary" 
+      class="custom-button-modificar" 
+      [disabled]="!(selectedRows.length>0 && selectedRows.length<2)" 
+      (click)="openModal('modificarTrabajador'); $event.stopPropagation()">
+      MODIFICAR TRABAJADOR
+    </button>
+    
+    <button 
+      mat-raised-button 
+      color="primary" 
+      class="custom-button-cancelar" 
+      [disabled]="!(selectedRows.length>0)" 
+      (click)="openModal('confirmacionModal')">
+      ELIMINAR TRABAJADOR
+    </button>
+
+    <button 
+      mat-raised-button 
+      class="custom-button" 
+      (click)="limpiarFiltros()">
+      LIMPIAR FILTROS
+    </button>
+  </div>
+      
   <!-- MODAL CREAR TRABAJADOR -->
   <div 
     id="modalCrearTrabajador" 
@@ -594,7 +603,7 @@
   </div>
   
   <!-- TABLA DE TRABAJADORES -->
-  <table mat-table [dataSource]="trabajadoresCargados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
+  <table mat-table [dataSource]="trabajadoresFiltrados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
     
     <ng-container matColumnDef="codigo">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Código</th>
@@ -602,33 +611,57 @@
     </ng-container>
     
     <ng-container matColumnDef="sociedad">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Sociedad</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Sociedad
+        <select class="filter-select" [(ngModel)]="filtros.sociedad" (click)="$event.stopPropagation()">
+          <option value="">Todas</option>
+          <option *ngFor="let v of uniqueSociedades" [value]="v">{{v}}</option>
+        </select>
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nombre_sociedad}}</td>
     </ng-container>
 
     <ng-container matColumnDef="area">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Área</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Área
+        <select class="filter-select" [(ngModel)]="filtros.area" (click)="$event.stopPropagation()">
+          <option value="">Todas</option>
+          <option *ngFor="let v of uniqueAreas" [value]="v">{{v}}</option>
+        </select>
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nombre_area}}</td>
     </ng-container>
 
     <ng-container matColumnDef="cargo">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Cargo</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Cargo
+        <select class="filter-select" [(ngModel)]="filtros.cargo" (click)="$event.stopPropagation()">
+          <option value="">Todos</option>
+          <option *ngFor="let v of uniqueCargos" [value]="v">{{v}}</option>
+        </select>
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nombre_cargo}}</td>
     </ng-container>
 
     <ng-container matColumnDef="nombre">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombres</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Nombres
+        <input class="filter-input" [(ngModel)]="filtros.nombres" placeholder="Buscar..." (click)="$event.stopPropagation()">
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nombres}}</td>
     </ng-container>
 
     <ng-container matColumnDef="apellidos">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Apellidos</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Apellidos
+        <input class="filter-input" [(ngModel)]="filtros.apellidos" placeholder="Buscar..." (click)="$event.stopPropagation()">
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.apellidos}}</td>
     </ng-container>
     
     <ng-container matColumnDef="rut">
       <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.rut}}</td>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.rut ? formatRUTString(trabajador.rut) : ''}}</td>
     </ng-container>
 
     <ng-container matColumnDef="dni">
@@ -638,7 +671,7 @@
 
     <ng-container matColumnDef="nic">
       <th mat-header-cell *matHeaderCellDef class="mat-header">NIC</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nic}}</td>
+      <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nic ? formatRUTString(trabajador.nic) : ''}}</td>
     </ng-container>
 
     <ng-container matColumnDef="direccion">
@@ -647,7 +680,14 @@
     </ng-container>
 
     <ng-container matColumnDef="sexo">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Sexo</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Sexo
+        <select class="filter-select" [(ngModel)]="filtros.sexo" (click)="$event.stopPropagation()">
+          <option value="">Todos</option>
+          <option value="M">M</option>
+          <option value="F">F</option>
+        </select>
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.sexo}}</td>
     </ng-container>
 
@@ -657,7 +697,13 @@
     </ng-container>
 
     <ng-container matColumnDef="nacionalidad">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Nacionalidad</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Nacionalidad
+        <select class="filter-select" [(ngModel)]="filtros.nacionalidad" (click)="$event.stopPropagation()">
+          <option value="">Todas</option>
+          <option *ngFor="let v of uniqueNacionalidades" [value]="v">{{v}}</option>
+        </select>
+      </th>
       <td mat-cell *matCellDef="let trabajador" class="mat-cell">{{trabajador.nacionalidad}}</td>
     </ng-container>
 

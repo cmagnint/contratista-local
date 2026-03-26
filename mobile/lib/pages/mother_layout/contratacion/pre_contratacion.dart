@@ -29,7 +29,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
   String? _selectedVehiculo;
   String? _selectedCasa;
   String? _selectedSupervisor;
-  String? _selectedJefeCuadrilla;
   String? _selectedHorario;
   String? _selectedArea;
   String? _selectedCargo;
@@ -41,7 +40,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
   List<Map<String, dynamic>> _horarios = [];
   List<String> _casas = [];
   List<Map<String, dynamic>> _supervisores = [];
-  List<Map<String, dynamic>> _jefesCuadrilla = [];
   List<Map<String, dynamic>> _areas = [];
   List<Map<String, dynamic>> _cargos = [];
   bool _isLoadingSociedades = true;
@@ -123,8 +121,17 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         setState(() {
           _areas = List<Map<String, dynamic>>.from(responseData);
 
-          if (_areas.length == 1) {
+          final operaciones = _areas
+              .where(
+                (a) => a['nombre'].toString().toUpperCase() == 'OPERACIONES',
+              )
+              .toList();
+          if (operaciones.isNotEmpty) {
+            _selectedArea = operaciones[0]['id'].toString();
+          } else if (_areas.length == 1) {
             _selectedArea = _areas[0]['id'].toString();
+          }
+          if (_selectedArea != null) {
             _fetchCargos(_selectedArea!);
           }
         });
@@ -168,7 +175,12 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               .toList();
           _selectedCargo = null;
 
-          if (_cargos.length == 1) {
+          final temporero = _cargos
+              .where((c) => c['nombre'].toString().toUpperCase() == 'TEMPORERO')
+              .toList();
+          if (temporero.isNotEmpty) {
+            _selectedCargo = temporero[0]['id'].toString();
+          } else if (_cargos.length == 1) {
             _selectedCargo = _cargos[0]['id'].toString();
           }
         });
@@ -328,7 +340,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
 
         if (_supervisores.length == 1) {
           _selectedSupervisor = _supervisores[0]['id'].toString();
-          _fetchJefesCuadrilla(_selectedSupervisor!);
         }
       });
     } else {
@@ -341,39 +352,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
           ),
         );
       }
-    }
-  }
-
-  Future<void> _fetchJefesCuadrilla(String supervisorId) async {
-    try {
-      ApiService apiService = ApiService();
-      String? holding = await storage.read(key: 'holding');
-      final response = await apiService.get(
-        'api_jefes_cuadrilla/$holding/?supervisor=$supervisorId',
-        allowNotFound: true,
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(response.body);
-        setState(() {
-          _jefesCuadrilla = List<Map<String, dynamic>>.from(responseData);
-          _selectedJefeCuadrilla = null;
-
-          if (_jefesCuadrilla.length == 1) {
-            _selectedJefeCuadrilla = _jefesCuadrilla[0]['id'].toString();
-          }
-        });
-      } else {
-        setState(() {
-          _jefesCuadrilla = [];
-          _selectedJefeCuadrilla = null;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _jefesCuadrilla = [];
-        _selectedJefeCuadrilla = null;
-      });
     }
   }
 
@@ -423,7 +401,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         'vehiculo': _selectedVehiculo,
         'casa': _casaMap[_selectedCasa].toString(),
         'supervisor': _selectedSupervisor,
-        'jefe_cuadrilla': _selectedJefeCuadrilla,
         'horario': _selectedHorario,
         'area': _selectedArea,
         'cargo': _selectedCargo,
@@ -795,12 +772,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                 onChanged: (String? newValue) {
                   setState(() {
                     _selectedSupervisor = newValue;
-                    if (newValue != null) {
-                      _fetchJefesCuadrilla(newValue);
-                    } else {
-                      _jefesCuadrilla = [];
-                      _selectedJefeCuadrilla = null;
-                    }
                   });
                 },
               ),
@@ -816,56 +787,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButton<String>(
-                  value: _selectedJefeCuadrilla,
-                  hint: Text(
-                    _jefesCuadrilla.isEmpty
-                        ? 'No hay jefes de cuadrilla disponibles'
-                        : 'Seleccione Jefe de Cuadrilla (Opcional)',
-                    style: TextStyle(
-                      color: _jefesCuadrilla.isEmpty ? Colors.grey : null,
-                      fontSize: _jefesCuadrilla.isEmpty ? 14 : null,
-                    ),
-                  ),
-                  isExpanded: true,
-                  items: _jefesCuadrilla.isEmpty
-                      ? [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            enabled: false,
-                            child: Text(
-                              'Sin jefes de cuadrilla registrados',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ]
-                      : [
-                          const DropdownMenuItem<String>(
-                            value: '',
-                            child: Text('Sin Jefe de Cuadrilla'),
-                          ),
-                          ..._jefesCuadrilla.map((jefe) {
-                            return DropdownMenuItem<String>(
-                              value: jefe['id'].toString(),
-                              child: Text(
-                                '${jefe['usuario_nombre']} - ${jefe['usuario_rut']}',
-                              ),
-                            );
-                          }),
-                        ],
-                  onChanged: _jefesCuadrilla.isEmpty
-                      ? null
-                      : (String? newValue) {
-                          setState(() {
-                            _selectedJefeCuadrilla = newValue == ''
-                                ? null
-                                : newValue;
-                          });
-                        },
-                ),
+
                 const SizedBox(height: 30),
               ],
 

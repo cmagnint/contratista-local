@@ -133,7 +133,6 @@ class WorkerSyncService {
         'transportista',
         'rut',
         'codigo_supervisor',
-        'jefe_cuadrilla',
         'dni',
         'nic',
         'apellidos',

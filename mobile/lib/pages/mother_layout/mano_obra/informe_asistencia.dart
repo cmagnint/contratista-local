@@ -32,7 +32,6 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
   @override
   void initState() {
     super.initState();
-    // Cargar datos iniciales
     buscarPorFecha(useCurrentDate: true);
   }
 
@@ -69,18 +68,13 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
       String url =
           'informe_asistencia/?fecha=$formattedDate&is_admin=${userInfo.isAdmin}';
 
-      // Obtener supervisor ID si no es admin
       if (!userInfo.isAdmin) {
-        // Asume que userInfo tiene un campo supervisorId o similar
-        // Ajusta según tu modelo UserInfo
-        final supervisorId =
-            userInfo.idSupervisor; // O userInfo.supervisorId si existe
+        final supervisorId = userInfo.idSupervisor;
         url += '&supervisor_id=$supervisorId';
       }
 
       var response = await apiService.get(url);
 
-      // Parsear respuesta
       final data = jsonDecode(response.body);
       if (!mounted) return;
 
@@ -116,6 +110,48 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
         ),
       );
     }
+  }
+
+  void _showDetalleEstados(String nombre, Map<String, dynamic> detalle) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(nombre, style: const TextStyle(fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: detalle.entries.map((entry) {
+              return ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: estadoColores[entry.key] ?? Colors.grey,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(formatHorasTrabajadas(entry.value)),
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -210,25 +246,56 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            Map<String, dynamic> data;
+            Map<String, dynamic> dataOriginal;
             String title;
             switch (tipo) {
               case 'sociedad':
-                data = sociedades;
+                dataOriginal = sociedades;
                 title = 'Informe por Sociedad';
                 break;
               case 'fundo':
-                data = fundos;
+                dataOriginal = fundos;
                 title = 'Informe por Fundo';
                 break;
               case 'supervisor':
-                data = supervisores;
+                dataOriginal = supervisores;
                 title = 'Informe por Supervisor';
                 break;
               default:
-                data = {};
+                dataOriginal = {};
                 title = '';
             }
+
+            // Recalcular conteos si hay filtro activo
+            Map<String, dynamic> data;
+            if (localSelectedEstado != null) {
+              data = {};
+              for (var trab in informeData) {
+                Map<String, dynamic> detalle = Map<String, dynamic>.from(
+                  trab['detalle_estados'] ?? {},
+                );
+                if (!detalle.containsKey(localSelectedEstado)) continue;
+
+                String keyValue;
+                switch (tipo) {
+                  case 'sociedad':
+                    keyValue = trab['sociedad'] ?? '';
+                    break;
+                  case 'fundo':
+                    keyValue = trab['fundo'] ?? '';
+                    break;
+                  case 'supervisor':
+                    keyValue = trab['supervisor'] ?? '';
+                    break;
+                  default:
+                    keyValue = '';
+                }
+                data[keyValue] = (data[keyValue] ?? 0) + 1;
+              }
+            } else {
+              data = dataOriginal;
+            }
+
             return AlertDialog(
               title: Text(title),
               content: SizedBox(
@@ -321,10 +388,20 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
               key,
               localSelectedEstado,
             );
-            double totalHoras = trabajadoresFiltrados.fold(
-              0,
-              (sum, trabajador) => sum + (trabajador['horas_registradas'] ?? 0),
-            );
+
+            double totalHoras = trabajadoresFiltrados.fold(0.0, (
+              sum,
+              trabajador,
+            ) {
+              Map<String, dynamic> detalle = Map<String, dynamic>.from(
+                trabajador['detalle_estados'] ?? {},
+              );
+              if (localSelectedEstado != null &&
+                  detalle.containsKey(localSelectedEstado)) {
+                return sum + (detalle[localSelectedEstado] ?? 0);
+              }
+              return sum + (trabajador['horas_registradas'] ?? 0);
+            });
 
             return AlertDialog(
               title: Column(
@@ -351,6 +428,32 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                               itemCount: trabajadoresFiltrados.length,
                               itemBuilder: (context, index) {
                                 var trabajador = trabajadoresFiltrados[index];
+                                Map<String, dynamic> detalleEstados =
+                                    Map<String, dynamic>.from(
+                                      trabajador['detalle_estados'] ?? {},
+                                    );
+
+                                double horasMostrar;
+                                List<String> estadosMostrar;
+
+                                if (localSelectedEstado != null &&
+                                    detalleEstados.containsKey(
+                                      localSelectedEstado,
+                                    )) {
+                                  horasMostrar =
+                                      (detalleEstados[localSelectedEstado] ?? 0)
+                                          .toDouble();
+                                  estadosMostrar = [localSelectedEstado!];
+                                } else {
+                                  horasMostrar =
+                                      (trabajador['horas_registradas'] ?? 0)
+                                          .toDouble();
+                                  estadosMostrar =
+                                      (trabajador['estado'] as String).split(
+                                        ', ',
+                                      );
+                                }
+
                                 return Container(
                                   decoration: BoxDecoration(
                                     border: Border.all(color: Colors.grey),
@@ -364,24 +467,41 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                                       trabajador['nombretrabajador'] ?? '',
                                     ),
                                     subtitle: Text(
-                                      'Horas: ${formatHorasTrabajadas(trabajador['horas_registradas'])}',
+                                      'Horas: ${formatHorasTrabajadas(horasMostrar)}',
                                     ),
-                                    trailing: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            estadoColores[trabajador['estado']] ??
-                                            Colors.grey,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        trabajador['estado'] ?? '',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                    trailing: Wrap(
+                                      spacing: 4,
+                                      children: estadosMostrar.map((estado) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                estadoColores[estado] ??
+                                                Colors.grey,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            estado,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
                                     ),
+                                    onTap: detalleEstados.length > 1
+                                        ? () => _showDetalleEstados(
+                                            trabajador['nombretrabajador'],
+                                            detalleEstados,
+                                          )
+                                        : null,
                                   ),
                                 );
                               },
@@ -410,7 +530,9 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
           : trabajador['supervisor'] == key;
       bool condicionEstado =
           currentSelectedEstado == null ||
-          trabajador['estado'] == currentSelectedEstado;
+          (Map<String, dynamic>.from(
+            trabajador['detalle_estados'] ?? {},
+          )).containsKey(currentSelectedEstado);
       return condicionTipo && condicionEstado;
     }).toList();
   }

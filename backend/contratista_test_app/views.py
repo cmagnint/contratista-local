@@ -64,6 +64,7 @@ import re
 import pypdf
 import base64
 import logging
+import zoneinfo
 from utils.log_filters import set_request
 
 logger = logging.getLogger('contratista_test_app')
@@ -105,10 +106,8 @@ from .models import (
     Horarios,
     ProduccionTrabajador,
     CodigoQR,
-    Cuadrillas,
     EnlaceAutoRegistro,
     Supervisores,
-    JefesDeCuadrilla,
     APKLink,
     Banco,
     CuentaOrigen,
@@ -146,7 +145,6 @@ from .models import (
     DocumentosVehiculo,
     RegistroAsistencia,
     RegistroManoObraPersona,
-    SolicitudTraspaso,
     TrabajadorEmpresaTransporte,
 )
 
@@ -186,12 +184,9 @@ from .serializers import (
     ProduccionTrabajadorSerializer,
     CodigoQRSerializer,
     TrabajadoresCosechaQRSerializer,
-    CuadrillasSerializer,
-    GrupoTrabajadoresSerializer,
     EnlaceAutoRegistroSerializer,
     PersonalForUserSerializer,
     SupervisorSerializer,
-    JefesDeCuadrillaSerializer,
     APKLinkSerializer,
     PersonalAsignadoSerializer,
     ProduccionTrabajadorReporteSerializer,
@@ -611,20 +606,13 @@ class LoginAPIView(APIView):
             else:
                 redirect_to = '/fs/home'
             
-            # ✅ BUSCAR SI EL USUARIO ES SUPERVISOR O JEFE DE CUADRILLA
+            # ✅ BUSCAR SI EL USUARIO ES SUPERVISOR
             supervisor_id = None
-            jefe_cuadrilla_id = None
             
             try:
                 supervisor = Supervisores.objects.get(usuario=user)
                 supervisor_id = supervisor.id
             except Supervisores.DoesNotExist:
-                pass
-            
-            try:
-                jefe = JefesDeCuadrilla.objects.get(usuario=user)
-                jefe_cuadrilla_id = jefe.id
-            except JefesDeCuadrilla.DoesNotExist:
                 pass
             
             # ✅ CONSTRUIR DICCIONARIO DE SOCIEDADES CON NOMBRE E ID
@@ -670,7 +658,6 @@ class LoginAPIView(APIView):
                 
                 # ✅ CAMPOS PARA SUPERVISOR Y JEFE DE CUADRILLA
                 'supervisor_id': supervisor_id,
-                'jefe_cuadrilla_id': jefe_cuadrilla_id,
                 'is_admin': user.is_admin,
             }
             
@@ -678,8 +665,7 @@ class LoginAPIView(APIView):
             print(f"   📋 Sociedades disponibles: {sociedades_list}")
             if supervisor_id:
                 print(f"   🎯 Supervisor ID: {supervisor_id}")
-            if jefe_cuadrilla_id:
-                print(f"   👥 Jefe de Cuadrilla ID: {jefe_cuadrilla_id}")
+            
             
             return Response(response_data, status=status.HTTP_200_OK)
             
@@ -1588,25 +1574,7 @@ class UsuarioAPIViews(APIView):
                             )
                             logger.info(f"Supervisor creado con ID: {supervisor.id}")
                             
-                        elif perfil_nombre == 'JEFE DE CUADRILLA':
-                            supervisor_id = request.data.get('supervisor')
-                            
-                            if supervisor_id:
-                                try:
-                                    supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
-                                    jefe = JefesDeCuadrilla.objects.create(
-                                        holding_id=usuario.holding_id,
-                                        supervisor=supervisor,
-                                        usuario=usuario
-                                    )
-                                    logger.info(f"Jefe de Cuadrilla creado ID: {jefe.id} | Supervisor: {supervisor.usuario.persona.nombres if supervisor.usuario.persona else supervisor.usuario.rut}")
-                                    
-                                except Supervisores.DoesNotExist:
-                                    logger.error(f"Supervisor con ID {supervisor_id} no encontrado")
-                                    return Response({"error": "Supervisor no encontrado"}, status=status.HTTP_400_BAD_REQUEST)
-                            else:
-                                logger.error("Falta supervisor requerido para Jefe de Cuadrilla")
-                                return Response({"error": "Se requiere un supervisor para el Jefe de Cuadrilla"}, status=status.HTTP_400_BAD_REQUEST)
+                        
                     
                     logger.info("=== CREACIÓN COMPLETADA EXITOSAMENTE ===")
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -1632,40 +1600,13 @@ class UsuarioAPIViews(APIView):
                     new_perfil = Perfiles.objects.get(id=new_perfil_id)
                     new_perfil_nombre = new_perfil.nombre_perfil
                     
-                    if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
-                        supervisor_id = request.data.get('supervisor')
-                        if not supervisor_id:
-                            return Response(
-                                {"message": "Se requiere un supervisor para asignar el perfil de Jefe de Cuadrilla"}, 
-                                status=status.HTTP_400_BAD_REQUEST
-                            )
-                        try:
-                            Supervisores.objects.get(usuario_id=supervisor_id)
-                        except Supervisores.DoesNotExist:
-                            return Response(
-                                {"message": "Supervisor no encontrado"}, 
-                                status=status.HTTP_404_NOT_FOUND
-                            )
-                    
-                    if old_perfil_nombre == 'JEFE DE CUADRILLA' and new_perfil_nombre != 'JEFE DE CUADRILLA':
-                        try:
-                            jefe = JefesDeCuadrilla.objects.get(usuario=usuario)
-                            trabajadores_count = jefe.trabajadores.count()
-                            if trabajadores_count > 0:
-                                return Response(
-                                    {"message": f"No puede cambiar el perfil. El Jefe de Cuadrilla tiene {trabajadores_count} trabajador(es) asignado(s). Debe reasignarlos primero."}, 
-                                    status=status.HTTP_400_BAD_REQUEST
-                                )
-                        except JefesDeCuadrilla.DoesNotExist:
-                            pass
-                    
                     if old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
                         try:
                             supervisor = Supervisores.objects.get(usuario=usuario)
-                            jefes_count = JefesDeCuadrilla.objects.filter(supervisor=supervisor).count()
-                            if jefes_count > 0:
+                            trabajadores_count = supervisor.trabajadores.count()
+                            if trabajadores_count > 0:
                                 return Response(
-                                    {"message": f"No puede cambiar el perfil. El Supervisor tiene {jefes_count} Jefe(s) de Cuadrilla asignado(s). Debe reasignarlos primero."}, 
+                                    {"message": f"No puede cambiar el perfil. El Supervisor tiene {trabajadores_count} trabajador(es) asignado(s). Debe reasignarlos primero."}, 
                                     status=status.HTTP_400_BAD_REQUEST
                                 )
                         except Supervisores.DoesNotExist:
@@ -1695,28 +1636,8 @@ class UsuarioAPIViews(APIView):
                         elif old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
                             Supervisores.objects.filter(usuario=usuario).delete()
 
-                        if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
-                            supervisor_id = request.data.get('supervisor')
-                            if supervisor_id:
-                                supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
-                                JefesDeCuadrilla.objects.create(
-                                    holding_id=usuario.holding_id,
-                                    supervisor=supervisor,
-                                    usuario=usuario
-                                )
-                        elif old_perfil_nombre == 'JEFE DE CUADRILLA' and new_perfil_nombre != 'JEFE DE CUADRILLA':
-                            JefesDeCuadrilla.objects.filter(usuario=usuario).delete()
+                                             
                         
-                        # ✅ NUEVO: Ya es JEFE DE CUADRILLA y cambia de supervisor
-                        elif new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre == 'JEFE DE CUADRILLA':
-                            supervisor_id = request.data.get('supervisor')
-                            if supervisor_id:
-                                try:
-                                    nuevo_supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
-                                    JefesDeCuadrilla.objects.filter(usuario=usuario).update(supervisor=nuevo_supervisor)
-                                    print(f"✅ Supervisor del Jefe de Cuadrilla actualizado a: {nuevo_supervisor.id}")
-                                except Supervisores.DoesNotExist:
-                                    pass
 
                     print(f"🎉 Actualización completada")
                     return Response(serializer.data)
@@ -1761,19 +1682,7 @@ class UsuarioAPIViews(APIView):
                         elif old_perfil_nombre == 'SUPERVISOR' and new_perfil_nombre != 'SUPERVISOR':
                             Supervisores.objects.filter(usuario=usuario).delete()
 
-                        # Handle Jefe de Cuadrilla changes
-                        if new_perfil_nombre == 'JEFE DE CUADRILLA' and old_perfil_nombre != 'JEFE DE CUADRILLA':
-                            supervisor_id = request.data.get('supervisor')
-                            if supervisor_id:
-                                supervisor = Supervisores.objects.get(usuario_id=supervisor_id)
-                                JefesDeCuadrilla.objects.create(
-                                    holding_id=usuario.holding_id,
-                                    supervisor=supervisor,
-                                    usuario=usuario
-                                )
-                        elif old_perfil_nombre == 'JEFE DE CUADRILLA' and new_perfil_nombre != 'JEFE DE CUADRILLA':
-                            JefesDeCuadrilla.objects.filter(usuario=usuario).delete()
-                    
+                        
                     return Response(serializer.data)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             except Usuarios.DoesNotExist:
@@ -3475,24 +3384,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            jefe_cuadrilla_id = data.get('jefe_cuadrilla')
-            print(f"🔍 jefe_cuadrilla_id recibido: {jefe_cuadrilla_id}")
-            
-            if jefe_cuadrilla_id:
-                try:
-                    jefe = JefesDeCuadrilla.objects.filter(id=jefe_cuadrilla_id).first()
-                    if jefe:
-                        jefe.trabajadores.add(personal)
-                        jefe.save()
-                        print(f"✅ Trabajador {personal.id} asignado al jefe de cuadrilla {jefe.id}")
-                        print(f"🔍 Total trabajadores del jefe: {jefe.trabajadores.count()}")
-                    else:
-                        print(f"⚠️ Jefe de cuadrilla ID {jefe_cuadrilla_id} no encontrado")
-                except Exception as e:
-                    print(f"❌ Error asignando jefe de cuadrilla: {e}")
-                    import traceback
-                    print(traceback.format_exc())
-            
             try:
                 folio_id = data.get('folio')
                 horario_id = data.get('horario')
@@ -3983,203 +3874,6 @@ class TrabajadoresCosechaQRView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-class CuadrillasAPIView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, JWTHasAnyScope]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.required_scopes = []
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.method in ['GET', 'POST', 'PUT', 'DELETE']:
-            self.required_scopes = ['admin', 'write']
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, format=None):
-        try:
-            holding_id = request.query_params.get('holding')
-            if not holding_id:
-                return Response(
-                    {"message": "Holding ID es requerido"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Si la URL es para grupos de trabajadores
-            if 'grupos' in request.path:
-                # Filtrar trabajadores solo por supervisor y holding
-                trabajadores = PersonalTrabajadores.objects.filter(
-                    holding_id=holding_id,
-                    codigo_supervisor=request.user,
-                    estado=True,
-                    folio__isnull=False
-                ).select_related(
-                    'folio',
-                    'codigo_supervisor'
-                )
-
-                # Agrupar por folio
-                trabajadores_list = list(trabajadores)
-                trabajadores_list.sort(key=lambda x: x.folio_id)
-
-                grupos = []
-                for folio_id, group in groupby(trabajadores_list, key=lambda x: x.folio_id):
-                    group_list = list(group)
-                    if group_list:
-                        primer_trabajador = group_list[0]
-                        grupos.append({
-                            'folio_id': folio_id,
-                            'supervisor_id': request.user.id,
-                            'folio_nombre': f"Folio {primer_trabajador.folio.id}",
-                            'supervisor_nombre': request.user.persona.nombres,
-                            'trabajadores': group_list
-                        })
-
-                serializer = GrupoTrabajadoresSerializer(grupos, many=True)
-                return Response(serializer.data)
-            
-            # Si es la URL base de cuadrillas
-            else:
-                cuadrillas = Cuadrillas.objects.filter(
-                    holding_id=holding_id,
-                    usuario=request.user
-                )
-                serializer = CuadrillasSerializer(cuadrillas, many=True)
-                return Response(serializer.data)
-
-        except Exception as e:
-            return Response(
-                {"message": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    def post(self, request, format=None):
-        try:
-            data = request.data
-            if not all(k in data for k in ('id', 'trabajadores')):
-                return Response(
-                    {'error': 'Se requiere ID y lista de trabajadores'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Verificar que los trabajadores pertenezcan al supervisor actual
-            trabajadores = PersonalTrabajadores.objects.filter(
-                id__in=data['trabajadores'],
-                holding_id=data['holding'],
-                codigo_supervisor=request.user,
-                estado=True
-            )
-
-            if len(trabajadores) < 2:
-                return Response(
-                    {'error': 'Se requieren al menos 2 trabajadores'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Verificar que todos pertenezcan al mismo folio
-            first = trabajadores[0]
-            if not all(t.folio_id == first.folio_id for t in trabajadores):
-                return Response(
-                    {'error': 'Los trabajadores deben pertenecer al mismo folio'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            cuadrilla = Cuadrillas.objects.create(
-                id=data['id'],
-                holding_id=data['holding'],
-                usuario=request.user
-            )
-            cuadrilla.trabajadores.set(trabajadores)
-
-            serializer = CuadrillasSerializer(cuadrilla)
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    def put(self, request, format=None):
-        """
-        Actualiza una cuadrilla existente.
-        """
-        try:
-            cuadrilla_id = request.data.get('id')
-            if not cuadrilla_id:
-                return Response(
-                    {"message": "ID de cuadrilla es necesario"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            try:
-                cuadrilla = Cuadrillas.objects.get(
-                    id=cuadrilla_id,
-                    holding_id=request.data['holding'],
-                    usuario=request.user  # Verificar que la cuadrilla pertenezca al supervisor
-                )
-            except Cuadrillas.DoesNotExist:
-                return Response(
-                    {"message": "Cuadrilla no encontrada"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # Verificar trabajadores como en el POST
-            trabajadores = PersonalTrabajadores.objects.filter(
-                id__in=request.data['trabajadores'],
-                holding_id=request.data['holding'],
-                codigo_supervisor=request.user
-            )
-
-            if len(trabajadores) < 2:
-                return Response(
-                    {'error': 'Se requieren al menos 2 trabajadores'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            first = trabajadores[0]
-            if not all(
-                t.folio_id == first.folio_id and 
-                t.labor_id == first.labor_id
-                for t in trabajadores
-            ):
-                return Response(
-                    {'error': 'Los trabajadores deben pertenecer al mismo folio y labor'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            cuadrilla.trabajadores.set(trabajadores)
-            serializer = CuadrillasSerializer(cuadrilla)
-            return Response(serializer.data)
-
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    def delete(self, request, format=None):
-        """
-        Elimina una o varias cuadrillas.
-        """
-        try:
-            cuadrilla_ids = request.data.get('ids', [])
-            # Solo eliminar cuadrillas que pertenezcan al supervisor actual
-            Cuadrillas.objects.filter(
-                id__in=cuadrilla_ids,
-                holding_id=request.data['holding'],
-                usuario=request.user
-            ).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
 class EnlaceAutoRegistroAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -4435,8 +4129,7 @@ class SupervisorAPIView(APIView):
                     'holding',
                     'usuario__persona'
                 ).prefetch_related(
-                    'trabajadores',
-                    'jefesdecuadrilla_set__trabajadores'
+                    'trabajadores',   
                 ).filter(holding_id=holding_id)
                 
                 if supervisores.exists():
@@ -4488,87 +4181,6 @@ class SupervisorAPIView(APIView):
         Supervisores.objects.filter(id__in=supervisor_ids).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class JefesDeCuadrillaAPIView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, JWTHasAnyScope]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.required_scopes = []
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.method in ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']:
-            self.required_scopes = ['admin', 'write']
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, holding_id=None, format=None):
-        try:
-            if holding_id:
-                jefes = JefesDeCuadrilla.objects.select_related(
-                    'usuario', 
-                    'supervisor', 
-                    'holding',
-                    'usuario__persona',
-                    'supervisor__usuario__persona'
-                ).prefetch_related(
-                    'trabajadores'
-                ).filter(holding_id=holding_id)
-                
-                if jefes.exists():
-                    serializer = JefesDeCuadrillaSerializer(jefes, many=True)
-                    return Response(serializer.data, status=status.HTTP_200_OK)
-                return Response(
-                    {"message": "No se encontraron jefes de cuadrilla"}, 
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            return Response(
-                {"message": "Se requiere holding_id"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    def post(self, request):
-        serializer = JefesDeCuadrillaSerializer(data=request.data)
-        if serializer.is_valid():
-            jefe = serializer.save()
-            # Si se proporcionan trabajadores en la solicitud, los asignamos
-            trabajadores_ids = request.data.get('trabajadores', [])
-            if trabajadores_ids:
-                trabajadores = PersonalTrabajadores.objects.filter(id__in=trabajadores_ids)
-                jefe.trabajadores.set(trabajadores)
-            return Response(
-                {'id': jefe.id, 'data': serializer.data}, 
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def put(self, request):
-        jefe_id = request.data.get('id')
-        try:
-            jefe = JefesDeCuadrilla.objects.get(id=jefe_id)
-        except JefesDeCuadrilla.DoesNotExist:
-            return Response(
-                {"message": "Jefe de cuadrilla no encontrado"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = JefesDeCuadrillaSerializer(jefe, data=request.data)
-        if serializer.is_valid():
-            jefe = serializer.save()
-            # Actualizamos los trabajadores si se proporcionan en la solicitud
-            trabajadores_ids = request.data.get('trabajadores')
-            if trabajadores_ids is not None:
-                trabajadores = PersonalTrabajadores.objects.filter(id__in=trabajadores_ids)
-                jefe.trabajadores.set(trabajadores)
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request):
-        jefe_ids = request.data.get('ids', [])
-        JefesDeCuadrilla.objects.filter(id__in=jefe_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
 class APKLinkAPIView(APIView):
     """
     Vista principal para manejar los enlaces de APK.
@@ -4735,22 +4347,16 @@ class PersonalAsignadoAPIView(APIView):
     def get(self, request):
         try:
             supervisor_id = request.query_params.get('supervisor_id')
-            jefe_cuadrilla_id = request.query_params.get('jefe_cuadrilla_id')
             
-            if not supervisor_id and not jefe_cuadrilla_id:
+            if not supervisor_id:
                 return Response(
-                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id'}, 
+                    {'error': 'Debe proporcionar supervisor_id'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            if jefe_cuadrilla_id:
-                # Obtener trabajadores asignados al jefe de cuadrilla
-                jefe_cuadrilla = JefesDeCuadrilla.objects.get(id=jefe_cuadrilla_id)
-                trabajadores = jefe_cuadrilla.trabajadores.all()
-            else:
-                # Obtener trabajadores asignados al supervisor
-                supervisor = Supervisores.objects.get(id=supervisor_id)
-                trabajadores = supervisor.trabajadores.all()
+            # Obtener trabajadores asignados al supervisor
+            supervisor = Supervisores.objects.get(id=supervisor_id)
+            trabajadores = supervisor.trabajadores.all()
 
             # Serializar los trabajadores incluyendo el contexto de la request
             serializer = PersonalAsignadoSerializer(
@@ -4761,11 +4367,6 @@ class PersonalAsignadoAPIView(APIView):
             
             return Response(serializer.data)
 
-        except JefesDeCuadrilla.DoesNotExist:
-            return Response(
-                {'error': 'Jefe de cuadrilla no encontrado'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Supervisores.DoesNotExist:
             return Response(
                 {'error': 'Supervisor no encontrado'}, 
@@ -19508,44 +19109,28 @@ class ListarDocumentosAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionAsistenciaAPIView(APIView):
-    """
-    Vista unificada para gestionar la asistencia de trabajadores.
-    
-    GET: Obtiene trabajadores sin asistencia registrada (para tomar asistencia)
-    POST: Registra o actualiza asistencia de uno o múltiples trabajadores
-    """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """
-        Obtiene trabajadores asignados a un supervisor que NO tienen asistencia 
-        registrada en la fecha especificada.
-        
-        Query params:
-        - supervisor_id: ID del supervisor (REQUERIDO)
-        - holding_id: ID del holding (REQUERIDO)
-        - fecha: Fecha de consulta (opcional, default: hoy)
-        """
         try:
             supervisor_id = request.query_params.get('supervisor_id')
+            jefe_cuadrilla_id = request.query_params.get('jefe_cuadrilla_id')
             holding_id = request.query_params.get('holding')
             fecha_consulta_str = request.query_params.get('fecha')
             
-            # Validar parámetros obligatorios
-            if not supervisor_id:
-                return Response(
-                    {'error': 'supervisor_id es obligatorio', 'acceso_asistencia': False},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
             if not holding_id:
                 return Response(
-                    {'error': 'holding_id es obligatorio', 'acceso_asistencia': False},
+                    {'error': 'holding es obligatorio', 'acceso_asistencia': False},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Parsear fecha (si no se proporciona, usar hoy)
+            if not supervisor_id and not jefe_cuadrilla_id:
+                return Response(
+                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id', 'acceso_asistencia': False},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             if fecha_consulta_str:
                 try:
                     fecha_consulta = datetime.strptime(fecha_consulta_str, '%Y-%m-%d').date()
@@ -19555,40 +19140,30 @@ class GestionAsistenciaAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             else:
-                fecha_consulta = timezone.now().date()
+                fecha_consulta = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
             
-            # Buscar el supervisor directamente por ID
             try:
                 supervisor = Supervisores.objects.select_related('usuario', 'holding').get(
-                    id=supervisor_id, 
-                    holding_id=holding_id
+                    id=supervisor_id, holding_id=holding_id
                 )
             except Supervisores.DoesNotExist:
                 return Response(
-                    {
-                        'error': 'Supervisor no encontrado o no pertenece al holding especificado',
-                        'acceso_asistencia': False
-                    },
+                    {'error': 'Supervisor no encontrado', 'acceso_asistencia': False},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Obtener trabajadores del supervisor con contrato vigente
+            supervisor_para_response = supervisor.id
+            
             trabajadores_con_contrato = supervisor.trabajadores.filter(
                 holding_id=holding_id,
                 estado=True,
                 contratos__fecha_inicio_contrato__lte=fecha_consulta,
                 contratos__fecha_termino_contrato__gte=fecha_consulta
-            ).exclude(
-                id__in=Usuarios.objects.filter(
-                    jefesdecuadrilla__isnull=False
-                ).values_list('persona_id', flat=True)
             ).distinct().order_by('nombres', 'apellidos')
 
-            # Formatear respuesta
             workers_data = []
             for trabajador in trabajadores_con_contrato:
                 try:
-                    # Obtener contrato vigente
                     contrato = trabajador.contratos.filter(
                         fecha_inicio_contrato__lte=fecha_consulta,
                         fecha_termino_contrato__gte=fecha_consulta
@@ -19599,31 +19174,26 @@ class GestionAsistenciaAPIView(APIView):
                     else:
                         horas_maximas = 9.0
                     
-                    # Verificar si ya tiene asistencia registrada hoy
-                    asistencia_hoy = trabajador.registros_asistencia.filter(
+                    horas_totales_hoy = RegistroAsistencia.objects.filter(
+                        trabajador=trabajador,
                         fecha_asistencia=fecha_consulta
-                    ).first()
+                    ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
                     
-                    if asistencia_hoy:
-                        horas_registradas = float(asistencia_hoy.horas_registradas)
-                        # Si ya completó sus horas, no lo incluir
-                        if horas_registradas >= horas_maximas:
-                            continue
-                        # Tiene horas parciales, ajustar máximo a lo que le falta
-                        horas_maximas = horas_maximas - horas_registradas
-                        horas_registradas_hoy = horas_registradas
-                    else:
-                        horas_registradas_hoy = 0.0
+                    horas_totales_hoy = float(horas_totales_hoy)
+                    if horas_totales_hoy >= horas_maximas:
+                        continue
+                    horas_maximas = horas_maximas - horas_totales_hoy
                     
-                except Exception:
-                    horas_maximas = 9.0
-                    horas_registradas_hoy = 0.0
+                except Exception as e:
+                    print(f"Error procesando trabajador {trabajador.id}: {str(e)}")
+                    traceback.print_exc()
+                    continue
                 
                 workers_data.append({
                     'id': trabajador.id,
                     'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
                     'rut': trabajador.rut or trabajador.dni or '',
-                    'horas_registradas_hoy': horas_registradas_hoy,
+                    'horas_registradas_hoy': horas_totales_hoy,
                     'horas_maximas': horas_maximas
                 })
             
@@ -19632,6 +19202,7 @@ class GestionAsistenciaAPIView(APIView):
                 'workers': workers_data,
                 'fecha_consulta': fecha_consulta.isoformat(),
                 'total_trabajadores': len(workers_data),
+                'supervisor_id': supervisor_para_response,
                 'supervisor_nombre': supervisor.usuario.persona.nombres if supervisor.usuario and supervisor.usuario.persona else 'N/A'
             }, status=status.HTTP_200_OK)
             
@@ -19639,78 +19210,49 @@ class GestionAsistenciaAPIView(APIView):
             print(f"Error en GET GestionAsistenciaAPIView: {str(e)}")
             traceback.print_exc()
             return Response(
-                {
-                    'error': f'Error interno del servidor: {str(e)}',
-                    'acceso_asistencia': False
-                },
+                {'error': f'Error interno del servidor: {str(e)}', 'acceso_asistencia': False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     def post(self, request):
-        """
-        Registra o actualiza la asistencia de uno o múltiples trabajadores.
-        
-        Body:
-        {
-            "supervisor_id": 3,
-            "asistencias": [
-                {
-                    "trabajador_id": 1,
-                    "nombre_registrado": "Juan Pérez",
-                    "horas_registradas": 9.0,
-                    "estado": "A"
-                },
-                ...
-            ],
-            "fecha": "2025-10-27" (opcional)
-        }
-        """
         try:
-            
             supervisor_id = request.data.get('codigo_supervisor')
-            print('EL id del supervisor es:', supervisor_id)
+            jefe_cuadrilla_id = request.data.get('jefe_cuadrilla_id')
             asistencias = request.data.get('asistencias', [])
             fecha_str = request.data.get('fecha')
             
-            # Validaciones
-            if not supervisor_id:
-                print('supervisor_id es requerido')
+            if not supervisor_id and not jefe_cuadrilla_id:
                 return Response(
-                    {'status': 'error', 'message': 'supervisor_id es requerido'},
+                    {'status': 'error', 'message': 'Debe proporcionar codigo_supervisor o jefe_cuadrilla_id'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             if not asistencias:
-                print('Se requiere al menos una asistencia')
                 return Response(
                     {'status': 'error', 'message': 'Se requiere al menos una asistencia'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Parsear fecha
             if fecha_str:
                 try:
                     fecha_asistencia = datetime.strptime(fecha_str, '%Y-%m-%d').date()
                 except ValueError:
-                    print('Formato de fecha inválido')
                     return Response(
                         {'status': 'error', 'message': 'Formato de fecha inválido'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             else:
-                fecha_asistencia = timezone.now().date()
+                fecha_asistencia = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
             
-            # Buscar supervisor
             try:
                 supervisor = Supervisores.objects.get(id=supervisor_id)
             except Supervisores.DoesNotExist:
-                print('Supervisor no encontrado')
                 return Response(
                     {'status': 'error', 'message': 'Supervisor no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
+            trabajadores_validos = supervisor.trabajadores.all()
             
-            # Procesar asistencias en transacción
             registros_creados = []
             registros_actualizados = []
             errores = []
@@ -19722,34 +19264,37 @@ class GestionAsistenciaAPIView(APIView):
                         horas = asist_data.get('horas_registradas', 0.0)
                         estado = asist_data.get('estado', 'A')
                         
-                        # Buscar trabajador
                         trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
                         
-                        # Verificar que el trabajador esté asignado al supervisor
-                        if not supervisor.trabajadores.filter(id=trabajador_id).exists():
+                        if not trabajadores_validos.filter(id=trabajador_id).exists():
                             errores.append({
                                 'trabajador_id': trabajador_id,
-                                'error': 'Trabajador no asignado a este supervisor'
+                                'error': 'Trabajador no asignado'
                             })
                             continue
                         
-                        # Crear o actualizar registro de asistencia
-                        asistencia, created = RegistroAsistencia.objects.update_or_create(
+                        asistencia_existente = RegistroAsistencia.objects.filter(
                             trabajador=trabajador,
                             fecha_asistencia=fecha_asistencia,
-                            defaults={
-                                'holding': trabajador.holding,
-                                'supervisor': supervisor,
-                                'estado': estado,
-                                'horas_registradas': horas,
-                                'modificado_por': request.user
-                            }
-                        )
-                        
-                        if created:
-                            registros_creados.append(trabajador_id)
-                        else:
+                            estado=estado
+                        ).first()
+
+                        if asistencia_existente:
+                            asistencia_existente.horas_registradas += Decimal(str(horas))
+                            asistencia_existente.modificado_por = request.user
+                            asistencia_existente.save()
                             registros_actualizados.append(trabajador_id)
+                        else:
+                            RegistroAsistencia.objects.create(
+                                trabajador=trabajador,
+                                fecha_asistencia=fecha_asistencia,
+                                holding=trabajador.holding,
+                                supervisor=supervisor,
+                                estado=estado,
+                                horas_registradas=horas,
+                                modificado_por=request.user
+                            )
+                            registros_creados.append(trabajador_id)
                             
                     except PersonalTrabajadores.DoesNotExist:
                         errores.append({
@@ -19762,12 +19307,34 @@ class GestionAsistenciaAPIView(APIView):
                             'error': str(e)
                         })
             
-            # Verificar si hay más trabajadores pendientes
-            trabajadores_restantes = supervisor.trabajadores.filter(
-                estado=True
-            ).exclude(
-                registros_asistencia__fecha_asistencia=fecha_asistencia
-            ).count()
+            # Sumar todas las horas de todos los estados para verificar pendientes
+            from django.db.models import Subquery, OuterRef
+            
+            trabajadores_restantes = trabajadores_validos.filter(
+                estado=True,
+                contratos__fecha_inicio_contrato__lte=fecha_asistencia,
+                contratos__fecha_termino_contrato__gte=fecha_asistencia
+            ).distinct()
+            
+            pendientes = 0
+            for trab in trabajadores_restantes:
+                contrato = trab.contratos.filter(
+                    fecha_inicio_contrato__lte=fecha_asistencia,
+                    fecha_termino_contrato__gte=fecha_asistencia
+                ).select_related('horario').first()
+                
+                if contrato and contrato.horario:
+                    horas_dia = float(contrato.horario.get_horas_dia(fecha_asistencia))
+                else:
+                    horas_dia = 9.0
+                
+                horas_registradas = RegistroAsistencia.objects.filter(
+                    trabajador=trab,
+                    fecha_asistencia=fecha_asistencia
+                ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
+                
+                if float(horas_registradas) < horas_dia:
+                    pendientes += 1
             
             return Response({
                 'status': 'success',
@@ -19775,8 +19342,8 @@ class GestionAsistenciaAPIView(APIView):
                 'registros_creados': len(registros_creados),
                 'registros_actualizados': len(registros_actualizados),
                 'errores': errores,
-                'remaining_workers': trabajadores_restantes > 0,
-                'trabajadores_pendientes': trabajadores_restantes
+                'remaining_workers': pendientes > 0,
+                'trabajadores_pendientes': pendientes
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -19807,58 +19374,96 @@ class InformeAsistenciaAPIView(APIView):
             is_admin = request.query_params.get('is_admin', 'false').lower() == 'true'
             supervisor_id = request.query_params.get('supervisor_id')
             estado_filtro = request.query_params.get('estado')
+
+            logger.info(f"=== INFORME ASISTENCIA GET ===")
+            logger.info(f"Params: fecha={fecha}, is_admin={is_admin}, supervisor_id={supervisor_id}, estado={estado_filtro}")
+
+            if not request.user.holding:
+                logger.error("Usuario sin holding asignado")
+                return Response({'error': 'Usuario sin holding asignado'}, status=status.HTTP_400_BAD_REQUEST)
+
             holding_id = request.user.holding.id
 
-            # Query base
+            if not fecha:
+                logger.error("Fecha no proporcionada")
+                return Response({'error': 'Fecha es requerida'}, status=status.HTTP_400_BAD_REQUEST)
+
+            from datetime import datetime
+            fecha_date = datetime.strptime(fecha, '%Y-%m-%d').date()
+
             registros = RegistroAsistencia.objects.filter(
                 holding_id=holding_id,
-                fecha_asistencia=fecha
+                fecha_asistencia=fecha_date
             ).select_related(
                 'trabajador__sociedad',
-                'trabajador__fundo',
                 'supervisor__usuario__persona'
             )
 
-            # Filtro supervisor
             if not is_admin and supervisor_id:
                 registros = registros.filter(supervisor_id=supervisor_id)
 
-            # Filtro estado
             if estado_filtro:
                 registros = registros.filter(estado=estado_filtro)
 
-            # Agrupaciones
+            logger.info(f"Registros encontrados: {registros.count()}")
+
+            trabajadores_agrupados = {}
+
+            for reg in registros:
+                trab_id = reg.trabajador.id
+
+                if trab_id not in trabajadores_agrupados:
+                    soc_nombre = reg.trabajador.sociedad.nombre if reg.trabajador.sociedad else 'Sin Sociedad'
+
+                    contrato = reg.trabajador.contratos.filter(
+                        fecha_inicio_contrato__lte=fecha_date,
+                        fecha_termino_contrato__gte=fecha_date
+                    ).select_related('fundo').first()
+                    fundo_nombre = contrato.fundo.nombre_campo if contrato and contrato.fundo else 'Sin Fundo'
+
+                    if reg.supervisor and reg.supervisor.usuario and reg.supervisor.usuario.persona:
+                        sup_nombre = f"{reg.supervisor.usuario.persona.nombres} {reg.supervisor.usuario.persona.apellidos}"
+                    else:
+                        sup_nombre = 'Sin Supervisor'
+
+                    trabajadores_agrupados[trab_id] = {
+                        'nombretrabajador': f"{reg.trabajador.nombres} {reg.trabajador.apellidos or ''}".strip(),
+                        'sociedad': soc_nombre,
+                        'fundo': fundo_nombre,
+                        'supervisor': sup_nombre,
+                        'estados': [],
+                        'detalle_estados': {},
+                        'horas_registradas': 0.0
+                    }
+
+                trabajadores_agrupados[trab_id]['estados'].append(reg.estado)
+                trabajadores_agrupados[trab_id]['horas_registradas'] += float(reg.horas_registradas)
+                detalle = trabajadores_agrupados[trab_id]['detalle_estados']
+                detalle[reg.estado] = detalle.get(reg.estado, 0.0) + float(reg.horas_registradas)
+
             sociedades = {}
             fundos = {}
             supervisores = {}
             reporte_detallado = []
 
-            for reg in registros:
-                # Sociedad
-                soc_nombre = reg.trabajador.sociedad.nombre if reg.trabajador.sociedad else 'Sin Sociedad'
-                sociedades[soc_nombre] = sociedades.get(soc_nombre, 0) + 1
+            for trab_data in trabajadores_agrupados.values():
+                sociedades[trab_data['sociedad']] = sociedades.get(trab_data['sociedad'], 0) + 1
+                fundos[trab_data['fundo']] = fundos.get(trab_data['fundo'], 0) + 1
+                supervisores[trab_data['supervisor']] = supervisores.get(trab_data['supervisor'], 0) + 1
 
-                # Fundo
-                fundo_nombre = reg.trabajador.fundo.nombre_campo if reg.trabajador.fundo else 'Sin Fundo'
-                fundos[fundo_nombre] = fundos.get(fundo_nombre, 0) + 1
+                estado_display = ', '.join(sorted(set(trab_data['estados'])))
 
-                # Supervisor
-                if reg.supervisor and reg.supervisor.usuario and reg.supervisor.usuario.persona:
-                    sup_nombre = f"{reg.supervisor.usuario.persona.nombres} {reg.supervisor.usuario.persona.apellidos}"
-                else:
-                    sup_nombre = 'Sin Supervisor'
-                supervisores[sup_nombre] = supervisores.get(sup_nombre, 0) + 1
-
-                # Detalle
                 reporte_detallado.append({
-                    'nombretrabajador': f"{reg.trabajador.nombres} {reg.trabajador.apellidos or ''}".strip(),
-                    'sociedad': soc_nombre,
-                    'fundo': fundo_nombre,
-                    'supervisor': sup_nombre,
-                    'estado': reg.estado,
-                    'horas_registradas': float(reg.horas_registradas)
+                    'nombretrabajador': trab_data['nombretrabajador'],
+                    'sociedad': trab_data['sociedad'],
+                    'fundo': trab_data['fundo'],
+                    'supervisor': trab_data['supervisor'],
+                    'estado': estado_display,
+                    'horas_registradas': trab_data['horas_registradas'],
+                    'detalle_estados': trab_data['detalle_estados'],
                 })
 
+            logger.info(f"Respuesta: {len(reporte_detallado)} trabajadores agrupados")
             return Response({
                 'sociedades': sociedades,
                 'fundos': fundos,
@@ -19867,11 +19472,12 @@ class InformeAsistenciaAPIView(APIView):
             })
 
         except Exception as e:
+            logger.error(f"Error en InformeAsistenciaAPIView GET: {type(e).__name__}: {str(e)}", exc_info=True)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
 class GestionManoObraPersonaAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -19888,19 +19494,71 @@ class GestionManoObraPersonaAPIView(APIView):
     def get(self, request):
         try:
             supervisor_id = request.query_params.get('supervisor_id')
+            jefe_cuadrilla_id = request.query_params.get('jefe_cuadrilla_id')
             holding = request.query_params.get('holding')
             
-            print(f"🔍 supervisor_id: {supervisor_id}, holding: {holding}")
+            logger.info(f"=== GESTION MANO OBRA PERSONA GET ===")
+            logger.info(f"supervisor_id: {supervisor_id}, jefe_cuadrilla_id: {jefe_cuadrilla_id}, holding: {holding}")
             
-            if not all([supervisor_id, holding]):
+            if not holding:
                 return Response(
-                    {'error': 'Faltan parámetros requeridos'}, 
+                    {'error': 'Falta el parámetro holding'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Obtener asistencias del día actual
+            if not supervisor_id and not jefe_cuadrilla_id:
+                return Response(
+                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             hoy = date.today()
-            print(f"📅 Fecha de hoy: {hoy}")
+            logger.info(f"Fecha de hoy: {hoy}")
+            
+            supervisor_para_response = int(supervisor_id)
+            
+            # --- VALIDACIÓN: Asistencia completa antes de permitir mano de obra ---
+            try:
+                supervisor_obj = Supervisores.objects.get(id=supervisor_id)
+            except Supervisores.DoesNotExist:
+                return Response(
+                    {'error': 'Supervisor no encontrado'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            trabajadores_con_contrato = supervisor_obj.trabajadores.filter(
+                holding_id=holding,
+                estado=True,
+                contratos__fecha_inicio_contrato__lte=hoy,
+                contratos__fecha_termino_contrato__gte=hoy
+            ).distinct()
+
+            pendientes_asistencia = 0
+            for trab in trabajadores_con_contrato:
+                contrato = trab.contratos.filter(
+                    fecha_inicio_contrato__lte=hoy,
+                    fecha_termino_contrato__gte=hoy
+                ).select_related('horario').first()
+                
+                if contrato and contrato.horario:
+                    horas_dia = float(contrato.horario.get_horas_dia(hoy))
+                else:
+                    horas_dia = 9.0
+                
+                horas_registradas = RegistroAsistencia.objects.filter(
+                    trabajador=trab,
+                    fecha_asistencia=hoy
+                ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
+                
+                if float(horas_registradas) < horas_dia:
+                    pendientes_asistencia += 1
+
+            if pendientes_asistencia > 0:
+                return Response(
+                    {'mensaje': f'Debe completar la asistencia del día antes de ingresar mano de obra. Quedan {pendientes_asistencia} trabajadores sin asistencia completa.'},
+                    status=status.HTTP_200_OK
+                )
+            # --- FIN VALIDACIÓN ---
             
             asistencias = RegistroAsistencia.objects.filter(
                 fecha_asistencia=hoy,
@@ -19909,50 +19567,43 @@ class GestionManoObraPersonaAPIView(APIView):
                 estado='A'
             ).select_related('trabajador')
             
-            print(f"✅ Asistencias encontradas: {asistencias.count()}")
+            logger.info(f"Asistencias encontradas: {asistencias.count()}")
             
             if not asistencias.exists():  
-                print('❌ No hay trabajadores con asistencia registrada hoy')  
+                logger.info('No hay trabajadores con asistencia registrada hoy')  
                 return Response(
                     {'error': 'No hay trabajadores con asistencia registrada hoy'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Obtener el contrato del primer trabajador para determinar folio y labor
             primer_trabajador = asistencias.first().trabajador
-            print(f"👤 Primer trabajador: ID={primer_trabajador.id}, Nombre={primer_trabajador.nombres}")
-            print(f"   - Fundo ID: {primer_trabajador.fundo.id if primer_trabajador.fundo else None}")
-            print(f"   - Sociedad ID: {primer_trabajador.sociedad.id if primer_trabajador.sociedad else None}")
+            logger.info(f"Primer trabajador: ID={primer_trabajador.id}, Nombre={primer_trabajador.nombres}")
             
-            # Buscar contrato activo del trabajador
             try:
                 contrato = ContratoTrabajador.objects.select_related(
                     'folio_comercial',
                     'folio_comercial__cliente',
-                    'labor'
+                    'labor',
+                    'fundo'
                 ).get(
                     trabajador=primer_trabajador,
                     holding=holding,
                     fecha_inicio_contrato__lte=hoy,
                     fecha_termino_contrato__gte=hoy
                 )
-                print(f"📋 Contrato encontrado: ID={contrato.id}")
-                print(f"   - Folio ID: {contrato.folio_comercial.id if contrato.folio_comercial else None}")
-                print(f"   - Labor ID: {contrato.labor.id if contrato.labor else None}")
-                print(f"   - Fecha inicio: {contrato.fecha_inicio_contrato}")
-                print(f"   - Fecha término: {contrato.fecha_termino_contrato}")
+                logger.info(f"Contrato encontrado: ID={contrato.id}")
+                logger.info(f"Folio ID: {contrato.folio_comercial.id if contrato.folio_comercial else None}")
+                logger.info(f"Labor ID: {contrato.labor.id if contrato.labor else None}")
+                logger.info(f"Fundo ID: {contrato.fundo.id if contrato.fundo else None}")
                 
             except ContratoTrabajador.DoesNotExist:
-                print(f"❌ El trabajador {primer_trabajador.id} no tiene un contrato activo")
-                print(f"   Buscando contratos para este trabajador...")
-                
+                logger.error(f"El trabajador {primer_trabajador.id} no tiene un contrato activo")
                 todos_contratos = ContratoTrabajador.objects.filter(
                     trabajador=primer_trabajador,
                     holding=holding
                 )
-                print(f"   Total contratos encontrados: {todos_contratos.count()}")
                 for c in todos_contratos:
-                    print(f"   - Contrato ID={c.id}: {c.fecha_inicio_contrato} a {c.fecha_termino_contrato}")
+                    logger.info(f"Contrato ID={c.id}: {c.fecha_inicio_contrato} a {c.fecha_termino_contrato}")
                 
                 return Response(
                     {'error': 'El trabajador no tiene un contrato activo'}, 
@@ -19962,91 +19613,74 @@ class GestionManoObraPersonaAPIView(APIView):
             folio = contrato.folio_comercial
             labor = contrato.labor
             
-            print(f"🏢 Folio: {folio.id if folio else None}")
-            print(f"🔧 Labor: {labor.id if labor else None} - {labor.nombre if labor else None}")
-            
             if not folio:
-                print('❌ El contrato no tiene folio asociado')
+                logger.error('El contrato no tiene folio asociado')
                 return Response(
                     {'error': 'El contrato no tiene folio asociado'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
             
             if not labor:
-                print('❌ El contrato no tiene labor asociada')
-                print('   Intentando buscar labor en el folio...')
-                
-                # Buscar labor en el folio
+                logger.warning('El contrato no tiene labor asociada, buscando en folio...')
                 labor = folio.labores.first()
                 if labor:
-                    print(f'   ✅ Labor encontrada en folio: ID={labor.id}, Nombre={labor.nombre}')
+                    logger.info(f'Labor encontrada en folio: ID={labor.id}, Nombre={labor.nombre}')
                 else:
-                    print('   ❌ El folio no tiene labores asociadas')
+                    logger.error('El folio no tiene labores asociadas')
                     return Response(
                         {'error': 'El contrato y el folio no tienen labor asociada'}, 
                         status=status.HTTP_404_NOT_FOUND
                     )
             
-            # Procesar trabajadores
             trabajadores = []
-            print(f"\n👥 Procesando {asistencias.count()} trabajadores...")
+            logger.info(f"Procesando {asistencias.count()} trabajadores...")
             
             for asistencia in asistencias:
-                print(f"\n  Procesando trabajador: {asistencia.trabajador.id} - {asistencia.trabajador.nombres}")
+                trab = asistencia.trabajador
+                logger.info(f"Procesando trabajador: {trab.id} - {trab.nombres}")
                 
-                # Verificar que el trabajador tenga contrato activo
                 try:
-                    contrato_trabajador = ContratoTrabajador.objects.get(
-                        trabajador=asistencia.trabajador,
+                    contrato_trabajador = ContratoTrabajador.objects.select_related('fundo').get(
+                        trabajador=trab,
                         holding=holding,
                         fecha_inicio_contrato__lte=hoy,
                         fecha_termino_contrato__gte=hoy
                     )
-                    print(f"    ✅ Tiene contrato activo: ID={contrato_trabajador.id}")
+                    logger.info(f"Tiene contrato activo: ID={contrato_trabajador.id}")
                 except ContratoTrabajador.DoesNotExist:
-                    print(f"    ❌ No tiene contrato activo, saltando...")
+                    logger.warning(f"No tiene contrato activo, saltando...")
                     continue
                 
-                # Calcular horas ya registradas hoy
                 horas_registradas = RegistroManoObraPersona.objects.filter(
-                    trabajador=asistencia.trabajador,
+                    trabajador=trab,
                     fecha_ingreso=hoy
                 ).aggregate(total=Sum('horas'))['total'] or Decimal('0')
                 
-                print(f"    Horas asistencia: {asistencia.horas_registradas}")
-                print(f"    Horas registradas: {horas_registradas}")
-                
-                # Horas disponibles = horas de asistencia - horas ya registradas
                 horas_disponibles = asistencia.horas_registradas - horas_registradas
-                print(f"    Horas disponibles: {horas_disponibles}")
+                logger.info(f"Horas asistencia: {asistencia.horas_registradas}, registradas: {horas_registradas}, disponibles: {horas_disponibles}")
                 
-                # Solo incluir si tiene horas disponibles
                 if horas_disponibles > 0:
                     trabajadores.append({
-                        'id': asistencia.trabajador.id,
-                        'nombre': f"{asistencia.trabajador.nombres} {asistencia.trabajador.apellidos or ''}".strip(),
+                        'id': trab.id,
+                        'nombre': f"{trab.nombres} {trab.apellidos or ''}".strip(),
                         'horas_disponibles': float(horas_disponibles),
                         'horas_asistencia': float(asistencia.horas_registradas),
                         'horas_registradas': float(horas_registradas),
-                        'sociedad_id': asistencia.trabajador.sociedad.id if asistencia.trabajador.sociedad else None,
-                        'fundo_id': asistencia.trabajador.fundo.id if asistencia.trabajador.fundo else None
+                        'sociedad_id': trab.sociedad.id if trab.sociedad else None,
+                        'fundo_id': contrato_trabajador.fundo.id if contrato_trabajador.fundo else None
                     })
-                    print(f"    ✅ Agregado a la lista")
                 else:
-                    print(f"    ⏭️  Saltado (sin horas disponibles)")
+                    logger.info(f"Saltado (sin horas disponibles)")
             
-            print(f"\n📊 Total trabajadores con horas disponibles: {len(trabajadores)}")
+            logger.info(f"Total trabajadores con horas disponibles: {len(trabajadores)}")
             
             if not trabajadores:
-                print('❌ No hay trabajadores con horas disponibles o sin contrato activo')
                 return Response(
                     {'mensaje': 'No hay trabajadores con horas disponibles o sin contrato activo'}, 
-                   status=status.HTTP_200_OK
+                    status=status.HTTP_200_OK
                 )
             
-            # Obtener unidades de control
             unidades = UnidadControl.objects.filter(holding=holding, estado=True)
-            print(f"🔧 Unidades de control encontradas: {unidades.count()}")
             
             response_data = {
                 'trabajadores': trabajadores,
@@ -20063,16 +19697,15 @@ class GestionManoObraPersonaAPIView(APIView):
                 'unidades_control': [
                     {'id': u.id, 'descripcion': u.nombre} 
                     for u in unidades
-                ]
+                ],
+                'supervisor_id': supervisor_para_response,
             }
             
-            print(f"\n✅ Respuesta exitosa enviada")
+            logger.info(f"Respuesta exitosa: {len(trabajadores)} trabajadores")
             return Response(response_data, status=status.HTTP_200_OK)
             
         except Exception as e:
-            print(f"\n❌ Error en gestion_mano_obra_persona GET: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error en gestion_mano_obra_persona GET: {type(e).__name__}: {str(e)}", exc_info=True)
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -20090,10 +19723,17 @@ class GestionManoObraPersonaAPIView(APIView):
             
             # Obtener asistencia del trabajador
             try:
-                asistencia = RegistroAsistencia.objects.get(
+                asistencia = RegistroAsistencia.objects.filter(
                     trabajador_id=trabajador_id,
-                    fecha_asistencia=hoy
-                )
+                    fecha_asistencia=hoy,
+                    estado='A'
+                ).first()
+
+                if not asistencia:
+                    return Response(
+                        {'error': 'El trabajador no tiene asistencia con estado Asistente (A) registrada hoy'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             except RegistroAsistencia.DoesNotExist:
                 return Response(
                     {'error': 'El trabajador no tiene asistencia registrada hoy'}, 
@@ -20134,7 +19774,7 @@ class GestionManoObraPersonaAPIView(APIView):
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
 class InformeManoObraAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -20260,512 +19900,6 @@ class InformeManoObraAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-# ===== VISTAS CORREGIDAS PARA AGREGAR A views.py =====
-
-class TraspasoTrabajadoresAPIView(APIView):
-    """
-    Vista única para gestionar traspasos de trabajadores
-    """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, JWTHasAnyScope]
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.required_scopes = []
-    
-    def dispatch(self, request, *args, **kwargs):
-        if request.method in ['GET', 'POST']:
-            self.required_scopes = ['admin', 'write']
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get(self, request):
-        """
-        Obtiene trabajadores y destinos según el perfil
-        """
-        try:
-            supervisor_id = request.query_params.get('supervisor_id')
-            jefe_cuadrilla_id = request.query_params.get('jefe_cuadrilla_id')
-            holding_id = request.query_params.get('holding')
-            
-            if not holding_id:
-                return Response(
-                    {'error': 'Holding es requerido'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            holding = get_object_or_404(Holding, id=holding_id)
-            
-            # CASO 1: SUPERVISOR
-            if supervisor_id:
-                supervisor = get_object_or_404(Supervisores, id=supervisor_id, holding=holding)
-                
-                # Trabajadores directos del supervisor (sin jefe)
-                mis_trabajadores = PersonalTrabajadores.objects.filter(
-                    supervisor_directo=supervisor,
-                    estado=True
-                ).exclude(
-                    jefe_cuadrilla__isnull=False
-                ).values('id', 'nombres', 'apellidos', 'rut')
-                
-                mis_trabajadores_list = [
-                    {
-                        'id': t['id'],
-                        'nombre': f"{t['nombres']} {t['apellidos'] or ''}".strip(),
-                        'rut': t['rut']
-                    }
-                    for t in mis_trabajadores
-                ]
-                
-                # Jefes de cuadrilla con sus trabajadores
-                jefes_cuadrilla = JefesDeCuadrilla.objects.filter(
-                    supervisor=supervisor,
-                    holding=holding
-                ).select_related('usuario', 'usuario__persona')
-                
-                mis_jefes_cuadrilla = []
-                for jefe in jefes_cuadrilla:
-                    # Obtener trabajadores del jefe
-                    trabajadores_jefe = jefe.trabajadores.filter(
-                        estado=True
-                    ).values('id', 'nombres', 'apellidos', 'rut')
-                    
-                    trabajadores_list = [
-                        {
-                            'id': t['id'],
-                            'nombre': f"{t['nombres']} {t['apellidos'] or ''}".strip(),
-                            'rut': t['rut']
-                        }
-                        for t in trabajadores_jefe
-                    ]
-                    
-                    # Nombre del jefe
-                    if jefe.usuario and jefe.usuario.persona:
-                        nombre = f"{jefe.usuario.persona.nombres} {jefe.usuario.persona.apellidos or ''}".strip()
-                    elif jefe.usuario:
-                        nombre = jefe.usuario.rut
-                    else:
-                        nombre = f"Jefe #{jefe.id}"
-                    
-                    mis_jefes_cuadrilla.append({
-                        'id': jefe.id,
-                        'nombre': nombre,
-                        'rut': jefe.usuario.rut if jefe.usuario else "Sin RUT",
-                        'trabajadores': trabajadores_list
-                    })
-                
-                # Otros supervisores
-                otros_supervisores = Supervisores.objects.filter(
-                    holding=holding
-                ).exclude(id=supervisor_id).select_related('usuario', 'usuario__persona')
-                
-                otros_supervisores_list = []
-                for s in otros_supervisores:
-                    if s.usuario and s.usuario.persona:
-                        nombre = f"{s.usuario.persona.nombres} {s.usuario.persona.apellidos or ''}".strip()
-                    elif s.usuario:
-                        nombre = s.usuario.rut
-                    else:
-                        nombre = f"Supervisor #{s.id}"
-                    
-                    otros_supervisores_list.append({
-                        'id': s.id,
-                        'nombre': nombre,
-                        'rut': s.usuario.rut if s.usuario else "Sin RUT"
-                    })
-                
-                # Solicitudes pendientes
-                solicitudes_pendientes = SolicitudTraspaso.objects.filter(
-                    supervisor_aprobador=supervisor,
-                    estado='PENDIENTE'
-                ).prefetch_related('trabajadores')
-                
-                solicitudes_list = []
-                for solicitud in solicitudes_pendientes:
-                    solicitante_nombre = ''
-                    if solicitud.solicitante_supervisor:
-                        if solicitud.solicitante_supervisor.usuario and solicitud.solicitante_supervisor.usuario.persona:
-                            solicitante_nombre = f"{solicitud.solicitante_supervisor.usuario.persona.nombres} {solicitud.solicitante_supervisor.usuario.persona.apellidos or ''}".strip()
-                        elif solicitud.solicitante_supervisor.usuario:
-                            solicitante_nombre = solicitud.solicitante_supervisor.usuario.rut
-                        else:
-                            solicitante_nombre = f"Supervisor #{solicitud.solicitante_supervisor.id}"
-                    elif solicitud.solicitante_jefe_cuadrilla:
-                        if solicitud.solicitante_jefe_cuadrilla.usuario and solicitud.solicitante_jefe_cuadrilla.usuario.persona:
-                            solicitante_nombre = f"{solicitud.solicitante_jefe_cuadrilla.usuario.persona.nombres} {solicitud.solicitante_jefe_cuadrilla.usuario.persona.apellidos or ''}".strip()
-                        elif solicitud.solicitante_jefe_cuadrilla.usuario:
-                            solicitante_nombre = solicitud.solicitante_jefe_cuadrilla.usuario.rut
-                        else:
-                            solicitante_nombre = f"Jefe #{solicitud.solicitante_jefe_cuadrilla.id}"
-                    
-                    solicitudes_list.append({
-                        'id': solicitud.id,
-                        'solicitante_nombre': solicitante_nombre,
-                        'tipo_traspaso': solicitud.tipo_traspaso,
-                        'trabajadores_count': solicitud.trabajadores.count(),
-                        'fecha_solicitud': solicitud.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
-                        'observaciones': solicitud.observaciones or ''
-                    })
-                
-                return Response({
-                    'mis_trabajadores': mis_trabajadores_list,
-                    'mis_jefes_cuadrilla': mis_jefes_cuadrilla,
-                    'otros_supervisores': otros_supervisores_list,
-                    'otros_jefes_cuadrilla': [],
-                    'solicitudes_pendientes': solicitudes_list
-                }, status=status.HTTP_200_OK)
-            
-            # CASO 2: JEFE DE CUADRILLA
-            elif jefe_cuadrilla_id:
-                jefe_cuadrilla = get_object_or_404(
-                    JefesDeCuadrilla, 
-                    id=jefe_cuadrilla_id,
-                    holding=holding
-                )
-                
-                # Trabajadores del jefe
-                mis_trabajadores = jefe_cuadrilla.trabajadores.filter(
-                    estado=True
-                ).values('id', 'nombres', 'apellidos', 'rut')
-                
-                # Nombre del supervisor
-                if jefe_cuadrilla.supervisor.usuario and jefe_cuadrilla.supervisor.usuario.persona:
-                    supervisor_nombre = f"{jefe_cuadrilla.supervisor.usuario.persona.nombres} {jefe_cuadrilla.supervisor.usuario.persona.apellidos or ''}".strip()
-                elif jefe_cuadrilla.supervisor.usuario:
-                    supervisor_nombre = jefe_cuadrilla.supervisor.usuario.rut
-                else:
-                    supervisor_nombre = f"Supervisor #{jefe_cuadrilla.supervisor.id}"
-                
-                mis_trabajadores_list = [
-                    {
-                        'id': t['id'],
-                        'nombre': f"{t['nombres']} {t['apellidos'] or ''}".strip(),
-                        'rut': t['rut'],
-                        'supervisor_id': jefe_cuadrilla.supervisor.id,
-                        'supervisor_nombre': supervisor_nombre
-                    }
-                    for t in mis_trabajadores
-                ]
-                
-                # Otros jefes del mismo supervisor
-                otros_jefes_cuadrilla = JefesDeCuadrilla.objects.filter(
-                    supervisor=jefe_cuadrilla.supervisor,
-                    holding=holding
-                ).exclude(id=jefe_cuadrilla_id).select_related('usuario', 'usuario__persona')
-                
-                otros_jefes_cuadrilla_list = []
-                for jefe in otros_jefes_cuadrilla:
-                    if jefe.usuario and jefe.usuario.persona:
-                        nombre = f"{jefe.usuario.persona.nombres} {jefe.usuario.persona.apellidos or ''}".strip()
-                    elif jefe.usuario:
-                        nombre = jefe.usuario.rut
-                    else:
-                        nombre = f"Jefe #{jefe.id}"
-                    
-                    otros_jefes_cuadrilla_list.append({
-                        'id': jefe.id,
-                        'nombre': nombre,
-                        'rut': jefe.usuario.rut if jefe.usuario else "Sin RUT"
-                    })
-                
-                return Response({
-                    'mis_trabajadores': mis_trabajadores_list,
-                    'mis_jefes_cuadrilla': [],
-                    'otros_supervisores': [],
-                    'otros_jefes_cuadrilla': otros_jefes_cuadrilla_list,
-                    'solicitudes_pendientes': []
-                }, status=status.HTTP_200_OK)
-            
-            else:
-                return Response(
-                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        except Exception as e:
-            print(f"❌ Error en GET: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def post(self, request):
-        """
-        Realiza o solicita traspasos
-        """
-        try:
-            data = request.data
-            holding_id = data.get('holding')
-            trabajadores_ids = data.get('trabajadores_ids', [])
-            supervisor_id = data.get('supervisor_id')
-            jefe_cuadrilla_id = data.get('jefe_cuadrilla_id')
-            
-            # Validaciones
-            if not all([holding_id, trabajadores_ids]):
-                return Response(
-                    {'error': 'Faltan parámetros requeridos'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            holding = get_object_or_404(Holding, id=holding_id)
-            trabajadores = PersonalTrabajadores.objects.filter(
-                id__in=trabajadores_ids,
-                estado=True
-            )
-            
-            if trabajadores.count() != len(trabajadores_ids):
-                return Response(
-                    {'error': 'Algunos trabajadores no existen o están inactivos'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # CASO 1: Recuperar al supervisor
-            if data.get('recuperar'):
-                supervisor = get_object_or_404(Supervisores, id=supervisor_id, holding=holding)
-                
-                # Verificar que trabajadores son de jefes del supervisor
-                for trabajador in trabajadores:
-                    jefes = trabajador.jefe_cuadrilla.filter(supervisor=supervisor)
-                    if not jefes.exists():
-                        return Response(
-                            {'error': f'{trabajador.nombres} no pertenece a tus jefes'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                with transaction.atomic():
-                    for trabajador in trabajadores:
-                        trabajador.jefe_cuadrilla.clear()
-                        trabajador.supervisor_directo.add(supervisor)
-                
-                return Response({
-                    'mensaje': f'{len(trabajadores)} trabajador(es) recuperado(s)'
-                }, status=status.HTTP_200_OK)
-            
-            # CASO 2: Traspaso normal
-            destino_id_str = data.get('destino_id')
-            tipo_destino = data.get('tipo_destino')
-            
-            if not all([destino_id_str, tipo_destino]):
-                return Response(
-                    {'error': 'Faltan destino_id y tipo_destino'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            destino_id = int(destino_id_str)
-            
-            # SUPERVISOR realiza traspaso
-            if supervisor_id:
-                supervisor = get_object_or_404(Supervisores, id=supervisor_id, holding=holding)
-                
-                # Verificar pertenencia
-                for trabajador in trabajadores:
-                    es_directo = trabajador.supervisor_directo.filter(id=supervisor_id).exists()
-                    es_de_jefe = False
-                    if not es_directo:
-                        jefes_supervisor = JefesDeCuadrilla.objects.filter(supervisor=supervisor)
-                        es_de_jefe = trabajador.jefe_cuadrilla.filter(
-                            id__in=[j.id for j in jefes_supervisor]
-                        ).exists()
-                    
-                    if not es_directo and not es_de_jefe:
-                        return Response(
-                            {'error': f'{trabajador.nombres} no pertenece a tu supervisión'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                # A jefe de cuadrilla (directo)
-                if tipo_destino == 'jefe_cuadrilla':
-                    jefe_destino = get_object_or_404(
-                        JefesDeCuadrilla,
-                        id=destino_id,
-                        supervisor=supervisor,
-                        holding=holding
-                    )
-                    
-                    with transaction.atomic():
-                        for trabajador in trabajadores:
-                            trabajador.supervisor_directo.clear()
-                            trabajador.jefe_cuadrilla.clear()
-                            trabajador.jefe_cuadrilla.add(jefe_destino)
-                    
-                    return Response({
-                        'mensaje': f'Traspaso realizado a {jefe_destino.usuario.persona.nombres if jefe_destino.usuario and jefe_destino.usuario.persona else "Jefe"}'
-                    }, status=status.HTTP_200_OK)
-                
-                # A otro supervisor (solicitud)
-                elif tipo_destino == 'supervisor':
-                    supervisor_destino = get_object_or_404(
-                        Supervisores,
-                        id=destino_id,
-                        holding=holding
-                    )
-                    
-                    solicitud = SolicitudTraspaso.objects.create(
-                        holding=holding,
-                        solicitante_supervisor=supervisor,
-                        destino_supervisor=supervisor_destino,
-                        supervisor_aprobador=supervisor_destino,
-                        estado='PENDIENTE',
-                        tipo_traspaso='SUPERVISOR_A_SUPERVISOR'
-                    )
-                    solicitud.trabajadores.set(trabajadores)
-                    
-                    return Response({
-                        'mensaje': f'Solicitud enviada a {supervisor_destino.usuario.persona.nombres if supervisor_destino.usuario and supervisor_destino.usuario.persona else "Supervisor"}'
-                    }, status=status.HTTP_201_CREATED)
-            
-            # JEFE DE CUADRILLA solicita traspaso
-            elif jefe_cuadrilla_id:
-                jefe_cuadrilla = get_object_or_404(
-                    JefesDeCuadrilla,
-                    id=jefe_cuadrilla_id,
-                    holding=holding
-                )
-                
-                # Verificar pertenencia
-                for trabajador in trabajadores:
-                    if not trabajador.jefe_cuadrilla.filter(id=jefe_cuadrilla_id).exists():
-                        return Response(
-                            {'error': f'{trabajador.nombres} no está bajo tu cargo'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                # Determinar tipo
-                if tipo_destino == 'supervisor':
-                    tipo_traspaso = 'JEFE_A_SUPERVISOR'
-                    destino_supervisor = jefe_cuadrilla.supervisor
-                    destino_jefe = None
-                elif tipo_destino == 'jefe_cuadrilla':
-                    jefe_destino = get_object_or_404(
-                        JefesDeCuadrilla,
-                        id=destino_id,
-                        supervisor=jefe_cuadrilla.supervisor,
-                        holding=holding
-                    )
-                    tipo_traspaso = 'JEFE_A_JEFE'
-                    destino_supervisor = None
-                    destino_jefe = jefe_destino
-                else:
-                    return Response(
-                        {'error': 'Tipo de destino no válido'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                solicitud = SolicitudTraspaso.objects.create(
-                    holding=holding,
-                    solicitante_jefe_cuadrilla=jefe_cuadrilla,
-                    destino_supervisor=destino_supervisor,
-                    destino_jefe_cuadrilla=destino_jefe,
-                    supervisor_aprobador=jefe_cuadrilla.supervisor,
-                    estado='PENDIENTE',
-                    tipo_traspaso=tipo_traspaso
-                )
-                solicitud.trabajadores.set(trabajadores)
-                
-                return Response({
-                    'mensaje': f'Solicitud enviada al supervisor'
-                }, status=status.HTTP_201_CREATED)
-            
-            else:
-                return Response(
-                    {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        except Exception as e:
-            print(f"❌ Error en POST: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-class ResponderTraspasoAPIView(APIView):
-    """
-    Vista para aprobar o rechazar solicitudes de traspaso
-    """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, JWTHasAnyScope]
-    required_scopes = ['admin', 'write']
-    
-    def post(self, request):
-        try:
-            data = request.data
-            solicitud_id = data.get('solicitud_id')
-            aprobar = data.get('aprobar')
-            supervisor_id = data.get('supervisor_id')
-            motivo_rechazo = data.get('motivo_rechazo', '')
-            
-            if not all([solicitud_id is not None, aprobar is not None, supervisor_id]):
-                return Response(
-                    {'error': 'Faltan parámetros requeridos'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            solicitud = get_object_or_404(SolicitudTraspaso, id=solicitud_id)
-            supervisor = get_object_or_404(Supervisores, id=supervisor_id)
-            
-            # Verificar que el supervisor tiene permiso para aprobar esta solicitud
-            if solicitud.supervisor_aprobador.id != supervisor.id:
-                return Response(
-                    {'error': 'No tienes permiso para aprobar esta solicitud'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-            # Verificar que la solicitud está pendiente
-            if solicitud.estado != 'PENDIENTE':
-                return Response(
-                    {'error': 'Esta solicitud ya fue procesada'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            with transaction.atomic():
-                if aprobar:
-                    # APROBAR: Realizar el traspaso
-                    trabajadores = solicitud.trabajadores.all()
-                    
-                    for trabajador in trabajadores:
-                        # Limpiar relaciones anteriores
-                        trabajador.supervisor_directo.clear()
-                        trabajador.jefe_cuadrilla.clear()
-                        
-                        # Asignar según el tipo de traspaso
-                        if solicitud.tipo_traspaso == 'SUPERVISOR_A_SUPERVISOR':
-                            trabajador.supervisor_directo.add(solicitud.destino_supervisor)
-                        
-                        elif solicitud.tipo_traspaso == 'JEFE_A_SUPERVISOR':
-                            trabajador.supervisor_directo.add(solicitud.destino_supervisor)
-                        
-                        elif solicitud.tipo_traspaso == 'JEFE_A_JEFE':
-                            trabajador.jefe_cuadrilla.add(solicitud.destino_jefe_cuadrilla)
-                    
-                    solicitud.estado = 'APROBADO'
-                    solicitud.fecha_respuesta = timezone.now()
-                    solicitud.save()
-                    
-                    mensaje = 'Solicitud aprobada y traspaso realizado exitosamente'
-                else:
-                    # RECHAZAR: Actualizar estado
-                    solicitud.estado = 'RECHAZADO'
-                    solicitud.fecha_respuesta = timezone.now()
-                    solicitud.motivo_rechazo = motivo_rechazo
-                    solicitud.save()
-                    
-                    mensaje = 'Solicitud rechazada exitosamente'
-            
-            return Response({'mensaje': mensaje}, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            print(f"❌ Error en ResponderTraspasoAPIView: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        
 class ContratoTrabajadorAPIView(APIView):
     """
     Vista para gestionar contratos de trabajadores
@@ -20923,18 +20057,6 @@ class CrearContratoWebAPIView(APIView):
                     'rut': s.usuario.rut if s.usuario else None
                 } for s in supervisores]
                 
-                # Jefes de cuadrilla por supervisor
-                jefes_cuadrilla = JefesDeCuadrilla.objects.filter(
-                    holding_id=holding_id
-                ).select_related('usuario__persona', 'supervisor')
-                
-                jefes_data = [{
-                    'id': j.id,
-                    'nombre': f"{j.usuario.persona.nombres} {j.usuario.persona.apellidos}" if j.usuario and j.usuario.persona else 'Sin nombre',
-                    'rut': j.usuario.rut if j.usuario else None,
-                    'supervisor_id': j.supervisor.id if j.supervisor else None
-                } for j in jefes_cuadrilla]
-                
                 # Transportistas con vehículos y choferes
                 transportistas = EmpresasTransporte.objects.filter(
                     holding_id=holding_id
@@ -20961,7 +20083,6 @@ class CrearContratoWebAPIView(APIView):
                     'sociedades': sociedades_data,
                     'folios': folios_serializer.data,
                     'supervisores': supervisores_data,
-                    'jefes_cuadrilla': jefes_data,
                     'transportistas': transportistas_data
                 }, status=status.HTTP_200_OK)
             
@@ -21090,7 +20211,6 @@ class CrearContratoWebAPIView(APIView):
             "fundo": 8,
             "casa": 3,  # opcional
             "supervisor_id": 5,  # opcional
-            "jefe_cuadrilla_id": 7,  # opcional
             "transportista_id": 2,  # opcional
             "vehiculo_id": 9,  # opcional
             "chofer_id": 4  # opcional
@@ -21200,20 +20320,6 @@ class CrearContratoWebAPIView(APIView):
                         print(f'✅ Trabajador asignado a supervisor: {supervisor.id}')
                     except Supervisores.DoesNotExist:
                         raise Exception(f'Supervisor {supervisor_id} no encontrado')
-                
-                # Asignar jefe de cuadrilla (opcional)
-                jefe_cuadrilla_id = request.data.get('jefe_cuadrilla_id')
-                if jefe_cuadrilla_id:
-                    try:
-                        jefe = JefesDeCuadrilla.objects.get(
-                            id=jefe_cuadrilla_id,
-                            holding_id=request.data['holding']
-                        )
-                        jefe.trabajadores.add(trabajador)
-                        jefe_cuadrilla_asignado = True
-                        print(f'✅ Trabajador asignado a jefe de cuadrilla: {jefe.id}')
-                    except JefesDeCuadrilla.DoesNotExist:
-                        raise Exception(f'Jefe de cuadrilla {jefe_cuadrilla_id} no encontrado')
                 
                 # Crear relación de transporte (opcional)
                 transportista_id = request.data.get('transportista_id')

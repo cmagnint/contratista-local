@@ -86,10 +86,6 @@ class TokenCheckScreenState extends State<TokenCheckScreen> {
       key: 'supervisor_id',
       value: data['supervisor_id']?.toString() ?? '',
     );
-    await storage.write(
-      key: 'jefe_cuadrilla_id',
-      value: data['jefe_cuadrilla_id']?.toString() ?? '',
-    );
     await storage.write(key: 'nombre', value: data['nombre']?.toString() ?? '');
     await storage.write(key: 'rut', value: data['rut']?.toString() ?? '');
 
@@ -99,9 +95,6 @@ class TokenCheckScreenState extends State<TokenCheckScreen> {
     userInfo.sociedades = sociedadesList; // ✅ CARGAR LISTA
     userInfo.idSupervisor = int.tryParse(
       data['supervisor_id']?.toString() ?? '0',
-    );
-    userInfo.idJefeCuadrilla = int.tryParse(
-      data['jefe_cuadrilla_id']?.toString() ?? '0',
     );
     userInfo.name = data['nombre']?.toString() ?? '';
     userInfo.rut = data['rut']?.toString() ?? '';

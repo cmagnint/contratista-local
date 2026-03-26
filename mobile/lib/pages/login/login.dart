@@ -36,16 +36,10 @@ class LoginScreenState extends State<LoginScreen>
   Color _borderColor = Colors.transparent;
   Timer? _borderTimer;
 
-  final List<Color> _colors = [
-    const Color.fromARGB(255, 15, 184, 184),
-    const Color.fromARGB(255, 53, 181, 149),
-    const Color.fromARGB(255, 51, 182, 117),
-    const Color(0xFF008080),
-    const Color.fromARGB(255, 39, 116, 175),
-  ];
-
-  late AnimationController _controller;
-  late Animation<Color?> _animation;
+  // Colores del tema
+  static const Color _primaryColor = Color(0xFF1A237E); // Azul oscuro elegante
+  static const Color _cardColor = Colors.white;
+  static const Color _textMuted = Color(0xFF6B7280);
 
   @override
   void initState() {
@@ -59,36 +53,15 @@ class LoginScreenState extends State<LoginScreen>
         selection: TextSelection.collapsed(offset: formatRut(text).length),
       );
     });
-
-    _controller = AnimationController(
-      duration: const Duration(seconds: 20),
-      vsync: this,
-    )..repeat();
-
-    _animation = _controller.drive(
-      TweenSequence<Color?>(
-        _colors.asMap().entries.map((entry) {
-          int idx = entry.key;
-          Color color = entry.value;
-          return TweenSequenceItem(
-            weight: 1.0,
-            tween: ColorTween(
-              begin: color,
-              end: _colors[(idx + 1) % _colors.length],
-            ),
-          );
-        }).toList(),
-      ),
-    );
   }
 
   void _toggleBorderBlinking(bool isFocused) {
     if (isFocused) {
       _borderTimer = Timer.periodic(const Duration(seconds: 2), (_) {
         setState(() {
-          _borderColor = _borderColor == Colors.blue
+          _borderColor = _borderColor == _primaryColor
               ? Colors.transparent
-              : Colors.blue;
+              : _primaryColor;
         });
       });
     } else {
@@ -491,7 +464,6 @@ class LoginScreenState extends State<LoginScreen>
           responseData['refresh_token'],
         );
 
-        // ✅ PROCESAR SOCIEDADES COMO LISTA DE OBJETOS
         List<Map<String, dynamic>> sociedadesList = [];
         if (responseData['sociedades'] != null) {
           sociedadesList = List<Map<String, dynamic>>.from(
@@ -505,22 +477,18 @@ class LoginScreenState extends State<LoginScreen>
           );
         }
 
-        // Cargar en memoria
         userInfo.idUsuario =
             int.tryParse(responseData['user_id']?.toString() ?? '0') ?? 0;
         userInfo.holding = responseData['holding_id']?.toString() ?? '';
-        userInfo.sociedades = sociedadesList; // ✅ GUARDAR LISTA
+        userInfo.sociedades = sociedadesList;
         userInfo.idSupervisor = int.tryParse(
           responseData['supervisor_id']?.toString() ?? '0',
         );
-        userInfo.idJefeCuadrilla = int.tryParse(
-          responseData['jefe_cuadrilla_id']?.toString() ?? '0',
-        );
+
         userInfo.name = responseData['nombre']?.toString() ?? '';
         userInfo.rut = responseData['rut']?.toString() ?? '';
         userInfo.isAdmin = responseData['is_admin'] ?? false;
 
-        // Guardar en storage
         await storage.write(
           key: 'user_id',
           value: responseData['user_id'].toString(),
@@ -536,10 +504,6 @@ class LoginScreenState extends State<LoginScreen>
         await storage.write(
           key: 'supervisor_id',
           value: responseData['supervisor_id']?.toString() ?? '',
-        );
-        await storage.write(
-          key: 'jefe_cuadrilla_id',
-          value: responseData['jefe_cuadrilla_id']?.toString() ?? '',
         );
         await storage.write(
           key: 'nombre',
@@ -743,260 +707,326 @@ class LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _borderTimer?.cancel();
-    _controller.dispose();
     super.dispose();
+  }
+
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(
+        color: Colors.grey.shade400,
+        fontWeight: FontWeight.w400,
+        fontSize: 14,
+      ),
+      prefixIcon: Icon(prefixIcon, color: _primaryColor, size: 20),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _primaryColor, width: 1.5),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const SizedBox.expand(
-            child: FittedBox(fit: BoxFit.cover, child: SizedBox()),
-          ),
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 0.8,
-                    colors: [
-                      _animation.value!,
-                      _animation.value!.withValues(alpha: 0.5),
+      backgroundColor: const Color.fromARGB(255, 189, 245, 186),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                // ── Logo arriba solo ──
+                const SizedBox(height: 20),
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color.fromARGB(
+                          255,
+                          255,
+                          255,
+                          255,
+                        ).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
                     ],
-                    stops: const [0.5, 1.0],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset('assets/login.png', fit: BoxFit.cover),
                   ),
                 ),
-              );
-            },
-          ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Material(
-                      elevation: 100,
-                      borderRadius: BorderRadius.circular(50),
-                      child: Container(
-                        width: 250,
-                        height: 250,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/login.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
+
+                const SizedBox(height: 32),
+
+                // ── Tarjeta principal ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 36,
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      '¡BIENVENIDO!',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 255, 255, 255),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                      child: Focus(
-                        onFocusChange: (hasFocus) {
-                          setState(() {
-                            _isRutValid =
-                                rutController.text.isEmpty ||
-                                validateRut(rutController.text);
-                            _toggleBorderBlinking(hasFocus);
-                            if (!_isRutValid) {
-                              _startBlinking();
-                            }
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: _borderColor, width: 2.0),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: TextField(
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                            keyboardType: TextInputType.number,
-                            controller: rutController,
-                            decoration: const InputDecoration(
-                              hintText: 'RUT',
-                              border: InputBorder.none,
-                              hintStyle: TextStyle(
-                                letterSpacing: 3,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.grey),
-                              ),
-                              fillColor: Colors.white,
-                              filled: true,
-                            ),
-                          ),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    if (!_isRutValid)
-                      AnimatedOpacity(
-                        opacity: _opacity,
-                        duration: const Duration(seconds: 1),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 25.0,
-                            vertical: 2.0,
-                          ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Título
+                        const Center(
                           child: Text(
-                            "¡El RUT ingresado no es válido!",
+                            'Iniciar Sesión',
                             style: TextStyle(
-                              color: Color.fromARGB(255, 75, 180, 218),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                              letterSpacing: -0.5,
                             ),
                           ),
                         ),
-                      ),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                      child: TextField(
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        controller: passwordController,
-                        obscureText: obscureText,
-                        decoration: InputDecoration(
-                          suffixIcon: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                obscureText = !obscureText;
-                              });
-                            },
-                            child: Icon(
-                              obscureText
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
-                          ),
-                          hintText: 'CONTRASEÑA',
-                          hintStyle: const TextStyle(
-                            letterSpacing: 3,
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          enabledBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
-                          ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.grey),
-                          ),
-                          fillColor: Colors.white,
-                          filled: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 100),
-                    const SizedBox(height: 50),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          loginButtonPressed(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 25,
-                            vertical: 25,
-                          ),
-                          backgroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Center(
+                        const SizedBox(height: 6),
+                        Center(
                           child: Text(
-                            "ENTRAR",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                            'Ingresa tus credenciales para continuar',
+                            style: TextStyle(fontSize: 13, color: _textMuted),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    InkWell(
-                      onTap: () {
-                        sendCodePressed(context);
-                      },
-                      splashColor: Colors.grey[300],
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 10.0,
-                          vertical: 5.0,
-                        ),
-                        child: Text(
-                          '                    ¿Olvido su contraseña?',
+
+                        const SizedBox(height: 32),
+
+                        // Label RUT
+                        const Text(
+                          'RUT',
                           style: TextStyle(
-                            color: Color.fromARGB(255, 255, 255, 255),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF374151),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 25.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              thickness: 0.5,
-                              color: Color.fromARGB(255, 255, 255, 255),
+                        const SizedBox(height: 8),
+
+                        // Campo RUT
+                        Focus(
+                          onFocusChange: (hasFocus) {
+                            setState(() {
+                              _isRutValid =
+                                  rutController.text.isEmpty ||
+                                  validateRut(rutController.text);
+                              _toggleBorderBlinking(hasFocus);
+                              if (!_isRutValid) {
+                                _startBlinking();
+                              }
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _borderColor,
+                                width: _borderColor == Colors.transparent
+                                    ? 0
+                                    : 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              'by ®Terrasoft',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontSize: 20,
+                            child: TextField(
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                              keyboardType: TextInputType.number,
+                              controller: rutController,
+                              decoration: _inputDecoration(
+                                hint: 'Ingresa tu RUT',
+                                prefixIcon: Icons.person_outline_rounded,
                               ),
                             ),
                           ),
-                        ],
+                        ),
+
+                        // Mensaje RUT inválido
+                        if (!_isRutValid)
+                          AnimatedOpacity(
+                            opacity: _opacity,
+                            duration: const Duration(seconds: 1),
+                            child: const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                "El RUT ingresado no es válido",
+                                style: TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        const SizedBox(height: 20),
+
+                        // Label Contraseña
+                        const Text(
+                          'Contraseña',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Campo Contraseña
+                        TextField(
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                          controller: passwordController,
+                          obscureText: obscureText,
+                          decoration: _inputDecoration(
+                            hint: 'Ingresa tu contraseña',
+                            prefixIcon: Icons.lock_outline_rounded,
+                            suffixIcon: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  obscureText = !obscureText;
+                                });
+                              },
+                              child: Icon(
+                                obscureText
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: Colors.grey.shade500,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Olvidó contraseña
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              sendCodePressed(context);
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.only(top: 12),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              '¿Olvidó su contraseña?',
+                              style: TextStyle(
+                                color: _primaryColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // Botón ENTRAR
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              loginButtonPressed(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primaryColor,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'ENTRAR',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Footer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 0.5,
+                      color: Colors.grey.shade400,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'by ®Terrasoft',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade500,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                    const Text(
-                      'v. 1.0.0',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
+                    Container(
+                      width: 40,
+                      height: 0.5,
+                      color: Colors.grey.shade400,
                     ),
-                    const SizedBox(height: 10),
                   ],
                 ),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  'v. 1.0.0',
+                  style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

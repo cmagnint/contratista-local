@@ -50,7 +50,6 @@ class JWTService:
         
         # ✅ BUSCAR SUPERVISOR Y JEFE DE CUADRILLA
         supervisor_id = None
-        jefe_cuadrilla_id = None
         
         try:
             from contratista_test_app.models import Supervisores
@@ -60,15 +59,6 @@ class JWTService:
             pass
         except Exception as e:
             print(f"⚠️ Error buscando supervisor: {e}")
-        
-        try:
-            from contratista_test_app.models import JefesDeCuadrilla
-            jefe = JefesDeCuadrilla.objects.get(usuario=user)
-            jefe_cuadrilla_id = jefe.id
-        except JefesDeCuadrilla.DoesNotExist:
-            pass
-        except Exception as e:
-            print(f"⚠️ Error buscando jefe de cuadrilla: {e}")
         
         # ✅ OBTENER SOCIEDAD
         sociedad_id = None
@@ -102,7 +92,6 @@ class JWTService:
             
             # ✅ SUPERVISOR Y JEFE DE CUADRILLA
             'supervisor_id': supervisor_id,
-            'jefe_cuadrilla_id': jefe_cuadrilla_id,
             
             # Información del perfil/persona
             'perfil': {

@@ -185,6 +185,28 @@ export class PersonalComponent implements OnInit {
   public emailTrabajadorNew: string = '';
   public deletedRow: any[] = [];
   public selectedTrabajadorId: number | null = null;
+  filtros = { sociedad: '', area: '', cargo: '', nombres: '', apellidos: '', sexo: '', nacionalidad: '' };
+
+  get trabajadoresFiltrados(): any[] {
+    return this.trabajadoresCargados.filter(t =>
+      (!this.filtros.sociedad    || t.nombre_sociedad === this.filtros.sociedad) &&
+      (!this.filtros.area        || t.nombre_area === this.filtros.area) &&
+      (!this.filtros.cargo       || t.nombre_cargo === this.filtros.cargo) &&
+      (!this.filtros.sexo        || t.sexo === this.filtros.sexo) &&
+      (!this.filtros.nacionalidad|| t.nacionalidad === this.filtros.nacionalidad) &&
+      (!this.filtros.nombres     || (t.nombres || '').toUpperCase().includes(this.filtros.nombres.toUpperCase())) &&
+      (!this.filtros.apellidos   || (t.apellidos || '').toUpperCase().includes(this.filtros.apellidos.toUpperCase()))
+    );
+  }
+
+  get uniqueSociedades(): string[] { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_sociedad).filter(Boolean))] as string[]; }
+  get uniqueAreas(): string[]      { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_area).filter(Boolean))] as string[]; }
+  get uniqueCargos(): string[]     { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_cargo).filter(Boolean))] as string[]; }
+  get uniqueNacionalidades(): string[] { return [...new Set(this.trabajadoresCargados.map(t => t.nacionalidad).filter(Boolean))] as string[]; }
+
+  limpiarFiltros(): void {
+    this.filtros = { sociedad: '', area: '', cargo: '', nombres: '', apellidos: '', sexo: '', nacionalidad: '' };
+  }
 
   ngOnInit():void {
     if (isPlatformBrowser(this.platformId)) {

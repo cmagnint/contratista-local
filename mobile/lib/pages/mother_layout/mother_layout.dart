@@ -4,7 +4,6 @@ import 'package:contratista/pages/mother_layout/contratacion/huella_firma.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pending_enrollments_screen.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pre_contratacion.dart';
 import 'package:contratista/pages/mother_layout/contratacion/asociar_qr.dart';
-import 'package:contratista/pages/mother_layout/contratacion/traspaso_trabajadores.dart';
 import 'package:contratista/pages/mother_layout/cosecha/ingresar_produccion.dart';
 import 'package:contratista/pages/mother_layout/formar_cuadrillas.dart';
 import 'package:contratista/pages/mother_layout/mano_obra/asistencia.dart'; // ✅ AGREGADO
@@ -193,7 +192,7 @@ class MotherLayoutState extends State<MotherLayout> {
 
   void goToTraspasoTrabajadores() async {
     setState(() {
-      _pages[10] = const TraspasoTrabajadoresScreen();
+      _pages[10] = const Inicio();
       _selectedIndex = 10;
     });
   }

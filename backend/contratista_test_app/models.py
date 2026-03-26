@@ -484,6 +484,34 @@ class Horarios(models.Model):
     class Meta:
         db_table = 'horarios'
 
+    def get_horas_dia(self, fecha):
+        dias = {
+            0: 'lunes',
+            1: 'martes',
+            2: 'miercoles',
+            3: 'jueves',
+            4: 'viernes',
+            5: 'sabado',
+            6: 'domingo',
+        }
+        dia = dias.get(fecha.weekday())
+        inicio = getattr(self, f'{dia}_inicio', None)
+        fin = getattr(self, f'{dia}_fin', None)
+        
+        if not inicio or not fin:
+            return 0.0
+        
+        from datetime import datetime, timedelta
+        dt_inicio = datetime.combine(fecha, inicio)
+        dt_fin = datetime.combine(fecha, fin)
+        diferencia = (dt_fin - dt_inicio).total_seconds() / 3600
+        
+        if getattr(self, f'{dia}_colacion', False):
+            minutos_colacion = getattr(self, f'{dia}_minutos_colacion', 0)
+            diferencia -= minutos_colacion / 60
+        
+        return max(diferencia, 0.0)    
+
 class FolioComercial(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
@@ -659,19 +687,6 @@ class Supervisores(models.Model):
     def __str__(self):
         return f"Supervisor: {self.usuario.rut if self.usuario else 'Sin usuario'}"
 
-class JefesDeCuadrilla(models.Model):
-    id = models.AutoField(primary_key=True)
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    supervisor = models.ForeignKey(Supervisores, on_delete=models.CASCADE)
-    usuario = models.ForeignKey(Usuarios, on_delete=models.CASCADE, null=True)
-    trabajadores = models.ManyToManyField(PersonalTrabajadores, related_name='jefe_cuadrilla', blank=True)
-
-    class Meta:
-        db_table = 'jefes_cuadrilla'
-        
-    def __str__(self):
-        return f"Jefe de Cuadrilla: {self.usuario.rut if self.usuario else 'Sin usuario'}"
-
 class CodigoQR(models.Model):
     id = models.AutoField(primary_key=True)
     trabajador = models.ForeignKey(PersonalTrabajadores,on_delete=models.CASCADE)
@@ -727,15 +742,6 @@ class ProduccionTrabajador(models.Model):
     def __str__(self):
         return f"Producción {self.id} - {self.trabajador.nombres if self.trabajador else 'Sin trabajador'}"
     
-class Cuadrillas(models.Model):
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.IntegerField(primary_key=True)
-    jefe_cuadrilla = models.ForeignKey(JefesDeCuadrilla, on_delete=models.CASCADE, null=True, blank=True)
-    trabajadores = models.ManyToManyField(PersonalTrabajadores)
-    
-    class Meta:
-        db_table = 'cuadrillas'
-
 class EnlaceAutoRegistro(models.Model):
     id = models.AutoField(primary_key=True)
     token = models.CharField(max_length=16, default=generate_token, unique=True)
@@ -2566,7 +2572,7 @@ class RegistroAsistencia(models.Model):
     
     class Meta:
         db_table = 'registro_asistencia'
-        unique_together = [['trabajador', 'fecha_asistencia']]
+        unique_together = [['trabajador', 'fecha_asistencia', 'estado']]
         indexes = [
             models.Index(fields=['trabajador', 'fecha_asistencia']),
             models.Index(fields=['holding', 'fecha_asistencia']),
@@ -2594,102 +2600,3 @@ class RegistroManoObraPersona(models.Model):
             models.Index(fields=['trabajador', 'fecha_ingreso']),
             models.Index(fields=['holding', 'fecha_ingreso']),
         ]
-
-# ===== MODELO PARA AGREGAR A models.py =====
-
-class SolicitudTraspaso(models.Model):
-    """
-    Modelo para gestionar las solicitudes de traspaso de trabajadores
-    """
-    ESTADO_CHOICES = [
-        ('PENDIENTE', 'Pendiente'),
-        ('APROBADO', 'Aprobado'),
-        ('RECHAZADO', 'Rechazado'),
-    ]
-    
-    TIPO_TRASPASO_CHOICES = [
-        ('SUPERVISOR_A_SUPERVISOR', 'Supervisor a Supervisor'),
-        ('JEFE_A_JEFE', 'Jefe de Cuadrilla a Jefe de Cuadrilla'),
-        ('JEFE_A_SUPERVISOR', 'Jefe de Cuadrilla a Supervisor'),
-    ]
-    
-    id = models.AutoField(primary_key=True)
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    
-    # Solicitante
-    solicitante_supervisor = models.ForeignKey(
-        Supervisores, 
-        on_delete=models.CASCADE, 
-        related_name='traspasos_solicitados_como_supervisor',
-        null=True,
-        blank=True
-    )
-    solicitante_jefe_cuadrilla = models.ForeignKey(
-        JefesDeCuadrilla,
-        on_delete=models.CASCADE,
-        related_name='traspasos_solicitados',
-        null=True,
-        blank=True
-    )
-    
-    # Destino
-    destino_supervisor = models.ForeignKey(
-        Supervisores,
-        on_delete=models.CASCADE,
-        related_name='traspasos_recibidos',
-        null=True,
-        blank=True
-    )
-    destino_jefe_cuadrilla = models.ForeignKey(
-        JefesDeCuadrilla,
-        on_delete=models.CASCADE,
-        related_name='traspasos_recibidos_jefe',
-        null=True,
-        blank=True
-    )
-    
-    # Supervisor que debe aprobar
-    supervisor_aprobador = models.ForeignKey(
-        Supervisores,
-        on_delete=models.CASCADE,
-        related_name='traspasos_por_aprobar',
-        null=True,
-        blank=True
-    )
-    
-    # Trabajadores a traspasar
-    trabajadores = models.ManyToManyField(
-        PersonalTrabajadores,
-        related_name='solicitudes_traspaso'
-    )
-    
-    # Estado y tipo
-    estado = models.CharField(
-        max_length=20,
-        choices=ESTADO_CHOICES,
-        default='PENDIENTE'
-    )
-    tipo_traspaso = models.CharField(
-        max_length=30,
-        choices=TIPO_TRASPASO_CHOICES
-    )
-    
-    # Fechas
-    fecha_solicitud = models.DateTimeField(auto_now_add=True)
-    fecha_respuesta = models.DateTimeField(null=True, blank=True)
-    
-    # Observaciones
-    observaciones = models.TextField(blank=True, null=True)
-    motivo_rechazo = models.TextField(blank=True, null=True)
-    
-    class Meta:
-        db_table = 'solicitud_traspaso'
-        ordering = ['-fecha_solicitud']
-    
-    def __str__(self):
-        solicitante = (
-            self.solicitante_supervisor.usuario.rut 
-            if self.solicitante_supervisor 
-            else self.solicitante_jefe_cuadrilla.usuario.rut
-        )
-        return f"Solicitud {self.id} - {solicitante} - {self.estado}"

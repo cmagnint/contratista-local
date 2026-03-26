@@ -5,7 +5,6 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:contratista/utils/globals.dart';
-import 'dart:convert';
 import 'package:contratista/services/contratista_api_service.dart';
 
 class Worker {
@@ -133,42 +132,6 @@ class WorkerQRAssociationScreenState extends State<WorkerQRAssociationScreen> {
     if (!userInfo.isSupervisorOrJefe) {
       _showErrorMessage('Usuario no tiene permisos para ver trabajadores');
       return;
-    }
-
-    try {
-      // Build URL based on user role
-      String url = 'api_personal_asignado/?';
-      if (userInfo.idJefeCuadrilla != 0) {
-        url += 'jefe_cuadrilla_id=${userInfo.idJefeCuadrilla}';
-      } else {
-        url += 'supervisor_id=${userInfo.idSupervisor}';
-      }
-
-      final response = await _apiService.get(url);
-
-      if (response.statusCode == 200) {
-        final List<dynamic> workersJson = json.decode(response.body);
-
-        setState(() {
-          workers = workersJson.map((json) => Worker.fromJson(json)).toList();
-          workers = _sortWorkers(workers);
-        });
-
-        // Store workers in local database
-        for (var worker in workers) {
-          await _productionDb.updateWorkerTotals(worker.id, worker.toMap());
-        }
-
-        loggerGlobal.d('Trabajadores cargados: ${workers.length}');
-        _showSuccessMessage('Trabajadores cargados exitosamente');
-      } else {
-        throw Exception('Failed to load workers: ${response.statusCode}');
-      }
-    } catch (e) {
-      loggerGlobal.e('Error al cargar trabajadores: $e');
-      _showErrorMessage(
-        'Error al cargar trabajadores. Por favor, inténtelo de nuevo.',
-      );
     }
   }
 
