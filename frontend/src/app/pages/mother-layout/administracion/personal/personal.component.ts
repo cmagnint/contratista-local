@@ -156,7 +156,30 @@ export class PersonalComponent implements OnInit {
   public nombreArchivoTrasero: string = '';
   public nombreArchivoFirma: string = '';
   public nombreArchivoHuella: string = '';
+  
+  filtros = { sociedad: '', area: '', cargo: '', nombres: '', apellidos: '', sexo: '', nacionalidad: '' };
 
+  get trabajadoresFiltrados(): any[] {
+    return this.trabajadoresCargados.filter(t =>
+      (!this.filtros.sociedad    || t.nombre_sociedad === this.filtros.sociedad) &&
+      (!this.filtros.area        || t.nombre_area === this.filtros.area) &&
+      (!this.filtros.cargo       || t.nombre_cargo === this.filtros.cargo) &&
+      (!this.filtros.sexo        || t.sexo === this.filtros.sexo) &&
+      (!this.filtros.nacionalidad|| t.nacionalidad === this.filtros.nacionalidad) &&
+      (!this.filtros.nombres     || (t.nombres || '').toUpperCase().includes(this.filtros.nombres.toUpperCase())) &&
+      (!this.filtros.apellidos   || (t.apellidos || '').toUpperCase().includes(this.filtros.apellidos.toUpperCase()))
+    );
+  }
+
+  get uniqueSociedades(): string[] { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_sociedad).filter(Boolean))] as string[]; }
+  get uniqueAreas(): string[]      { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_area).filter(Boolean))] as string[]; }
+  get uniqueCargos(): string[]     { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_cargo).filter(Boolean))] as string[]; }
+  get uniqueNacionalidades(): string[] { return [...new Set(this.trabajadoresCargados.map(t => t.nacionalidad).filter(Boolean))] as string[]; }
+
+  limpiarFiltros(): void {
+    this.filtros = { sociedad: '', area: '', cargo: '', nombres: '', apellidos: '', sexo: '', nacionalidad: '' };
+
+  } 
   errorMessage!: string;
   selectedRows: any[] = [];
   
@@ -185,28 +208,6 @@ export class PersonalComponent implements OnInit {
   public emailTrabajadorNew: string = '';
   public deletedRow: any[] = [];
   public selectedTrabajadorId: number | null = null;
-  filtros = { sociedad: '', area: '', cargo: '', nombres: '', apellidos: '', sexo: '', nacionalidad: '' };
-
-  get trabajadoresFiltrados(): any[] {
-    return this.trabajadoresCargados.filter(t =>
-      (!this.filtros.sociedad    || t.nombre_sociedad === this.filtros.sociedad) &&
-      (!this.filtros.area        || t.nombre_area === this.filtros.area) &&
-      (!this.filtros.cargo       || t.nombre_cargo === this.filtros.cargo) &&
-      (!this.filtros.sexo        || t.sexo === this.filtros.sexo) &&
-      (!this.filtros.nacionalidad|| t.nacionalidad === this.filtros.nacionalidad) &&
-      (!this.filtros.nombres     || (t.nombres || '').toUpperCase().includes(this.filtros.nombres.toUpperCase())) &&
-      (!this.filtros.apellidos   || (t.apellidos || '').toUpperCase().includes(this.filtros.apellidos.toUpperCase()))
-    );
-  }
-
-  get uniqueSociedades(): string[] { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_sociedad).filter(Boolean))] as string[]; }
-  get uniqueAreas(): string[]      { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_area).filter(Boolean))] as string[]; }
-  get uniqueCargos(): string[]     { return [...new Set(this.trabajadoresCargados.map(t => t.nombre_cargo).filter(Boolean))] as string[]; }
-  get uniqueNacionalidades(): string[] { return [...new Set(this.trabajadoresCargados.map(t => t.nacionalidad).filter(Boolean))] as string[]; }
-
-  limpiarFiltros(): void {
-    this.filtros = { sociedad: '', area: '', cargo: '', nombres: '', apellidos: '', sexo: '', nacionalidad: '' };
-  }
 
   ngOnInit():void {
     if (isPlatformBrowser(this.platformId)) {
@@ -729,10 +730,10 @@ export class PersonalComponent implements OnInit {
   }
   
   formatRUTString(value: string): string {
-    let rut = value.replace(/\D/g, '');
-    let parts = [];
+    let rut = value.replace(/[^0-9kK]/g, '').toUpperCase();
     const verifier = rut.slice(-1);
     rut = rut.slice(0, -1);
+    let parts: string[] = [];
     while (rut.length > 3) {
         parts.unshift(rut.slice(-3));
         rut = rut.slice(0, -3);
@@ -790,12 +791,17 @@ export class PersonalComponent implements OnInit {
   // MÉTODO PARA ABRIR MODAL DOCUMENTOS (INCLUYE HUELLA EN CONSOLE.LOG)
   abrirModalDocumentos(trabajador: any): void {
     this.trabajadorSeleccionadoDocs = trabajador;
-    console.log('Documentos del trabajador:', {
-      carnet_front: trabajador.carnet_front_image,
-      carnet_back: trabajador.carnet_back_image,
-      firma: trabajador.firma,
-      huella: trabajador.huella_digital
-    });
+    this.imagenesBlob = {};
+    
+    if (this.tieneImagenReal(trabajador.carnet_front_image))
+      this.cargarImagenConAuth(this.getUrlCompleta(trabajador.carnet_front_image, 'carnet_front', trabajador.id), 'carnet_front');
+    if (this.tieneImagenReal(trabajador.carnet_back_image))
+      this.cargarImagenConAuth(this.getUrlCompleta(trabajador.carnet_back_image, 'carnet_back', trabajador.id), 'carnet_back');
+    if (trabajador.firma)
+      this.cargarImagenConAuth(this.getUrlCompleta(trabajador.firma, 'firma', trabajador.id), 'firma');
+    if (trabajador.huella_digital)
+      this.cargarImagenConAuth(this.getUrlCompleta(trabajador.huella_digital, 'huella', trabajador.id), 'huella');
+    
     this.openModal('documentosModal');
   }
 
@@ -804,26 +810,42 @@ export class PersonalComponent implements OnInit {
       alert('No hay documento disponible');
       return;
     }
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = nombreArchivo;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    this.contratistaApiService.getBlob(url.replace('/contratista_test_api/', '')).subscribe({
+      next: (blob: Blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = nombreArchivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+      },
+      error: () => alert('Error al descargar el documento')
+    });
+  }
+
+  public imagenesBlob: { [key: string]: string } = {};
+
+  cargarImagenConAuth(url: string, key: string): void {
+    if (!url) return;
+    const endpoint = url.replace('/contratista_test_api/', '');
+    this.contratistaApiService.getBlob(endpoint).subscribe({
+      next: (blob: Blob) => {
+        this.imagenesBlob[key] = URL.createObjectURL(blob);
+      },
+      error: () => {}
+    });
   }
   
-  getUrlCompleta(path: string): string {
-    if (!path) return '';
-    
-    if (path.startsWith('http')) {
-      return path;
+  getUrlCompleta(path: string, tipo?: string, trabajadorId?: number): string {
+    if (!path || path.includes('dni.jpg')) return '';
+    if (tipo && trabajadorId) {
+        return `/contratista_test_api/api_personal_documentos/${trabajadorId}/?tipo=${tipo}`;
     }
-    
-    const baseUrl = 'http://localhost:8182';
-    return `${baseUrl}${path}`;
-  }
+    return '';
+}
 
   onImageError(event: any): void {
     event.target.src = 'assets/no-image.png';

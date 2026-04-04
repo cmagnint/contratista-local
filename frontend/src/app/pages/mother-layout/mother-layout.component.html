@@ -228,6 +228,11 @@
             <span class="icon-label">Maestro Trabajadores</span>
           </li>
 
+          <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'MAESTRO TRABAJADORES')" (click)="navigateToTraspasoTrabajadores()">
+            <mat-icon>person_add</mat-icon>
+            <span class="icon-label">Traspaso Trabajadores</span>
+          </li>
+
           <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CONTRATACION PERSONAL')" (click)="navigateToAutoRegistro()">
             <mat-icon>app_registration</mat-icon>
             <span class="icon-label">Autoregistro</span>

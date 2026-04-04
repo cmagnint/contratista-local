@@ -83,6 +83,35 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   String? huellaDigital;
   final TextEditingController _nicController = TextEditingController();
 
+  // ── NUEVOS: prefijo telefónico y dominio de correo ──
+  String _phonePrefix = '+56';
+  String _emailDomain = '@gmail.com';
+
+  static const List<Map<String, String>> _countryPrefixes = [
+    {'label': '🇨🇱 +56', 'value': '+56'},
+    {'label': '🇦🇷 +54', 'value': '+54'},
+    {'label': '🇧🇴 +591', 'value': '+591'},
+    {'label': '🇧🇷 +55', 'value': '+55'},
+    {'label': '🇨🇴 +57', 'value': '+57'},
+    {'label': '🇪🇨 +593', 'value': '+593'},
+    {'label': '🇲🇽 +52', 'value': '+52'},
+    {'label': '🇵🇾 +595', 'value': '+595'},
+    {'label': '🇵🇪 +51', 'value': '+51'},
+    {'label': '🇺🇾 +598', 'value': '+598'},
+    {'label': '🇻🇪 +58', 'value': '+58'},
+    {'label': '🇪🇸 +34', 'value': '+34'},
+    {'label': '🇺🇸 +1', 'value': '+1'},
+  ];
+
+  static const List<String> _emailDomains = [
+    '@gmail.com',
+    '@outlook.com',
+    '@hotmail.com',
+    '@yahoo.com',
+    '@icloud.com',
+    '@live.com',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -1300,6 +1329,14 @@ class ContratacionScreenState extends State<ContratacionScreen> {
         String fechaNacimiento = '$_selectedAnio-$_selectedMes-$_selectedDia';
         loggerGlobal.d('Fecha de nacimiento calculada: $fechaNacimiento');
 
+        // Combinar prefijo + número de teléfono
+        final String telefonoCombinado =
+            '$_phonePrefix${_controllers['TELEFONO']!.text}';
+
+        // Combinar usuario + dominio de correo
+        final String correoCombinado =
+            '${_controllers['CORREO']!.text.toLowerCase()}$_emailDomain';
+
         final Map<String, String> fields = {
           'holding': holding ?? '',
           'sociedad': userInfo.sociedadSeleccionada,
@@ -1324,8 +1361,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'nacionalidad': _controllers['NACIONALIDAD']!.text.toUpperCase(),
           'sexo': _sexo ?? '',
           'estado_civil': _estadoCivil.toUpperCase(),
-          'telefono': _controllers['TELEFONO']!.text.toUpperCase(),
-          'correo': _controllers['CORREO']!.text.toLowerCase(),
+          'telefono': telefonoCombinado.toUpperCase(),
+          'correo': correoCombinado,
           'direccion': _controllers['DIRECCION']!.text.toUpperCase(),
           'fecha_nacimiento': fechaNacimiento,
           'metodo_pago': _metodoPago.toUpperCase(),
@@ -1679,6 +1716,9 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _signatureImage = null;
       huellaDigital = null;
       _nicController.clear();
+      // Resetear prefijo y dominio
+      _phonePrefix = '+56';
+      _emailDomain = '@gmail.com';
     });
   }
 
@@ -1953,7 +1993,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       },
                     ),
                   ),
-                  ...['NACIONALIDAD', 'TELEFONO', 'DIRECCION'].map(
+                  // NACIONALIDAD y DIRECCION (TELEFONO se maneja por separado abajo)
+                  ...['NACIONALIDAD', 'DIRECCION'].map(
                     (field) => Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextFormField(
@@ -1967,15 +2008,105 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                       ),
                     ),
                   ),
+                  // ── CAMPO TELÉFONO CON PREFIJO DE PAÍS ──
                   Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: TextFormField(
-                      controller: _controllers['CORREO'],
-                      focusNode: _focusNodes['CORREO'],
-                      decoration: const InputDecoration(
-                        labelText: 'CORREO',
-                        border: OutlineInputBorder(),
-                      ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Selector de prefijo
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          height: 56,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _phonePrefix,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _phonePrefix = newValue!;
+                                });
+                              },
+                              items: _countryPrefixes
+                                  .map<DropdownMenuItem<String>>((item) {
+                                    return DropdownMenuItem<String>(
+                                      value: item['value'],
+                                      child: Text(item['label']!),
+                                    );
+                                  })
+                                  .toList(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Campo numérico
+                        Expanded(
+                          child: TextFormField(
+                            controller: _controllers['TELEFONO'],
+                            focusNode: _focusNodes['TELEFONO'],
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'TELEFONO',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // ── CAMPO CORREO CON SELECTOR DE DOMINIO ──
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Campo usuario
+                        Expanded(
+                          child: TextFormField(
+                            controller: _controllers['CORREO'],
+                            focusNode: _focusNodes['CORREO'],
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'CORREO',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Selector de dominio
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          height: 56,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _emailDomain,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _emailDomain = newValue!;
+                                });
+                              },
+                              items: _emailDomains
+                                  .map<DropdownMenuItem<String>>((domain) {
+                                    return DropdownMenuItem<String>(
+                                      value: domain,
+                                      child: Text(domain),
+                                    );
+                                  })
+                                  .toList(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Padding(

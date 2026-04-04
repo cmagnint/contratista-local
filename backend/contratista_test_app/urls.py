@@ -12,8 +12,6 @@ from .views import (
     SubModulosMovilAPIView,
     UsuarioAPIViews,
     ClienteAPIView,
-    AreaAPIView,
-    CargoAPIView,
     EmpresaTransporteAPIView,
     VehiculosTransporteAPIView,
     ChoferesTransporteAPIView,
@@ -121,6 +119,11 @@ from .views import (
     FirmaEmpleadorAPIView,
     PersonalDocumentosAPIView,
     FirmaHuellaAPIView,
+    GestionRetroactivaManoObraPersonaAPIView,
+    GestionRetroactivaAsistenciaAPIView,
+    TraspasoTrabajadoresAPIView,
+    ContratoRetroactivoAPIView,
+    FiltrosProduccionTransferenciaAPIView,
 )
 
 app_name = 'contratista_test'
@@ -149,10 +152,6 @@ urlpatterns = [
     path('api_contactos_clientes/<int:holding_id>/', ContactoClienteAPIView.as_view(), name='api_clientes_by_holding'),
     path('api_campos_clientes/<int:cliente_id>/', CamposClientesAPIView.as_view(), name='campos_clientes_list'),
     path('api_campos_clientes/', CamposClientesAPIView.as_view(), name='campos_clientes_create_update_delete'),
-    path('api_areas/', AreaAPIView.as_view(), name='api_areas'),
-    path('api_areas/<int:holding_id>/', AreaAPIView.as_view(), name='api_areas_by_holding'),
-    path('api_cargos/', CargoAPIView.as_view(), name='api_cargos'),
-    path('api_cargos/<int:holding_id>/', CargoAPIView.as_view(), name='api_cargos_by_holding'),
     path('api_areas_cliente/', AreaClienteAPIView.as_view(), name='api_areas'),
     path('api_areas_cliente/<int:holding_id>/', AreaClienteAPIView.as_view(), name='api_areas_by_holding'),
     path('api_cargos_cliente/', CargoClienteAPIView.as_view(), name='api_cargos'),
@@ -215,6 +214,7 @@ urlpatterns = [
     path('produccion-pendiente/', ProduccionPendienteAPIView.as_view(), name='produccion-pendiente'),
     path('produccion-filtrada/', FiltrosProduccionAPIView.as_view(), name='produccion-filtrada'),
     path('opciones-filtros/<int:holding_id>/', OpcionesFiltrosAPIView.as_view(), name='opciones-filtros'),
+    path('produccion-filtrada-transferencia/', FiltrosProduccionTransferenciaAPIView.as_view(), name='produccion-filtrada-transferencia'),
     path('procesar-pago/', ProcesarPagoAPIView.as_view(), name='procesar-pago'),
     path('pagos-realizados/', PagosRealizadosAPIView.as_view(), name='transferencias-realizadas'),
     path('produccion-filtrada-efectivo/', FiltrosProduccionEfectivoAPIView.as_view(), name='produccion-filtrada-efectivo'),
@@ -293,7 +293,10 @@ urlpatterns = [
     path('api_ocr_carnet/', CarnetOCRAPIView.as_view(), name='ocr_carnet'),
     path('api_convert_pdf_to_image/', PDFToImageAPIView.as_view(), name='convert_pdf'),
     path('api_firma_empleador/', FirmaEmpleadorAPIView.as_view(), name='api_firma_empleador'),
-
+    path('gestion_retroactiva_mano_obra_persona/', GestionRetroactivaManoObraPersonaAPIView.as_view(), name='gestion_retroactiva_mano_obra_persona'),
+    path('gestion_retroactiva_asistencia/', GestionRetroactivaAsistenciaAPIView.as_view(), name='gestion_retroactiva_asistencia'),
+    path('api_traspaso_trabajadores/', TraspasoTrabajadoresAPIView.as_view(), name='traspaso-trabajadores'),
+    path('api_contrato_retroactivo/', ContratoRetroactivoAPIView.as_view(), name='contrato-retroactivo'),
 ]   
 
 

@@ -1,20 +1,15 @@
-<!-- pago-efectivo.component.html -->
-
 <div class="container">
     <h2>Pago en Efectivo</h2>
-    
-    <!-- Sección de selección de cuenta -->
+
+    <!-- Cuenta -->
     <div class="seleccion-cuenta">
         <div class="form-group">
             <label for="sociedad">Sociedad:</label>
             <select id="sociedad" (change)="onSociedadChange($event)">
                 <option value="">Seleccione una sociedad</option>
-                <option *ngFor="let sociedad of sociedades" [value]="sociedad.id">
-                    {{sociedad.nombre}}
-                </option>
+                <option *ngFor="let sociedad of sociedades" [value]="sociedad.id">{{sociedad.nombre}}</option>
             </select>
         </div>
-
         <div class="form-group" *ngIf="sociedadSeleccionada">
             <label for="cuenta">Cuenta de origen:</label>
             <select id="cuenta" (change)="onCuentaChange($event)">
@@ -26,7 +21,7 @@
         </div>
     </div>
 
-    <!-- Sección de fechas -->
+    <!-- Fechas -->
     <div class="seleccion-fechas">
         <div class="form-group">
             <label for="fechaInicio">Fecha inicio:</label>
@@ -38,11 +33,11 @@
         </div>
     </div>
 
-    <!-- Sección de múltiplo de pago -->
+    <!-- Múltiplo -->
     <div class="multiplo-seccion">
         <div class="form-group">
             <label for="multiplo">Múltiplo de pago:</label>
-            <select id="multiplo" [(ngModel)]="multiploSeleccionado" class="form-control">
+            <select id="multiplo" [(ngModel)]="multiploSeleccionado">
                 <option [ngValue]="null">Seleccione un múltiplo</option>
                 <option *ngFor="let multiplo of multiplosDisponibles" [value]="multiplo.valor">
                     {{multiplo.etiqueta}}
@@ -51,54 +46,123 @@
         </div>
     </div>
 
-    <!-- Sección de filtros adicionales -->
+    <!-- Filtros multi-select -->
     <div class="filtros-seccion">
+
+        <!-- Cliente -->
         <div class="form-group">
-            <label for="cliente">Cliente:</label>
-            <select id="cliente" (change)="onClienteChange($event)">
-                <option value="">Seleccione un cliente</option>
-                <option *ngFor="let cliente of clientes" [value]="cliente.id">
-                    {{cliente.nombre}}
-                </option>
-            </select>
+            <label>Cliente:</label>
+            <div class="multi-select-container">
+                <div class="multi-select-trigger" (click)="toggleDropdown('cliente', $event)">
+                    <span>{{getLabelMultiSelect(clientesSeleccionados, clientes, 'nombre', 'Todos los clientes')}}</span>
+                    <span class="arrow" [class.open]="dropdownAbierto === 'cliente'">▾</span>
+                </div>
+                <div class="multi-select-dropdown" *ngIf="dropdownAbierto === 'cliente'" (click)="$event.stopPropagation()">
+                    <label class="multi-select-item todos">
+                        <input type="checkbox"
+                               [checked]="todosMarcados(clientesSeleccionados, clientes)"
+                               [indeterminate]="algunoMarcado(clientesSeleccionados, clientes)"
+                               (change)="toggleTodosClientes()">
+                        <span>Todos</span>
+                    </label>
+                    <div class="divider"></div>
+                    <label class="multi-select-item" *ngFor="let cliente of clientes">
+                        <input type="checkbox"
+                               [checked]="isSelected(clientesSeleccionados, cliente.id)"
+                               (change)="onClienteToggle(cliente.id)">
+                        <span>{{cliente.nombre}}</span>
+                    </label>
+                </div>
+            </div>
         </div>
 
-        <div class="form-group" *ngIf="clienteSeleccionado">
-            <label for="fundo">Fundo:</label>
-            <select id="fundo" [(ngModel)]="fundoSeleccionado">
-                <option [ngValue]="null">Seleccione un fundo</option>
-                <option *ngFor="let fundo of fundos" [ngValue]="fundo.id">
-                    {{fundo.nombre_campo}}
-                </option>
-            </select>
+        <!-- Fundo -->
+        <div class="form-group">
+            <label>Fundo:</label>
+            <div class="multi-select-container">
+                <div class="multi-select-trigger" (click)="toggleDropdown('fundo', $event)"
+                     [class.disabled]="fundos.length === 0">
+                    <span>{{getLabelMultiSelect(fundosSeleccionados, fundos, 'nombre_campo', 'Todos los fundos')}}</span>
+                    <span class="arrow" [class.open]="dropdownAbierto === 'fundo'">▾</span>
+                </div>
+                <div class="multi-select-dropdown" *ngIf="dropdownAbierto === 'fundo' && fundos.length > 0" (click)="$event.stopPropagation()">
+                    <label class="multi-select-item todos">
+                        <input type="checkbox"
+                               [checked]="todosMarcados(fundosSeleccionados, fundos)"
+                               [indeterminate]="algunoMarcado(fundosSeleccionados, fundos)"
+                               (change)="toggleTodos(fundosSeleccionados, fundos)">
+                        <span>Todos</span>
+                    </label>
+                    <div class="divider"></div>
+                    <label class="multi-select-item" *ngFor="let fundo of fundos">
+                        <input type="checkbox"
+                               [checked]="isSelected(fundosSeleccionados, fundo.id)"
+                               (change)="toggleItem(fundosSeleccionados, fundo.id)">
+                        <span>{{fundo.nombre_campo}}</span>
+                    </label>
+                </div>
+            </div>
         </div>
 
+        <!-- Cargo -->
         <div class="form-group">
-            <label for="cargo">Cargo:</label>
-            <select id="cargo" [(ngModel)]="cargoSeleccionado">
-                <option [ngValue]="null">Seleccione un cargo</option>
-                <option *ngFor="let cargo of cargos" [ngValue]="cargo.id">
-                    {{cargo.nombre}}
-                </option>
-            </select>
+            <label>Cargo:</label>
+            <div class="multi-select-container">
+                <div class="multi-select-trigger" (click)="toggleDropdown('cargo', $event)">
+                    <span>{{getLabelMultiSelect(cargosSeleccionados, cargos, 'nombre', 'Todos los cargos')}}</span>
+                    <span class="arrow" [class.open]="dropdownAbierto === 'cargo'">▾</span>
+                </div>
+                <div class="multi-select-dropdown" *ngIf="dropdownAbierto === 'cargo'" (click)="$event.stopPropagation()">
+                    <label class="multi-select-item todos">
+                        <input type="checkbox"
+                               [checked]="todosMarcados(cargosSeleccionados, cargos)"
+                               [indeterminate]="algunoMarcado(cargosSeleccionados, cargos)"
+                               (change)="toggleTodos(cargosSeleccionados, cargos)">
+                        <span>Todos</span>
+                    </label>
+                    <div class="divider"></div>
+                    <label class="multi-select-item" *ngFor="let cargo of cargos">
+                        <input type="checkbox"
+                               [checked]="isSelected(cargosSeleccionados, cargo.id)"
+                               (change)="toggleItem(cargosSeleccionados, cargo.id)">
+                        <span>{{cargo.nombre}}</span>
+                    </label>
+                </div>
+            </div>
         </div>
 
+        <!-- Casa -->
         <div class="form-group">
-            <label for="casa">Casa:</label>
-            <select id="casa" [(ngModel)]="casaSeleccionada">
-                <option [ngValue]="null">Seleccione una casa</option>
-                <option *ngFor="let casa of casas" [ngValue]="casa.id">
-                    {{casa.nombre}}
-                </option>
-            </select>
+            <label>Casa:</label>
+            <div class="multi-select-container">
+                <div class="multi-select-trigger" (click)="toggleDropdown('casa', $event)">
+                    <span>{{getLabelMultiSelect(casasSeleccionadas, casas, 'nombre', 'Todas las casas')}}</span>
+                    <span class="arrow" [class.open]="dropdownAbierto === 'casa'">▾</span>
+                </div>
+                <div class="multi-select-dropdown" *ngIf="dropdownAbierto === 'casa'" (click)="$event.stopPropagation()">
+                    <label class="multi-select-item todos">
+                        <input type="checkbox"
+                               [checked]="todosMarcados(casasSeleccionadas, casas)"
+                               [indeterminate]="algunoMarcado(casasSeleccionadas, casas)"
+                               (change)="toggleTodos(casasSeleccionadas, casas)">
+                        <span>Todas</span>
+                    </label>
+                    <div class="divider"></div>
+                    <label class="multi-select-item" *ngFor="let casa of casas">
+                        <input type="checkbox"
+                               [checked]="isSelected(casasSeleccionadas, casa.id)"
+                               (change)="toggleItem(casasSeleccionadas, casa.id)">
+                        <span>{{casa.nombre}}</span>
+                    </label>
+                </div>
+            </div>
         </div>
+
     </div>
 
-    <!-- Botones de acción -->
+    <!-- Acciones -->
     <div class="acciones">
-        <button (click)="buscarProducciones()" 
-                [disabled]="!cuentaSeleccionada" 
-                class="search-button">
+        <button (click)="buscarProducciones()" [disabled]="!cuentaSeleccionada" class="search-button">
             Buscar producciones
         </button>
         <button (click)="generarPlanillaPDF()"
@@ -106,14 +170,12 @@
                 class="generate-pdf-button">
             Generar Planilla PDF
         </button>
-        <button (click)="procesarPago()"
-                [disabled]="!produccionesPendientes.length"
-                class="process-payment-button">
+        <button (click)="procesarPago()" [disabled]="!produccionesPendientes.length" class="process-payment-button">
             Cierre Pago
         </button>
     </div>
 
-    <!-- Tabla de resultados con total -->
+    <!-- Tabla -->
     <div class="tabla-producciones" *ngIf="produccionesPendientes.length > 0">
         <table>
             <thead>

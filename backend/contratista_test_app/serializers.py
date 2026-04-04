@@ -22,8 +22,6 @@ from .models import (
     ModulosMovil,
     SubModulosMovil,
     Clientes,
-    Areas,
-    Cargos,
     EmpresasTransporte,
     VehiculosTransporte,
     ChoferesTransporte,
@@ -75,6 +73,7 @@ from .models import (
     RegistroManoObraPersona,
     ContratoTrabajador,
     FolioComercialLabor,
+    RegistroCasaTrabajador,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -636,32 +635,6 @@ class ContactosClienteSerializer(serializers.ModelSerializer):
             return obj.cargo_cliente.nombre
         return None  
     
-class AreaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model =  Areas
-        fields = '__all__'
-        extra_kwargs = {
-            'holding': {'write_only': True},
-            'id':{'read_only': True},
-        }
-
-class CargoSerializer(serializers.ModelSerializer):
-    nombre_area = serializers.SerializerMethodField()
-
-    class Meta:
-        model =  Cargos
-        fields = ['holding','id','area','nombre','nombre_area']
-        extra_kwargs = {
-            'holding': {'write_only': True},
-            'id':{'read_only': True},
-        }
-
-    def get_nombre_area(self, obj):
-    # Verificar si el usuario tiene un perfil asociado y retornar el nombre del perfil
-        if obj.area:
-            return obj.area.nombre
-        return None  # Retorna None o cualquier valor por defecto si no hay perfil
-
 class EmpresaTransporteSerializer(serializers.ModelSerializer):
     # Para lectura: devuelve objeto completo del banco
     banco = serializers.SerializerMethodField(read_only=True)
@@ -1299,7 +1272,16 @@ class FolioComercialPreContratacionSerializer(serializers.ModelSerializer):
             transportistas_data.append({
                 'id': transportista.id,
                 'nombre': transportista.nombre,
-                'vehiculos': VehiculoSerializer(vehiculos, many=True).data
+                'vehiculos': [
+                    {
+                        'id': v.id,
+                        'tipo': v.tipo,
+                        'marca': v.marca,
+                        'modelo': v.modelo,
+                        'patente': v.ppu,
+                    }
+                    for v in vehiculos
+                ]
             })
         return transportistas_data
 
@@ -2419,7 +2401,7 @@ class PersonalConAsignacionesSerializer(serializers.ModelSerializer):
     tiene_contrato = serializers.BooleanField(read_only=True)
     descuentos = TrabajadorDescuentoSerializer(source='descuentos_asignados', many=True, read_only=True)
     nombre_completo = serializers.SerializerMethodField()
-    cargo = CargoSerializer(read_only=True)  # ✅ Si tienes CargoSerializer
+    cargo = CargoAdministracionSerializer(read_only=True)  # ✅ Si tienes CargoSerializer
     
     class Meta:
         model = PersonalTrabajadores
@@ -3439,13 +3421,14 @@ class RegistroManoObraPersonaSerializer(serializers.ModelSerializer):
 
 class ContratoTrabajadorSerializer(serializers.ModelSerializer):
     # Campos relacionados para mostrar nombres
-    nombre_trabajador = serializers.CharField(source='trabajador.nombres', read_only=True)
+    nombre_trabajador = serializers.SerializerMethodField()
     rut_trabajador = serializers.CharField(source='trabajador.rut', read_only=True)
     nombre_sociedad = serializers.CharField(source='trabajador.sociedad.nombre', read_only=True)
     nombre_documento = serializers.CharField(source='documento.nombre', read_only=True)
     nombre_cliente = serializers.CharField(source='cliente.nombre', read_only=True)
     nombre_fundo = serializers.CharField(source='fundo.nombre_campo', read_only=True)
-    
+    nombre_horario = serializers.SerializerMethodField()
+
     # Campo calculado para estado
     estado_contrato = serializers.SerializerMethodField()
     dias_restantes = serializers.SerializerMethodField()
@@ -3465,6 +3448,7 @@ class ContratoTrabajadorSerializer(serializers.ModelSerializer):
             'fecha_termino_contrato',
             'estado_contrato',
             'dias_restantes',
+            'nombre_horario',
             'ESTADO_CHOICES'  # Para el dropdown
         ]
         
@@ -3480,6 +3464,23 @@ class ContratoTrabajadorSerializer(serializers.ModelSerializer):
         
         return 'VIGENTE'
     
+    def get_nombre_horario(self, obj):
+        if not obj.horario:
+            return None
+        h = obj.horario
+        total_minutos = 0
+        dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+        for dia in dias:
+            inicio = getattr(h, f'{dia}_inicio', None)
+            fin    = getattr(h, f'{dia}_fin', None)
+            colacion = getattr(h, f'{dia}_minutos_colacion', 0)
+            if inicio and fin:
+                from datetime import datetime
+                minutos = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                total_minutos += minutos - colacion
+        jornada = round(total_minutos / 60, 1)
+        return f"{h.nombre} ({jornada}h)"
+    
     def get_dias_restantes(self, obj):
         """Calcula días restantes del contrato"""
         from datetime import date
@@ -3490,8 +3491,57 @@ class ContratoTrabajadorSerializer(serializers.ModelSerializer):
         dias = (obj.fecha_termino_contrato - date.today()).days
         return dias if dias > 0 else 0
 
+    def get_nombre_trabajador(self, obj):
+        return f"{obj.trabajador.nombres} {obj.trabajador.apellidos or ''}".strip()
 
 
+class FiltrosPagoEfectivoSerializer(serializers.ModelSerializer):
+    cliente = serializers.SerializerMethodField()
+    fundo = serializers.SerializerMethodField()
+    trabajador_nombre = serializers.CharField(source='trabajador.nombres')
+    trabajador_rut = serializers.CharField(source='trabajador.rut')
+    trabajador_casa = serializers.SerializerMethodField()
+    trabajador_cargo = serializers.CharField(source='trabajador.cargo.nombre', allow_null=True)
+    monto_a_pagar = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RegistroManoObraPersona
+        fields = [
+            'id', 'cliente', 'fundo', 'trabajador_nombre', 'trabajador_rut',
+            'trabajador_casa', 'trabajador_cargo', 'monto_a_pagar', 'fecha_ingreso'
+        ]
+
+    def get_cliente(self, obj):
+        if obj.folio and obj.folio.cliente:
+            return {'id': obj.folio.cliente.id, 'nombre': obj.folio.cliente.nombre}
+        return None
+
+    def get_fundo(self, obj):
+        if obj.folio:
+            return [{'id': f.id, 'nombre_campo': f.nombre_campo} for f in obj.folio.fundos.all()]
+        return []
+
+    def get_trabajador_casa(self, obj):
+        if not obj.trabajador:
+            return None
+        registro = RegistroCasaTrabajador.objects.filter(
+            trabajador=obj.trabajador,
+            fecha_fin__isnull=True
+        ).select_related('casa').first()
+        return registro.casa.nombre if registro and registro.casa else None
+
+    def get_monto_a_pagar(self, obj):
+        if not obj.folio or not obj.produccion:
+            return 0
+        # Obtener valor_pago_trabajador desde FolioComercialLabor si hay labor, sino del folio directo
+        if obj.labor:
+            from .models import FolioComercialLabor
+            fc_labor = FolioComercialLabor.objects.filter(
+                folio=obj.folio, labor=obj.labor
+            ).first()
+            if fc_labor:
+                return float(obj.produccion * fc_labor.valor_pago_trabajador)
+        return 0
 
 
 

@@ -1,45 +1,14 @@
-// pago-transferencia.component.ts
-
 import { Component, OnInit, PLATFORM_ID, Inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
 
-// Interfaces para el tipado de datos
-interface Sociedad {
-    id: number;
-    nombre: string;
-    cuentas_origen: any[];
-}
-
-interface Cuenta {
-    id: number;
-    banco_nombre: string;
-    numero_cuenta: string;
-}
-
-interface Cliente {
-    id: number;
-    nombre: string;
-    campos_clientes: any[];
-}
-
-interface Fundo {
-    id: number;
-    nombre_campo: string;
-}
-
-interface Cargo {
-    id: number;
-    nombre: string;
-}
-
-interface Casa {
-    id: number;
-    nombre: string;
-}
-
-// Interfaz modificada para manejar múltiples montos por trabajador
+interface Sociedad { id: number; nombre: string; cuentas_origen: any[]; }
+interface Cuenta { id: number; banco_nombre: string; numero_cuenta: string; }
+interface Cliente { id: number; nombre: string; campos_clientes: any[]; }
+interface Fundo { id: number; nombre_campo: string; }
+interface Cargo { id: number; nombre: string; }
+interface Casa { id: number; nombre: string; }
 interface Produccion {
     id: number;
     trabajador_nombre: string;
@@ -47,18 +16,17 @@ interface Produccion {
     montos_a_pagar: number[];
     monto_total: number;
 }
-
 interface CSVBancoEstado {
-  tipoCuentaOrigen: string;
-  cuentaOrigen: string;
-  codigoBancoDestino: string;
-  tipoCuentaDestino: string;
-  cuentaDestino: string;
-  rutBeneficiario: string;
-  nombreBeneficiario: string;
-  montoTransferencia: number;
-  concepto: string;
-  mensajeBeneficiario: string;
+    tipoCuentaOrigen: string;
+    cuentaOrigen: string;
+    codigoBancoDestino: string;
+    tipoCuentaDestino: string;
+    cuentaDestino: string;
+    rutBeneficiario: string;
+    nombreBeneficiario: string;
+    montoTransferencia: number;
+    concepto: string;
+    mensajeBeneficiario: string;
 }
 
 @Component({
@@ -69,7 +37,6 @@ interface CSVBancoEstado {
     styleUrl: './pago-transferencia.component.css'
 })
 export class PagoTransferenciaComponent implements OnInit {
-    // Arrays para las opciones de los selectores
     sociedades: Sociedad[] = [];
     cuentas: Cuenta[] = [];
     clientes: Cliente[] = [];
@@ -77,16 +44,18 @@ export class PagoTransferenciaComponent implements OnInit {
     cargos: Cargo[] = [];
     casas: Casa[] = [];
     produccionesPendientes: Produccion[] = [];
-    
-    // Variables para las selecciones del usuario
+
     sociedadSeleccionada: Sociedad | null = null;
     cuentaSeleccionada: Cuenta | null = null;
-    clienteSeleccionado: Cliente | null = null;
-    fundoSeleccionado: number | null = null;
-    cargoSeleccionado: number | null = null;
-    casaSeleccionada: number | null = null;
-    
-    // Variables para fechas y totales
+
+    // Selecciones múltiples
+    clientesSeleccionados: number[] = [];
+    fundosSeleccionados: number[] = [];
+    cargosSeleccionados: number[] = [];
+    casasSeleccionadas: number[] = [];
+
+    dropdownAbierto: string | null = null;
+
     fechaInicio: string = '';
     fechaFin: string = '';
     totalGeneral: number = 0;
@@ -104,14 +73,30 @@ export class PagoTransferenciaComponent implements OnInit {
         if (this.isBrowser) {
             this.cargarSociedades();
             this.cargarOpcionesFiltros();
+            document.addEventListener('click', this.cerrarDropdownsExternos.bind(this));
         }
     }
 
-    private getHoldingId(): string | null {
+    ngOnDestroy() {
         if (this.isBrowser) {
-            return localStorage.getItem('holding_id');
+            document.removeEventListener('click', this.cerrarDropdownsExternos.bind(this));
         }
-        return null;
+    }
+
+    cerrarDropdownsExternos(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.multi-select-container')) {
+            this.dropdownAbierto = null;
+        }
+    }
+
+    toggleDropdown(nombre: string, event: MouseEvent) {
+        event.stopPropagation();
+        this.dropdownAbierto = this.dropdownAbierto === nombre ? null : nombre;
+    }
+
+    private getHoldingId(): string | null {
+        return this.isBrowser ? localStorage.getItem('holding_id') : null;
     }
 
     cargarSociedades() {
@@ -155,16 +140,64 @@ export class PagoTransferenciaComponent implements OnInit {
         }
     }
 
-    onClienteChange(event: Event) {
-        const selectElement = event.target as HTMLSelectElement;
-        const clienteId = selectElement.value;
-        if (clienteId) {
-            this.clienteSeleccionado = this.clientes.find(c => c.id === Number(clienteId)) || null;
-            this.fundos = this.clienteSeleccionado ? this.clienteSeleccionado.campos_clientes : [];
+    // ---- Helpers multi-select ----
+
+    toggleItem(lista: number[], id: number) {
+        const idx = lista.indexOf(id);
+        if (idx === -1) lista.push(id);
+        else lista.splice(idx, 1);
+    }
+
+    isSelected(lista: number[], id: number): boolean {
+        return lista.includes(id);
+    }
+
+    toggleTodos(lista: number[], fuente: any[], campo: string = 'id') {
+        if (lista.length === fuente.length) {
+            lista.splice(0, lista.length);
         } else {
-            this.fundos = [];
+            lista.splice(0, lista.length, ...fuente.map(i => i[campo]));
         }
-        this.fundoSeleccionado = null;
+    }
+
+    todosMarcados(lista: number[], fuente: any[]): boolean {
+        return fuente.length > 0 && lista.length === fuente.length;
+    }
+
+    algunoMarcado(lista: number[], fuente: any[]): boolean {
+        return lista.length > 0 && lista.length < fuente.length;
+    }
+
+    getLabelMultiSelect(lista: number[], fuente: any[], campoNombre: string, placeholder: string): string {
+        if (lista.length === 0) return placeholder;
+        if (lista.length === fuente.length) return 'Todos';
+        if (lista.length === 1) {
+            const item = fuente.find(i => i.id === lista[0]);
+            return item ? item[campoNombre] : placeholder;
+        }
+        return `${lista.length} seleccionados`;
+    }
+
+    onClienteToggle(id: number) {
+        this.toggleItem(this.clientesSeleccionados, id);
+        this.fundos = [];
+        this.fundosSeleccionados = [];
+        this.clientesSeleccionados.forEach(clienteId => {
+            const cliente = this.clientes.find(c => c.id === clienteId);
+            if (cliente) this.fundos.push(...cliente.campos_clientes);
+        });
+    }
+
+    toggleTodosClientes() {
+        this.toggleTodos(this.clientesSeleccionados, this.clientes);
+        this.fundos = [];
+        this.fundosSeleccionados = [];
+        if (this.clientesSeleccionados.length > 0) {
+            this.clientesSeleccionados.forEach(clienteId => {
+                const cliente = this.clientes.find(c => c.id === clienteId);
+                if (cliente) this.fundos.push(...cliente.campos_clientes);
+            });
+        }
     }
 
     buscarProducciones() {
@@ -179,41 +212,28 @@ export class PagoTransferenciaComponent implements OnInit {
             return;
         }
 
-        // Construcción de la URL con parámetros requeridos
-        let url = `produccion-filtrada/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}`;
-        
-        // Añadir filtros opcionales si tienen valores válidos
-        if (this.clienteSeleccionado?.id) {
-            url += `&cliente_id=${this.clienteSeleccionado.id}`;
-        }
-        
-        if (this.fundoSeleccionado) {
-            url += `&fundo_id=${this.fundoSeleccionado}`;
-        }
-        
-        if (this.cargoSeleccionado) {
-            url += `&cargo_id=${this.cargoSeleccionado}`;
-        }
-        
-        if (this.casaSeleccionada) {
-            url += `&casa_id=${this.casaSeleccionada}`;
-        }
+        let url = `produccion-filtrada-transferencia/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}`;
+
+        if (this.clientesSeleccionados.length > 0 && this.clientesSeleccionados.length < this.clientes.length)
+            url += `&cliente_ids=${this.clientesSeleccionados.join(',')}`;
+        if (this.fundosSeleccionados.length > 0 && this.fundosSeleccionados.length < this.fundos.length)
+            url += `&fundo_ids=${this.fundosSeleccionados.join(',')}`;
+        if (this.cargosSeleccionados.length > 0 && this.cargosSeleccionados.length < this.cargos.length)
+            url += `&cargo_ids=${this.cargosSeleccionados.join(',')}`;
+        if (this.casasSeleccionadas.length > 0 && this.casasSeleccionadas.length < this.casas.length)
+            url += `&casa_ids=${this.casasSeleccionadas.join(',')}`;
 
         this.apiService.get(url).subscribe({
             next: (data) => {
-                // Agrupar producciones por trabajador usando Map
                 const produccionesAgrupadas = new Map<string, Produccion>();
-                
+
                 data.forEach((prod: any) => {
                     const key = prod.trabajador_rut;
-                    
                     if (produccionesAgrupadas.has(key)) {
-                        // Si el trabajador ya existe, actualizar sus montos
                         const existing = produccionesAgrupadas.get(key)!;
                         existing.montos_a_pagar.push(prod.monto_a_pagar);
                         existing.monto_total += prod.monto_a_pagar;
                     } else {
-                        // Si es nuevo trabajador, crear nuevo registro
                         produccionesAgrupadas.set(key, {
                             id: prod.id,
                             trabajador_nombre: prod.trabajador_nombre,
@@ -224,11 +244,9 @@ export class PagoTransferenciaComponent implements OnInit {
                     }
                 });
 
-                // Convertir el Map a array y calcular total general
                 this.produccionesPendientes = Array.from(produccionesAgrupadas.values());
                 this.totalGeneral = this.produccionesPendientes.reduce(
-                    (sum, prod) => sum + prod.monto_total, 
-                    0
+                    (sum, prod) => sum + prod.monto_total, 0
                 );
             },
             error: (error) => {
@@ -239,99 +257,81 @@ export class PagoTransferenciaComponent implements OnInit {
     }
 
     procesarPago() {
-      if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
-          alert('No hay datos para procesar el pago');
-          return;
-      }
+        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
+            alert('No hay datos para procesar el pago');
+            return;
+        }
 
-      const holdingId = this.getHoldingId();
-      if (!holdingId) {
-          alert('No se pudo obtener el ID del holding');
-          return;
-      }
+        const holdingId = this.getHoldingId();
+        if (!holdingId) {
+            alert('No se pudo obtener el ID del holding');
+            return;
+        }
 
-      // Obtener IDs de todas las producciones a pagar
-      const produccionesIds = this.produccionesPendientes.map(prod => prod.id);
+        const produccionesIds = this.produccionesPendientes.map(prod => prod.id);
 
-      const datosPago = {
-          holding_id: holdingId,
-          sociedad_id: this.sociedadSeleccionada.id,
-          cuenta_id: this.cuentaSeleccionada.id,
-          producciones: produccionesIds
-      };
+        const datosPago = {
+            holding_id: holdingId,
+            sociedad_id: this.sociedadSeleccionada.id,
+            cuenta_id: this.cuentaSeleccionada.id,
+            producciones: produccionesIds
+        };
 
-      this.apiService.post('procesar-pago/', datosPago).subscribe({
-          next: (response) => {
-              alert('Pago procesado correctamente');
-              this.buscarProducciones(); // Recargar la lista
-          },
-          error: (error) => {
-              console.error('Error al procesar el pago:', error);
-              alert('Error al procesar el pago');
-          }
-      });
-  }
-
+        this.apiService.post('procesar-pago/', datosPago).subscribe({
+            next: () => {
+                alert('Pago procesado correctamente');
+                this.buscarProducciones();
+            },
+            error: (error) => {
+                console.error('Error al procesar el pago:', error);
+                alert('Error al procesar el pago');
+            }
+        });
+    }
 
     generarCSVBanco() {
-      if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
-          alert('Faltan datos necesarios para generar el CSV');
-          return;
-      }
+        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
+            alert('Faltan datos necesarios para generar el CSV');
+            return;
+        }
 
-      // Preparar los datos en el formato requerido
-      const csvData: CSVBancoEstado[] = this.produccionesPendientes.map(prod => ({
-          tipoCuentaOrigen: 'CTV', // Valor fijo según ejemplo
-          cuentaOrigen: this.cuentaSeleccionada!.numero_cuenta,
-          codigoBancoDestino: '12', // Código Banco Estado
-          tipoCuentaDestino: 'CRUT', // CRUT para Cuenta RUT
-          cuentaDestino: prod.trabajador_rut.replace(/\./g, '').replace(/-/g, ''),
-          rutBeneficiario: prod.trabajador_rut,
-          nombreBeneficiario: prod.trabajador_nombre,
-          montoTransferencia: prod.monto_total,
-          concepto: 'MILLACHE', // Según ejemplo
-          mensajeBeneficiario: `Semana del ${this.fechaInicio} al ${this.fechaFin}`
-      }));
+        const csvData: CSVBancoEstado[] = this.produccionesPendientes.map(prod => ({
+            tipoCuentaOrigen: 'CTV',
+            cuentaOrigen: this.cuentaSeleccionada!.numero_cuenta,
+            codigoBancoDestino: '12',
+            tipoCuentaDestino: 'CRUT',
+            cuentaDestino: prod.trabajador_rut.replace(/\./g, '').replace(/-/g, ''),
+            rutBeneficiario: prod.trabajador_rut,
+            nombreBeneficiario: prod.trabajador_nombre,
+            montoTransferencia: prod.monto_total,
+            concepto: 'PAGO',
+            mensajeBeneficiario: `Semana del ${this.fechaInicio} al ${this.fechaFin}`
+        }));
 
-      // Crear el contenido del CSV
-      const headers = [
-          'Tipo de Cuenta Origen',
-          'Cuenta Origen',
-          'Codigo Banco Destino',
-          'Tipo de Cuenta Destino',
-          'Cuenta Destino',
-          'Rut Beneficiario',
-          'Nombre Beneficiario',
-          'Monto Transferencia',
-          'Concepto',
-          'Mensaje a Beneficiario'
-      ];
+        const headers = [
+            'Tipo de Cuenta Origen', 'Cuenta Origen', 'Codigo Banco Destino',
+            'Tipo de Cuenta Destino', 'Cuenta Destino', 'Rut Beneficiario',
+            'Nombre Beneficiario', 'Monto Transferencia', 'Concepto', 'Mensaje a Beneficiario'
+        ];
 
-      const csvContent = [
-          headers.join(','),
-          ...csvData.map(row => [
-              row.tipoCuentaOrigen,
-              row.cuentaOrigen,
-              row.codigoBancoDestino,
-              row.tipoCuentaDestino,
-              row.cuentaDestino,
-              row.rutBeneficiario,
-              row.nombreBeneficiario,
-              row.montoTransferencia,
-              row.concepto,
-              row.mensajeBeneficiario
-          ].join(','))
-      ].join('\n');
+        const csvContent = [
+            headers.join(','),
+            ...csvData.map(row => [
+                row.tipoCuentaOrigen, row.cuentaOrigen, row.codigoBancoDestino,
+                row.tipoCuentaDestino, row.cuentaDestino, row.rutBeneficiario,
+                row.nombreBeneficiario, row.montoTransferencia, row.concepto,
+                row.mensajeBeneficiario
+            ].join(','))
+        ].join('\n');
 
-      // Crear y descargar el archivo
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const fecha = new Date().toISOString().slice(0, 10);
-      link.href = URL.createObjectURL(blob);
-      link.download = `transferencias_${fecha}.csv`;
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-  }
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const fecha = new Date().toISOString().slice(0, 10);
+        link.href = URL.createObjectURL(blob);
+        link.download = `transferencias_${fecha}.csv`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 }

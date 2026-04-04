@@ -46,6 +46,7 @@ from datetime import timedelta
 from itertools import groupby
 from datetime import date
 from decimal import Decimal
+from datetime import datetime as dt
 from math import floor
 from io import BytesIO, StringIO
 from django.core.files.storage import default_storage
@@ -85,8 +86,6 @@ from .models import (
     ModulosMovil,
     SubModulosMovil,
     Clientes,
-    Areas,
-    Cargos,
     EmpresasTransporte,
     VehiculosTransporte,
     ChoferesTransporte,
@@ -146,6 +145,9 @@ from .models import (
     RegistroAsistencia,
     RegistroManoObraPersona,
     TrabajadorEmpresaTransporte,
+    SupervisorTrabajadorHistorial,
+    RegistroCasaTrabajador,
+    FolioComercialLabor,
 )
 
 from .serializers import (
@@ -160,8 +162,6 @@ from .serializers import (
     SubModulosMovilSerializer,
     UserSerializer, 
     ClienteSerializer,
-    AreaSerializer,
-    CargoSerializer,
     EmpresaTransporteSerializer,
     VehiculosTransporteSerializer,
     ChoferesTransporteSerializer,
@@ -227,6 +227,7 @@ from .serializers import (
     CartolaMovimientoSerializer,
     FolioComercialPreContratacionSerializer,
     RegistroManoObraPersonaSerializer,
+    FiltrosPagoEfectivoSerializer,
 )
 
 from .tasks import (
@@ -2173,147 +2174,6 @@ class ContactoClienteAPIView(APIView):
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class AreaAPIView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, JWTHasAnyScope]
-
-    # Define required_scopes como un atributo de instancia
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.required_scopes = []
-
-    def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, format=None):
-        holding_id = request.query_params.get('holding')
-        if holding_id:
-            usuarios = Areas.objects.filter(holding_id=holding_id)
-            serializer = AreaSerializer(usuarios, many=True)
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-    def post(self, request, format=None):
-        serializer = AreaSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo DELETE
-    def delete(self, request, format=None): 
-        perfil_ids = request.data.get('ids', [])
-        Areas.objects.filter(id__in=perfil_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    #Metodo PATCH
-    def patch(self, request, format=None):
-        perfil_id = request.data.get('id')
-        if not perfil_id:
-            return Response({"message": "ID de area es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            perfil = Areas.objects.get(id=perfil_id)
-        except Areas.DoesNotExist:
-            return Response({"message": "Area no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = AreaSerializer(perfil, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo PUT
-    def put(self, request, format=None):
-        cliente_id = request.data.get('id')
-        try:
-            perfil = Areas.objects.get(id=cliente_id)
-        except Areas.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = AreaSerializer(perfil, data=request.data)  # Sin partial=True
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class CargoAPIView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, JWTHasAnyScope]
-
-    # Define required_scopes como un atributo de instancia
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.required_scopes = []
-
-    def dispatch(self, request, *args, **kwargs):
-        # Ajustar required_scopes basado en el método antes de que se llame a la vista
-        if request.method == 'GET' or 'POST' or 'PATCH' or 'PUT' or 'DELETE':
-            self.required_scopes =  ['admin','write']
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, format=None):
-        holding_id = request.query_params.get('holding')
-        if holding_id:
-            usuarios = Cargos.objects.filter(holding_id=holding_id)
-            serializer = CargoSerializer(usuarios, many=True)
-            print(serializer.data)
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def post(self, request, format=None):
-        serializer = CargoSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo DELETE
-    def delete(self, request, format=None): 
-        perfil_ids = request.data.get('ids', [])
-        Cargos.objects.filter(id__in=perfil_ids).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    #Metodo PATCH
-    def patch(self, request, format=None):
-        perfil_id = request.data.get('id')
-        if not perfil_id:
-            
-            return Response({"message": "ID de perfil es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            perfil = Cargos.objects.get(id=perfil_id)
-        except Cargos.DoesNotExist:
-            return Response({"message": "Perfil no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = CargoSerializer(perfil, data=request.data, partial=True)  # Partial=True para permitir actualizaciones parciales
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    #Metodo PUT
-    def put(self, request, format=None):
-        cliente_id = request.data.get('id')
-        try:
-            perfil = Cargos.objects.get(id=cliente_id)
-        except Cargos.DoesNotExist:
-            return Response({"message": "Cargo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = CargoSerializer(perfil, data=request.data)  # Sin partial=True
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 class EmpresaTransporteAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -3198,7 +3058,6 @@ class FolioComercialAPIView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class PersonalTrabajadoresMobileAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -3286,22 +3145,14 @@ class PersonalTrabajadoresMobileAPIView(APIView):
             except (ValueError, TypeError):
                 pass
         
-        # ✅ VALIDAR ÁREA Y CARGO
         if not data.get('area'):
-            return Response(
-                {'error': 'El área es obligatoria'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'El área es obligatoria'}, status=status.HTTP_400_BAD_REQUEST)
         
         if not data.get('cargo'):
-            return Response(
-                {'error': 'El cargo es obligatorio'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'El cargo es obligatorio'}, status=status.HTTP_400_BAD_REQUEST)
         
         print(f"📋 Área: {data.get('area')}, Cargo: {data.get('cargo')}")
 
-        # ✅ BUSCAR TRABAJADOR EXISTENTE
         existing_personal = None
         if data.get('rut'):
             existing_personal = PersonalTrabajadores.objects.filter(rut=data['rut']).first()
@@ -3310,18 +3161,11 @@ class PersonalTrabajadoresMobileAPIView(APIView):
 
         print(f"👤 Trabajador existente: {existing_personal.id if existing_personal else 'None'}")
 
-        # ✅ GUARDAR REFERENCIAS DE ARCHIVOS VIEJOS (INCLUYENDO HUELLA)
         if existing_personal:
             old_front_image = existing_personal.carnet_front_image.name if existing_personal.carnet_front_image else None
             old_back_image = existing_personal.carnet_back_image.name if existing_personal.carnet_back_image else None
             old_signature = existing_personal.firma.name if existing_personal.firma else None
             old_fingerprint = existing_personal.huella_digital.name if existing_personal.huella_digital else None
-
-            print(f"🗂️ Archivos viejos guardados:")
-            print(f"   Carnet frontal: {old_front_image}")
-            print(f"   Carnet trasero: {old_back_image}")
-            print(f"   Firma: {old_signature}")
-            print(f"   Huella: {old_fingerprint}")
 
             current_data = PersonalTrabajadoresMobileSerializer(existing_personal).data
             merged_data = self.merge_data(current_data, data)
@@ -3341,14 +3185,23 @@ class PersonalTrabajadoresMobileAPIView(APIView):
         if serializer.is_valid():
             print("✅ Serializer válido")
             personal = serializer.save()
-            
-            # ✅ LOGGING DE ARCHIVOS RECIBIDOS (INCLUYENDO HUELLA)
-            print(f"📦 Archivos recibidos:")
-            print(f"   carnet_front_image: {'✅' if 'carnet_front_image' in request.FILES else '❌'}")
-            print(f"   carnet_back_image: {'✅' if 'carnet_back_image' in request.FILES else '❌'}")
-            print(f"   firma: {'✅' if 'firma' in request.FILES else '❌'}")
-            print(f"   huella_digital: {'✅' if 'huella_digital' in request.FILES else '❌'}")
-            
+
+            # ✅ REGISTRO CASA
+            casa_id = data.get('casa')
+            if casa_id:
+                RegistroCasaTrabajador.objects.filter(
+                    trabajador=personal,
+                    fecha_fin__isnull=True
+                ).update(fecha_fin=timezone.now().date())
+
+                RegistroCasaTrabajador.objects.create(
+                    holding_id=data.get('holding'),
+                    trabajador=personal,
+                    casa_id=casa_id,
+                    fecha_inicio=personal.fecha_ingreso or timezone.now().date()
+                )
+                print(f"🏠 Registro casa creado: casa_id={casa_id}")
+
             supervisor_id = data.get('codigo_supervisor')
             print(f"🔍 supervisor_id recibido: {supervisor_id} (tipo: {type(supervisor_id)})")
             
@@ -3372,8 +3225,22 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                 
                 supervisor.trabajadores.add(personal)
                 supervisor.save()
+
+                SupervisorTrabajadorHistorial.objects.filter(
+                    trabajador=personal,
+                    fecha_fin__isnull=True
+                ).exclude(supervisor=supervisor).update(fecha_fin=timezone.now().date())
+
+                SupervisorTrabajadorHistorial.objects.get_or_create(
+                    supervisor=supervisor,
+                    trabajador=personal,
+                    fecha_fin=None,
+                    defaults={
+                        'holding_id': data.get('holding'),
+                        'fecha_inicio': timezone.now().date(),
+                    }
+                )
                 print(f"✅ Trabajador {personal.id} asignado al supervisor {supervisor.id}")
-                print(f"🔍 Total trabajadores del supervisor: {supervisor.trabajadores.count()}")
                 
             except Exception as e:
                 print(f"❌ Error asignando supervisor: {e}")
@@ -3393,7 +3260,6 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     folio = FolioComercial.objects.get(id=folio_id)
                     print(f"🔍 Folio encontrado: {folio.id}")
                     
-                    # ✅ BUSCAR HORARIO (SIN CALCULAR HORAS AÚN)
                     horario = None
                     if horario_id:
                         horario = Horarios.objects.filter(id=horario_id).first()
@@ -3414,7 +3280,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     contrato = ContratoTrabajador.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
-                        cliente_id=folio.cliente_id, 
+                        cliente_id=folio.cliente_id,
                         folio_comercial_id=folio_id,
                         labor_id=data.get('labor'),
                         fundo_id=data.get('fundo'),
@@ -3424,12 +3290,8 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                     )
                     print(f"✅ Contrato ID: {contrato.id}, horario_id: {contrato.horario_id}")
                     
-                    # ✅ AHORA SÍ: DEFINIR FECHA Y CALCULAR HORAS
                     fecha_asistencia = personal.fecha_ingreso if personal.fecha_ingreso else timezone.now().date()
                     horas_dia = self.calcular_horas_dia(horario, fecha_asistencia) if horario else 9.0
-                    
-                    if horario:
-                        print(f"✅ Horario: {horario.nombre} - {horas_dia}h para {fecha_asistencia}")
 
                     asistencia, created = RegistroAsistencia.objects.get_or_create(
                         trabajador=personal,
@@ -3443,7 +3305,7 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                         }
                     )
                     if created:
-                        print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horas_dia}h - Supervisor: {supervisor.id}")
+                        print(f"✅ Asistencia creada: {personal.nombres} - {fecha_asistencia} - {horas_dia}h")
                     else:
                         print(f"ℹ️ Ya existe asistencia para {personal.nombres}")
                     
@@ -3454,30 +3316,24 @@ class PersonalTrabajadoresMobileAPIView(APIView):
                 import traceback
                 print(traceback.format_exc())
             
-            # ✅ ELIMINAR ARCHIVOS VIEJOS (INCLUYENDO HUELLA)
             if existing_personal:
                 if 'carnet_front_image' in request.FILES:
                     self.delete_old_file(old_front_image)
-                    print(f"🗑️ Carnet frontal viejo eliminado: {old_front_image}")
                 if 'carnet_back_image' in request.FILES:
                     self.delete_old_file(old_back_image)
-                    print(f"🗑️ Carnet trasero viejo eliminado: {old_back_image}")
                 if 'firma' in request.FILES:
                     self.delete_old_file(old_signature)
-                    print(f"🗑️ Firma vieja eliminada: {old_signature}")
                 if 'huella_digital' in request.FILES:
                     self.delete_old_file(old_fingerprint)
-                    print(f"🗑️ Huella digital vieja eliminada: {old_fingerprint}")
 
             response_data = PersonalTrabajadoresMobileSerializer(personal).data
             print(f"✅ TRABAJADOR GUARDADO EXITOSAMENTE - ID: {personal.id}")
-            print(f"   Huella guardada: {'✅' if personal.huella_digital else '❌'}")
             return Response(response_data, status=status.HTTP_201_CREATED)
         else:
             print("❌ Errores de validación:")
             print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        
 class EnviarDataProduccionAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
@@ -3725,9 +3581,14 @@ class PersonalTrabajadoresAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, format=None):
+        from datetime import date
+
         trabajador_id = request.data.get('id')
         if not trabajador_id:
-            return Response({"message": "ID de trabajador es necesario para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "ID de trabajador es necesario para actualizar"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
         except PersonalTrabajadores.DoesNotExist:
@@ -3736,6 +3597,22 @@ class PersonalTrabajadoresAPIView(APIView):
         serializer = PersonalTrabajadoresSerializer(trabajador, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+
+            # ✅ REGISTRO CASA
+            casa_id = request.data.get('casa')
+            if casa_id:
+                RegistroCasaTrabajador.objects.filter(
+                    trabajador=trabajador,
+                    fecha_fin__isnull=True
+                ).update(fecha_fin=date.today())
+
+                RegistroCasaTrabajador.objects.create(
+                    holding_id=trabajador.holding_id,
+                    trabajador=trabajador,
+                    casa_id=casa_id,
+                    fecha_inicio=date.today()
+                )
+
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3743,6 +3620,30 @@ class PersonalDocumentosAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
     required_scopes = ['admin', 'write']
+
+    def get(self, request, trabajador_id):
+        try:
+            trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
+        except PersonalTrabajadores.DoesNotExist:
+            return Response({"error": "Trabajador no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        tipo = request.query_params.get('tipo')
+        
+        campo_map = {
+            'carnet_front': trabajador.carnet_front_image,
+            'carnet_back': trabajador.carnet_back_image,
+            'firma': trabajador.firma,
+            'huella': trabajador.huella_digital,
+        }
+
+        imagen = campo_map.get(tipo)
+        if not imagen:
+            return Response({"error": "Imagen no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        import mimetypes
+        from django.http import FileResponse
+        mime_type, _ = mimetypes.guess_type(imagen.name)
+        return FileResponse(imagen.open('rb'), content_type=mime_type or 'application/octet-stream')
 
     def patch(self, request, trabajador_id):
         try:
@@ -3758,7 +3659,10 @@ class PersonalDocumentosAPIView(APIView):
             trabajador.carnet_back_image = request.FILES['carnet_back_image']
         if 'firma' in request.FILES:
             trabajador.firma = request.FILES['firma']
-
+        
+        if 'huella_digital' in request.FILES:
+            trabajador.huella_digital = request.FILES['huella_digital']
+        
         trabajador.save()
         
         serializer = PersonalTrabajadoresSerializer(trabajador)
@@ -4796,66 +4700,126 @@ class OpcionesFiltrosAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class FiltrosProduccionTransferenciaAPIView(APIView):
+    def get(self, request):
+        try:
+            holding_id = request.GET.get('holding_id')
+            fecha_inicio = request.GET.get('fecha_inicio')
+            fecha_fin = request.GET.get('fecha_fin')
+
+            logger.info(f"=== BÚSQUEDA PRODUCCIÓN TRANSFERENCIA === holding_id={holding_id} | fecha_inicio={fecha_inicio} | fecha_fin={fecha_fin}")
+
+            if not all([holding_id, fecha_inicio, fecha_fin]):
+                return Response({'error': 'Faltan parámetros requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+
+            queryset = RegistroManoObraPersona.objects.filter(
+                holding_id=holding_id,
+                fecha_ingreso__range=[fecha_inicio, fecha_fin],
+                trabajador__metodo_pago='Transferencia'
+            ).select_related(
+                'trabajador',
+                'trabajador__cargo',
+                'folio',
+                'folio__cliente',
+                'labor'
+            )
+
+            logger.info(f"Queryset base | registros: {queryset.count()}")
+
+            cliente_ids = request.GET.get('cliente_ids')
+            if cliente_ids:
+                ids = [i for i in cliente_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(folio__cliente_id__in=ids)
+                    logger.info(f"Filtro cliente_ids={ids} | registros: {queryset.count()}")
+
+            fundo_ids = request.GET.get('fundo_ids')
+            if fundo_ids:
+                ids = [i for i in fundo_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(folio__fundos__id__in=ids)
+                    logger.info(f"Filtro fundo_ids={ids} | registros: {queryset.count()}")
+
+            cargo_ids = request.GET.get('cargo_ids')
+            if cargo_ids:
+                ids = [i for i in cargo_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(trabajador__cargo_id__in=ids)
+                    logger.info(f"Filtro cargo_ids={ids} | registros: {queryset.count()}")
+
+            casa_ids = request.GET.get('casa_ids')
+            if casa_ids:
+                ids = [i for i in casa_ids.split(',') if i.isdigit()]
+                if ids:
+                    trabajadores_en_casas = RegistroCasaTrabajador.objects.filter(
+                        casa_id__in=ids,
+                        fecha_fin__isnull=True
+                    ).values_list('trabajador_id', flat=True)
+                    queryset = queryset.filter(trabajador_id__in=trabajadores_en_casas)
+                    logger.info(f"Filtro casa_ids={ids} | registros: {queryset.count()}")
+
+            serializer = FiltrosPagoEfectivoSerializer(queryset, many=True)
+            logger.info(f"=== COMPLETADO === registros: {len(serializer.data)}")
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"Error en FiltrosProduccionTransferenciaAPIView: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class ProcesarPagoAPIView(APIView):
     def post(self, request):
         try:
             holding_id = request.data.get('holding_id')
             sociedad_id = request.data.get('sociedad_id')
             cuenta_id = request.data.get('cuenta_id')
-            producciones_ids = request.data.get('producciones')
-            
-            # Validar datos requeridos
-            if not all([holding_id, sociedad_id, cuenta_id, producciones_ids]):
-                return Response(
-                    {'error': 'Faltan datos requeridos'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            registros_ids = request.data.get('producciones')  # IDs de RegistroManoObraPersona
 
-            # Crear registros de pago agrupados por trabajador
+            if not all([holding_id, sociedad_id, cuenta_id, registros_ids]):
+                return Response({'error': 'Faltan datos requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+
             with transaction.atomic():
-                producciones = ProduccionTrabajador.objects.filter(
-                    id__in=producciones_ids
-                ).select_related('trabajador')
-                
-                pagos_por_trabajador = {}
-                
-                # Agrupar producciones por trabajador
-                for prod in producciones:
-                    if prod.trabajador_id not in pagos_por_trabajador:
-                        pagos_por_trabajador[prod.trabajador_id] = {
-                            'trabajador': prod.trabajador,
-                            'monto_total': 0,
-                            'producciones': []
-                        }
-                    pagos_por_trabajador[prod.trabajador_id]['monto_total'] += (
-                        prod.peso_neto * prod.folio.valor_pago_trabajador if prod.peso_neto > 0
-                        else prod.unidades_control * prod.folio.valor_pago_trabajador
-                    )
-                    pagos_por_trabajador[prod.trabajador_id]['producciones'].append(prod)
+                registros = RegistroManoObraPersona.objects.filter(
+                    id__in=registros_ids
+                ).select_related('trabajador', 'folio', 'labor')
 
-                # Crear registros de pago
+                pagos_por_trabajador = {}
+
+                for reg in registros:
+                    trabajador_id = reg.trabajador_id
+                    if trabajador_id not in pagos_por_trabajador:
+                        pagos_por_trabajador[trabajador_id] = {
+                            'trabajador': reg.trabajador,
+                            'monto_total': 0,
+                            'registros': []
+                        }
+
+                    monto = 0
+                    if reg.folio and reg.labor:
+                        fc_labor = FolioComercialLabor.objects.filter(
+                            folio=reg.folio, labor=reg.labor
+                        ).first()
+                        if fc_labor:
+                            monto = float(reg.produccion * fc_labor.valor_pago_trabajador)
+
+                    pagos_por_trabajador[trabajador_id]['monto_total'] += monto
+                    pagos_por_trabajador[trabajador_id]['registros'].append(reg)
+
                 for trabajador_id, datos in pagos_por_trabajador.items():
-                    registro_pago = RegistroPagoTransferencia.objects.create(
+                    RegistroPagoTransferencia.objects.create(
                         holding_id=holding_id,
                         sociedad_id=sociedad_id,
                         cuenta_origen_id=cuenta_id,
                         trabajador=datos['trabajador'],
-                        monto_pagado=datos['monto_total']
+                        monto_pagado=int(datos['monto_total'])
                     )
-                    registro_pago.producciones.set(datos['producciones'])
-                    
-                    # Marcar producciones como pagadas
-                    for produccion in datos['producciones']:
-                        produccion.pagado = True
-                        produccion.save()
+                    # Nota: si se agrega M2M a RegistroManoObraPersona en RegistroPagoTransferencia,
+                    # aquí se haría registro_pago.registros_mano_obra.set(datos['registros'])
 
             return Response({'message': 'Pagos procesados correctamente'})
-            
+
         except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error en ProcesarPagoAPIView: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PagosRealizadosAPIView(APIView):
     def get(self, request):
@@ -4907,56 +4871,69 @@ class PagosRealizadosAPIView(APIView):
 class FiltrosProduccionEfectivoAPIView(APIView):
     def get(self, request):
         try:
-            # Required parameters
             holding_id = request.GET.get('holding_id')
             fecha_inicio = request.GET.get('fecha_inicio')
             fecha_fin = request.GET.get('fecha_fin')
-            
-            if not all([holding_id, fecha_inicio, fecha_fin]):
-                return Response(
-                    {'error': 'Faltan parámetros requeridos'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
 
-            # Initialize base queryset with metodo_pago='Efectivo' filter
-            queryset = ProduccionTrabajador.objects.filter(
+            logger.info(f"=== INICIANDO BÚSQUEDA PRODUCCIÓN EFECTIVO === holding_id={holding_id} | fecha_inicio={fecha_inicio} | fecha_fin={fecha_fin}")
+
+            if not all([holding_id, fecha_inicio, fecha_fin]):
+                logger.error(f"Faltan parámetros: holding_id={holding_id}, fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}")
+                return Response({'error': 'Faltan parámetros requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+
+            queryset = RegistroManoObraPersona.objects.filter(
                 holding_id=holding_id,
-                hora_fecha_ingreso_produccion__date__range=[fecha_inicio, fecha_fin],
-                pagado=False,
-                trabajador__metodo_pago='Efectivo'  # Filter for cash payment workers
+                fecha_ingreso__range=[fecha_inicio, fecha_fin],
+                trabajador__metodo_pago='Efectivo'
             ).select_related(
                 'trabajador',
-                'trabajador__casa',
                 'trabajador__cargo',
                 'folio',
-                'folio__cliente'
+                'folio__cliente',
+                'labor'
             )
 
-            # Optional filters
-            cliente_id = request.GET.get('cliente_id')
-            if cliente_id and cliente_id.isdigit():
-                queryset = queryset.filter(folio__cliente_id=cliente_id)
-            
-            fundo_id = request.GET.get('fundo_id')
-            if fundo_id and fundo_id.isdigit():
-                queryset = queryset.filter(folio__fundos__id=fundo_id)
-                
-            cargo_id = request.GET.get('cargo_id')
-            if cargo_id and cargo_id.isdigit():
-                queryset = queryset.filter(trabajador__cargo_id=cargo_id)
-                
-            casa_id = request.GET.get('casa_id')
-            if casa_id and casa_id.isdigit():
-                queryset = queryset.filter(trabajador__casa_id=casa_id)
+            logger.info(f"Queryset base construido | registros: {queryset.count()}")
 
-            serializer = FiltrosPagoSerializer(queryset, many=True)
+            cliente_ids = request.GET.get('cliente_ids')
+            if cliente_ids:
+                ids = [i for i in cliente_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(folio__cliente_id__in=ids)
+                    logger.info(f"Filtro cliente_ids={ids} | registros: {queryset.count()}")
+
+            fundo_ids = request.GET.get('fundo_ids')
+            if fundo_ids:
+                ids = [i for i in fundo_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(folio__fundos__id__in=ids)
+                    logger.info(f"Filtro fundo_ids={ids} | registros: {queryset.count()}")
+
+            cargo_ids = request.GET.get('cargo_ids')
+            if cargo_ids:
+                ids = [i for i in cargo_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(trabajador__cargo_id__in=ids)
+                    logger.info(f"Filtro cargo_ids={ids} | registros: {queryset.count()}")
+
+            casa_ids = request.GET.get('casa_ids')
+            if casa_ids:
+                ids = [i for i in casa_ids.split(',') if i.isdigit()]
+                if ids:
+                    trabajadores_en_casas = RegistroCasaTrabajador.objects.filter(
+                        casa_id__in=ids,
+                        fecha_fin__isnull=True
+                    ).values_list('trabajador_id', flat=True)
+                    queryset = queryset.filter(trabajador_id__in=trabajadores_en_casas)
+                    logger.info(f"Filtro casa_ids={ids} | registros: {queryset.count()}")
+
+            serializer = FiltrosPagoEfectivoSerializer(queryset, many=True)
+            logger.info(f"=== BÚSQUEDA COMPLETADA === registros serializados: {len(serializer.data)}")
             return Response(serializer.data)
 
         except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error en FiltrosProduccionEfectivoAPIView: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)              
 
 class ProcesarPagoEfectivoAPIView(APIView):
     def post(self, request):
@@ -5003,13 +4980,12 @@ class GenerarPlanillaEfectivoAPIView(APIView):
     def get(self, request):
         try:
             print("\n1. Iniciando generación de planilla...")
-            
-            # Obtener y validar parámetros
+
             holding_id = request.GET.get('holding_id')
             fecha_inicio = datetime.strptime(request.GET.get('fecha_inicio'), '%Y-%m-%d')
             fecha_fin = datetime.strptime(request.GET.get('fecha_fin'), '%Y-%m-%d')
             multiplo = int(request.GET.get('multiplo', 5000))
-            
+
             print(f"2. Parámetros recibidos:")
             print(f"   holding_id: {holding_id}")
             print(f"   fecha_inicio: {fecha_inicio}")
@@ -5019,11 +4995,8 @@ class GenerarPlanillaEfectivoAPIView(APIView):
             # Generar lista de días
             dias = []
             fecha_actual = fecha_inicio
-            
-            # Encontrar el primer lunes
-            while fecha_actual.weekday() > 0:  # 0 = Lunes
+            while fecha_actual.weekday() > 0:
                 fecha_actual -= timedelta(days=1)
-                
             while fecha_actual <= fecha_fin:
                 dias.append(fecha_actual)
                 fecha_actual += timedelta(days=1)
@@ -5032,47 +5005,75 @@ class GenerarPlanillaEfectivoAPIView(APIView):
             print(f"   Total días: {len(dias)}")
 
             print("\n4. Construyendo queryset...")
-            # Construir queryset base
-            queryset = ProduccionTrabajador.objects.filter(
+            queryset = RegistroManoObraPersona.objects.filter(
                 holding_id=holding_id,
-                hora_fecha_ingreso_produccion__date__range=[fecha_inicio, fecha_fin],
-                pagado=False,
+                fecha_ingreso__range=[fecha_inicio.date(), fecha_fin.date()],
                 trabajador__metodo_pago='Efectivo'
             ).select_related(
                 'trabajador',
-                'folio',
                 'trabajador__cargo',
-                'trabajador__casa'
+                'folio',
+                'folio__cliente',
+                'labor'
             )
 
-            # Aplicar filtros adicionales
-            if request.GET.get('cliente_id'):
-                queryset = queryset.filter(folio__cliente_id=request.GET.get('cliente_id'))
-                print(f"   Filtro cliente_id: {request.GET.get('cliente_id')}")
-            if request.GET.get('fundo_id'):
-                queryset = queryset.filter(folio__fundos__id=request.GET.get('fundo_id'))
-                print(f"   Filtro fundo_id: {request.GET.get('fundo_id')}")
-            if request.GET.get('cargo_id'):
-                queryset = queryset.filter(trabajador__cargo_id=request.GET.get('cargo_id'))
-                print(f"   Filtro cargo_id: {request.GET.get('cargo_id')}")
-            if request.GET.get('casa_id'):
-                queryset = queryset.filter(trabajador__casa_id=request.GET.get('casa_id'))
-                print(f"   Filtro casa_id: {request.GET.get('casa_id')}")
+            # Filtros opcionales — soporte singular y plural
+            cliente_ids = request.GET.get('cliente_ids') or request.GET.get('cliente_id')
+            if cliente_ids:
+                ids = [i for i in cliente_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(folio__cliente_id__in=ids)
+                    print(f"   Filtro cliente_ids: {ids}")
+
+            fundo_ids = request.GET.get('fundo_ids') or request.GET.get('fundo_id')
+            if fundo_ids:
+                ids = [i for i in fundo_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(folio__fundos__id__in=ids)
+                    print(f"   Filtro fundo_ids: {ids}")
+
+            cargo_ids = request.GET.get('cargo_ids') or request.GET.get('cargo_id')
+            if cargo_ids:
+                ids = [i for i in cargo_ids.split(',') if i.isdigit()]
+                if ids:
+                    queryset = queryset.filter(trabajador__cargo_id__in=ids)
+                    print(f"   Filtro cargo_ids: {ids}")
+
+            casa_ids = request.GET.get('casa_ids') or request.GET.get('casa_id')
+            if casa_ids:
+                ids = [i for i in casa_ids.split(',') if i.isdigit()]
+                if ids:
+                    trabajadores_en_casas = RegistroCasaTrabajador.objects.filter(
+                        casa_id__in=ids,
+                        fecha_fin__isnull=True
+                    ).values_list('trabajador_id', flat=True)
+                    queryset = queryset.filter(trabajador_id__in=trabajadores_en_casas)
+                    print(f"   Filtro casa_ids: {ids}")
 
             print(f"\n5. Registros encontrados: {queryset.count()}")
 
-            # Procesar datos
             print("\n6. Procesando datos por trabajador...")
             trabajadores_data = {}
+
             for prod in queryset:
-                worker_key = prod.trabajador.rut if prod.trabajador.rut else '-'
-                fecha = prod.hora_fecha_ingreso_produccion.date()
-                monto = prod.calcular_monto_a_pagar()
-                
+                worker_key = prod.trabajador.rut if prod.trabajador and prod.trabajador.rut else (
+                    prod.trabajador.dni if prod.trabajador and prod.trabajador.dni else '-'
+                )
+                fecha = prod.fecha_ingreso
+
+                # Calcular monto desde FolioComercialLabor
+                monto = 0
+                if prod.folio and prod.labor:
+                    fc_labor = FolioComercialLabor.objects.filter(
+                        folio=prod.folio, labor=prod.labor
+                    ).first()
+                    if fc_labor:
+                        monto = float(prod.produccion * fc_labor.valor_pago_trabajador)
+
                 print(f"\n   Trabajador: {prod.trabajador.nombres} ({worker_key})")
                 print(f"   Fecha: {fecha}")
                 print(f"   Monto: {monto}")
-                
+
                 if worker_key not in trabajadores_data:
                     trabajadores_data[worker_key] = {
                         'nombre': prod.trabajador.nombres,
@@ -5081,7 +5082,7 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                         'total': 0,
                         'saldo_anterior': 0
                     }
-                
+
                 trabajadores_data[worker_key]['pagos_diarios'][fecha] = round(monto)
                 trabajadores_data[worker_key]['total'] += monto
 
@@ -5092,7 +5093,6 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                 print("   Pagos diarios:", {k.strftime('%Y-%m-%d'): v for k, v in data['pagos_diarios'].items() if v > 0})
 
             print("\n8. Configurando documento PDF...")
-            # Configurar documento PDF
             buffer = io.BytesIO()
             doc = SimpleDocTemplate(
                 buffer,
@@ -5103,27 +5103,24 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                 bottomMargin=10*mm
             )
 
-            # Calcular anchos de columna
             print("\n9. Calculando anchos de columna...")
             ancho_pagina = (landscape(A4)[0] - 10*mm) * 0.90
             anchos_columnas = [
-                ancho_pagina * 0.10,  # NOMBRE
-                ancho_pagina * 0.06,  # RUT/NIC
+                ancho_pagina * 0.10,
+                ancho_pagina * 0.06,
             ]
-            
+
             DIAS_POR_FILA = 7
             ancho_dia = (ancho_pagina * 0.50) / DIAS_POR_FILA
             anchos_columnas.extend([ancho_dia] * DIAS_POR_FILA)
-            
             anchos_columnas.extend([
-                ancho_pagina * 0.06,  # SALDO ANTERIOR
-                ancho_pagina * 0.06,  # TOTAL
-                ancho_pagina * 0.07,  # SALDO PROX.
-                ancho_pagina * 0.11   # FIRMA
+                ancho_pagina * 0.06,
+                ancho_pagina * 0.06,
+                ancho_pagina * 0.07,
+                ancho_pagina * 0.11
             ])
 
             print(f"   Número de columnas: {len(anchos_columnas)}")
-            print(f"   Anchos calculados: {anchos_columnas}")
 
             def prepare_table_data(trabajadores_data, dias):
                 print("\n10. Preparando datos de la tabla...")
@@ -5131,64 +5128,58 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                 fecha_indices = []
                 span_info = []
                 separator_rows = []
-                
-                # Headers
+
                 dias_semana = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
                 headers_main = ['NOMBRE', 'RUT/NIC'] + dias_semana + ['SALDO ANT.', 'TOTAL', 'SALDO PROX.', 'FIRMA']
                 table_data.append(headers_main)
-                
+
                 print(f"   Headers generados: {headers_main}")
-                print(f"   Número de columnas en headers: {len(headers_main)}")
 
                 current_row = 1
                 for worker_key, worker_data in trabajadores_data.items():
                     print(f"\n   Procesando trabajador: {worker_data['nombre']}")
-                    
+
                     num_grupos = (len(dias) + DIAS_POR_FILA - 1) // DIAS_POR_FILA
                     rows_for_worker = num_grupos * 2
-                    
+
                     total_sin_redondear = worker_data['total']
                     total_redondeado = (total_sin_redondear // multiplo) * multiplo
                     saldo = total_sin_redondear - total_redondeado
                     saldo_anterior = worker_data['saldo_anterior']
                     saldo_final = saldo_anterior + saldo
-                    
+
                     print(f"   Total sin redondear: {total_sin_redondear}")
                     print(f"   Total redondeado: {total_redondeado}")
                     print(f"   Saldo: {saldo}")
                     print(f"   Saldo final: {saldo_final}")
 
-                    # Registrar spans
-                    for col, span in enumerate([(0,0), (1,1), (-4,-4), (-3,-3), (-2,-2), (-1,-1)]):
+                    for col, span in enumerate([(0, 0), (1, 1), (-4, -4), (-3, -3), (-2, -2), (-1, -1)]):
                         span_info.append(('SPAN', (span[0], current_row), (span[1], current_row + rows_for_worker - 1)))
 
                     for grupo in range(num_grupos):
                         start_idx = grupo * DIAS_POR_FILA
                         end_idx = min((grupo + 1) * DIAS_POR_FILA, len(dias))
                         current_dias = dias[start_idx:end_idx]
-                        
-                        # Fila de fechas
+
                         row = ([worker_data['nombre'], worker_data['rut']] if grupo == 0 else ['', ''])
-                        
+
                         dias_alineados = [''] * DIAS_POR_FILA
                         for d in current_dias:
                             dias_alineados[d.weekday()] = d.strftime('%d/%m')
                         row.extend(dias_alineados)
-                        
-                        # Columnas finales
+
                         row.extend(['', '', '', ''] if grupo > 0 else [
                             f"{saldo_anterior:+,.0f}" if saldo_anterior != 0 else "0",
                             f"{total_redondeado:,.0f}",
                             f"{saldo_final:+,.0f}" if saldo_final != 0 else "0",
                             ''
                         ])
-                        
+
                         fecha_indices.append(len(table_data))
                         table_data.append(row)
                         print(f"   Fila de fechas generada: {row}")
                         current_row += 1
-                        
-                        # Fila de montos
+
                         montos_row = ['', '']
                         montos_alineados = [''] * DIAS_POR_FILA
                         for d in current_dias:
@@ -5200,25 +5191,22 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                                 montos_alineados[weekday] = ""
                         montos_row.extend(montos_alineados)
                         montos_row.extend(['', '', '', ''])
-                        
+
                         table_data.append(montos_row)
                         print(f"   Fila de montos generada: {montos_row}")
                         current_row += 1
-                    
+
                     separator_rows.append(current_row)
                     table_data.append([''] * len(headers_main))
                     current_row += 1
 
                 print(f"\n   Total filas generadas: {len(table_data)}")
-                print(f"   Índices de fechas: {fecha_indices}")
-                print(f"   Filas separadoras: {separator_rows}")
-                
                 return table_data, fecha_indices, span_info, separator_rows
 
             print("\n11. Generando tabla...")
             table_data, fecha_indices, span_info, separator_rows = prepare_table_data(trabajadores_data, dias)
             table = Table(table_data, colWidths=anchos_columnas)
-            
+
             print("\n12. Aplicando estilos...")
             estilos = [
                 ('FONTSIZE', (0, 0), (-1, -1), 7),
@@ -5236,20 +5224,17 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                 ('TOPPADDING', (-1, 1), (-1, -1), 20),
                 ('BOTTOMPADDING', (-1, 1), (-1, -1), 20),
             ]
-            
+
             for row_idx in separator_rows:
                 estilos.extend([
                     ('TOPPADDING', (0, row_idx), (-1, row_idx), 0.5),
                     ('BOTTOMPADDING', (0, row_idx), (-1, row_idx), 0.5)
                 ])
-            
+
             for indice in fecha_indices:
                 estilos.append(('BACKGROUND', (2, indice), (8, indice), colors.lightgrey))
-            
+
             estilos.extend(span_info)
-            
-            print(f"   Total estilos aplicados: {len(estilos)}")
-            
             table.setStyle(TableStyle(estilos))
 
             print("\n13. Creando encabezado...")
@@ -5259,10 +5244,9 @@ class GenerarPlanillaEfectivoAPIView(APIView):
                 alignment=1,
                 spaceAfter=5*mm
             )
-            
             header = Paragraph(
                 f"""<b>PLANILLA DE PAGO</b><br/>
-                Semana del {fecha_inicio.strftime('%d %b')} al {fecha_fin.strftime('%d %b%y')}""",
+                Semana del {fecha_inicio.strftime('%d %b')} al {fecha_fin.strftime('%d %b %y')}""",
                 header_style
             )
 
@@ -5276,19 +5260,15 @@ class GenerarPlanillaEfectivoAPIView(APIView):
             response['Content-Disposition'] = (
                 f'attachment; filename=planilla_efectivo_{fecha_inicio.strftime("%Y%m%d")}.pdf'
             )
-            
+
             print("16. PDF generado exitosamente!")
             return response
 
         except Exception as e:
             print(f"\nERROR: {str(e)}")
-            print(f"Traceback completo:")
             import traceback
             print(traceback.format_exc())
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ReprocesarPagosAPIView(APIView):
     def post(self, request):
@@ -19111,26 +19091,29 @@ class ListarDocumentosAPIView(APIView):
 class GestionAsistenciaAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         try:
-            supervisor_id = request.query_params.get('supervisor_id')
+            supervisor_id     = request.query_params.get('supervisor_id')
             jefe_cuadrilla_id = request.query_params.get('jefe_cuadrilla_id')
-            holding_id = request.query_params.get('holding')
+            holding_id        = request.query_params.get('holding')
             fecha_consulta_str = request.query_params.get('fecha')
-            
+
+            logger.info(f"=== GESTION ASISTENCIA GET ===")
+            logger.info(f"supervisor_id={supervisor_id}, holding={holding_id}, fecha={fecha_consulta_str}")
+
             if not holding_id:
                 return Response(
                     {'error': 'holding es obligatorio', 'acceso_asistencia': False},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if not supervisor_id and not jefe_cuadrilla_id:
                 return Response(
                     {'error': 'Debe proporcionar supervisor_id o jefe_cuadrilla_id', 'acceso_asistencia': False},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if fecha_consulta_str:
                 try:
                     fecha_consulta = datetime.strptime(fecha_consulta_str, '%Y-%m-%d').date()
@@ -19141,25 +19124,29 @@ class GestionAsistenciaAPIView(APIView):
                     )
             else:
                 fecha_consulta = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
-            
+
+            logger.info(f"Fecha consulta: {fecha_consulta}")
+
             try:
                 supervisor = Supervisores.objects.select_related('usuario', 'holding').get(
                     id=supervisor_id, holding_id=holding_id
                 )
+                logger.info(f"Supervisor encontrado: id={supervisor.id}")
             except Supervisores.DoesNotExist:
+                logger.error(f"Supervisor no encontrado: id={supervisor_id}, holding={holding_id}")
                 return Response(
                     {'error': 'Supervisor no encontrado', 'acceso_asistencia': False},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
-            supervisor_para_response = supervisor.id
-            
+
             trabajadores_con_contrato = supervisor.trabajadores.filter(
                 holding_id=holding_id,
                 estado=True,
                 contratos__fecha_inicio_contrato__lte=fecha_consulta,
                 contratos__fecha_termino_contrato__gte=fecha_consulta
             ).distinct().order_by('nombres', 'apellidos')
+
+            logger.info(f"Trabajadores con contrato activo: {trabajadores_con_contrato.count()}")
 
             workers_data = []
             for trabajador in trabajadores_con_contrato:
@@ -19168,71 +19155,81 @@ class GestionAsistenciaAPIView(APIView):
                         fecha_inicio_contrato__lte=fecha_consulta,
                         fecha_termino_contrato__gte=fecha_consulta
                     ).select_related('horario').first()
-                    
+
                     if contrato and contrato.horario:
                         horas_maximas = float(contrato.horario.get_horas_dia(fecha_consulta))
+                        logger.info(f"  Trabajador {trabajador.id} ({trabajador.nombres}): horario={contrato.horario.nombre}, horas_maximas={horas_maximas}")
                     else:
                         horas_maximas = 9.0
-                    
-                    horas_totales_hoy = RegistroAsistencia.objects.filter(
+                        logger.warning(f"  Trabajador {trabajador.id} ({trabajador.nombres}): sin horario, usando default={horas_maximas}")
+
+                    horas_totales = RegistroAsistencia.objects.filter(
                         trabajador=trabajador,
                         fecha_asistencia=fecha_consulta
                     ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
-                    
-                    horas_totales_hoy = float(horas_totales_hoy)
-                    if horas_totales_hoy >= horas_maximas:
+
+                    horas_totales = float(horas_totales)
+                    logger.info(f"  Trabajador {trabajador.id}: horas_ya_registradas={horas_totales}, horas_maximas={horas_maximas}")
+
+                    if horas_totales >= horas_maximas:
+                        logger.info(f"  Trabajador {trabajador.id}: OMITIDO (asistencia completa)")
                         continue
-                    horas_maximas = horas_maximas - horas_totales_hoy
-                    
+
+                    horas_disponibles = horas_maximas - horas_totales
+                    logger.info(f"  Trabajador {trabajador.id}: horas_disponibles={horas_disponibles}")
+
                 except Exception as e:
-                    print(f"Error procesando trabajador {trabajador.id}: {str(e)}")
-                    traceback.print_exc()
+                    logger.error(f"  Error procesando trabajador {trabajador.id}: {type(e).__name__}: {str(e)}", exc_info=True)
                     continue
-                
+
                 workers_data.append({
                     'id': trabajador.id,
                     'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
                     'rut': trabajador.rut or trabajador.dni or '',
-                    'horas_registradas_hoy': horas_totales_hoy,
-                    'horas_maximas': horas_maximas
+                    'horas_registradas_hoy': horas_totales,
+                    'horas_maximas': horas_disponibles
                 })
-            
+
+            logger.info(f"Total workers_data a retornar: {len(workers_data)}")
+
             return Response({
                 'acceso_asistencia': True,
                 'workers': workers_data,
                 'fecha_consulta': fecha_consulta.isoformat(),
                 'total_trabajadores': len(workers_data),
-                'supervisor_id': supervisor_para_response,
+                'supervisor_id': supervisor.id,
                 'supervisor_nombre': supervisor.usuario.persona.nombres if supervisor.usuario and supervisor.usuario.persona else 'N/A'
             }, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
-            print(f"Error en GET GestionAsistenciaAPIView: {str(e)}")
-            traceback.print_exc()
+            logger.error(f"Error en GestionAsistencia GET: {type(e).__name__}: {str(e)}", exc_info=True)
             return Response(
                 {'error': f'Error interno del servidor: {str(e)}', 'acceso_asistencia': False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     def post(self, request):
         try:
-            supervisor_id = request.data.get('codigo_supervisor')
+            supervisor_id     = request.data.get('codigo_supervisor')
             jefe_cuadrilla_id = request.data.get('jefe_cuadrilla_id')
-            asistencias = request.data.get('asistencias', [])
-            fecha_str = request.data.get('fecha')
-            
+            asistencias       = request.data.get('asistencias', [])
+            fecha_str         = request.data.get('fecha')
+
+            logger.info(f"=== GESTION ASISTENCIA POST ===")
+            logger.info(f"supervisor_id={supervisor_id}, fecha={fecha_str}, total_asistencias={len(asistencias)}")
+
             if not supervisor_id and not jefe_cuadrilla_id:
                 return Response(
                     {'status': 'error', 'message': 'Debe proporcionar codigo_supervisor o jefe_cuadrilla_id'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if not asistencias:
                 return Response(
                     {'status': 'error', 'message': 'Se requiere al menos una asistencia'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if fecha_str:
                 try:
                     fecha_asistencia = datetime.strptime(fecha_str, '%Y-%m-%d').date()
@@ -19243,36 +19240,42 @@ class GestionAsistenciaAPIView(APIView):
                     )
             else:
                 fecha_asistencia = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
-            
+
+            logger.info(f"Fecha asistencia: {fecha_asistencia}")
+
             try:
                 supervisor = Supervisores.objects.get(id=supervisor_id)
+                logger.info(f"Supervisor encontrado: id={supervisor.id}")
             except Supervisores.DoesNotExist:
+                logger.error(f"Supervisor no encontrado: id={supervisor_id}")
                 return Response(
                     {'status': 'error', 'message': 'Supervisor no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
+
             trabajadores_validos = supervisor.trabajadores.all()
-            
-            registros_creados = []
+            logger.info(f"Trabajadores válidos del supervisor: {trabajadores_validos.count()}")
+
+            registros_creados    = []
             registros_actualizados = []
-            errores = []
-            
+            errores              = []
+
             with transaction.atomic():
                 for asist_data in asistencias:
                     try:
                         trabajador_id = asist_data.get('trabajador_id')
-                        horas = asist_data.get('horas_registradas', 0.0)
-                        estado = asist_data.get('estado', 'A')
-                        
+                        horas         = asist_data.get('horas_registradas', 0.0)
+                        estado        = asist_data.get('estado', 'A')
+
+                        logger.info(f"  Procesando trabajador_id={trabajador_id}, horas={horas}, estado={estado}")
+
                         trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
-                        
+
                         if not trabajadores_validos.filter(id=trabajador_id).exists():
-                            errores.append({
-                                'trabajador_id': trabajador_id,
-                                'error': 'Trabajador no asignado'
-                            })
+                            logger.warning(f"  Trabajador {trabajador_id} no está asignado al supervisor {supervisor_id}")
+                            errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no asignado'})
                             continue
-                        
+
                         asistencia_existente = RegistroAsistencia.objects.filter(
                             trabajador=trabajador,
                             fecha_asistencia=fecha_asistencia,
@@ -19280,9 +19283,11 @@ class GestionAsistenciaAPIView(APIView):
                         ).first()
 
                         if asistencia_existente:
+                            horas_antes = asistencia_existente.horas_registradas
                             asistencia_existente.horas_registradas += Decimal(str(horas))
                             asistencia_existente.modificado_por = request.user
                             asistencia_existente.save()
+                            logger.info(f"  Trabajador {trabajador_id}: asistencia ACTUALIZADA ({horas_antes} -> {asistencia_existente.horas_registradas})")
                             registros_actualizados.append(trabajador_id)
                         else:
                             RegistroAsistencia.objects.create(
@@ -19294,48 +19299,45 @@ class GestionAsistenciaAPIView(APIView):
                                 horas_registradas=horas,
                                 modificado_por=request.user
                             )
+                            logger.info(f"  Trabajador {trabajador_id}: asistencia CREADA con {horas}h estado={estado}")
                             registros_creados.append(trabajador_id)
-                            
+
                     except PersonalTrabajadores.DoesNotExist:
-                        errores.append({
-                            'trabajador_id': trabajador_id,
-                            'error': 'Trabajador no encontrado'
-                        })
+                        logger.error(f"  Trabajador {trabajador_id} no encontrado en la DB")
+                        errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
                     except Exception as e:
-                        errores.append({
-                            'trabajador_id': trabajador_id,
-                            'error': str(e)
-                        })
-            
-            # Sumar todas las horas de todos los estados para verificar pendientes
-            from django.db.models import Subquery, OuterRef
-            
+                        logger.error(f"  Error en trabajador {trabajador_id}: {type(e).__name__}: {str(e)}", exc_info=True)
+                        errores.append({'trabajador_id': trabajador_id, 'error': str(e)})
+
+            logger.info(f"Resumen: creados={len(registros_creados)}, actualizados={len(registros_actualizados)}, errores={len(errores)}")
+
+            # Verificar pendientes
             trabajadores_restantes = trabajadores_validos.filter(
                 estado=True,
                 contratos__fecha_inicio_contrato__lte=fecha_asistencia,
                 contratos__fecha_termino_contrato__gte=fecha_asistencia
             ).distinct()
-            
+
             pendientes = 0
             for trab in trabajadores_restantes:
                 contrato = trab.contratos.filter(
                     fecha_inicio_contrato__lte=fecha_asistencia,
                     fecha_termino_contrato__gte=fecha_asistencia
                 ).select_related('horario').first()
-                
-                if contrato and contrato.horario:
-                    horas_dia = float(contrato.horario.get_horas_dia(fecha_asistencia))
-                else:
-                    horas_dia = 9.0
-                
-                horas_registradas = RegistroAsistencia.objects.filter(
+
+                horas_dia = float(contrato.horario.get_horas_dia(fecha_asistencia)) if (contrato and contrato.horario) else 9.0
+
+                horas_reg = RegistroAsistencia.objects.filter(
                     trabajador=trab,
                     fecha_asistencia=fecha_asistencia
                 ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
-                
-                if float(horas_registradas) < horas_dia:
+
+                if float(horas_reg) < horas_dia:
+                    logger.info(f"  Pendiente: trabajador {trab.id} ({trab.nombres}), registradas={float(horas_reg)}, requeridas={horas_dia}")
                     pendientes += 1
-            
+
+            logger.info(f"Trabajadores pendientes: {pendientes}")
+
             return Response({
                 'status': 'success',
                 'message': 'Proceso de asistencia completado',
@@ -19345,10 +19347,9 @@ class GestionAsistenciaAPIView(APIView):
                 'remaining_workers': pendientes > 0,
                 'trabajadores_pendientes': pendientes
             }, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
-            print(f"Error en POST GestionAsistenciaAPIView: {str(e)}")
-            traceback.print_exc()
+            logger.error(f"Error en GestionAsistencia POST: {type(e).__name__}: {str(e)}", exc_info=True)
             return Response(
                 {'status': 'error', 'message': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -19792,35 +19793,33 @@ class InformeManoObraAPIView(APIView):
         try:
             supervisor_id = request.query_params.get('supervisor_id')
             holding = request.query_params.get('holding')
-            fecha_inicio = request.query_params.get('fecha_inicio')  # Formato: YYYY-MM-DD
-            fecha_fin = request.query_params.get('fecha_fin')  # Formato: YYYY-MM-DD
-            
+            fecha_inicio = request.query_params.get('fecha_inicio')
+            fecha_fin = request.query_params.get('fecha_fin')
+
             print(f"🔍 Params: supervisor={supervisor_id}, holding={holding}")
             print(f"   Fechas: {fecha_inicio} a {fecha_fin}")
-            
-            if not all([supervisor_id, holding]):
+
+            if not holding:
                 return Response(
-                    {'error': 'Faltan parámetros requeridos'}, 
+                    {'error': 'Falta el parámetro holding'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            # Construir filtros
-            filtros = {
-                'supervisor_id': supervisor_id,
-                'holding': holding
-            }
-            
-            # Filtros de fecha
+
+            filtros = {'holding': holding}
+
+            if supervisor_id:
+                filtros['supervisor_id'] = supervisor_id
+
             if fecha_inicio and fecha_fin:
                 try:
                     fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
-                    fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                    fecha_fin_obj    = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
                     filtros['fecha_ingreso__range'] = [fecha_inicio_obj, fecha_fin_obj]
                     print(f"✅ Rango de fechas aplicado: {fecha_inicio_obj} a {fecha_fin_obj}")
                 except ValueError as e:
                     print(f"❌ Error en formato de fechas: {e}")
                     return Response(
-                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, 
+                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             elif fecha_inicio:
@@ -19830,16 +19829,14 @@ class InformeManoObraAPIView(APIView):
                     print(f"✅ Fecha única aplicada: {fecha_obj}")
                 except ValueError:
                     return Response(
-                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, 
+                        {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             else:
-                # Si no hay fechas, usar hoy
                 hoy = date.today()
                 filtros['fecha_ingreso'] = hoy
                 print(f"✅ Usando fecha de hoy: {hoy}")
-            
-            # Obtener registros
+
             registros = RegistroManoObraPersona.objects.filter(**filtros).select_related(
                 'labor',
                 'supervisor',
@@ -19850,53 +19847,50 @@ class InformeManoObraAPIView(APIView):
                 'folio',
                 'folio__cliente'
             ).order_by('-produccion')
-            
+
             print(f"📊 Registros encontrados: {registros.count()}")
-            
+
             if not registros.exists():
                 return Response({
                     'registros': [],
                     'mensaje': 'No hay registros para los filtros aplicados'
                 }, status=status.HTTP_200_OK)
-            
-            # Formatear datos
+
             registros_data = []
             for registro in registros:
-                # Nombre del supervisor
                 if registro.supervisor and registro.supervisor.usuario and registro.supervisor.usuario.persona:
                     nombre_supervisor = f"{registro.supervisor.usuario.persona.nombres} {registro.supervisor.usuario.persona.apellidos or ''}".strip()
                 else:
                     nombre_supervisor = "Sin Supervisor"
-                
-                # Nombre del cliente (equivalente al "centro de costo")
+
                 nombre_cliente = registro.folio.cliente.nombre if registro.folio and registro.folio.cliente else "Sin Cliente"
-                
+
                 registros_data.append({
-                    'id': registro.id,
-                    'nombre_labor': registro.labor.nombre if registro.labor else 'Sin Labor',
+                    'id':                registro.id,
+                    'nombre_labor':      registro.labor.nombre if registro.labor else 'Sin Labor',
                     'nombre_supervisor': nombre_supervisor,
-                    'unidad_control': registro.unidad_control.nombre if registro.unidad_control else 'Sin U.Control',
-                    'horas_trabajadas': float(registro.horas),
-                    'produccion': float(registro.produccion),
+                    'unidad_control':    registro.unidad_control.nombre if registro.unidad_control else 'Sin U.Control',
+                    'horas_trabajadas':  float(registro.horas),
+                    'produccion':        float(registro.produccion),
                     'nombre_trabajador': f"{registro.trabajador.nombres} {registro.trabajador.apellidos or ''}".strip() if registro.trabajador else 'Sin Trabajador',
-                    'nombre_centro_costo': nombre_cliente,  # Cliente como "centro de costo"
-                    'fecha_ingreso': registro.fecha_ingreso.strftime('%Y-%m-%d'),
-                    'folio_id': registro.folio.id if registro.folio else None,
+                    'nombre_centro_costo': nombre_cliente,
+                    'fecha_ingreso':     registro.fecha_ingreso.strftime('%Y-%m-%d'),
+                    'folio_id':          registro.folio.id if registro.folio else None,
                 })
-            
+
             print(f"✅ Devolviendo {len(registros_data)} registros")
-            
+
             return Response({
                 'registros': registros_data,
                 'total': len(registros_data)
             }, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             print(f"❌ Error en informe_mano_obra GET: {str(e)}")
             import traceback
             traceback.print_exc()
             return Response(
-                {'error': str(e)}, 
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -19910,36 +19904,25 @@ class ContratoTrabajadorAPIView(APIView):
     """
     
     def get(self, request):
-        """
-        Lista contratos con filtros opcionales
-        Parámetros:
-        - holding: ID del holding (requerido)
-        - estado: vigente | vencido | todos (default: todos)
-        - trabajador_id: Filtrar por trabajador específico
-        """
-        holding_id = request.query_params.get('holding')
+        from django.db.models import Q
+
+        holding_id    = request.query_params.get('holding')
         estado_filtro = request.query_params.get('estado', 'todos')
         trabajador_id = request.query_params.get('trabajador_id')
-        
+
         if not holding_id:
             return Response({'error': 'holding es requerido'}, status=400)
-        
-        # Query base
+
         queryset = ContratoTrabajador.objects.filter(
             holding_id=holding_id
         ).select_related(
-            'trabajador',
-            'trabajador__sociedad',
-            'documento',
-            'cliente',
-            'fundo'
+            'trabajador', 'trabajador__sociedad',
+            'documento', 'cliente', 'fundo', 'horario'
         )
-        
-        # Filtro por trabajador específico
+
         if trabajador_id:
             queryset = queryset.filter(trabajador_id=trabajador_id)
-        
-        # Aplicar filtro de estado
+
         if estado_filtro == 'vigente':
             queryset = queryset.filter(
                 fecha_termino_contrato__gte=date.today()
@@ -19948,9 +19931,58 @@ class ContratoTrabajadorAPIView(APIView):
             queryset = queryset.filter(
                 fecha_termino_contrato__lt=date.today()
             )
-        
-        serializer = ContratoTrabajadorSerializer(queryset, many=True)
-        return Response(serializer.data)
+
+        # Mapa horario por contrato_id
+        horario_map = {}
+        for c in queryset:
+            if c.horario:
+                h = c.horario
+                total_minutos = 0
+                dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+                for dia in dias:
+                    inicio  = getattr(h, f'{dia}_inicio', None)
+                    fin     = getattr(h, f'{dia}_fin', None)
+                    colacion = getattr(h, f'{dia}_minutos_colacion', 0) or 0
+                    if inicio and fin:
+                        from datetime import datetime as dt
+                        mins = (dt.combine(dt.today(), fin) - dt.combine(dt.today(), inicio)).seconds // 60
+                        total_minutos += mins - colacion
+                jornada = round(total_minutos / 60, 1)
+                horario_map[c.id] = f"{h.nombre} ({jornada}h)"
+            else:
+                horario_map[c.id] = None
+
+        # Mapa supervisor por (trabajador_id, fecha_inicio_contrato) usando historial
+        # Traer todos los registros del historial del holding de una vez
+        todos_historial = SupervisorTrabajadorHistorial.objects.filter(
+            holding_id=holding_id
+        ).select_related('supervisor__usuario__persona')
+
+        data = ContratoTrabajadorSerializer(queryset, many=True).data
+
+        for contrato in data:
+            trab_id = contrato.get('trabajador')
+            fecha   = contrato.get('fecha_inicio_contrato')
+
+            supervisores = []
+            for h in todos_historial:
+                if h.trabajador_id != trab_id:
+                    continue
+                if h.fecha_inicio > date.fromisoformat(str(fecha)):
+                    continue
+                if h.fecha_fin and h.fecha_fin < date.fromisoformat(str(fecha)):
+                    continue
+                nombre = ''
+                if h.supervisor and h.supervisor.usuario and h.supervisor.usuario.persona:
+                    p = h.supervisor.usuario.persona
+                    nombre = f"{p.nombres} {p.apellidos or ''}".strip()
+                supervisores.append({'id': h.supervisor.id, 'nombre': nombre})
+
+            contrato['supervisores'] = supervisores
+            contrato['supervisor']   = supervisores[0] if supervisores else None
+            contrato['horario_info'] = horario_map.get(contrato.get('id'))
+
+        return Response(data)
     
     def post(self, request):
         """Crear nuevo contrato"""
@@ -19988,14 +20020,33 @@ class ContratoTrabajadorAPIView(APIView):
             'mensaje': f'Se eliminaron {deleted_count} contratos',
             'eliminados': deleted_count
         })
-    
+
+    def patch(self, request):
+        """Terminar contrato (setear fecha_termino = hoy)"""
+        contrato_id = request.data.get('id')
+        
+        if not contrato_id:
+            return Response({'error': 'ID de contrato es requerido'}, status=400)
+        
+        try:
+            contrato = ContratoTrabajador.objects.get(id=contrato_id)
+        except ContratoTrabajador.DoesNotExist:
+            return Response({'error': 'Contrato no encontrado'}, status=404)
+        
+        if contrato.fecha_termino_contrato and contrato.fecha_termino_contrato < date.today():
+            return Response({'error': 'El contrato ya está vencido'}, status=400)
+        
+        contrato.fecha_termino_contrato = date.today()
+
+        contrato.save(update_fields=['fecha_termino_contrato'])
+        
+        return Response({
+            'mensaje': 'Contrato terminado exitosamente',
+            'contrato_id': contrato.id,
+            'fecha_termino': contrato.fecha_termino_contrato.strftime('%Y-%m-%d')
+        })
+
 class CrearContratoWebAPIView(APIView):
-    """
-    Vista única para manejar la creación de contratos desde web.
-    
-    GET con sociedad_id y folio_id: Devuelve trabajadores sin contrato vigente y datos del folio
-    POST: Crea el contrato
-    """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, JWTHasAnyScope]
 
@@ -20009,25 +20060,23 @@ class CrearContratoWebAPIView(APIView):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, format=None):
-        """
-        GET: Obtiene datos necesarios para crear contratos
-        
-        Sin sociedad_id y folio_id: Devuelve sociedades, folios, supervisores, jefes cuadrilla, transportistas
-        Con sociedad_id y folio_id: Devuelve trabajadores disponibles y datos del folio
-        """
         try:
             holding_id = request.query_params.get('holding')
             sociedad_id = request.query_params.get('sociedad_id')
             folio_id = request.query_params.get('folio_id')
             
+            logger.info(f"=== CREAR CONTRATO WEB GET ===")
+            logger.info(f"Params: holding={holding_id}, sociedad_id={sociedad_id}, folio_id={folio_id}")
+            
             if not holding_id:
+                logger.error("Holding no proporcionado")
                 return Response(
                     {'error': 'Holding es requerido'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # CASO 1: Datos iniciales
             if not sociedad_id and not folio_id:
+                logger.info("CASO 1: Datos iniciales")
                 sociedades = Sociedad.objects.filter(
                     holding_id=holding_id,
                     estado=True
@@ -20046,7 +20095,6 @@ class CrearContratoWebAPIView(APIView):
                 from .serializers import FolioComercialPreContratacionSerializer
                 folios_serializer = FolioComercialPreContratacionSerializer(folios, many=True)
                 
-                # Supervisores
                 supervisores = Supervisores.objects.filter(
                     holding_id=holding_id
                 ).select_related('usuario__persona')
@@ -20057,7 +20105,6 @@ class CrearContratoWebAPIView(APIView):
                     'rut': s.usuario.rut if s.usuario else None
                 } for s in supervisores]
                 
-                # Transportistas con vehículos y choferes
                 transportistas = EmpresasTransporte.objects.filter(
                     holding_id=holding_id
                 ).prefetch_related('vehiculostransporte_set__choferestransporte_set')
@@ -20067,18 +20114,21 @@ class CrearContratoWebAPIView(APIView):
                     'nombre': t.nombre,
                     'rut': t.rut,
                     'vehiculos': [{
-                        'id': v.id,
-                        'ppu': v.ppu,
-                        'modelo': v.modelo,
-                        'choferes': [{
-                            'id': c.id,
-                            'nombre': c.nombre,
-                            'rut': c.rut,
-                            'licencia': c.licencia
-                        } for c in v.choferestransporte_set.all()]
-                    } for v in t.vehiculostransporte_set.all()]
+                    'id': v.id,
+                    'tipo': v.tipo,
+                    'marca': v.marca,
+                    'modelo': v.modelo,
+                    'ppu': v.ppu,
+                    'choferes': [{
+                        'id': c.id,
+                        'nombre': c.nombre,
+                        'rut': c.rut,
+                        'licencia': c.licencia
+                    } for c in v.choferestransporte_set.all()]
+                } for v in t.vehiculostransporte_set.all()]
                 } for t in transportistas]
                 
+                logger.info(f"Respuesta: {len(sociedades_data)} sociedades, {len(folios_serializer.data)} folios, {len(supervisores_data)} supervisores, {len(transportistas_data)} transportistas")
                 return Response({
                     'sociedades': sociedades_data,
                     'folios': folios_serializer.data,
@@ -20086,11 +20136,13 @@ class CrearContratoWebAPIView(APIView):
                     'transportistas': transportistas_data
                 }, status=status.HTTP_200_OK)
             
-            # CASO 2: Trabajadores disponibles y datos del folio
             if sociedad_id and folio_id:
+                logger.info(f"CASO 2: Trabajadores disponibles para sociedad={sociedad_id}, folio={folio_id}")
                 try:
                     folio = FolioComercial.objects.get(id=folio_id, holding_id=holding_id)
+                    logger.info(f"Folio encontrado: ID={folio.id}")
                 except FolioComercial.DoesNotExist:
+                    logger.error(f"Folio {folio_id} no encontrado")
                     return Response(
                         {'error': 'Folio no encontrado'},
                         status=status.HTTP_404_NOT_FOUND
@@ -20101,7 +20153,6 @@ class CrearContratoWebAPIView(APIView):
                 
                 fecha_actual = date.today()
                 
-                # Obtener trabajadores excluyendo administradores
                 todos_trabajadores = PersonalTrabajadores.objects.filter(
                     holding_id=holding_id,
                     estado=True
@@ -20140,11 +20191,23 @@ class CrearContratoWebAPIView(APIView):
                     'nombre': l.nombre
                 } for l in folio.labores.all()]
                 
-                horarios_data = [{
-                    'id': h.id,
-                    'nombre': h.nombre,
-                    'jornada': float(h.jornada)
-                } for h in folio.horarios.all()]
+                horarios_data = []
+                for h in folio.horarios.all():
+                    total_minutos = 0
+                    dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+                    for dia in dias:
+                        inicio = getattr(h, f'{dia}_inicio', None)
+                        fin = getattr(h, f'{dia}_fin', None)
+                        colacion = getattr(h, f'{dia}_minutos_colacion', 0)
+                        if inicio and fin:
+                            minutos_dia = (dt.combine(dt.today(), fin) - dt.combine(dt.today(), inicio)).seconds // 60
+                            total_minutos += minutos_dia - colacion
+                    jornada = round(total_minutos / 60, 1)
+                    horarios_data.append({
+                        'id': h.id,
+                        'nombre': h.nombre,
+                        'jornada': jornada
+                    })
                 
                 casas = CasasTrabajadores.objects.filter(
                     holding_id=holding_id,
@@ -20165,6 +20228,7 @@ class CrearContratoWebAPIView(APIView):
                     'tipo': d.tipo
                 } for d in documentos]
                 
+                logger.info(f"Respuesta: {len(trabajadores_data)} trabajadores sin contrato, {len(fundos_data)} fundos, {len(labores_data)} labores, {len(horarios_data)} horarios")
                 return Response({
                     'trabajadores': trabajadores_data,
                     'folio': {
@@ -20181,133 +20245,122 @@ class CrearContratoWebAPIView(APIView):
                     'documentos': documentos_data
                 }, status=status.HTTP_200_OK)
             
+            logger.error("Parámetros inválidos")
             return Response(
                 {'error': 'Parámetros inválidos'},
                 status=status.HTTP_400_BAD_REQUEST
             )
             
         except Exception as e:
-            print(f"❌ Error en CrearContratoWebAPIView GET: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error en CrearContratoWebAPIView GET: {type(e).__name__}: {str(e)}", exc_info=True)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def post(self, request, format=None):
-        """
-        POST: Crea un nuevo contrato
-        
-        Body esperado:
-        {
-            "holding": 1,
-            "trabajador": 123,
-            "fecha_inicio_contrato": "2024-01-01",
-            "fecha_termino_contrato": "2024-12-31",  # opcional
-            "labor": 10,
-            "folio_comercial": 15,
-            "horario": 2,
-            "fundo": 8,
-            "casa": 3,  # opcional
-            "supervisor_id": 5,  # opcional
-            "transportista_id": 2,  # opcional
-            "vehiculo_id": 9,  # opcional
-            "chofer_id": 4  # opcional
-        }
-        """
         try:
             from django.db import transaction
-            
-            # Validar campos obligatorios
+            from datetime import datetime, timedelta
+
+            logger.info(f"=== CREAR CONTRATO WEB POST ===")
+            logger.info(f"Datos recibidos: {request.data}")
+
             required_fields = [
                 'holding', 'trabajador', 'fecha_inicio_contrato',
                 'labor', 'folio_comercial', 'horario', 'fundo'
             ]
-            
+
             missing_fields = [field for field in required_fields if field not in request.data]
             if missing_fields:
-                print(f'❌ Campos requeridos faltantes: {", ".join(missing_fields)}')
+                logger.error(f"Campos requeridos faltantes: {', '.join(missing_fields)}")
                 return Response(
                     {'error': f'Campos requeridos faltantes: {", ".join(missing_fields)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            # Usar transacción atómica para asegurar consistencia
+
             with transaction.atomic():
-                # Verificar que el trabajador existe
                 try:
                     trabajador = PersonalTrabajadores.objects.get(
                         id=request.data['trabajador'],
                         holding_id=request.data['holding']
                     )
-                    print(f'✅ Trabajador encontrado: {trabajador.nombres} {trabajador.apellidos}')
+                    logger.info(f"Trabajador encontrado: {trabajador.nombres} {trabajador.apellidos}")
                 except PersonalTrabajadores.DoesNotExist:
-                    return Response(
-                        {'error': 'Trabajador no encontrado'},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-                
-                # Verificar que no tenga contrato vigente
-                from datetime import datetime
+                    logger.error(f"Trabajador {request.data['trabajador']} no encontrado")
+                    return Response({'error': 'Trabajador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
                 from django.db.models import Q
-                
+
                 fecha_inicio = datetime.strptime(request.data['fecha_inicio_contrato'], '%Y-%m-%d').date()
-                
+
                 contrato_vigente = ContratoTrabajador.objects.filter(
                     trabajador=trabajador,
                     fecha_inicio_contrato__lte=fecha_inicio
                 ).filter(
-                    Q(fecha_termino_contrato__gte=fecha_inicio) | 
+                    Q(fecha_termino_contrato__gte=fecha_inicio) |
                     Q(fecha_termino_contrato__isnull=True)
                 ).exists()
-                
+
                 if contrato_vigente:
-                    print('❌ El trabajador ya tiene un contrato vigente')
+                    logger.error(f"El trabajador {trabajador.id} ya tiene un contrato vigente")
                     return Response(
                         {'error': 'El trabajador ya tiene un contrato vigente'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
-                # Obtener folio para asignar cliente
+
                 try:
                     folio = FolioComercial.objects.get(
                         id=request.data['folio_comercial'],
                         holding_id=request.data['holding']
                     )
-                    print(f'✅ Folio encontrado: {folio.id}')
+                    logger.info(f"Folio encontrado: ID={folio.id}")
                 except FolioComercial.DoesNotExist:
-                    return Response(
-                        {'error': 'Folio comercial no encontrado'},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-                
-                # Crear el contrato
+                    logger.error(f"Folio {request.data['folio_comercial']} no encontrado")
+                    return Response({'error': 'Folio comercial no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
                 contrato_data = {
-                    'holding_id': request.data['holding'],
-                    'trabajador_id': request.data['trabajador'],
+                    'holding_id':            request.data['holding'],
+                    'trabajador_id':         request.data['trabajador'],
                     'fecha_inicio_contrato': request.data['fecha_inicio_contrato'],
-                    'labor_id': request.data['labor'],
-                    'folio_comercial_id': request.data['folio_comercial'],
-                    'horario_id': request.data['horario'],
-                    'fundo_id': request.data['fundo'],
-                    'cliente_id': folio.cliente.id if folio.cliente else None
+                    'labor_id':              request.data['labor'],
+                    'folio_comercial_id':    request.data['folio_comercial'],
+                    'horario_id':            request.data['horario'],
+                    'fundo_id':              request.data['fundo'],
+                    'cliente_id':            folio.cliente.id if folio.cliente else None
                 }
-                
-                # Campo opcional: fecha_termino_contrato
+
+                fecha_termino_historial = None
                 if request.data.get('fecha_termino_contrato'):
                     contrato_data['fecha_termino_contrato'] = request.data['fecha_termino_contrato']
-                
-                # Crear contrato
+                    fecha_termino_historial = datetime.strptime(
+                        request.data['fecha_termino_contrato'], '%Y-%m-%d'
+                    ).date()
+
                 contrato = ContratoTrabajador.objects.create(**contrato_data)
-                print(f'✅ Contrato creado: {contrato.id}')
-                
-                # Variables para el response
-                supervisor_asignado = False
+                logger.info(f"Contrato creado: ID={contrato.id}")
+
+                # ✅ REGISTRO CASA
+                casa_id = request.data.get('casa_id')
+                if casa_id:
+                    RegistroCasaTrabajador.objects.filter(
+                        trabajador=trabajador,
+                        fecha_fin__isnull=True
+                    ).update(fecha_fin=fecha_inicio - timedelta(days=1))
+
+                    RegistroCasaTrabajador.objects.create(
+                        holding_id=request.data['holding'],
+                        trabajador=trabajador,
+                        casa_id=casa_id,
+                        fecha_inicio=fecha_inicio,
+                        fecha_fin=fecha_termino_historial
+                    )
+                    logger.info(f"Registro casa creado: casa_id={casa_id}, inicio={fecha_inicio}, fin={fecha_termino_historial}")
+
+                supervisor_asignado     = False
                 jefe_cuadrilla_asignado = False
-                transporte_asignado = False
-                
-                # Asignar supervisor (opcional)
+                transporte_asignado     = False
+
                 supervisor_id = request.data.get('supervisor_id')
                 if supervisor_id:
                     try:
@@ -20317,50 +20370,61 @@ class CrearContratoWebAPIView(APIView):
                         )
                         supervisor.trabajadores.add(trabajador)
                         supervisor_asignado = True
-                        print(f'✅ Trabajador asignado a supervisor: {supervisor.id}')
+                        logger.info(f"Trabajador asignado a supervisor: ID={supervisor.id}")
+
+                        SupervisorTrabajadorHistorial.objects.filter(
+                            trabajador=trabajador,
+                            fecha_fin__isnull=True
+                        ).update(fecha_fin=fecha_inicio - timedelta(days=1))
+
+                        SupervisorTrabajadorHistorial.objects.create(
+                            holding_id=request.data['holding'],
+                            supervisor=supervisor,
+                            trabajador=trabajador,
+                            fecha_inicio=fecha_inicio,
+                            fecha_fin=fecha_termino_historial
+                        )
+                        logger.info(f"Historial supervisor creado: supervisor={supervisor.id}, trabajador={trabajador.id}")
+
                     except Supervisores.DoesNotExist:
+                        logger.error(f"Supervisor {supervisor_id} no encontrado")
                         raise Exception(f'Supervisor {supervisor_id} no encontrado')
-                
-                # Crear relación de transporte (opcional)
+
                 transportista_id = request.data.get('transportista_id')
-                vehiculo_id = request.data.get('vehiculo_id')
-                chofer_id = request.data.get('chofer_id')
-                
+                vehiculo_id      = request.data.get('vehiculo_id')
+                chofer_id        = request.data.get('chofer_id')
+
                 if transportista_id or vehiculo_id:
-                    # Validar que el transportista existe si se proporciona
                     if transportista_id:
                         try:
                             transportista = EmpresasTransporte.objects.get(
                                 id=transportista_id,
                                 holding_id=request.data['holding']
                             )
-                            print(f'✅ Transportista validado: {transportista.nombre}')
+                            logger.info(f"Transportista validado: {transportista.nombre}")
                         except EmpresasTransporte.DoesNotExist:
                             raise Exception(f'Empresa de transporte {transportista_id} no encontrada')
-                    
-                    # Validar que el vehículo existe si se proporciona
+
                     if vehiculo_id:
                         try:
                             vehiculo = VehiculosTransporte.objects.get(
                                 id=vehiculo_id,
                                 holding_id=request.data['holding']
                             )
-                            print(f'✅ Vehículo validado: {vehiculo.ppu}')
+                            logger.info(f"Vehículo validado: {vehiculo.ppu}")
                         except VehiculosTransporte.DoesNotExist:
                             raise Exception(f'Vehículo {vehiculo_id} no encontrado')
-                    
-                    # Validar que el chofer existe si se proporciona
+
                     if chofer_id:
                         try:
                             chofer = ChoferesTransporte.objects.get(
                                 id=chofer_id,
                                 holding_id=request.data['holding']
                             )
-                            print(f'✅ Chofer validado: {chofer.nombre}')
+                            logger.info(f"Chofer validado: {chofer.nombre}")
                         except ChoferesTransporte.DoesNotExist:
                             raise Exception(f'Chofer {chofer_id} no encontrado')
-                    
-                    # Crear relación de transporte
+
                     trabajador_transporte = TrabajadorEmpresaTransporte.objects.create(
                         holding_id=request.data['holding'],
                         trabajador=trabajador,
@@ -20369,37 +20433,27 @@ class CrearContratoWebAPIView(APIView):
                         chofer_id=chofer_id if chofer_id else None
                     )
                     transporte_asignado = True
-                    print(f'✅ Relación transporte creada: {trabajador_transporte.id}')
+                    logger.info(f"Relación transporte creada: ID={trabajador_transporte.id}")
 
-                # Formatear fechas para respuesta
-                fecha_inicio_str = request.data['fecha_inicio_contrato']
-                fecha_termino_str = request.data.get('fecha_termino_contrato', 'INDEFINIDO')
-
-                # Preparar response detallado
                 response_data = {
-                    'message': 'Contrato creado exitosamente',
-                    'contrato_id': contrato.id,
-                    'trabajador': f"{trabajador.nombres} {trabajador.apellidos}",
-                    'fecha_inicio': fecha_inicio_str,
-                    'fecha_termino': fecha_termino_str,
+                    'message':      'Contrato creado exitosamente',
+                    'contrato_id':  contrato.id,
+                    'trabajador':   f"{trabajador.nombres} {trabajador.apellidos}",
+                    'fecha_inicio': request.data['fecha_inicio_contrato'],
+                    'fecha_termino': request.data.get('fecha_termino_contrato', 'INDEFINIDO'),
                     'asignaciones': {
-                        'supervisor': supervisor_asignado,
+                        'supervisor':     supervisor_asignado,
                         'jefe_cuadrilla': jefe_cuadrilla_asignado,
-                        'transporte': transporte_asignado
+                        'transporte':     transporte_asignado
                     }
                 }
-                
-                print(f'✅ Transacción completada exitosamente')
+
+                logger.info(f"Transacción completada: contrato_id={contrato.id}")
                 return Response(response_data, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
-            print(f"❌ Error en CrearContratoWebAPIView POST: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error en CrearContratoWebAPIView POST: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CarnetOCRAPIView(APIView):
     def post(self, request):
@@ -20536,7 +20590,6 @@ class CarnetOCRAPIView(APIView):
         
         return datos
 
-# views.py
 class PDFToImageAPIView(APIView):
     """
     Endpoint SOLO para convertir PDF a imagen (sin OCR)
@@ -20706,3 +20759,679 @@ class FirmaHuellaAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+class GestionRetroactivaManoObraPersonaAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, JWTHasAnyScope]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required_scopes = []
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method in ['GET', 'POST']:
+            self.required_scopes = ['admin', 'write']
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        try:
+            supervisor_id = request.query_params.get('supervisor_id')
+            holding       = request.query_params.get('holding')
+            fecha_str     = request.query_params.get('fecha')
+
+            logger.info(f"=== RETROACTIVO GET === supervisor_id={supervisor_id}, holding={holding}, fecha={fecha_str}")
+
+            if not holding:
+                return Response({'error': 'Falta el parámetro holding'}, status=status.HTTP_400_BAD_REQUEST)
+            if not supervisor_id:
+                return Response({'error': 'Falta el parámetro supervisor_id'}, status=status.HTTP_400_BAD_REQUEST)
+            if not fecha_str:
+                return Response({'error': 'Falta el parámetro fecha'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+
+            logger.info(f"Fecha parseada: {fecha} | Hoy: {date.today()}")
+
+            if fecha >= date.today():
+                return Response({'error': 'La fecha debe ser anterior al día de hoy'}, status=status.HTTP_400_BAD_REQUEST)
+
+            asistencias = RegistroAsistencia.objects.filter(
+                fecha_asistencia=fecha,
+                supervisor_id=supervisor_id,
+                holding=holding,
+                estado='A'
+            ).select_related('trabajador')
+
+            logger.info(f"Asistencias encontradas para {fecha}: {asistencias.count()}")
+
+            # Log de todas las asistencias existentes para ese supervisor en cualquier estado
+            todas = RegistroAsistencia.objects.filter(
+                fecha_asistencia=fecha,
+                supervisor_id=supervisor_id,
+                holding=holding,
+            )
+            logger.info(f"Total asistencias (cualquier estado) para esa fecha: {todas.count()}")
+            for a in todas:
+                logger.info(f"  -> trabajador_id={a.trabajador_id}, estado={a.estado}, horas={a.horas_registradas}")
+
+            if not asistencias.exists():
+                logger.warning(f"No hay asistencias con estado=A para supervisor={supervisor_id}, holding={holding}, fecha={fecha}")
+                return Response(
+                    {'error': f'No hay trabajadores con asistencia registrada el {fecha_str}'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            primer_trabajador = asistencias.first().trabajador
+            logger.info(f"Primer trabajador: id={primer_trabajador.id}, nombre={primer_trabajador.nombres}")
+
+            # Log contratos del primer trabajador para esa fecha
+            contratos_debug = ContratoTrabajador.objects.filter(
+                trabajador=primer_trabajador,
+                holding=holding,
+            )
+            logger.info(f"Contratos del primer trabajador en holding={holding}: {contratos_debug.count()}")
+            for c in contratos_debug:
+                logger.info(f"  -> contrato_id={c.id}, inicio={c.fecha_inicio_contrato}, termino={c.fecha_termino_contrato}, folio={c.folio_comercial_id}, labor={c.labor_id}")
+
+            try:
+                contrato = ContratoTrabajador.objects.select_related(
+                    'folio_comercial',
+                    'folio_comercial__cliente',
+                    'labor',
+                    'fundo'
+                ).get(
+                    trabajador=primer_trabajador,
+                    holding=holding,
+                    fecha_inicio_contrato__lte=fecha,
+                    fecha_termino_contrato__gte=fecha
+                )
+                logger.info(f"Contrato activo encontrado: id={contrato.id}, folio={contrato.folio_comercial_id}, labor={contrato.labor_id}")
+            except ContratoTrabajador.DoesNotExist:
+                logger.error(f"No existe contrato activo para trabajador={primer_trabajador.id}, holding={holding}, fecha={fecha}")
+                return Response(
+                    {'error': 'El trabajador no tiene un contrato activo para esa fecha'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            folio = contrato.folio_comercial
+            labor = contrato.labor
+
+            logger.info(f"Folio: {folio} | Labor: {labor}")
+
+            if not folio:
+                logger.error("El contrato no tiene folio asociado")
+                return Response({'error': 'El contrato no tiene folio asociado'}, status=status.HTTP_404_NOT_FOUND)
+
+            if not labor:
+                labor = folio.labores.first()
+                logger.warning(f"Labor no en contrato, buscando en folio: {labor}")
+                if not labor:
+                    logger.error("El folio tampoco tiene labores asociadas")
+                    return Response({'error': 'El contrato y el folio no tienen labor asociada'}, status=status.HTTP_404_NOT_FOUND)
+
+            trabajadores = []
+            for asistencia in asistencias:
+                trab = asistencia.trabajador
+                logger.info(f"Procesando trabajador: id={trab.id}, nombre={trab.nombres}")
+
+                try:
+                    contrato_trabajador = ContratoTrabajador.objects.select_related('fundo').get(
+                        trabajador=trab,
+                        holding=holding,
+                        fecha_inicio_contrato__lte=fecha,
+                        fecha_termino_contrato__gte=fecha
+                    )
+                except ContratoTrabajador.DoesNotExist:
+                    logger.warning(f"  -> Sin contrato activo, saltando trabajador id={trab.id}")
+                    continue
+
+                horas_registradas = RegistroManoObraPersona.objects.filter(
+                    trabajador=trab,
+                    fecha_ingreso=fecha
+                ).aggregate(total=Sum('horas'))['total'] or Decimal('0')
+
+                horas_disponibles = asistencia.horas_registradas - horas_registradas
+                logger.info(f"  -> horas_asistencia={asistencia.horas_registradas}, horas_MO_ya_registradas={horas_registradas}, disponibles={horas_disponibles}")
+
+                if horas_disponibles > 0:
+                    trabajadores.append({
+                        'id': trab.id,
+                        'nombre': f"{trab.nombres} {trab.apellidos or ''}".strip(),
+                        'horas_disponibles': float(horas_disponibles),
+                        'horas_asistencia': float(asistencia.horas_registradas),
+                        'horas_registradas': float(horas_registradas),
+                        'sociedad_id': trab.sociedad.id if trab.sociedad else None,
+                        'fundo_id': contrato_trabajador.fundo.id if contrato_trabajador.fundo else None,
+                    })
+                else:
+                    logger.info(f"  -> Saltado, sin horas disponibles")
+
+            logger.info(f"Total trabajadores con horas disponibles: {len(trabajadores)}")
+
+            if not trabajadores:
+                return Response(
+                    {'mensaje': 'Todos los trabajadores ya tienen sus horas de mano de obra completas para esa fecha'},
+                    status=status.HTTP_200_OK
+                )
+
+            unidades = UnidadControl.objects.filter(holding=holding, estado=True)
+            logger.info(f"Unidades de control encontradas: {unidades.count()}")
+
+            return Response({
+                'trabajadores': trabajadores,
+                'folio': {
+                    'id': folio.id,
+                    'cliente': folio.cliente.nombre if folio.cliente else 'Sin cliente',
+                },
+                'labor': {
+                    'id': labor.id,
+                    'nombre': labor.nombre,
+                },
+                'unidades_control': [{'id': u.id, 'descripcion': u.nombre} for u in unidades],
+                'supervisor_id': int(supervisor_id),
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error en GestionRetroactivaManoObraPersona GET: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        try:
+            data      = request.data.copy()
+            fecha_str = data.get('fecha')
+
+            logger.info(f"=== RETROACTIVO POST === data={dict(data)}")
+
+            if not fecha_str:
+                return Response({'error': 'Falta el campo fecha'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if fecha >= date.today():
+                return Response({'error': 'La fecha debe ser anterior al día de hoy'}, status=status.HTTP_400_BAD_REQUEST)
+
+            trabajador_id     = data.get('trabajador')
+            horas_a_registrar = Decimal(str(data.get('horas', 0)))
+
+            asistencia = RegistroAsistencia.objects.filter(
+                trabajador_id=trabajador_id,
+                fecha_asistencia=fecha,
+                estado='A'
+            ).first()
+
+            if not asistencia:
+                logger.warning(f"Sin asistencia estado=A para trabajador={trabajador_id}, fecha={fecha}")
+                return Response(
+                    {'error': 'El trabajador no tiene asistencia con estado A para esa fecha'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            horas_registradas = RegistroManoObraPersona.objects.filter(
+                trabajador_id=trabajador_id,
+                fecha_ingreso=fecha
+            ).aggregate(total=Sum('horas'))['total'] or Decimal('0')
+
+            horas_disponibles = asistencia.horas_registradas - horas_registradas
+            logger.info(f"horas_a_registrar={horas_a_registrar}, horas_disponibles={horas_disponibles}")
+
+            if horas_a_registrar > horas_disponibles:
+                return Response(
+                    {'error': f'Las horas a registrar ({horas_a_registrar}) exceden las disponibles ({horas_disponibles})'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            registro = RegistroManoObraPersona.objects.create(
+                holding_id      = data.get('holding'),
+                sociedad_id     = data.get('sociedad'),
+                supervisor_id   = data.get('supervisor'),
+                folio_id        = data.get('folio'),
+                labor_id        = data.get('labor'),
+                unidad_control_id = data.get('unidad_control'),
+                trabajador_id   = trabajador_id,
+                produccion      = data.get('produccion', 0),
+                horas           = horas_a_registrar,
+                fecha_ingreso   = fecha,  # ← forzado directamente
+            )
+
+            logger.info(f"Registro retroactivo creado: id={registro.id}, fecha_ingreso={registro.fecha_ingreso}")
+            return Response({'id': registro.id, 'fecha_ingreso': str(registro.fecha_ingreso)}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Error en GestionRetroactivaManoObraPersona POST: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GestionRetroactivaAsistenciaAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+ 
+    def get(self, request):
+        try:
+            supervisor_id = request.query_params.get('supervisor_id')
+            holding_id    = request.query_params.get('holding')
+            fecha_str     = request.query_params.get('fecha')
+
+            if not holding_id:
+                return Response({'error': 'holding es obligatorio', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
+            if not supervisor_id:
+                return Response({'error': 'supervisor_id es obligatorio', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
+            if not fecha_str:
+                return Response({'error': 'fecha es obligatoria', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                fecha_consulta = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
+
+            hoy = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
+            if fecha_consulta >= hoy:
+                return Response({'error': 'La fecha debe ser anterior al día de hoy', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                supervisor = Supervisores.objects.select_related('usuario', 'holding').get(
+                    id=supervisor_id, holding_id=holding_id
+                )
+            except Supervisores.DoesNotExist:
+                return Response({'error': 'Supervisor no encontrado', 'acceso_asistencia': False}, status=status.HTTP_404_NOT_FOUND)
+
+            from django.db.models import Q
+
+            ids_en_fecha = SupervisorTrabajadorHistorial.objects.filter(
+                supervisor=supervisor,
+                fecha_inicio__lte=fecha_consulta
+            ).filter(
+                Q(fecha_fin__gte=fecha_consulta) | Q(fecha_fin__isnull=True)
+            ).values_list('trabajador_id', flat=True)
+
+            trabajadores_con_contrato = PersonalTrabajadores.objects.filter(
+                id__in=ids_en_fecha,
+                holding_id=holding_id,
+                estado=True,
+                contratos__fecha_inicio_contrato__lte=fecha_consulta,
+                contratos__fecha_termino_contrato__gte=fecha_consulta
+            ).distinct().order_by('nombres', 'apellidos')
+
+            workers_data = []
+            for trabajador in trabajadores_con_contrato:
+                try:
+                    contrato = trabajador.contratos.filter(
+                        fecha_inicio_contrato__lte=fecha_consulta,
+                        fecha_termino_contrato__gte=fecha_consulta
+                    ).select_related('horario').first()
+
+                    if contrato and contrato.horario:
+                        horas_maximas = float(contrato.horario.get_horas_dia(fecha_consulta))
+                    else:
+                        horas_maximas = 9.0
+
+                    horas_registradas = RegistroAsistencia.objects.filter(
+                        trabajador=trabajador,
+                        fecha_asistencia=fecha_consulta
+                    ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
+
+                    horas_registradas = float(horas_registradas)
+                    if horas_registradas >= horas_maximas:
+                        continue
+                    horas_disponibles = horas_maximas - horas_registradas
+
+                except Exception as e:
+                    logger.error(f"Error procesando trabajador {trabajador.id}: {str(e)}")
+                    continue
+
+                workers_data.append({
+                    'id': trabajador.id,
+                    'nombre': f"{trabajador.nombres} {trabajador.apellidos or ''}".strip(),
+                    'rut': trabajador.rut or trabajador.dni or '',
+                    'horas_registradas_hoy': horas_registradas,
+                    'horas_maximas': horas_disponibles,
+                })
+
+            return Response({
+                'acceso_asistencia': True,
+                'workers': workers_data,
+                'fecha_consulta': fecha_consulta.isoformat(),
+                'total_trabajadores': len(workers_data),
+                'supervisor_id': supervisor.id,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error en GestionRetroactivaAsistencia GET: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'error': str(e), 'acceso_asistencia': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ 
+    def post(self, request):
+        try:
+            supervisor_id = request.data.get('codigo_supervisor')
+            asistencias   = request.data.get('asistencias', [])
+            fecha_str     = request.data.get('fecha')
+
+            if not supervisor_id:
+                return Response({'status': 'error', 'message': 'codigo_supervisor es obligatorio'}, status=status.HTTP_400_BAD_REQUEST)
+            if not asistencias:
+                return Response({'status': 'error', 'message': 'Se requiere al menos una asistencia'}, status=status.HTTP_400_BAD_REQUEST)
+            if not fecha_str:
+                return Response({'status': 'error', 'message': 'fecha es obligatoria'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                fecha_asistencia = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'status': 'error', 'message': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+
+            hoy = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
+            if fecha_asistencia >= hoy:
+                return Response({'status': 'error', 'message': 'La fecha debe ser anterior al día de hoy'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                supervisor = Supervisores.objects.get(id=supervisor_id)
+            except Supervisores.DoesNotExist:
+                return Response({'status': 'error', 'message': 'Supervisor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Validar contra historial en la fecha retroactiva, no contra asignación actual
+            from django.db.models import Q
+
+            ids_validos = SupervisorTrabajadorHistorial.objects.filter(
+                supervisor=supervisor,
+                fecha_inicio__lte=fecha_asistencia
+            ).filter(
+                Q(fecha_fin__gte=fecha_asistencia) | Q(fecha_fin__isnull=True)
+            ).values_list('trabajador_id', flat=True)
+
+            trabajadores_validos = PersonalTrabajadores.objects.filter(id__in=ids_validos)
+
+            registros_creados      = []
+            registros_actualizados = []
+            errores                = []
+
+            with transaction.atomic():
+                for asist_data in asistencias:
+                    try:
+                        trabajador_id = asist_data.get('trabajador_id')
+                        horas  = asist_data.get('horas_registradas', 0.0)
+                        estado = asist_data.get('estado', 'A')
+
+                        trabajador = PersonalTrabajadores.objects.get(id=trabajador_id)
+
+                        if not trabajadores_validos.filter(id=trabajador_id).exists():
+                            errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no asignado'})
+                            continue
+
+                        asistencia_existente = RegistroAsistencia.objects.filter(
+                            trabajador=trabajador,
+                            fecha_asistencia=fecha_asistencia,
+                            estado=estado
+                        ).first()
+
+                        if asistencia_existente:
+                            asistencia_existente.horas_registradas += Decimal(str(horas))
+                            asistencia_existente.modificado_por = request.user
+                            asistencia_existente.save()
+                            registros_actualizados.append(trabajador_id)
+                        else:
+                            RegistroAsistencia.objects.create(
+                                trabajador=trabajador,
+                                fecha_asistencia=fecha_asistencia,
+                                holding=trabajador.holding,
+                                supervisor=supervisor,
+                                estado=estado,
+                                horas_registradas=horas,
+                                modificado_por=request.user
+                            )
+                            registros_creados.append(trabajador_id)
+
+                    except PersonalTrabajadores.DoesNotExist:
+                        errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
+                    except Exception as e:
+                        errores.append({'trabajador_id': trabajador_id, 'error': str(e)})
+
+            # Verificar trabajadores restantes para esa fecha
+            trabajadores_restantes = trabajadores_validos.filter(
+                estado=True,
+                contratos__fecha_inicio_contrato__lte=fecha_asistencia,
+                contratos__fecha_termino_contrato__gte=fecha_asistencia
+            ).distinct()
+
+            pendientes = 0
+            for trab in trabajadores_restantes:
+                contrato = trab.contratos.filter(
+                    fecha_inicio_contrato__lte=fecha_asistencia,
+                    fecha_termino_contrato__gte=fecha_asistencia
+                ).select_related('horario').first()
+
+                horas_dia = float(contrato.horario.get_horas_dia(fecha_asistencia)) if (contrato and contrato.horario) else 9.0
+
+                horas_reg = RegistroAsistencia.objects.filter(
+                    trabajador=trab,
+                    fecha_asistencia=fecha_asistencia
+                ).aggregate(total=Sum('horas_registradas'))['total'] or Decimal('0')
+
+                if float(horas_reg) < horas_dia:
+                    pendientes += 1
+
+            return Response({
+                'status': 'success',
+                'message': 'Proceso de asistencia retroactiva completado',
+                'registros_creados': len(registros_creados),
+                'registros_actualizados': len(registros_actualizados),
+                'errores': errores,
+                'remaining_workers': pendientes > 0,
+                'trabajadores_pendientes': pendientes,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error en GestionRetroactivaAsistencia POST: {type(e).__name__}: {str(e)}", exc_info=True)
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TraspasoTrabajadoresAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        holding_id = request.query_params.get('holding')
+        supervisores = Supervisores.objects.filter(
+            holding_id=holding_id
+        ).select_related('usuario__persona').prefetch_related('trabajadores')
+
+        data = []
+        for sup in supervisores:
+            persona = sup.usuario.persona if sup.usuario and sup.usuario.persona else None
+            nombre = f"{persona.nombres} {persona.apellidos}" if persona else (sup.usuario.rut if sup.usuario else '')
+            data.append({
+                'id': sup.id,
+                'nombre': nombre,
+                'rut': sup.usuario.rut if sup.usuario else '',
+                'trabajadores': [
+                    {
+                        'id': t.id,
+                        'nombres': t.nombres,
+                        'apellidos': t.apellidos or '',
+                        'rut': t.rut or '',
+                    }
+                    for t in sup.trabajadores.filter(estado=True)
+                ]
+            })
+        return Response(data)
+
+    def post(self, request):
+        holding_id       = request.data.get('holding')
+        origen_id        = request.data.get('supervisor_origen_id')
+        destino_id       = request.data.get('supervisor_destino_id')
+        trabajadores_ids = request.data.get('trabajadores_ids', [])
+
+        if not all([holding_id, origen_id, destino_id, trabajadores_ids]):
+            return Response({'error': 'Faltan campos requeridos'}, status=400)
+        if str(origen_id) == str(destino_id):
+            return Response({'error': 'Origen y destino no pueden ser el mismo'}, status=400)
+
+        try:
+            sup_origen  = Supervisores.objects.get(id=origen_id,  holding_id=holding_id)
+            sup_destino = Supervisores.objects.get(id=destino_id, holding_id=holding_id)
+        except Supervisores.DoesNotExist:
+            return Response({'error': 'Supervisor no encontrado'}, status=404)
+
+        hoy = timezone.now().date()
+        bloqueados    = []
+        transferibles = []
+
+        for tid in trabajadores_ids:
+            tiene_registro = (
+                RegistroAsistencia.objects.filter(trabajador_id=tid, fecha_asistencia=hoy).exists() or
+                RegistroManoObraPersona.objects.filter(trabajador_id=tid, fecha_ingreso=hoy).exists()
+            )
+            if tiene_registro:
+                t = PersonalTrabajadores.objects.get(id=tid)
+                bloqueados.append({'id': tid, 'nombre': f"{t.nombres} {t.apellidos or ''}"})
+            else:
+                transferibles.append(tid)
+
+        for tid in transferibles:
+            sup_origen.trabajadores.remove(tid)
+            sup_destino.trabajadores.add(tid)
+            SupervisorTrabajadorHistorial.objects.filter(
+                trabajador_id=tid, supervisor=sup_origen, fecha_fin__isnull=True
+            ).update(fecha_fin=hoy)
+            SupervisorTrabajadorHistorial.objects.create(
+                holding_id=holding_id,
+                supervisor=sup_destino,
+                trabajador_id=tid,
+                fecha_inicio=hoy
+            )
+
+        return Response({
+            'transferidos': len(transferibles),
+            'bloqueados': bloqueados
+        })
+
+class ContratoRetroactivoAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Q
+        from datetime import datetime
+
+        holding_id = request.query_params.get('holding')
+        fecha_str  = request.query_params.get('fecha')
+
+        if not holding_id or not fecha_str:
+            return Response({'error': 'holding y fecha requeridos'}, status=400)
+
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'fecha debe ser YYYY-MM-DD'}, status=400)
+
+        todos = PersonalTrabajadores.objects.filter(holding_id=holding_id, estado=True)
+
+        resultados = []
+        for t in todos:
+            tiene_contrato = ContratoTrabajador.objects.filter(
+                trabajador_id=t.id,
+                fecha_inicio_contrato__lte=fecha
+            ).filter(
+                Q(fecha_termino_contrato__gte=fecha) | Q(fecha_termino_contrato__isnull=True)
+            ).exists()
+
+            if not tiene_contrato:
+                resultados.append({
+                    'trabajador_id':     t.id,
+                    'trabajador_nombre': f"{t.nombres} {t.apellidos or ''}".strip(),
+                    'trabajador_rut':    t.rut or '',
+                    'fecha_inicio_sugerida': fecha,
+                    'fecha_fin_periodo': None,
+                })
+
+        return Response(resultados)
+
+    def post(self, request):
+        from datetime import datetime
+        from django.db.models import Q
+
+        holding_id       = request.data.get('holding')
+        trabajador_id    = request.data.get('trabajador')
+        fecha_inicio_str = request.data.get('fecha_inicio_contrato')
+        supervisor_id    = request.data.get('supervisor_id')
+
+        campos_requeridos = ['holding', 'trabajador', 'fecha_inicio_contrato',
+                            'labor', 'folio_comercial', 'horario', 'fundo']
+        faltantes = [c for c in campos_requeridos if not request.data.get(c)]
+        if faltantes:
+            return Response({'error': f'Faltan campos: {faltantes}'}, status=400)
+
+        try:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'fecha_inicio_contrato debe ser YYYY-MM-DD'}, status=400)
+
+        tiene_contrato = ContratoTrabajador.objects.filter(
+            trabajador_id=trabajador_id,
+            fecha_inicio_contrato__lte=fecha_inicio
+        ).filter(
+            Q(fecha_termino_contrato__gte=fecha_inicio) | Q(fecha_termino_contrato__isnull=True)
+        ).exists()
+
+        if tiene_contrato:
+            return Response(
+                {'error': 'El trabajador ya tiene un contrato vigente en esa fecha'},
+                status=400
+            )
+
+        try:
+            folio = FolioComercial.objects.get(
+                id=request.data['folio_comercial'], holding_id=holding_id
+            )
+        except FolioComercial.DoesNotExist:
+            return Response({'error': 'Folio comercial no encontrado'}, status=404)
+
+        contrato_data = {
+            'holding_id':            holding_id,
+            'trabajador_id':         trabajador_id,
+            'fecha_inicio_contrato': fecha_inicio,
+            'labor_id':              request.data['labor'],
+            'folio_comercial_id':    request.data['folio_comercial'],
+            'horario_id':            request.data['horario'],
+            'fundo_id':              request.data['fundo'],
+            'cliente_id':            folio.cliente.id if folio.cliente else None,
+        }
+
+        fecha_termino = None
+        if request.data.get('fecha_termino_contrato'):
+            try:
+                fecha_termino = datetime.strptime(
+                    request.data['fecha_termino_contrato'], '%Y-%m-%d'
+                ).date()
+                contrato_data['fecha_termino_contrato'] = fecha_termino
+            except ValueError:
+                return Response({'error': 'fecha_termino_contrato debe ser YYYY-MM-DD'}, status=400)
+
+        contrato = ContratoTrabajador.objects.create(**contrato_data)
+
+        # Crear historial supervisor si se indicó y no existe registro que cubra el período
+        if supervisor_id:
+            try:
+                supervisor = Supervisores.objects.get(id=supervisor_id, holding_id=holding_id)
+
+                historial_existente = SupervisorTrabajadorHistorial.objects.filter(
+                    supervisor=supervisor,
+                    trabajador_id=trabajador_id,
+                    fecha_inicio__lte=fecha_inicio
+                ).filter(
+                    Q(fecha_fin__gte=fecha_inicio) | Q(fecha_fin__isnull=True)
+                ).exists()
+
+                if not historial_existente:
+                    SupervisorTrabajadorHistorial.objects.create(
+                        holding_id=holding_id,
+                        supervisor=supervisor,
+                        trabajador_id=trabajador_id,
+                        fecha_inicio=fecha_inicio,
+                        fecha_fin=fecha_termino
+                    )
+            except Supervisores.DoesNotExist:
+                return Response({'error': 'Supervisor no encontrado'}, status=404)
+
+        return Response({'id': contrato.id, 'mensaje': 'Contrato retroactivo creado'}, status=201)
+

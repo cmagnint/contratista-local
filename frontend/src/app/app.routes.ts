@@ -61,6 +61,7 @@ import { MaestroTrabajadoresComponent } from './pages/mother-layout/recursos-hum
 import { FormatosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/formatos/formatos.component';
 import { GenerarTxtBancoComponent } from './pages/mother-layout/pagos/generar-txt-banco/generar-txt-banco.component';
 import { EnrolamientoComponent } from './pages/mother-layout/recursos-humanos/enrolamiento/enrolamiento.component';
+import { TraspasoTrabajadoresComponent } from './pages/mother-layout/recursos-humanos/traspaso-trabajadores/traspaso-trabajadores.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -103,6 +104,7 @@ export const routes: Routes = [
       { path: 'formatos', component: FormatosComponent },
       { path: 'generar-contrato',  component: GenerarContratosComponent },
       { path: 'enrolamiento', component: EnrolamientoComponent },
+      { path: 'traspaso-trabajadores', component: TraspasoTrabajadoresComponent },
       // RUTAS DE CLIENTES
       { path: 'administrar-clientes', component: AdministrarClientesComponent },
       { path: 'administrar-area-cargos-cliente', component: AreasCargosClientesComponent },

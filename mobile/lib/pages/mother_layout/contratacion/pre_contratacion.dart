@@ -55,6 +55,28 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
     _fetchAreas();
   }
 
+  Widget _vehiculoItem(Map<String, dynamic> v) {
+    final tipo = v['tipo']?.toString() ?? '';
+    final marca = v['marca']?.toString() ?? '';
+    final modelo = v['modelo']?.toString() ?? '';
+    final patente = v['patente']?.toString() ?? '';
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(color: Colors.black, fontSize: 16),
+        children: [
+          TextSpan(text: '$tipo-$marca-$modelo '),
+          TextSpan(
+            text: '[$patente]',
+            style: const TextStyle(
+              color: Color.fromARGB(255, 101, 197, 5),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _loadSociedades() async {
     try {
       setState(() {
@@ -703,14 +725,10 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                 value: _selectedVehiculo,
                 hint: const Text('Seleccione Vehículo'),
                 isExpanded: true,
-                items: _vehiculos.map((vehiculos) {
+                items: _vehiculos.map((vehiculo) {
                   return DropdownMenuItem<String>(
-                    value: vehiculos['id'].toString(),
-                    child: Text(
-                      vehiculos['patente'] ??
-                          vehiculos['modelo'] ??
-                          'Sin nombre',
-                    ),
+                    value: vehiculo['id'].toString(),
+                    child: _vehiculoItem(vehiculo), // ← aquí
                   );
                 }).toList(),
                 onChanged: (String? newValue) {
@@ -776,20 +794,6 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                 },
               ),
               const SizedBox(height: 30),
-
-              if (_selectedSupervisor != null) ...[
-                const Text(
-                  'Jefe de Cuadrilla (Opcional)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                const SizedBox(height: 30),
-              ],
 
               Padding(
                 padding: const EdgeInsets.only(bottom: 85.0),

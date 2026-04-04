@@ -697,6 +697,13 @@ seleccionarSociedad(sociedad: { id: number; nombre: string }): void {
     this.leftSidenav.close();
   }
 
+  navigateToTraspasoTrabajadores(){
+    this.router.navigate(['/fs/traspaso-trabajadores']);
+    this.leftSidenav.close();
+  }
+
+  
+
   //======================================================================================================
   
   cargarSubmodulosWeb() {

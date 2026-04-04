@@ -49,7 +49,7 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
         context: context,
         initialDate: selectedDate,
         firstDate: DateTime(2000),
-        lastDate: DateTime(2101),
+        lastDate: DateTime.now(),
       );
 
       if (pickedDate == null) return;
@@ -58,9 +58,7 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
 
     if (!mounted) return;
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
 
@@ -92,17 +90,13 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Informe actualizado para la fecha: $formattedDate'),
+          content: Text('Informe actualizado para: $formattedDate'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al obtener el informe: $e'),
@@ -158,40 +152,99 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'INFORME DE ASISTENCIAS',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'INFORME DE ASISTENCIAS',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+            Text(
+              DateFormat('dd/MM/yyyy').format(selectedDate),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
         ),
         backgroundColor: const Color.fromARGB(255, 6, 62, 107),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today, color: Colors.white),
+            tooltip: 'Cambiar fecha',
+            onPressed: () => buscarPorFecha(),
+          ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    'Fecha: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+                // ── Banner fecha seleccionada ──────────────────────────
+                Container(
+                  color: const Color.fromARGB(
+                    255,
+                    6,
+                    62,
+                    107,
+                  ).withOpacity(0.08),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Fecha: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => buscarPorFecha(),
+                        icon: const Icon(Icons.edit_calendar, size: 18),
+                        label: const Text('Cambiar'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color.fromARGB(
+                            255,
+                            6,
+                            62,
+                            107,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+
                 _buildOptionTile('INFORME POR SOCIEDAD', 'sociedad'),
                 _buildOptionTile('INFORME POR FUNDO', 'fundo'),
                 _buildOptionTile('INFORME POR SUPERVISOR', 'supervisor'),
-                const SizedBox(height: 300),
+
+                const SizedBox(height: 16),
+
+                // ── Botón buscar por fecha ─────────────────────────────
                 Padding(
                   padding: const EdgeInsets.only(
-                    bottom: 0.0,
+                    bottom: 0,
                     right: 4,
                     left: 4,
                     top: 10,
                   ),
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () => buscarPorFecha(),
+                    icon: const Icon(Icons.search, color: Colors.white),
+                    label: const Text(
+                      "BUSCAR POR FECHA",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 25,
@@ -203,15 +256,10 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                       ),
                       minimumSize: const Size(double.infinity, 50),
                     ),
-                    child: const Text(
-                      "BUSCAR POR FECHA",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
                   ),
                 ),
+
+                const SizedBox(height: 120),
               ],
             ),
     );
@@ -266,7 +314,6 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                 title = '';
             }
 
-            // Recalcular conteos si hay filtro activo
             Map<String, dynamic> data;
             if (localSelectedEstado != null) {
               data = {};
@@ -304,9 +351,7 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildEstadosFilter(localSelectedEstado, (newState) {
-                      setState(() {
-                        localSelectedEstado = newState;
-                      });
+                      setState(() => localSelectedEstado = newState);
                     }),
                     Expanded(
                       child: data.isEmpty
@@ -408,8 +453,8 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Trabajadores de $key'),
-                  Text('Total trabajadores: ${trabajadoresFiltrados.length}'),
-                  Text('Total horas: ${formatHorasTrabajadas(totalHoras)}'),
+                  Text('Total: ${trabajadoresFiltrados.length}'),
+                  Text('Horas: ${formatHorasTrabajadas(totalHoras)}'),
                 ],
               ),
               content: SizedBox(
@@ -417,9 +462,7 @@ class InformeAsistenciaScreenState extends State<InformeAsistenciaScreen> {
                 child: Column(
                   children: [
                     _buildEstadosFilter(localSelectedEstado, (newState) {
-                      setState(() {
-                        localSelectedEstado = newState;
-                      });
+                      setState(() => localSelectedEstado = newState);
                     }),
                     Expanded(
                       child: trabajadoresFiltrados.isEmpty

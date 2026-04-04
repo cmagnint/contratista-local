@@ -88,23 +88,55 @@
 }
 
 /* ============================================ */
-/* 🎯 BOTONES DE ACCIÓN MODERNIZADOS */
+/* 🎯 CONTENEDOR DE BOTONES DE ACCIÓN */
 /* ============================================ */
 
-.custom-button-cancelar {
+.botones-accion-container {
   display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
   align-items: center;
-  gap: 10px;
+}
+
+/* ============================================ */
+/* 🎯 NORMALIZAR ALTURA DE BOTONES */
+/* ============================================ */
+
+.custom-button-agregar,
+.custom-button-cancelar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
   padding: 14px 28px !important;
-  margin: 20px 0 !important;
-  background: linear-gradient(135deg, #f44336, #d32f2f) !important;
-  color: white !important;
+  margin: 0 !important;
   border: none !important;
   cursor: pointer !important;
   border-radius: 10px !important;
   font-size: 15px !important;
   font-weight: 600 !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 48px;
+  white-space: nowrap;
+}
+
+/* Botón Agregar (Verde) */
+.custom-button-agregar {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+  color: white !important;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.custom-button-agregar:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049, #3d8b40) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
+}
+
+/* Botón Eliminar (Rojo) */
+.custom-button-cancelar {
+  background: linear-gradient(135deg, #f44336, #d32f2f) !important;
+  color: white !important;
   box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
 }
 
@@ -114,7 +146,8 @@
   box-shadow: 0 6px 12px rgba(244, 67, 54, 0.4);
 }
 
-.custom-button-cancelar:disabled {
+.custom-button-cancelar:disabled,
+.custom-button-agregar:disabled {
   background: linear-gradient(135deg, #ccc, #999) !important;
   cursor: not-allowed !important;
   opacity: 0.6;
@@ -122,8 +155,15 @@
   box-shadow: none;
 }
 
-.custom-button-cancelar .button-icon {
+/* Iconos dentro de los botones */
+.button-icon {
   font-size: 18px;
+  line-height: 1;
+}
+
+.button-text {
+  letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 /* ============================================ */
@@ -269,8 +309,15 @@
 }
 
 /* ============================================ */
-/* 🎯 BOTÓN DE ACCIONES MODERNIZADO */
+/* 🎯 BOTONES DE ACCIONES EN TABLA */
 /* ============================================ */
+
+.acciones-container {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
 
 .doc-button-modern {
   background: linear-gradient(135deg, #2196F3, #1976D2);
@@ -297,6 +344,16 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
+}
+
+.doc-button-modern.terminar {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+
+.doc-button-modern.terminar:hover {
+  background: linear-gradient(135deg, #d32f2f, #b71c1c);
+  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.4);
 }
 
 /* ============================================ */
@@ -595,6 +652,32 @@
 }
 
 /* ============================================ */
+/* 🎯 MODAL CREAR CONTRATO */
+/* ============================================ */
+
+.modal-content-crear-contrato {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 900px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.form-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.form-field {
+  width: 100%;
+}
+
+/* ============================================ */
 /* 🎯 ANIMACIONES */
 /* ============================================ */
 
@@ -642,9 +725,14 @@
     justify-content: center;
   }
   
-  .custom-button-cancelar {
+  .custom-button-cancelar,
+  .custom-button-agregar {
     width: 100%;
     justify-content: center;
+  }
+  
+  .botones-accion-container {
+    flex-direction: column;
   }
   
   .modal-content-message {
@@ -654,6 +742,15 @@
   
   .modal-content-detalle {
     width: 95%;
+  }
+  
+  .form-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-content-crear-contrato {
+    width: 95%;
+    padding: 20px;
   }
   
   .info-grid {
@@ -681,145 +778,49 @@
   }
 }
 
-/* Estilos adicionales para Modal Crear Contrato */
-
-.modal-content-crear-contrato {
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 900px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-}
-
-.form-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin: 20px 0;
-}
-
-.form-field {
-  width: 100%;
-}
-
-/* Responsive para formulario */
-@media (max-width: 768px) {
-  .form-container {
-    grid-template-columns: 1fr;
-  }
-  
-  .modal-content-crear-contrato {
-    width: 95%;
-    padding: 20px;
-  }
-}
-
-/* Botón agregar verde */
-.custom-button-agregar {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%) !important;
-  color: white !important;
-  padding: 12px 24px !important;
-  border-radius: 8px !important;
-  font-weight: 600 !important;
-  text-transform: uppercase !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  transition: all 0.3s ease !important;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
-}
-
-.custom-button-agregar:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4) !important;
-}
-
-.custom-button-agregar .button-icon {
-  font-size: 20px;
-}
-
-.custom-button-agregar .button-text {
-  letter-spacing: 0.5px;
-}
-
-/* ============================================ */
-/* 🎯 CONTENEDOR DE BOTONES DE ACCIÓN */
-/* ============================================ */
-
-.botones-accion-container {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  align-items: center; /* Alinea verticalmente */
-}
-
-/* ============================================ */
-/* 🎯 NORMALIZAR ALTURA DE BOTONES */
-/* ============================================ */
-
-.custom-button-agregar,
-.custom-button-cancelar {
+/* ── BOTÓN CONTRATO RETROACTIVO ── */
+.custom-button-retroactivo {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 10px !important;
-  padding: 14px 28px !important; /* Mismo padding para ambos */
-  margin: 0 !important; /* Eliminar márgenes individuales */
+  padding: 14px 28px !important;
+  margin: 0 !important;
   border: none !important;
   cursor: pointer !important;
   border-radius: 10px !important;
   font-size: 15px !important;
   font-weight: 600 !important;
+  min-height: 48px;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #F57C00, #E64A19) !important;
+  color: white !important;
+  box-shadow: 0 4px 8px rgba(245, 124, 0, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 48px; /* Altura mínima igual */
-  white-space: nowrap; /* Evita saltos de línea */
 }
 
-/* Botón Agregar (Verde) */
-.custom-button-agregar {
-  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
-  color: white !important;
-  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
-}
-
-.custom-button-agregar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #45a049, #3d8b40) !important;
+.custom-button-retroactivo:hover:not(:disabled) {
+  background: linear-gradient(135deg, #E64A19, #BF360C) !important;
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
+  box-shadow: 0 6px 12px rgba(245, 124, 0, 0.4);
 }
 
-/* Botón Eliminar (Rojo) */
-.custom-button-cancelar {
-  background: linear-gradient(135deg, #f44336, #d32f2f) !important;
-  color: white !important;
-  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+/* ── BOTÓN CREAR CONTRATO RETROACTIVO (dentro del modal) ── */
+.button-bottom.retroactivo {
+  background: linear-gradient(135deg, #F57C00, #E64A19);
+  color: white;
 }
 
-.custom-button-cancelar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #d32f2f, #b71c1c) !important;
+.button-bottom.retroactivo:hover:not(:disabled) {
+  background: linear-gradient(135deg, #E64A19, #BF360C);
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(244, 67, 54, 0.4);
+  box-shadow: 0 6px 12px rgba(245, 124, 0, 0.3);
 }
 
-.custom-button-cancelar:disabled,
-.custom-button-agregar:disabled {
-  background: linear-gradient(135deg, #ccc, #999) !important;
-  cursor: not-allowed !important;
+.button-bottom.retroactivo:disabled {
+  background: linear-gradient(135deg, #ccc, #999);
+  cursor: not-allowed;
   opacity: 0.6;
   transform: none;
   box-shadow: none;
-}
-
-/* Iconos dentro de los botones */
-.button-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.button-text {
-  letter-spacing: 0.5px;
-  line-height: 1;
 }

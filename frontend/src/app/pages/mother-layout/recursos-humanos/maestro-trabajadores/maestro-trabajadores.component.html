@@ -1,63 +1,70 @@
 <!--maestro-trabajadores.component.html-->
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
-  
-  <!-- FILTROS -->
+
+  <!-- ── FILTROS ─────────────────────────────────────────────────────────── -->
   <div class="filtros-section-modern">
-    <h3 class="filtros-title">FILTRAR CONTRATOS POR ESTADO</h3>
+    <h3 class="filtros-title">FILTRAR CONTRATOS</h3>
     <div class="filtros-buttons-container">
-      <button 
-        mat-raised-button 
-        [class.active]="filtroEstado === 'todos'"
-        class="filtro-button-modern"
-        (click)="cambiarFiltro('todos')">
+
+      <button mat-raised-button [class.active]="filtroEstado === 'todos'"
+        class="filtro-button-modern" (click)="cambiarFiltro('todos')">
         <span class="button-icon">📋</span>
         <span class="button-text">TODOS ({{ contratos.length }})</span>
       </button>
-      <button 
-        mat-raised-button 
-        [class.active]="filtroEstado === 'vigente'"
-        class="filtro-button-modern vigente"
-        (click)="cambiarFiltro('vigente')">
+
+      <button mat-raised-button [class.active]="filtroEstado === 'vigente'"
+        class="filtro-button-modern vigente" (click)="cambiarFiltro('vigente')">
         <span class="button-icon">✓</span>
         <span class="button-text">VIGENTES</span>
       </button>
-      <button 
-        mat-raised-button 
-        [class.active]="filtroEstado === 'vencido'"
-        class="filtro-button-modern vencido"
-        (click)="cambiarFiltro('vencido')">
+
+      <button mat-raised-button [class.active]="filtroEstado === 'vencido'"
+        class="filtro-button-modern vencido" (click)="cambiarFiltro('vencido')">
         <span class="button-icon">✕</span>
         <span class="button-text">VENCIDOS</span>
       </button>
+
+      <mat-form-field appearance="outline" style="min-width: 240px; margin-left: 20px;">
+        <mat-label>Filtrar por Supervisor</mat-label>
+        <mat-select [(ngModel)]="filtroSupervisor" (selectionChange)="aplicarFiltroSupervisor()">
+          <mat-option value="todos">Todos</mat-option>
+          <mat-option value="sin_supervisor">Sin Supervisor</mat-option>
+          <mat-option *ngFor="let sup of supervisores" [value]="sup.id.toString()">
+            {{ sup.nombre }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
     </div>
   </div>
 
-  <!-- BOTONES DE ACCIÓN -->
+  <!-- ── BOTONES DE ACCIÓN ──────────────────────────────────────────────── -->
   <div class="botones-accion-container">
-    <button 
-      mat-raised-button 
-      color="primary" 
-      class="custom-button-agregar" 
+    <button mat-raised-button color="primary" class="custom-button-agregar"
       (click)="abrirModalCrearContrato()">
       <span class="button-icon">➕</span>
       <span class="button-text">CREAR CONTRATO</span>
     </button>
-    
-    <button 
-      mat-raised-button 
-      color="primary" 
-      class="custom-button-cancelar" 
+
+    <button mat-raised-button class="custom-button-retroactivo"
+      (click)="abrirModalContratoRetroactivo()">
+      <span class="button-icon">🕐</span>
+      <span class="button-text">CONTRATO RETROACTIVO</span>
+    </button>
+
+    <button mat-raised-button color="primary" class="custom-button-cancelar"
       [disabled]="selectedRows.length === 0"
       (click)="eliminarContratosSeleccionados($event)">
       <span class="button-icon">🗑️</span>
       <span class="button-text">ELIMINAR CONTRATOS</span>
     </button>
   </div>
-  
-  <!-- TABLA DE CONTRATOS -->
-  <table mat-table [dataSource]="contratosFiltrados" class="mat-elevation-z8" (click)="$event.stopPropagation()">
-    
+
+  <!-- ── TABLA ──────────────────────────────────────────────────────────── -->
+  <table mat-table [dataSource]="contratosFiltrados" class="mat-elevation-z8"
+    (click)="$event.stopPropagation()">
+
     <ng-container matColumnDef="id">
       <th mat-header-cell *matHeaderCellDef class="mat-header">ID</th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
@@ -73,7 +80,7 @@
     <ng-container matColumnDef="rut">
       <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <span class="rut-badge">{{contrato.rut_trabajador}}</span>
+        <span class="rut-badge">{{formatRut(contrato.rut_trabajador)}}</span>
       </td>
     </ng-container>
 
@@ -92,6 +99,20 @@
       <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nombre_fundo || 'N/A'}}</td>
     </ng-container>
 
+    <ng-container matColumnDef="supervisor">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Supervisor</th>
+      <td mat-cell *matCellDef="let contrato" class="mat-cell">
+        <span *ngIf="contrato.supervisor" class="rut-badge"
+          style="background: linear-gradient(135deg, #9C27B0, #7B1FA2); min-width: unset;">
+          {{ contrato.supervisor.nombre }}
+        </span>
+        <span *ngIf="!contrato.supervisor"
+          style="color: #999; font-style: italic; font-size: 12px;">
+          Sin asignar
+        </span>
+      </td>
+    </ng-container>
+
     <ng-container matColumnDef="fecha_inicio">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Fecha Inicio</th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
@@ -108,10 +129,24 @@
       </td>
     </ng-container>
 
+    <ng-container matColumnDef="horario">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Horario</th>
+      <td mat-cell *matCellDef="let contrato" class="mat-cell">
+        <span *ngIf="contrato.nombre_horario" class="dias-badge"
+          style="background: linear-gradient(135deg, #009688, #00796B);">
+          {{ contrato.nombre_horario }}
+        </span>
+        <span *ngIf="!contrato.nombre_horario"
+          style="color: #999; font-style: italic; font-size: 12px;">Sin horario</span>
+      </td>
+    </ng-container>
+
     <ng-container matColumnDef="estado">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Estado</th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <span class="estado-badge" [class.vigente]="contrato.estado_contrato === 'VIGENTE'" [class.vencido]="contrato.estado_contrato === 'VENCIDO'">
+        <span class="estado-badge"
+          [class.vigente]="contrato.estado_contrato === 'VIGENTE'"
+          [class.vencido]="contrato.estado_contrato === 'VENCIDO'">
           {{contrato.estado_contrato}}
         </span>
       </td>
@@ -123,47 +158,48 @@
         <span class="dias-badge" *ngIf="contrato.dias_restantes !== null">
           {{contrato.dias_restantes}} días
         </span>
-        <span class="dias-badge indefinido" *ngIf="contrato.dias_restantes === null">
-          ∞
-        </span>
+        <span class="dias-badge indefinido" *ngIf="contrato.dias_restantes === null">∞</span>
       </td>
     </ng-container>
 
     <ng-container matColumnDef="acciones">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Acciones</th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <button 
-          class="doc-button-modern"
-          (click)="verDetalleContrato(contrato); $event.stopPropagation()"
-          title="Ver detalles">
-          <mat-icon>visibility</mat-icon>
-        </button>
+        <div class="acciones-container">
+          <button class="doc-button-modern"
+            (click)="verDetalleContrato(contrato); $event.stopPropagation()"
+            title="Ver detalles">
+            <mat-icon>visibility</mat-icon>
+          </button>
+          <button class="doc-button-modern terminar"
+            *ngIf="contrato.estado_contrato === 'VIGENTE'"
+            (click)="terminarContrato(contrato, $event)"
+            title="Terminar contrato">
+            <mat-icon>cancel</mat-icon>
+          </button>
+        </div>
       </td>
     </ng-container>
 
     <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr 
-      mat-row 
-      *matRowDef="let row; columns: displayedColumns;"
-      [class.selected]="isSelected(row)"
-      (click)="selectRow(row)">
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+      [class.selected]="isSelected(row)" (click)="selectRow(row)">
     </tr>
   </table>
 
 </div>
 
-<!-- MODAL CREAR CONTRATO -->
+<!-- ── MODAL CREAR CONTRATO ───────────────────────────────────────────────── -->
 <div class="modal" *ngIf="modals['crearContratoModal']" (click)="closeModal('crearContratoModal')">
   <div class="modal-content-crear-contrato" (click)="$event.stopPropagation()">
-    
+
     <div class="modal-header-modern">
       <h2>CREAR NUEVO CONTRATO</h2>
       <button class="close-button-modern" (click)="closeModal('crearContratoModal')">✕</button>
     </div>
-    
+
     <div class="form-container">
-      
-      <!-- Sociedad -->
+
       <mat-form-field appearance="outline" class="form-field">
         <mat-label>Sociedad *</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.sociedad_id" (selectionChange)="onSociedadChange()">
@@ -173,7 +209,6 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Folio -->
       <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.sociedad_id">
         <mat-label>Folio Comercial *</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.folio_id" (selectionChange)="onFolioChange()">
@@ -183,27 +218,20 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Fundo -->
       <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
         <mat-label>Fundo *</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.fundo_id">
-          <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">
-            {{fundo.nombre_campo}}
-          </mat-option>
+          <mat-option *ngFor="let fundo of fundos" [value]="fundo.id">{{fundo.nombre_campo}}</mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- Labor -->
       <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
         <mat-label>Labor *</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.labor_id">
-          <mat-option *ngFor="let labor of labores" [value]="labor.id">
-            {{labor.nombre}}
-          </mat-option>
+          <mat-option *ngFor="let labor of labores" [value]="labor.id">{{labor.nombre}}</mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- Horario -->
       <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
         <mat-label>Horario *</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.horario_id">
@@ -213,29 +241,27 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Trabajador -->
       <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.folio_id">
         <mat-label>Trabajador (sin contrato vigente) *</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.trabajador_id">
-          <mat-option *ngFor="let trabajador of trabajadores" [value]="trabajador.id">
-            {{trabajador.nombres}} {{trabajador.apellidos}} - {{trabajador.rut}}
+          <mat-option *ngFor="let t of trabajadores" [value]="t.id">
+            {{t.nombres}} {{t.apellidos}} - {{t.rut}}
           </mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- NUEVO: Supervisor (Opcional) -->
       <mat-form-field appearance="outline" class="form-field">
         <mat-label>Supervisor (Opcional)</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.supervisor_id" (selectionChange)="onSupervisorChange()">
           <mat-option [value]="''">-- Sin Supervisor --</mat-option>
-          <mat-option *ngFor="let supervisor of supervisores" [value]="supervisor.id">
-            {{supervisor.nombre}} - {{supervisor.rut}}
+          <mat-option *ngFor="let sup of supervisores" [value]="sup.id">
+            {{sup.nombre}} - {{sup.rut}}
           </mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- NUEVO: Jefe de Cuadrilla (Opcional - solo si hay supervisor) -->
-      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.supervisor_id && jefesCuadrillaFiltrados.length > 0">
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContrato.supervisor_id && jefesCuadrillaFiltrados.length > 0">
         <mat-label>Jefe de Cuadrilla (Opcional)</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.jefe_cuadrilla_id">
           <mat-option [value]="''">-- Sin Jefe de Cuadrilla --</mat-option>
@@ -245,47 +271,44 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- NUEVO: Transportista (Opcional) -->
       <mat-form-field appearance="outline" class="form-field">
         <mat-label>Empresa Transporte (Opcional)</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.transportista_id" (selectionChange)="onTransportistaChange()">
           <mat-option [value]="''">-- Sin Transporte --</mat-option>
-          <mat-option *ngFor="let transportista of transportistas" [value]="transportista.id">
-            {{transportista.nombre}} - {{transportista.rut}}
+          <mat-option *ngFor="let t of transportistas" [value]="t.id">
+            {{t.nombre}} - {{t.rut}}
           </mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- NUEVO: Vehículo (solo si hay transportista) -->
-      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.transportista_id && vehiculosFiltrados.length > 0">
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContrato.transportista_id && vehiculosFiltrados.length > 0">
         <mat-label>Vehículo</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.vehiculo_id" (selectionChange)="onVehiculoChange()">
           <mat-option [value]="''">-- Seleccionar Vehículo --</mat-option>
-          <mat-option *ngFor="let vehiculo of vehiculosFiltrados" [value]="vehiculo.id">
-            {{vehiculo.ppu}} - {{vehiculo.modelo}}
+          <mat-option *ngFor="let v of vehiculosFiltrados" [value]="v.id">
+            {{v.tipo}}-{{v.marca}}-{{v.modelo}} [{{v.ppu}}]
           </mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- NUEVO: Chofer (solo si hay vehículo) -->
-      <mat-form-field appearance="outline" class="form-field" *ngIf="nuevoContrato.vehiculo_id && choferesFiltrados.length > 0">
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContrato.vehiculo_id && choferesFiltrados.length > 0">
         <mat-label>Chofer</mat-label>
         <mat-select [(ngModel)]="nuevoContrato.chofer_id">
           <mat-option [value]="''">-- Seleccionar Chofer --</mat-option>
-          <mat-option *ngFor="let chofer of choferesFiltrados" [value]="chofer.id">
-            {{chofer.nombre}} - {{chofer.licencia}}
+          <mat-option *ngFor="let c of choferesFiltrados" [value]="c.id">
+            {{c.nombre}} - {{c.licencia}}
           </mat-option>
         </mat-select>
       </mat-form-field>
 
-      <!-- Fecha Inicio -->
       <mat-form-field appearance="outline" class="form-field">
         <mat-label>Fecha Inicio *</mat-label>
         <input matInput type="date" [(ngModel)]="nuevoContrato.fecha_inicio">
         <mat-hint>Auto-llenado desde el folio</mat-hint>
       </mat-form-field>
 
-      <!-- Fecha Término -->
       <mat-form-field appearance="outline" class="form-field">
         <mat-label>Fecha Término</mat-label>
         <input matInput type="date" [(ngModel)]="nuevoContrato.fecha_termino">
@@ -293,22 +316,154 @@
       </mat-form-field>
 
     </div>
-    
+
     <div class="button-container">
-      <button 
-        class="button-bottom success" 
-        [disabled]="isCreatingContract"
-        (click)="crearContrato()">
+      <button class="button-bottom success" [disabled]="isCreatingContract" (click)="crearContrato()">
         {{ isCreatingContract ? 'Creando...' : 'Crear Contrato' }}
       </button>
-      <button class="button-bottom" (click)="closeModal('crearContratoModal')">
-        Cancelar
-      </button>
+      <button class="button-bottom" (click)="closeModal('crearContratoModal')">Cancelar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL DE CONFIRMACIÓN -->
+<!-- ── MODAL CONTRATO RETROACTIVO ────────────────────────────────────────── -->
+<div class="modal" *ngIf="modals['contratoRetroactivoModal']"
+  (click)="closeModal('contratoRetroactivoModal')">
+  <div class="modal-content-crear-contrato" (click)="$event.stopPropagation()">
+
+    <div class="modal-header-modern" style="background: linear-gradient(135deg, #F57C00, #E64A19);">
+      <h2>🕐 CONTRATO RETROACTIVO</h2>
+      <button class="close-button-modern" (click)="closeModal('contratoRetroactivoModal')">✕</button>
+    </div>
+
+    <div class="form-container">
+
+      <!-- PASO 1: Fecha de consulta -->
+      <mat-form-field appearance="outline" class="form-field" style="grid-column: 1 / -1;">
+        <mat-label>Fecha retroactiva *</mat-label>
+        <input matInput type="date"
+          [(ngModel)]="nuevoContratoRetroactivo.fecha_consulta"
+          (change)="buscarTrabajadoresSinContrato()">
+        <mat-hint>Seleccione la fecha en que el trabajador no tenía contrato</mat-hint>
+      </mat-form-field>
+
+      <!-- Cargando -->
+      <div *ngIf="isLoadingHistorial"
+        style="grid-column: 1 / -1; text-align: center; padding: 10px; color: #F57C00;">
+        Buscando trabajadores sin contrato...
+      </div>
+
+      <!-- Sin resultados -->
+      <div *ngIf="!isLoadingHistorial && nuevoContratoRetroactivo.fecha_consulta && historialesFiltrados.length === 0"
+        style="grid-column: 1 / -1; text-align: center; padding: 10px; color: #888; font-style: italic;">
+        No hay trabajadores sin contrato para esta fecha.
+      </div>
+
+      <!-- PASO 2: Trabajador -->
+      <mat-form-field appearance="outline" class="form-field" style="grid-column: 1 / -1;"
+        *ngIf="historialesFiltrados.length > 0">
+        <mat-label>Trabajador sin contrato en esa fecha *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.trabajador_id"
+          (selectionChange)="onTrabajadorRetroactivoChange()">
+          <mat-option *ngFor="let h of historialesFiltrados" [value]="h.trabajador_id.toString()">
+            {{ h.trabajador_nombre }} — {{ h.trabajador_rut }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- PASO 3: Supervisor -->
+      <mat-form-field appearance="outline" class="form-field" style="grid-column: 1 / -1;"
+        *ngIf="nuevoContratoRetroactivo.trabajador_id">
+        <mat-label>Supervisor (Opcional)</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.supervisor_id">
+          <mat-option [value]="''">-- Sin Supervisor --</mat-option>
+          <mat-option *ngFor="let sup of supervisores" [value]="sup.id.toString()">
+            {{ sup.nombre }} - {{ sup.rut }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Fechas -->
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContratoRetroactivo.trabajador_id">
+        <mat-label>Fecha Inicio *</mat-label>
+        <input matInput type="date" [(ngModel)]="nuevoContratoRetroactivo.fecha_inicio">
+        <mat-hint>Corresponde a la fecha retroactiva seleccionada</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContratoRetroactivo.trabajador_id">
+        <mat-label>Fecha Término</mat-label>
+        <input matInput type="date" [(ngModel)]="nuevoContratoRetroactivo.fecha_termino">
+        <mat-hint>Opcional</mat-hint>
+      </mat-form-field>
+
+      <!-- PASO 4: Sociedad y Folio -->
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContratoRetroactivo.trabajador_id">
+        <mat-label>Sociedad *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.sociedad_id"
+          (selectionChange)="onSociedadRetroactivoChange()">
+          <mat-option *ngFor="let s of sociedades" [value]="s.id">{{ s.nombre }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="nuevoContratoRetroactivo.sociedad_id">
+        <mat-label>Folio Comercial *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.folio_id"
+          (selectionChange)="onFolioRetroactivoChange()">
+          <mat-option *ngFor="let f of folios" [value]="f.id">
+            Folio #{{ f.id }} - {{ f.cliente_nombre }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="fundosRetroactivo.length > 0">
+        <mat-label>Fundo *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.fundo_id">
+          <mat-option *ngFor="let f of fundosRetroactivo" [value]="f.id">{{ f.nombre_campo }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="laboresRetroactivo.length > 0">
+        <mat-label>Labor *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.labor_id">
+          <mat-option *ngFor="let l of laboresRetroactivo" [value]="l.id">{{ l.nombre }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="form-field"
+        *ngIf="horariosRetroactivo.length > 0">
+        <mat-label>Horario *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.horario_id">
+          <mat-option *ngFor="let h of horariosRetroactivo" [value]="h.id">
+            {{ h.nombre }} ({{ h.jornada }} hrs)
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+    </div>
+
+    <div class="button-container">
+      <button class="button-bottom retroactivo"
+        [disabled]="isCreatingRetroactivo ||
+          !nuevoContratoRetroactivo.trabajador_id ||
+          !nuevoContratoRetroactivo.folio_id ||
+          !nuevoContratoRetroactivo.fundo_id ||
+          !nuevoContratoRetroactivo.labor_id ||
+          !nuevoContratoRetroactivo.horario_id"
+        (click)="crearContratoRetroactivo()">
+        {{ isCreatingRetroactivo ? 'Creando...' : 'Crear Contrato Retroactivo' }}
+      </button>
+      <button class="button-bottom" (click)="closeModal('contratoRetroactivoModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL CONFIRMACIÓN ELIMINAR ───────────────────────────────────────── -->
 <div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
   <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
     <div class="icon-container confirmation">
@@ -316,21 +471,36 @@
     </div>
     <h2 class="modal-title confirmation">Confirmar Eliminación</h2>
     <p class="modal-message">
-      ¿Está seguro que desea eliminar {{selectedRows.length}} contrato(s) seleccionado(s)?<br>
+      ¿Está seguro que desea eliminar {{selectedRows.length}} contrato(s)?<br>
       Esta acción no se puede deshacer.
     </p>
     <div class="button-container confirmation">
-      <button class="button-bottom confirm-yes" (click)="confirmarEliminacion()">
-        Sí, Eliminar
-      </button>
-      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">
-        Cancelar
-      </button>
+      <button class="button-bottom confirm-yes" (click)="confirmarEliminacion()">Sí, Eliminar</button>
+      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">Cancelar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL DE ÉXITO -->
+<!-- ── MODAL TERMINAR CONTRATO ────────────────────────────────────────────── -->
+<div class="modal" *ngIf="modals['terminarContratoModal']" (click)="closeModal('terminarContratoModal')">
+  <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+    <div class="icon-container confirmation">
+      <div class="icon-circle confirmation">!</div>
+    </div>
+    <h2 class="modal-title confirmation">Terminar Contrato</h2>
+    <p class="modal-message">
+      ¿Está seguro que desea terminar el contrato de
+      <strong>{{contratoSeleccionado?.nombre_trabajador}}</strong>?<br>
+      La fecha de término se establecerá como hoy.
+    </p>
+    <div class="button-container confirmation">
+      <button class="button-bottom confirm-yes" (click)="confirmarTerminacion()">Sí, Terminar</button>
+      <button class="button-bottom confirm-no" (click)="closeModal('terminarContratoModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL ÉXITO ────────────────────────────────────────────────────────── -->
 <div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
   <div class="modal-content-message success" (click)="$event.stopPropagation()">
     <div class="icon-container success">
@@ -339,14 +509,12 @@
     <h2 class="modal-title success">¡Éxito!</h2>
     <p class="modal-message">La operación se ha completado exitosamente.</p>
     <div class="button-container">
-      <button class="button-bottom success" (click)="closeModal('exitoModal')">
-        Cerrar
-      </button>
+      <button class="button-bottom success" (click)="closeModal('exitoModal')">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL DE ERROR -->
+<!-- ── MODAL ERROR ────────────────────────────────────────────────────────── -->
 <div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
   <div class="modal-content-message error" (click)="$event.stopPropagation()">
     <div class="icon-container error">
@@ -355,14 +523,12 @@
     <h2 class="modal-title error">Error</h2>
     <p class="modal-message">{{ errorMessage }}</p>
     <div class="button-container">
-      <button class="button-bottom error" (click)="closeModal('errorModal')">
-        Cerrar
-      </button>
+      <button class="button-bottom error" (click)="closeModal('errorModal')">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL DETALLE CONTRATO -->
+<!-- ── MODAL DETALLE CONTRATO ─────────────────────────────────────────────── -->
 <div class="modal" *ngIf="modals['detalleContratoModal']" (click)="closeModal('detalleContratoModal')">
   <div class="modal-content-detalle" (click)="$event.stopPropagation()">
     <div class="modal-header-modern">
@@ -370,6 +536,7 @@
       <button class="close-button-modern" (click)="closeModal('detalleContratoModal')">✕</button>
     </div>
     <div class="detalle-content">
+
       <div class="detalle-section">
         <h3>Información General</h3>
         <div class="info-grid">
@@ -383,7 +550,7 @@
           </div>
           <div class="info-item">
             <span class="info-label">RUT:</span>
-            <span class="info-value">{{contratoSeleccionado?.rut_trabajador}}</span>
+            <span class="info-value">{{formatRut(contratoSeleccionado?.rut_trabajador)}}</span>
           </div>
           <div class="info-item">
             <span class="info-label">Sociedad:</span>
@@ -391,6 +558,7 @@
           </div>
         </div>
       </div>
+
       <div class="detalle-section">
         <h3>Ubicación y Asignación</h3>
         <div class="info-grid">
@@ -402,8 +570,13 @@
             <span class="info-label">Fundo:</span>
             <span class="info-value">{{contratoSeleccionado?.nombre_fundo || 'N/A'}}</span>
           </div>
+          <div class="info-item">
+            <span class="info-label">Supervisor:</span>
+            <span class="info-value">{{ contratoSeleccionado?.supervisor?.nombre || 'Sin asignar' }}</span>
+          </div>
         </div>
       </div>
+
       <div class="detalle-section">
         <h3>Vigencia y Estado</h3>
         <div class="info-grid">
@@ -417,9 +590,9 @@
           </div>
           <div class="info-item">
             <span class="info-label">Estado:</span>
-            <span class="info-value estado-tag" 
-                  [class.vigente]="contratoSeleccionado?.estado_contrato === 'VIGENTE'"
-                  [class.vencido]="contratoSeleccionado?.estado_contrato === 'VENCIDO'">
+            <span class="info-value estado-tag"
+              [class.vigente]="contratoSeleccionado?.estado_contrato === 'VIGENTE'"
+              [class.vencido]="contratoSeleccionado?.estado_contrato === 'VENCIDO'">
               {{contratoSeleccionado?.estado_contrato}}
             </span>
           </div>
@@ -429,11 +602,10 @@
           </div>
         </div>
       </div>
+
     </div>
     <div class="button-container">
-      <button class="button-bottom" (click)="closeModal('detalleContratoModal')">
-        Cerrar
-      </button>
+      <button class="button-bottom" (click)="closeModal('detalleContratoModal')">Cerrar</button>
     </div>
   </div>
 </div>

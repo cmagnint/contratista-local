@@ -1,58 +1,24 @@
-// pago-efectivo.component.ts
-
 import { Component, OnInit, PLATFORM_ID, Inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
 
-// Interfaces para el tipado de datos
-interface Sociedad {
-    id: number;
-    nombre: string;
-    cuentas_origen: any[];
-}
-
-interface Cuenta {
-    id: number;
-    banco_nombre: string;
-    numero_cuenta: string;
-}
-
-interface Cliente {
-    id: number;
-    nombre: string;
-    campos_clientes: any[];
-}
-
-interface Fundo {
-    id: number;
-    nombre_campo: string;
-}
-
-interface Cargo {
-    id: number;
-    nombre: string;
-}
-
-interface Casa {
-    id: number;
-    nombre: string;
-}
-
+interface Sociedad { id: number; nombre: string; cuentas_origen: any[]; }
+interface Cuenta { id: number; banco_nombre: string; numero_cuenta: string; }
+interface Cliente { id: number; nombre: string; campos_clientes: any[]; }
+interface Fundo { id: number; nombre_campo: string; }
+interface Cargo { id: number; nombre: string; }
+interface Casa { id: number; nombre: string; }
 interface Produccion {
     id: number;
     trabajador_nombre: string;
     trabajador_rut: string;
     montos_a_pagar: number[];
     monto_total: number;
-    monto_redondeado?: number;  // Monto ajustado al múltiplo
-    saldo?: number;             // Saldo pendiente
+    monto_redondeado?: number;
+    saldo?: number;
 }
-
-interface MultiploPago {
-    valor: number;
-    etiqueta: string;
-}
+interface MultiploPago { valor: number; etiqueta: string; }
 
 @Component({
     selector: 'app-pago-efectivo',
@@ -62,7 +28,6 @@ interface MultiploPago {
     styleUrl: './pago-efectivo.component.css'
 })
 export class PagoEfectivoComponent implements OnInit {
-    // Arrays para las opciones de los selectores
     sociedades: Sociedad[] = [];
     cuentas: Cuenta[] = [];
     clientes: Cliente[] = [];
@@ -70,28 +35,30 @@ export class PagoEfectivoComponent implements OnInit {
     cargos: Cargo[] = [];
     casas: Casa[] = [];
     produccionesPendientes: Produccion[] = [];
-    
-    // Variables para las selecciones del usuario
+
     sociedadSeleccionada: Sociedad | null = null;
     cuentaSeleccionada: Cuenta | null = null;
-    clienteSeleccionado: Cliente | null = null;
-    fundoSeleccionado: number | null = null;
-    cargoSeleccionado: number | null = null;
-    casaSeleccionada: number | null = null;
-    
-    // Variables para fechas y totales
+
+    // Selecciones múltiples
+    clientesSeleccionados: number[] = [];
+    fundosSeleccionados: number[] = [];
+    cargosSeleccionados: number[] = [];
+    casasSeleccionadas: number[] = [];
+
+    // Control dropdowns abiertos
+    dropdownAbierto: string | null = null;
+
     fechaInicio: string = '';
     fechaFin: string = '';
     totalGeneral: number = 0;
 
-    // Opciones de múltiplos para el pago en efectivo
     multiplosDisponibles: MultiploPago[] = [
         { valor: 1000, etiqueta: '$1.000' },
         { valor: 2000, etiqueta: '$2.000' },
         { valor: 5000, etiqueta: '$5.000' },
         { valor: 10000, etiqueta: '$10.000' }
     ];
-    multiploSeleccionado: number = 5000; // Valor por defecto
+    multiploSeleccionado: number = 5000;
 
     private isBrowser: boolean;
 
@@ -106,14 +73,30 @@ export class PagoEfectivoComponent implements OnInit {
         if (this.isBrowser) {
             this.cargarSociedades();
             this.cargarOpcionesFiltros();
+            document.addEventListener('click', this.cerrarDropdownsExternos.bind(this));
         }
     }
 
-    private getHoldingId(): string | null {
+    ngOnDestroy() {
         if (this.isBrowser) {
-            return localStorage.getItem('holding_id');
+            document.removeEventListener('click', this.cerrarDropdownsExternos.bind(this));
         }
-        return null;
+    }
+
+    cerrarDropdownsExternos(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.multi-select-container')) {
+            this.dropdownAbierto = null;
+        }
+    }
+
+    toggleDropdown(nombre: string, event: MouseEvent) {
+        event.stopPropagation();
+        this.dropdownAbierto = this.dropdownAbierto === nombre ? null : nombre;
+    }
+
+    private getHoldingId(): string | null {
+        return this.isBrowser ? localStorage.getItem('holding_id') : null;
     }
 
     cargarSociedades() {
@@ -157,16 +140,67 @@ export class PagoEfectivoComponent implements OnInit {
         }
     }
 
-    onClienteChange(event: Event) {
-        const selectElement = event.target as HTMLSelectElement;
-        const clienteId = selectElement.value;
-        if (clienteId) {
-            this.clienteSeleccionado = this.clientes.find(c => c.id === Number(clienteId)) || null;
-            this.fundos = this.clienteSeleccionado ? this.clienteSeleccionado.campos_clientes : [];
+    // ---- Helpers selección múltiple ----
+
+    toggleItem(lista: number[], id: number) {
+        const idx = lista.indexOf(id);
+        if (idx === -1) lista.push(id);
+        else lista.splice(idx, 1);
+    }
+
+    isSelected(lista: number[], id: number): boolean {
+        return lista.includes(id);
+    }
+
+    toggleTodos(lista: number[], fuente: any[], campo: string = 'id') {
+        if (lista.length === fuente.length) {
+            lista.splice(0, lista.length);
         } else {
-            this.fundos = [];
+            lista.splice(0, lista.length, ...fuente.map(i => i[campo]));
         }
-        this.fundoSeleccionado = null;
+    }
+
+    todosMarcados(lista: number[], fuente: any[]): boolean {
+        return fuente.length > 0 && lista.length === fuente.length;
+    }
+
+    algunoMarcado(lista: number[], fuente: any[]): boolean {
+        return lista.length > 0 && lista.length < fuente.length;
+    }
+
+    getLabelMultiSelect(lista: number[], fuente: any[], campoNombre: string, placeholder: string): string {
+        if (lista.length === 0) return placeholder;
+        if (lista.length === fuente.length) return 'Todos';
+        if (lista.length === 1) {
+            const item = fuente.find(i => i.id === lista[0]);
+            return item ? item[campoNombre] : placeholder;
+        }
+        return `${lista.length} seleccionados`;
+    }
+
+    onClienteToggle(id: number) {
+        this.toggleItem(this.clientesSeleccionados, id);
+        // Reconstruir fundos disponibles
+        this.fundos = [];
+        this.fundosSeleccionados = [];
+        this.clientesSeleccionados.forEach(clienteId => {
+            const cliente = this.clientes.find(c => c.id === clienteId);
+            if (cliente) {
+                this.fundos.push(...cliente.campos_clientes);
+            }
+        });
+    }
+
+    toggleTodosClientes() {
+        this.toggleTodos(this.clientesSeleccionados, this.clientes);
+        this.fundos = [];
+        this.fundosSeleccionados = [];
+        if (this.clientesSeleccionados.length > 0) {
+            this.clientesSeleccionados.forEach(clienteId => {
+                const cliente = this.clientes.find(c => c.id === clienteId);
+                if (cliente) this.fundos.push(...cliente.campos_clientes);
+            });
+        }
     }
 
     buscarProducciones() {
@@ -174,24 +208,33 @@ export class PagoEfectivoComponent implements OnInit {
             alert('Por favor seleccione un rango de fechas');
             return;
         }
-    
+
         const holdingId = this.getHoldingId();
         if (!holdingId) {
             alert('No se pudo obtener el ID del holding');
             return;
         }
-    
+
         let url = `produccion-filtrada-efectivo/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}`;
-        
-        // Agregar los demás parámetros de filtro...
-    
+
+        if (this.clientesSeleccionados.length > 0 && this.clientesSeleccionados.length < this.clientes.length)
+            url += `&cliente_ids=${this.clientesSeleccionados.join(',')}`;
+
+        if (this.fundosSeleccionados.length > 0 && this.fundosSeleccionados.length < this.fundos.length)
+            url += `&fundo_ids=${this.fundosSeleccionados.join(',')}`;
+
+        if (this.cargosSeleccionados.length > 0 && this.cargosSeleccionados.length < this.cargos.length)
+            url += `&cargo_ids=${this.cargosSeleccionados.join(',')}`;
+
+        if (this.casasSeleccionadas.length > 0 && this.casasSeleccionadas.length < this.casas.length)
+            url += `&casa_ids=${this.casasSeleccionadas.join(',')}`;
+
         this.apiService.get(url).subscribe({
             next: (data) => {
                 const produccionesAgrupadas = new Map<string, Produccion>();
-                
+
                 data.forEach((prod: any) => {
                     const key = prod.trabajador_rut;
-                    
                     if (produccionesAgrupadas.has(key)) {
                         const existing = produccionesAgrupadas.get(key)!;
                         existing.montos_a_pagar.push(prod.monto_a_pagar);
@@ -206,22 +249,16 @@ export class PagoEfectivoComponent implements OnInit {
                         });
                     }
                 });
-    
-                // Calcular montos redondeados y saldos
+
                 this.produccionesPendientes = Array.from(produccionesAgrupadas.values())
                     .map(prod => {
                         const monto_redondeado = Math.floor(prod.monto_total / this.multiploSeleccionado) * this.multiploSeleccionado;
                         const saldo = prod.monto_total - monto_redondeado;
-                        return {
-                            ...prod,
-                            monto_redondeado,
-                            saldo
-                        };
+                        return { ...prod, monto_redondeado, saldo };
                     });
-    
+
                 this.totalGeneral = this.produccionesPendientes.reduce(
-                    (sum, prod) => sum + (prod.monto_redondeado || 0), 
-                    0
+                    (sum, prod) => sum + (prod.monto_redondeado || 0), 0
                 );
             },
             error: (error) => {
@@ -232,24 +269,24 @@ export class PagoEfectivoComponent implements OnInit {
     }
 
     procesarPago() {
-        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || 
+        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada ||
             !this.produccionesPendientes.length || !this.multiploSeleccionado) {
             alert('No hay datos suficientes para procesar el pago');
             return;
         }
-    
+
         const holdingId = this.getHoldingId();
         if (!holdingId) {
             alert('No se pudo obtener el ID del holding');
             return;
         }
-    
+
         const pagos = this.produccionesPendientes.map(prod => ({
             produccion_id: prod.id,
             monto_pagado: prod.monto_redondeado,
             saldo: prod.saldo
         }));
-    
+
         const datosPago = {
             holding_id: holdingId,
             sociedad_id: this.sociedadSeleccionada.id,
@@ -257,9 +294,9 @@ export class PagoEfectivoComponent implements OnInit {
             pagos: pagos,
             multiplo_pago: this.multiploSeleccionado
         };
-    
+
         this.apiService.post('procesar-pago-efectivo/', datosPago).subscribe({
-            next: (response) => {
+            next: () => {
                 alert('Pago procesado correctamente');
                 this.buscarProducciones();
                 this.multiploSeleccionado = 5000;
@@ -284,14 +321,16 @@ export class PagoEfectivoComponent implements OnInit {
         }
 
         let url = `generar-planilla-efectivo/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}&multiplo=${this.multiploSeleccionado}`;
-        
-        // Agregar filtros opcionales si están seleccionados
-        if (this.clienteSeleccionado?.id) url += `&cliente_id=${this.clienteSeleccionado.id}`;
-        if (this.fundoSeleccionado) url += `&fundo_id=${this.fundoSeleccionado}`;
-        if (this.cargoSeleccionado) url += `&cargo_id=${this.cargoSeleccionado}`;
-        if (this.casaSeleccionada) url += `&casa_id=${this.casaSeleccionada}`;
 
-        // Realizar la solicitud GET y manejar la descarga del PDF
+        if (this.clientesSeleccionados.length > 0 && this.clientesSeleccionados.length < this.clientes.length)
+            url += `&cliente_ids=${this.clientesSeleccionados.join(',')}`;
+        if (this.fundosSeleccionados.length > 0 && this.fundosSeleccionados.length < this.fundos.length)
+            url += `&fundo_ids=${this.fundosSeleccionados.join(',')}`;
+        if (this.cargosSeleccionados.length > 0 && this.cargosSeleccionados.length < this.cargos.length)
+            url += `&cargo_ids=${this.cargosSeleccionados.join(',')}`;
+        if (this.casasSeleccionadas.length > 0 && this.casasSeleccionadas.length < this.casas.length)
+            url += `&casa_ids=${this.casasSeleccionadas.join(',')}`;
+
         this.apiService.getPDF(url).subscribe({
             next: (response: any) => {
                 const blob = new Blob([response], { type: 'application/pdf' });

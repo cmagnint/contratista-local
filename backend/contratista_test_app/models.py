@@ -211,23 +211,6 @@ class ContactosClientes(models.Model):
     class Meta:
         db_table = 'contactos_clientes'
 
-class Areas(models.Model):
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=255)
-
-    class Meta:
-        db_table = 'areas'
-
-class Cargos(models.Model):
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    id = models.AutoField(primary_key=True)
-    area = models.ForeignKey(Areas, on_delete=models.CASCADE)
-    nombre = models.CharField(max_length=255)
-
-    class Meta:
-        db_table = 'cargos'
-
 class AreasAdministracion(models.Model):
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     id = models.AutoField(primary_key=True)
@@ -2586,7 +2569,7 @@ class RegistroManoObraPersona(models.Model):
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     sociedad = models.ForeignKey(Sociedad, on_delete=models.SET_NULL, null=True, blank=True)
     supervisor = models.ForeignKey(Supervisores, on_delete=models.SET_NULL, null=True, related_name='registros_mano_obra')
-    fecha_ingreso = models.DateField(auto_now_add=True)
+    fecha_ingreso = models.DateField(default=timezone.localdate)
     folio = models.ForeignKey(FolioComercial, on_delete=models.SET_NULL, null=True, blank=True)
     labor = models.ForeignKey(Labores, on_delete=models.SET_NULL, null=True, blank=True)
     unidad_control = models.ForeignKey(UnidadControl, on_delete=models.SET_NULL, null=True, blank=True)
@@ -2600,3 +2583,38 @@ class RegistroManoObraPersona(models.Model):
             models.Index(fields=['trabajador', 'fecha_ingreso']),
             models.Index(fields=['holding', 'fecha_ingreso']),
         ]
+
+class SupervisorTrabajadorHistorial(models.Model):
+    id          = models.AutoField(primary_key=True)
+    holding     = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    supervisor  = models.ForeignKey(Supervisores, on_delete=models.CASCADE, related_name='historial_asignaciones')
+    trabajador  = models.ForeignKey(PersonalTrabajadores, on_delete=models.CASCADE, related_name='historial_supervisores')
+    fecha_inicio = models.DateField()
+    fecha_fin    = models.DateField(null=True, blank=True)  # null = asignación vigente
+
+    class Meta:
+        db_table = 'supervisor_trabajador_historial'
+        indexes = [
+            models.Index(fields=['trabajador', 'fecha_inicio', 'fecha_fin']),
+            models.Index(fields=['supervisor', 'fecha_inicio']),
+        ]
+
+    def __str__(self):
+        return f"{self.supervisor} → {self.trabajador} ({self.fecha_inicio} / {self.fecha_fin or 'vigente'})"
+    
+class RegistroCasaTrabajador(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.CASCADE, related_name='historial_casas')
+    casa = models.ForeignKey(CasasTrabajadores, on_delete=models.SET_NULL, null=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField(null=True, blank=True)  # null = vigente
+
+    class Meta:
+        db_table = 'registro_casa_trabajador'
+        indexes = [
+            models.Index(fields=['trabajador', 'fecha_inicio', 'fecha_fin']),
+        ]
+
+    def __str__(self):
+        return f"{self.trabajador.nombres} → {self.casa.nombre if self.casa else 'Sin casa'} ({self.fecha_inicio} / {self.fecha_fin or 'vigente'})"

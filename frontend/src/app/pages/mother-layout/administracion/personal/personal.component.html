@@ -173,21 +173,21 @@
         (input)="formatRUT($event)"
         placeholder="EJ: 12.345.678-9">
 
-        <h4 class="h4-subtitle">DNI Trabajador:</h4>
-        <input 
-          type="text" 
-          class="input-perfil" 
-          [(ngModel)]="dniTrabajador"
-          (ngModelChange)="dniTrabajador = $event.toUpperCase()"
-          placeholder="INGRESE EL DNI (OPCIONAL)">
+      <h4 class="h4-subtitle">DNI Trabajador:</h4>
+      <input 
+        type="text" 
+        class="input-perfil" 
+        [(ngModel)]="dniTrabajador"
+        (ngModelChange)="dniTrabajador = $event.toUpperCase()"
+        placeholder="INGRESE EL DNI (OPCIONAL)">
 
-        <h4 class="h4-subtitle">NIC Trabajador:</h4>
-        <input 
-          type="text" 
-          class="input-perfil" 
-          [(ngModel)]="nicTrabajador"
-          (ngModelChange)="nicTrabajador = $event.toUpperCase()"
-          placeholder="INGRESE EL NIC (OPCIONAL)">
+      <h4 class="h4-subtitle">NIC Trabajador:</h4>
+      <input 
+        type="text" 
+        class="input-perfil" 
+        [(ngModel)]="nicTrabajador"
+        (ngModelChange)="nicTrabajador = $event.toUpperCase()"
+        placeholder="INGRESE EL NIC (OPCIONAL)">
 
       <h4 class="h4-subtitle">Correo Trabajador:</h4>
       <input 
@@ -217,7 +217,7 @@
 
       <h4 class="h4-subtitle">Teléfono Trabajador:</h4>
       <div class="input-container">
-        <span class="prefix">+56</span>
+        
         <input 
           type="text" 
           class="input-perfil" 
@@ -225,7 +225,7 @@
           name="telefonoTrabajador" 
           [(ngModel)]="telefonoTrabajador"  
           (keypress)="validateNumber($event)"
-          placeholder="912345678">
+          placeholder="+56912345678">
       </div>
 
       <h4 class="h4-subtitle">Nacionalidad:</h4>
@@ -498,13 +498,12 @@
 
       <h4 class="h4-subtitle">Teléfono:</h4>
       <div class="input-container">
-        <span class="prefix">+56</span>
         <input 
           type="text" 
           class="input-perfil" 
           [(ngModel)]="telefonoTrabajadorNew" 
           (keypress)="validateNumber($event)"
-          placeholder="912345678">
+          placeholder="+56912345678">
       </div>
 
       <h4 class="h4-subtitle">Nacionalidad:</h4>
@@ -883,16 +882,17 @@
     <h2>DOCUMENTOS DEL TRABAJADOR</h2>
     
     <div class="documentos-grid">
+
       <!-- CARNET FRONTAL -->
       <div class="documento-card">
         <h3>Carnet (Frontal)</h3>
         <div class="imagen-preview">
           <img 
-            *ngIf="tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)" 
-            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image)"
+            *ngIf="imagenesBlob['carnet_front']" 
+            [src]="imagenesBlob['carnet_front']"
             alt="Carnet Frontal"
             (error)="onImageError($event)">
-          <div *ngIf="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)" class="sin-imagen">
+          <div *ngIf="!imagenesBlob['carnet_front']" class="sin-imagen">
             <p>Sin imagen disponible</p>
           </div>
         </div>
@@ -912,14 +912,14 @@
           <button 
             class="custom-button-ingreso"
             (click)="carnetFrontalInput.click(); $event.stopPropagation()">
-            {{ tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image) ? 'Cambiar' : 'Subir' }}
+            {{ imagenesBlob['carnet_front'] ? 'Cambiar' : 'Subir' }}
           </button>
           
           <button 
             class="custom-button-ingreso"
-            [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_front_image)"
+            [disabled]="!imagenesBlob['carnet_front']"
             (click)="descargarDocumento(
-              getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image),
+              getUrlCompleta(trabajadorSeleccionadoDocs.carnet_front_image, 'carnet_front', trabajadorSeleccionadoDocs.id),
               'carnet_frontal_' + trabajadorSeleccionadoDocs.rut + '.jpg'
             ); $event.stopPropagation()">
             Descargar
@@ -932,11 +932,11 @@
         <h3>Carnet (Posterior)</h3>
         <div class="imagen-preview">
           <img 
-            *ngIf="tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)" 
-            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image)"
+            *ngIf="imagenesBlob['carnet_back']" 
+            [src]="imagenesBlob['carnet_back']"
             alt="Carnet Posterior"
             (error)="onImageError($event)">
-          <div *ngIf="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)" class="sin-imagen">
+          <div *ngIf="!imagenesBlob['carnet_back']" class="sin-imagen">
             <p>Sin imagen disponible</p>
           </div>
         </div>
@@ -956,14 +956,14 @@
           <button 
             class="custom-button-ingreso"
             (click)="carnetTraseroInput.click(); $event.stopPropagation()">
-            {{ tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image) ? 'Cambiar' : 'Subir' }}
+            {{ imagenesBlob['carnet_back'] ? 'Cambiar' : 'Subir' }}
           </button>
           
           <button 
             class="custom-button-ingreso"
-            [disabled]="!tieneImagenReal(trabajadorSeleccionadoDocs?.carnet_back_image)"
+            [disabled]="!imagenesBlob['carnet_back']"
             (click)="descargarDocumento(
-              getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image),
+              getUrlCompleta(trabajadorSeleccionadoDocs.carnet_back_image, 'carnet_back', trabajadorSeleccionadoDocs.id),
               'carnet_posterior_' + trabajadorSeleccionadoDocs.rut + '.jpg'
             ); $event.stopPropagation()">
             Descargar
@@ -976,11 +976,11 @@
         <h3>Firma</h3>
         <div class="imagen-preview">
           <img 
-            *ngIf="trabajadorSeleccionadoDocs?.firma" 
-            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.firma)"
+            *ngIf="imagenesBlob['firma']" 
+            [src]="imagenesBlob['firma']"
             alt="Firma"
             (error)="onImageError($event)">
-          <div *ngIf="!trabajadorSeleccionadoDocs?.firma" class="sin-imagen">
+          <div *ngIf="!imagenesBlob['firma']" class="sin-imagen">
             <p>Sin firma disponible</p>
           </div>
         </div>
@@ -1000,14 +1000,14 @@
           <button 
             class="custom-button-ingreso"
             (click)="firmaInput.click(); $event.stopPropagation()">
-            {{ trabajadorSeleccionadoDocs?.firma ? 'Cambiar' : 'Subir' }}
+            {{ imagenesBlob['firma'] ? 'Cambiar' : 'Subir' }}
           </button>
           
           <button 
             class="custom-button-ingreso"
-            [disabled]="!trabajadorSeleccionadoDocs?.firma"
+            [disabled]="!imagenesBlob['firma']"
             (click)="descargarDocumento(
-              getUrlCompleta(trabajadorSeleccionadoDocs.firma),
+              getUrlCompleta(trabajadorSeleccionadoDocs.firma, 'firma', trabajadorSeleccionadoDocs.id),
               'firma_' + trabajadorSeleccionadoDocs.rut + '.png'
             ); $event.stopPropagation()">
             Descargar
@@ -1020,11 +1020,11 @@
         <h3>Huella Digital</h3>
         <div class="imagen-preview">
           <img 
-            *ngIf="trabajadorSeleccionadoDocs?.huella_digital" 
-            [src]="getUrlCompleta(trabajadorSeleccionadoDocs.huella_digital)"
+            *ngIf="imagenesBlob['huella']" 
+            [src]="imagenesBlob['huella']"
             alt="Huella Digital"
             (error)="onImageError($event)">
-          <div *ngIf="!trabajadorSeleccionadoDocs?.huella_digital" class="sin-imagen">
+          <div *ngIf="!imagenesBlob['huella']" class="sin-imagen">
             <p>Sin huella disponible</p>
           </div>
         </div>
@@ -1044,20 +1044,21 @@
           <button 
             class="custom-button-ingreso"
             (click)="huellaInput.click(); $event.stopPropagation()">
-            {{ trabajadorSeleccionadoDocs?.huella_digital ? 'Cambiar' : 'Subir' }}
+            {{ imagenesBlob['huella'] ? 'Cambiar' : 'Subir' }}
           </button>
           
           <button 
             class="custom-button-ingreso"
-            [disabled]="!trabajadorSeleccionadoDocs?.huella_digital"
+            [disabled]="!imagenesBlob['huella']"
             (click)="descargarDocumento(
-              getUrlCompleta(trabajadorSeleccionadoDocs.huella_digital),
+              getUrlCompleta(trabajadorSeleccionadoDocs.huella_digital, 'huella', trabajadorSeleccionadoDocs.id),
               'huella_' + trabajadorSeleccionadoDocs.rut + '.png'
             ); $event.stopPropagation()">
             Descargar
           </button>
         </div>
       </div>
+
     </div>
     
     <div class="button-container" style="margin-top: 30px;">

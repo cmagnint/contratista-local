@@ -48,8 +48,12 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
 
     try {
       String? holding = await storage.read(key: 'holding');
-      String url =
-          'informe_mano_obra/?supervisor_id=${userInfo.idSupervisor}&holding=$holding';
+      String url = 'informe_mano_obra/?holding=$holding';
+
+      // Solo filtrar por supervisor si el usuario es supervisor
+      if (userInfo.idSupervisor != null && userInfo.idSupervisor != 0) {
+        url += '&supervisor_id=${userInfo.idSupervisor}';
+      }
 
       if (selectedDateRange != null) {
         String fechaInicio = DateFormat(
@@ -221,7 +225,7 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
     if (rankingSize <= 0 || rankingSize > maxRankingSize) {
       _showDialogWithMessage(
         context,
-        'Ingrese un número entre 1 y $maxRankingSize (máximo: ${todosRendimientos.length ~/ 2})',
+        'Ingrese un número entre 1 y $maxRankingSize',
       );
       return;
     }
@@ -236,7 +240,7 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: DateTime.now(),
       initialDateRange:
           selectedDateRange ??
           DateTimeRange(
@@ -246,11 +250,33 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
     );
 
     if (picked != null) {
+      setState(() => selectedDateRange = picked);
+      fetchData();
+    }
+  }
+
+  Future<void> _selectSingleDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDateRange?.start ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
       setState(() {
-        selectedDateRange = picked;
+        selectedDateRange = DateTimeRange(start: picked, end: picked);
       });
       fetchData();
     }
+  }
+
+  String _labelFecha() {
+    if (selectedDateRange == null) return 'Sin filtro de fecha';
+    if (selectedDateRange!.start == selectedDateRange!.end) {
+      return DateFormat('dd/MM/yyyy').format(selectedDateRange!.start);
+    }
+    return '${DateFormat('dd/MM/yyyy').format(selectedDateRange!.start)} - ${DateFormat('dd/MM/yyyy').format(selectedDateRange!.end)}';
   }
 
   String encontrarSupervisorParaTrabajador(
@@ -310,31 +336,69 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
               child: Center(
                 child: Column(
                   children: [
+                    // ── Selectores de fecha ──────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: ElevatedButton.icon(
-                        onPressed: () => _selectDateRange(context),
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                          selectedDateRange == null
-                              ? 'SELECCIONAR RANGO DE FECHAS'
-                              : '${DateFormat('dd/MM/yyyy').format(selectedDateRange!.start)} - ${DateFormat('dd/MM/yyyy').format(selectedDateRange!.end)}',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: const Color.fromARGB(
-                            255,
-                            23,
-                            160,
-                            160,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 15,
-                          ),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      child: Text(
+                        _labelFecha(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _selectSingleDate(context),
+                              icon: const Icon(Icons.calendar_today, size: 16),
+                              label: const Text('DÍA ESPECÍFICO'),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: const Color.fromARGB(
+                                  255,
+                                  6,
+                                  62,
+                                  107,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _selectDateRange(context),
+                              icon: const Icon(Icons.date_range, size: 16),
+                              label: const Text('RANGO'),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: const Color.fromARGB(
+                                  255,
+                                  23,
+                                  160,
+                                  160,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Dropdowns ────────────────────────────────────────
                     DropdownButton<String>(
                       value: selectedTipo,
                       hint: const Text("Selecciona tipo"),
@@ -370,8 +434,10 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
                           });
                         },
                       ),
+
                     if (selectedTipo != null && selectedLabor != null)
                       buildDataTable(),
+
                     if (todosRendimientos.isNotEmpty)
                       Column(
                         children: [
@@ -388,6 +454,7 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
                           buildRankingCompleto(),
                         ],
                       ),
+
                     if (laboresList.isNotEmpty)
                       Column(
                         children: [
@@ -496,7 +563,7 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
                   cells: <DataCell>[
                     DataCell(
                       Text(
-                        '${index + 1}', // ← CAMBIAR DE: todosRendimientos.length - index
+                        '${index + 1}',
                         style: TextStyle(
                           fontWeight: (esMejor || esPeor)
                               ? FontWeight.bold
@@ -566,8 +633,8 @@ class InformeManoObraScreenState extends State<InformeManoObraScreen> {
                   DataCell(
                     Text(
                       esMejor
-                          ? '${index + 1}' // Mejores: 1, 2, 3...
-                          : '${todosRendimientos.length - ranking.length + index + 1}', // Peores: 8, 9, 10...
+                          ? '${index + 1}'
+                          : '${todosRendimientos.length - ranking.length + index + 1}',
                     ),
                   ),
                   DataCell(Text(ranking[index]['nombre'])),
