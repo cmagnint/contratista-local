@@ -147,17 +147,33 @@
 
     </div>
 
+    <!-- Nombre archivo TXT -->
+    <div class="form-group nombre-txt-group" *ngIf="produccionesPendientes.length > 0 && !pagoCerrado">
+        <label for="nombreArchivo">Nombre base para archivos TXT:</label>
+        <input id="nombreArchivo" type="text" [(ngModel)]="nombreArchivoBase"
+               placeholder="Ejemplo: transferencias_semana1" maxlength="50">
+    </div>
+
     <!-- Acciones -->
     <div class="acciones">
         <button (click)="buscarProducciones()" [disabled]="!cuentaSeleccionada" class="search-button">
             Buscar producciones
         </button>
-        <button (click)="generarCSVBanco()" [disabled]="!produccionesPendientes.length" class="generate-csv-button">
-            Generar CSV Banco
+        <button (click)="generarTXTBanco()"
+                [disabled]="!produccionesPendientes.length || pagoCerrado"
+                class="generate-csv-button">
+            Generar TXT Banco
         </button>
-        <button (click)="procesarPago()" [disabled]="!produccionesPendientes.length" class="process-payment-button">
+        <button (click)="procesarPago()"
+                [disabled]="!produccionesPendientes.length || pagoCerrado"
+                class="process-payment-button">
             Cierre de Pago
         </button>
+    </div>
+
+    <!-- Aviso pago cerrado -->
+    <div class="pago-cerrado-aviso" *ngIf="pagoCerrado">
+        ✅ Pago cerrado. Para generar un nuevo TXT realice una nueva búsqueda.
     </div>
 
     <!-- Tabla -->

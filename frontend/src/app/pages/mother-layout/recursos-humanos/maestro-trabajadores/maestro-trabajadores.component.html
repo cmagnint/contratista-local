@@ -2,64 +2,78 @@
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
 
-  <!-- ── FILTROS ─────────────────────────────────────────────────────────── -->
-  <div class="filtros-section-modern">
-    <h3 class="filtros-title">FILTRAR CONTRATOS</h3>
-    <div class="filtros-buttons-container">
+  <!-- ── STICKY: filtros + botones (igual que personal) ─────────────────── -->
+  <div class="botones-fijos-maestro">
 
-      <button mat-raised-button [class.active]="filtroEstado === 'todos'"
-        class="filtro-button-modern" (click)="cambiarFiltro('todos')">
-        <span class="button-icon">📋</span>
-        <span class="button-text">TODOS ({{ contratos.length }})</span>
-      </button>
+    <!-- ── FILTROS ──────────────────────────────────────────────────────── -->
+    <div class="filtros-section-modern">
+      <div class="filtros-header" (click)="filtrosVisible = !filtrosVisible" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+        <h3 class="filtros-title" style="margin:0;">FILTRAR CONTRATOS</h3>
+        <span style="font-size:22px; color:#14b35c;">{{ filtrosVisible ? '▲' : '▼' }}</span>
+      </div>
 
-      <button mat-raised-button [class.active]="filtroEstado === 'vigente'"
-        class="filtro-button-modern vigente" (click)="cambiarFiltro('vigente')">
-        <span class="button-icon">✓</span>
-        <span class="button-text">VIGENTES</span>
-      </button>
+      <div class="filtros-buttons-container" *ngIf="filtrosVisible" style="margin-top:15px;">
+        <button mat-raised-button [class.active]="filtroEstado === 'todos'"
+          class="filtro-button-modern" (click)="cambiarFiltro('todos')">
+          <span class="button-icon">📋</span>
+          <span class="button-text">TODOS ({{ contratos.length }})</span>
+        </button>
 
-      <button mat-raised-button [class.active]="filtroEstado === 'vencido'"
-        class="filtro-button-modern vencido" (click)="cambiarFiltro('vencido')">
-        <span class="button-icon">✕</span>
-        <span class="button-text">VENCIDOS</span>
-      </button>
+        <button mat-raised-button [class.active]="filtroEstado === 'vigente'"
+          class="filtro-button-modern vigente" (click)="cambiarFiltro('vigente')">
+          <span class="button-icon">✓</span>
+          <span class="button-text">VIGENTES</span>
+        </button>
 
-      <mat-form-field appearance="outline" style="min-width: 240px; margin-left: 20px;">
-        <mat-label>Filtrar por Supervisor</mat-label>
-        <mat-select [(ngModel)]="filtroSupervisor" (selectionChange)="aplicarFiltroSupervisor()">
-          <mat-option value="todos">Todos</mat-option>
-          <mat-option value="sin_supervisor">Sin Supervisor</mat-option>
-          <mat-option *ngFor="let sup of supervisores" [value]="sup.id.toString()">
-            {{ sup.nombre }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+        <button mat-raised-button [class.active]="filtroEstado === 'vencido'"
+          class="filtro-button-modern vencido" (click)="cambiarFiltro('vencido')">
+          <span class="button-icon">✕</span>
+          <span class="button-text">VENCIDOS</span>
+        </button>
 
+        <mat-form-field appearance="outline" style="min-width: 240px; margin-left: 20px;">
+          <mat-label>Filtrar por Supervisor</mat-label>
+          <mat-select [(ngModel)]="filtroSupervisor" (selectionChange)="aplicarFiltroSupervisor()">
+            <mat-option value="todos">Todos</mat-option>
+            <mat-option value="sin_supervisor">Sin Supervisor</mat-option>
+            <mat-option *ngFor="let sup of supervisores" [value]="sup.id.toString()">
+              {{ sup.nombre }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+      </div>
     </div>
-  </div>
 
-  <!-- ── BOTONES DE ACCIÓN ──────────────────────────────────────────────── -->
-  <div class="botones-accion-container">
-    <button mat-raised-button color="primary" class="custom-button-agregar"
-      (click)="abrirModalCrearContrato()">
-      <span class="button-icon">➕</span>
-      <span class="button-text">CREAR CONTRATO</span>
-    </button>
+    <!-- ── BOTONES DE ACCIÓN ─────────────────────────────────────────────── -->
+    <div class="botones-accion-container">
+      <button mat-raised-button color="primary" class="custom-button-agregar"
+        (click)="abrirModalCrearContrato()">
+        <span class="button-icon">➕</span>
+        <span class="button-text">CREAR CONTRATO</span>
+      </button>
 
-    <button mat-raised-button class="custom-button-retroactivo"
-      (click)="abrirModalContratoRetroactivo()">
-      <span class="button-icon">🕐</span>
-      <span class="button-text">CONTRATO RETROACTIVO</span>
-    </button>
+      <button mat-raised-button class="custom-button-retroactivo"
+        (click)="abrirModalContratoRetroactivo()">
+        <span class="button-icon">🕐</span>
+        <span class="button-text">CONTRATO RETROACTIVO</span>
+      </button>
 
-    <button mat-raised-button color="primary" class="custom-button-cancelar"
-      [disabled]="selectedRows.length === 0"
-      (click)="eliminarContratosSeleccionados($event)">
-      <span class="button-icon">🗑️</span>
-      <span class="button-text">ELIMINAR CONTRATOS</span>
-    </button>
-  </div>
+      <button mat-raised-button color="primary" class="custom-button-cancelar"
+        [disabled]="selectedRows.length === 0"
+        (click)="eliminarContratosSeleccionados($event)">
+        <span class="button-icon">🗑️</span>
+        <span class="button-text">ELIMINAR CONTRATOS</span>
+      </button>
+
+      <button mat-raised-button class="custom-button-limpiar"
+        (click)="limpiarFiltros()">
+        <span class="button-icon">🧹</span>
+        <span class="button-text">LIMPIAR FILTROS</span>
+      </button>
+    </div>
+
+  </div><!-- fin botones-fijos-maestro -->
 
   <!-- ── TABLA ──────────────────────────────────────────────────────────── -->
   <table mat-table [dataSource]="contratosFiltrados" class="mat-elevation-z8"
@@ -73,15 +87,40 @@
     </ng-container>
 
     <ng-container matColumnDef="trabajador">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Trabajador</th>
-      <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nombre_trabajador}}</td>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Nombres
+        <input class="filter-input" [(ngModel)]="filtros.nombres" placeholder="Buscar..." (click)="$event.stopPropagation()">
+      </th>
+      <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nombres_trabajador}}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="apellidos">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Apellidos
+        <input class="filter-input" [(ngModel)]="filtros.apellidos" placeholder="Buscar..." (click)="$event.stopPropagation()">
+      </th>
+      <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.apellidos_trabajador}}</td>
     </ng-container>
 
     <ng-container matColumnDef="rut">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        RUT
+        <input class="filter-input" [(ngModel)]="filtros.rut" placeholder="Buscar..." (click)="$event.stopPropagation()">
+      </th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
         <span class="rut-badge">{{formatRut(contrato.rut_trabajador)}}</span>
       </td>
+    </ng-container>
+
+    <ng-container matColumnDef="nacionalidad">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Nacionalidad
+        <select class="filter-select" [(ngModel)]="filtros.nacionalidad" (click)="$event.stopPropagation()">
+          <option value="">Todas</option>
+          <option *ngFor="let v of uniqueNacionalidades" [value]="v">{{v}}</option>
+        </select>
+      </th>
+      <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nacionalidad_trabajador || 'N/A'}}</td>
     </ng-container>
 
     <ng-container matColumnDef="sociedad">
@@ -90,7 +129,10 @@
     </ng-container>
 
     <ng-container matColumnDef="cliente">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Cliente</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Cliente
+        <input class="filter-input" [(ngModel)]="filtros.cliente" placeholder="Buscar..." (click)="$event.stopPropagation()">
+      </th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">{{contrato.nombre_cliente || 'N/A'}}</td>
     </ng-container>
 
@@ -114,7 +156,10 @@
     </ng-container>
 
     <ng-container matColumnDef="fecha_inicio">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Fecha Inicio</th>
+      <th mat-header-cell *matHeaderCellDef class="mat-header">
+        Fecha Inicio
+        <input class="filter-input" [(ngModel)]="filtros.fecha_inicio" type="date" (click)="$event.stopPropagation()">
+      </th>
       <td mat-cell *matCellDef="let contrato" class="mat-cell">
         <span class="fecha-badge">{{contrato.fecha_inicio_contrato}}</span>
       </td>
@@ -338,7 +383,6 @@
 
     <div class="form-container">
 
-      <!-- PASO 1: Fecha de consulta -->
       <mat-form-field appearance="outline" class="form-field" style="grid-column: 1 / -1;">
         <mat-label>Fecha retroactiva *</mat-label>
         <input matInput type="date"
@@ -347,19 +391,16 @@
         <mat-hint>Seleccione la fecha en que el trabajador no tenía contrato</mat-hint>
       </mat-form-field>
 
-      <!-- Cargando -->
       <div *ngIf="isLoadingHistorial"
         style="grid-column: 1 / -1; text-align: center; padding: 10px; color: #F57C00;">
         Buscando trabajadores sin contrato...
       </div>
 
-      <!-- Sin resultados -->
       <div *ngIf="!isLoadingHistorial && nuevoContratoRetroactivo.fecha_consulta && historialesFiltrados.length === 0"
         style="grid-column: 1 / -1; text-align: center; padding: 10px; color: #888; font-style: italic;">
         No hay trabajadores sin contrato para esta fecha.
       </div>
 
-      <!-- PASO 2: Trabajador -->
       <mat-form-field appearance="outline" class="form-field" style="grid-column: 1 / -1;"
         *ngIf="historialesFiltrados.length > 0">
         <mat-label>Trabajador sin contrato en esa fecha *</mat-label>
@@ -371,7 +412,6 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- PASO 3: Supervisor -->
       <mat-form-field appearance="outline" class="form-field" style="grid-column: 1 / -1;"
         *ngIf="nuevoContratoRetroactivo.trabajador_id">
         <mat-label>Supervisor (Opcional)</mat-label>
@@ -383,7 +423,6 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Fechas -->
       <mat-form-field appearance="outline" class="form-field"
         *ngIf="nuevoContratoRetroactivo.trabajador_id">
         <mat-label>Fecha Inicio *</mat-label>
@@ -398,7 +437,6 @@
         <mat-hint>Opcional</mat-hint>
       </mat-form-field>
 
-      <!-- PASO 4: Sociedad y Folio -->
       <mat-form-field appearance="outline" class="form-field"
         *ngIf="nuevoContratoRetroactivo.trabajador_id">
         <mat-label>Sociedad *</mat-label>
@@ -490,11 +528,20 @@
     <h2 class="modal-title confirmation">Terminar Contrato</h2>
     <p class="modal-message">
       ¿Está seguro que desea terminar el contrato de
-      <strong>{{contratoSeleccionado?.nombre_trabajador}}</strong>?<br>
-      La fecha de término se establecerá como hoy.
+      <strong>{{contratoSeleccionado?.nombres_trabajador}}</strong>?<br>
+      Seleccione una fecha de término:
     </p>
+    <mat-form-field appearance="outline" style="width:100%; margin: 10px 0;">
+      <mat-label>Fecha de término</mat-label>
+      <input matInput type="date"
+        [(ngModel)]="fechaTerminacion"
+        [min]="contratoSeleccionado?.fecha_inicio_contrato"
+        [max]="hoy">
+    </mat-form-field>
     <div class="button-container confirmation">
-      <button class="button-bottom confirm-yes" (click)="confirmarTerminacion()">Sí, Terminar</button>
+      <button class="button-bottom confirm-yes"
+        [disabled]="!fechaTerminacion"
+        (click)="confirmarTerminacion()">Sí, Terminar</button>
       <button class="button-bottom confirm-no" (click)="closeModal('terminarContratoModal')">Cancelar</button>
     </div>
   </div>
@@ -545,12 +592,20 @@
             <span class="info-value">{{contratoSeleccionado?.id}}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">Trabajador:</span>
-            <span class="info-value">{{contratoSeleccionado?.nombre_trabajador}}</span>
+            <span class="info-label">Nombres:</span>
+            <span class="info-value">{{contratoSeleccionado?.nombres_trabajador}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Apellidos:</span>
+            <span class="info-value">{{contratoSeleccionado?.apellidos_trabajador}}</span>
           </div>
           <div class="info-item">
             <span class="info-label">RUT:</span>
             <span class="info-value">{{formatRut(contratoSeleccionado?.rut_trabajador)}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Nacionalidad:</span>
+            <span class="info-value">{{contratoSeleccionado?.nacionalidad_trabajador || 'N/A'}}</span>
           </div>
           <div class="info-item">
             <span class="info-label">Sociedad:</span>

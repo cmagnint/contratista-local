@@ -15,18 +15,9 @@ interface Produccion {
     trabajador_rut: string;
     montos_a_pagar: number[];
     monto_total: number;
-}
-interface CSVBancoEstado {
-    tipoCuentaOrigen: string;
-    cuentaOrigen: string;
-    codigoBancoDestino: string;
-    tipoCuentaDestino: string;
-    cuentaDestino: string;
-    rutBeneficiario: string;
-    nombreBeneficiario: string;
-    montoTransferencia: number;
-    concepto: string;
-    mensajeBeneficiario: string;
+    numero_cuenta: string;
+    banco_rut: string;
+    tipo_cuenta: string;
 }
 
 @Component({
@@ -48,7 +39,6 @@ export class PagoTransferenciaComponent implements OnInit {
     sociedadSeleccionada: Sociedad | null = null;
     cuentaSeleccionada: Cuenta | null = null;
 
-    // Selecciones múltiples
     clientesSeleccionados: number[] = [];
     fundosSeleccionados: number[] = [];
     cargosSeleccionados: number[] = [];
@@ -59,6 +49,9 @@ export class PagoTransferenciaComponent implements OnInit {
     fechaInicio: string = '';
     fechaFin: string = '';
     totalGeneral: number = 0;
+
+    pagoCerrado: boolean = false;
+    nombreArchivoBase: string = '';
 
     private isBrowser: boolean;
 
@@ -140,8 +133,6 @@ export class PagoTransferenciaComponent implements OnInit {
         }
     }
 
-    // ---- Helpers multi-select ----
-
     toggleItem(lista: number[], id: number) {
         const idx = lista.indexOf(id);
         if (idx === -1) lista.push(id);
@@ -212,6 +203,8 @@ export class PagoTransferenciaComponent implements OnInit {
             return;
         }
 
+        this.pagoCerrado = false;
+
         let url = `produccion-filtrada-transferencia/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}`;
 
         if (this.clientesSeleccionados.length > 0 && this.clientesSeleccionados.length < this.clientes.length)
@@ -239,7 +232,10 @@ export class PagoTransferenciaComponent implements OnInit {
                             trabajador_nombre: prod.trabajador_nombre,
                             trabajador_rut: prod.trabajador_rut,
                             montos_a_pagar: [prod.monto_a_pagar],
-                            monto_total: prod.monto_a_pagar
+                            monto_total: prod.monto_a_pagar,
+                            numero_cuenta: prod.numero_cuenta || '',
+                            banco_rut: prod.banco_rut || '',
+                            tipo_cuenta: prod.tipo_cuenta || 'CTD'
                         });
                     }
                 });
@@ -280,7 +276,7 @@ export class PagoTransferenciaComponent implements OnInit {
         this.apiService.post('procesar-pago/', datosPago).subscribe({
             next: () => {
                 alert('Pago procesado correctamente');
-                this.buscarProducciones();
+                this.pagoCerrado = true;
             },
             error: (error) => {
                 console.error('Error al procesar el pago:', error);
@@ -289,49 +285,62 @@ export class PagoTransferenciaComponent implements OnInit {
         });
     }
 
-    generarCSVBanco() {
+    async generarTXTBanco(): Promise<void> {
         if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
-            alert('Faltan datos necesarios para generar el CSV');
+            alert('Faltan datos para generar el TXT');
+            return;
+        }
+        if (!this.nombreArchivoBase.trim()) {
+            alert('Ingrese un nombre base para los archivos');
             return;
         }
 
-        const csvData: CSVBancoEstado[] = this.produccionesPendientes.map(prod => ({
-            tipoCuentaOrigen: 'CTV',
-            cuentaOrigen: this.cuentaSeleccionada!.numero_cuenta,
-            codigoBancoDestino: '12',
-            tipoCuentaDestino: 'CRUT',
-            cuentaDestino: prod.trabajador_rut.replace(/\./g, '').replace(/-/g, ''),
-            rutBeneficiario: prod.trabajador_rut,
-            nombreBeneficiario: prod.trabajador_nombre,
-            montoTransferencia: prod.monto_total,
-            concepto: 'PAGO',
-            mensajeBeneficiario: `Semana del ${this.fechaInicio} al ${this.fechaFin}`
-        }));
+        const rutCliente = this.cuentaSeleccionada.numero_cuenta;
 
-        const headers = [
-            'Tipo de Cuenta Origen', 'Cuenta Origen', 'Codigo Banco Destino',
-            'Tipo de Cuenta Destino', 'Cuenta Destino', 'Rut Beneficiario',
-            'Nombre Beneficiario', 'Monto Transferencia', 'Concepto', 'Mensaje a Beneficiario'
-        ];
+        const csvLines = this.produccionesPendientes.map(prod => [
+            'TOB',
+            rutCliente,
+            this.cuentaSeleccionada!.numero_cuenta,
+            prod.trabajador_rut.replace(/\./g, '').replace(/-/g, ''),
+            prod.trabajador_nombre,
+            prod.numero_cuenta,
+            prod.banco_rut,
+            Math.round(prod.monto_total),
+            '',
+            `SEMANA ${this.fechaInicio} AL ${this.fechaFin}`,
+            '0',
+            'PAGO',
+            '',
+            prod.tipo_cuenta
+        ].join(';'));
 
-        const csvContent = [
-            headers.join(','),
-            ...csvData.map(row => [
-                row.tipoCuentaOrigen, row.cuentaOrigen, row.codigoBancoDestino,
-                row.tipoCuentaDestino, row.cuentaDestino, row.rutBeneficiario,
-                row.nombreBeneficiario, row.montoTransferencia, row.concepto,
-                row.mensajeBeneficiario
-            ].join(','))
-        ].join('\n');
+        const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], 'transferencias.csv', { type: 'text/csv' });
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const fecha = new Date().toISOString().slice(0, 10);
-        link.href = URL.createObjectURL(blob);
-        link.download = `transferencias_${fecha}.csv`;
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const formData = new FormData();
+        formData.append('csv_file', file);
+        formData.append('nombre_archivo', this.nombreArchivoBase.trim());
+        formData.append('action', 'generar_txt_banco');
+
+        try {
+            const response = await this.apiService.postFormData('generar_txt_banco/', formData).toPromise();
+            if (response.success) {
+                response.archivos.forEach((archivo: any, index: number) => {
+                    setTimeout(() => {
+                        const b = new Blob([archivo.contenido], { type: 'text/plain;charset=utf-8' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(b);
+                        link.download = archivo.nombre;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }, index * 300);
+                });
+            } else {
+                alert(response.message || 'Error al generar TXT');
+            }
+        } catch (error: any) {
+            alert(error.error?.message || 'Error al generar TXT');
+        }
     }
 }

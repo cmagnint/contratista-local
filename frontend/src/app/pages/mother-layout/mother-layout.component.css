@@ -184,14 +184,17 @@
     height: 70px;
     background: linear-gradient(
         135deg, 
-        #002233 0%,      /* Azul petróleo más oscuro */
-        #003450 25%,     /* Azul medianoche oscuro */
-        #004a5c 50%,     /* Verde petróleo oscuro */
-        #077478 75%,     /* Verde azulado oscuro */
-        #0f3e46 100%     /* Verde petróleo muy oscuro */
+        #002233 0%,
+        #003450 25%,
+        #004a5c 50%,
+        #077478 75%,
+        #0f3e46 100%
     );
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 10;
 }
 
@@ -620,4 +623,8 @@ button:disabled {
 /* ============ ICONOS ESPECIALES ============ */
 mat-icon {
     user-select: none;
+}
+
+mat-drawer-content {
+  padding-top: 70px;
 }

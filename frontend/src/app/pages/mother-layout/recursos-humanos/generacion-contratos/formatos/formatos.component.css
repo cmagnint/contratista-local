@@ -1508,3 +1508,176 @@ h2 {
   object-fit: contain !important;
   pointer-events: none !important;
 }
+
+/* ============================================================
+   AGREGAR AL FINAL DE formatos.component.css
+   ============================================================ */
+ 
+/* Sección firmas/huellas de organización */
+.firmas-org-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+ 
+.firmas-org-section h4 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+ 
+.no-firmas-org {
+  text-align: center;
+  padding: 10px;
+  color: #999;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+ 
+.firma-org-item {
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+ 
+.firma-org-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+ 
+.firma-org-tipo-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+ 
+.firma-org-tipo-badge.firma {
+  background-color: #e6f7e6;
+  color: #2c7a2c;
+}
+ 
+.firma-org-tipo-badge.huella {
+  background-color: #e6f0ff;
+  color: #0050b3;
+}
+ 
+.firma-org-nombre {
+  font-weight: 500;
+  color: #333;
+  font-size: 0.9rem;
+  flex: 1;
+}
+ 
+.eliminar-firma-org-btn {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+  line-height: 1;
+}
+ 
+.eliminar-firma-org-btn:hover {
+  background-color: #f8d7da;
+}
+ 
+.firma-org-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 70px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px;
+  background-color: #fafafa;
+  object-fit: contain;
+  margin: 0 auto 6px auto;
+}
+ 
+.firma-org-key {
+  display: block;
+  font-size: 0.7rem;
+  color: #888;
+  font-family: monospace;
+  text-align: center;
+}
+ 
+.agregar-firma-org-btn {
+  background-color: #4a80f5;
+  color: white;
+  width: 100%;
+  margin-top: 5px;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+ 
+.agregar-firma-org-btn:hover {
+  background-color: #3a6ad4;
+}
+ 
+/* Variables en PDF: firma de organización */
+.pdf-variable.firma-org-imagen {
+  background-color: rgba(40, 167, 69, 0.08) !important;
+  border: 2px dashed #28a745 !important;
+  padding: 3px !important;
+  overflow: visible !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+ 
+.pdf-variable.firma-org-imagen:hover {
+  background-color: rgba(40, 167, 69, 0.15) !important;
+  border-color: #218838 !important;
+}
+ 
+.pdf-variable.firma-org-imagen img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+}
+ 
+/* Variables en PDF: huella de organización */
+.pdf-variable.huella-org-imagen {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  border: 2px dashed #3b82f6 !important;
+  padding: 3px !important;
+  overflow: visible !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+ 
+.pdf-variable.huella-org-imagen:hover {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border-color: #2563eb !important;
+}
+ 
+.pdf-variable.huella-org-imagen img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+}
+ 

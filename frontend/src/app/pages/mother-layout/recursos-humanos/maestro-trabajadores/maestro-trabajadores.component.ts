@@ -41,11 +41,48 @@ export class MaestroTrabajadoresComponent implements OnInit {
   // ── Estado general ────────────────────────────────────────────────────────
   public holding: string = '';
   public contratos: any[] = [];
-  public contratosFiltrados: any[] = [];
   public filtroEstado: string = 'vigente';
   public filtroSupervisor: string = 'todos';
   public selectedRows: any[] = [];
   public contratoSeleccionado: any = null;
+  public filtrosVisible: boolean = true;
+
+  // ── Fecha terminación ─────────────────────────────────────────────────────
+  public fechaTerminacion: string = '';
+
+  get hoy(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  // ── Filtros de texto ──────────────────────────────────────────────────────
+  filtros = { nombres: '', apellidos: '', rut: '', fecha_inicio: '', nacionalidad: '', cliente: '' };
+
+  get contratosFiltrados(): any[] {
+    let base = this.contratos;
+
+    if (this.filtroSupervisor === 'sin_supervisor') {
+      base = base.filter(c => !c.supervisor);
+    } else if (this.filtroSupervisor !== 'todos') {
+      base = base.filter(c => c.supervisor?.id?.toString() === this.filtroSupervisor);
+    }
+
+    return base.filter(c =>
+      (!this.filtros.nombres      || (c.nombres_trabajador     || '').toUpperCase().includes(this.filtros.nombres.toUpperCase()))      &&
+      (!this.filtros.apellidos    || (c.apellidos_trabajador   || '').toUpperCase().includes(this.filtros.apellidos.toUpperCase()))    &&
+      (!this.filtros.rut          || (c.rut_trabajador         || '').toUpperCase().includes(this.filtros.rut.toUpperCase()))          &&
+      (!this.filtros.fecha_inicio || (c.fecha_inicio_contrato  || '').includes(this.filtros.fecha_inicio))                            &&
+      (!this.filtros.nacionalidad || (c.nacionalidad_trabajador || '').toUpperCase().includes(this.filtros.nacionalidad.toUpperCase())) &&
+      (!this.filtros.cliente      || (c.nombre_cliente         || '').toUpperCase().includes(this.filtros.cliente.toUpperCase()))
+    );
+  }
+
+  get uniqueNacionalidades(): string[] {
+    return [...new Set(this.contratos.map(c => c.nacionalidad_trabajador).filter(Boolean))] as string[];
+  }
+
+  limpiarFiltros(): void {
+    this.filtros = { nombres: '', apellidos: '', rut: '', fecha_inicio: '', nacionalidad: '', cliente: '' };
+  }
 
   // ── Datos para crear contrato ─────────────────────────────────────────────
   public sociedades: any[] = [];
@@ -110,7 +147,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
 
   // ── Columnas ──────────────────────────────────────────────────────────────
   displayedColumns: string[] = [
-    'id', 'trabajador', 'rut', 'sociedad', 'cliente', 'fundo',
+    'id', 'trabajador', 'apellidos', 'rut', 'nacionalidad', 'sociedad', 'cliente', 'fundo',
     'supervisor', 'fecha_inicio', 'fecha_termino', 'estado',
     'dias_restantes', 'acciones', 'horario',
   ];
@@ -159,7 +196,6 @@ export class MaestroTrabajadoresComponent implements OnInit {
     this.apiService.get(`api_contratos_trabajadores/?${params}`).subscribe({
       next: (response) => {
         this.contratos = response;
-        this.aplicarFiltroSupervisor();
       },
       error: (error) => {
         console.error('Error al cargar contratos:', error);
@@ -193,15 +229,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
   }
 
   aplicarFiltroSupervisor(): void {
-    if (this.filtroSupervisor === 'todos') {
-      this.contratosFiltrados = [...this.contratos];
-    } else if (this.filtroSupervisor === 'sin_supervisor') {
-      this.contratosFiltrados = this.contratos.filter(c => !c.supervisor);
-    } else {
-      this.contratosFiltrados = this.contratos.filter(
-        c => c.supervisor?.id?.toString() === this.filtroSupervisor
-      );
-    }
+    // Mantenido por compatibilidad; la lógica está en el getter contratosFiltrados
   }
 
   // ── Selección de filas ────────────────────────────────────────────────────
@@ -401,15 +429,20 @@ export class MaestroTrabajadoresComponent implements OnInit {
   terminarContrato(contrato: any, event?: MouseEvent): void {
     if (event) event.stopPropagation();
     this.contratoSeleccionado = contrato;
+    this.fechaTerminacion = '';
     this.openModal('terminarContratoModal');
   }
 
   confirmarTerminacion(): void {
-    if (!this.contratoSeleccionado) return;
-    this.apiService.patch('api_contratos_trabajadores/', { id: this.contratoSeleccionado.id }).subscribe({
+    if (!this.contratoSeleccionado || !this.fechaTerminacion) return;
+    this.apiService.patch('api_contratos_trabajadores/', {
+      id: this.contratoSeleccionado.id,
+      fecha_termino_contrato: this.fechaTerminacion
+    }).subscribe({
       next: () => {
         this.closeModal('terminarContratoModal');
         this.contratoSeleccionado = null;
+        this.fechaTerminacion = '';
         this.cargarContratos();
         this.openModal('exitoModal');
       },
@@ -577,7 +610,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
     this.modals[key] = false;
     if (key === 'detalleContratoModal')     this.contratoSeleccionado = null;
     if (key === 'crearContratoModal')       this.limpiarFormularioContrato();
-    if (key === 'terminarContratoModal')    this.contratoSeleccionado = null;
+    if (key === 'terminarContratoModal')    { this.contratoSeleccionado = null; this.fechaTerminacion = ''; }
     if (key === 'contratoRetroactivoModal') this.limpiarFormularioRetroactivo();
   }
 }

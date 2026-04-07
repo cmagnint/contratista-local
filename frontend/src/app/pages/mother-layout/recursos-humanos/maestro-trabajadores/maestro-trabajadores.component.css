@@ -1,4 +1,4 @@
-/* maestro-trabajadores.component.css - VERSIÓN MODERNA */
+/* maestro-trabajadores.component.css */
 
 /* ============================================ */
 /* 🎯 CONTENEDOR PRINCIPAL */
@@ -6,6 +6,9 @@
 
 .admin-usuarios-container {
   margin: 20px 20px 100px 20px;
+  height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding-bottom: 20px;
 }
 
 .admin-usuarios-container table {
@@ -14,13 +17,29 @@
   margin-top: 20px;
 }
 
+/* ── Sticky: filtros + botones fijos arriba (igual que personal) ── */
+.botones-fijos-maestro {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #fff;
+  padding: 10px 0;
+  min-width: max-content; /* ← se extiende con la tabla */
+}
+
+::ng-deep .mat-mdc-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 /* ============================================ */
 /* 🎯 SECCIÓN DE FILTROS MODERNIZADA */
 /* ============================================ */
 
 .filtros-section-modern {
-  margin: 20px 0 30px 0;
-  padding: 25px;
+  margin: 0 0 15px 0;
+  padding: 20px 25px;
   background: linear-gradient(135deg, rgba(20, 179, 92, 0.05), rgba(255, 255, 255, 0.9));
   border-radius: 15px;
   border-left: 5px solid #14b35c;
@@ -28,7 +47,7 @@
 }
 
 .filtros-title {
-  margin: 0 0 20px 0;
+  margin: 0 0 15px 0;
   color: #14b35c;
   font-size: 18px;
   font-weight: 700;
@@ -40,6 +59,7 @@
   display: flex;
   gap: 15px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .filtro-button-modern {
@@ -94,16 +114,18 @@
 .botones-accion-container {
   display: flex;
   gap: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 /* ============================================ */
-/* 🎯 NORMALIZAR ALTURA DE BOTONES */
+/* 🎯 BOTONES DE ACCIÓN */
 /* ============================================ */
 
 .custom-button-agregar,
-.custom-button-cancelar {
+.custom-button-cancelar,
+.custom-button-limpiar {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -120,7 +142,6 @@
   white-space: nowrap;
 }
 
-/* Botón Agregar (Verde) */
 .custom-button-agregar {
   background: linear-gradient(135deg, #4CAF50, #45a049) !important;
   color: white !important;
@@ -133,7 +154,6 @@
   box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
 }
 
-/* Botón Eliminar (Rojo) */
 .custom-button-cancelar {
   background: linear-gradient(135deg, #f44336, #d32f2f) !important;
   color: white !important;
@@ -146,6 +166,18 @@
   box-shadow: 0 6px 12px rgba(244, 67, 54, 0.4);
 }
 
+.custom-button-limpiar {
+  background: linear-gradient(135deg, #607D8B, #455A64) !important;
+  color: white !important;
+  box-shadow: 0 4px 8px rgba(96, 125, 139, 0.3);
+}
+
+.custom-button-limpiar:hover {
+  background: linear-gradient(135deg, #455A64, #37474F) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(96, 125, 139, 0.4);
+}
+
 .custom-button-cancelar:disabled,
 .custom-button-agregar:disabled {
   background: linear-gradient(135deg, #ccc, #999) !important;
@@ -155,7 +187,6 @@
   box-shadow: none;
 }
 
-/* Iconos dentro de los botones */
 .button-icon {
   font-size: 18px;
   line-height: 1;
@@ -167,7 +198,7 @@
 }
 
 /* ============================================ */
-/* 🎯 ESTILOS DE TABLA MODERNIZADOS */
+/* 🎯 TABLA */
 /* ============================================ */
 
 .mat-header {
@@ -223,8 +254,54 @@
   background-color: #0f8a47 !important;
 }
 
+/* ── Filtros en header de tabla ── */
+.mat-header .filter-select,
+.mat-header .filter-input {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 3px 5px;
+  font-size: 11px;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.15);
+  color: white;
+}
+
+.mat-header .filter-select option {
+  background: #0f5163;
+  color: white;
+}
+
+.mat-header .filter-input::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+
+.mat-header .filter-input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+/* ── Anchos mínimos de columnas ── */
+.mat-column-id               { min-width: 60px;  }
+.mat-column-trabajador       { min-width: 160px; }
+.mat-column-apellidos        { min-width: 160px; }
+.mat-column-rut              { min-width: 140px; }
+.mat-column-nacionalidad     { min-width: 150px; }
+.mat-column-sociedad         { min-width: 200px; }
+.mat-column-cliente          { min-width: 180px; }
+.mat-column-fundo            { min-width: 140px; }
+.mat-column-supervisor       { min-width: 200px; }
+.mat-column-fecha_inicio     { min-width: 150px; }
+.mat-column-fecha_termino    { min-width: 140px; }
+.mat-column-estado           { min-width: 100px; }
+.mat-column-dias_restantes   { min-width: 120px; }
+.mat-column-acciones         { min-width: 100px; }
+.mat-column-horario          { min-width: 220px; }
+
 /* ============================================ */
-/* 🎯 BADGES ESPECIALIZADOS */
+/* 🎯 BADGES */
 /* ============================================ */
 
 .id-badge {
@@ -357,7 +434,7 @@
 }
 
 /* ============================================ */
-/* 🎯 MODALES MODERNIZADOS */
+/* 🎯 MODALES */
 /* ============================================ */
 
 .modal {
@@ -430,13 +507,8 @@
   letter-spacing: 1px;
 }
 
-.modal-title.success {
-  color: #4CAF50;
-}
-
-.modal-title.error {
-  color: #f44336;
-}
+.modal-title.success { color: #4CAF50; }
+.modal-title.error   { color: #f44336; }
 
 .modal-title.confirmation {
   background: linear-gradient(135deg, #FF9800, #F57C00);
@@ -459,6 +531,7 @@
   justify-content: center;
   width: 100%;
   margin-top: 20px;
+  gap: 15px;
 }
 
 .button-container.confirmation {
@@ -523,7 +596,7 @@
 }
 
 /* ============================================ */
-/* 🎯 MODAL DETALLE MODERNIZADO */
+/* 🎯 MODAL DETALLE */
 /* ============================================ */
 
 .modal-content-detalle {
@@ -678,107 +751,9 @@
 }
 
 /* ============================================ */
-/* 🎯 ANIMACIONES */
+/* 🎯 BOTÓN RETROACTIVO */
 /* ============================================ */
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    transform: scale(0);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* ============================================ */
-/* 🎯 RESPONSIVE DESIGN */
-/* ============================================ */
-
-@media (max-width: 768px) {
-  .admin-usuarios-container {
-    margin: 15px 15px 80px 15px;
-  }
-  
-  .filtros-section-modern {
-    padding: 15px;
-  }
-  
-  .filtros-buttons-container {
-    flex-direction: column;
-  }
-  
-  .filtro-button-modern {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .custom-button-cancelar,
-  .custom-button-agregar {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .botones-accion-container {
-    flex-direction: column;
-  }
-  
-  .modal-content-message {
-    width: 95%;
-    padding: 30px 20px;
-  }
-  
-  .modal-content-detalle {
-    width: 95%;
-  }
-  
-  .form-container {
-    grid-template-columns: 1fr;
-  }
-  
-  .modal-content-crear-contrato {
-    width: 95%;
-    padding: 20px;
-  }
-  
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .mat-cell {
-    font-size: 11px !important;
-    padding: 8px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .modal-header-modern h2 {
-    font-size: 18px;
-  }
-  
-  .detalle-content {
-    padding: 20px 15px;
-  }
-  
-  .button-bottom {
-    font-size: 13px;
-    padding: 10px 20px;
-  }
-}
-
-/* ── BOTÓN CONTRATO RETROACTIVO ── */
 .custom-button-retroactivo {
   display: flex !important;
   align-items: center !important;
@@ -805,7 +780,6 @@
   box-shadow: 0 6px 12px rgba(245, 124, 0, 0.4);
 }
 
-/* ── BOTÓN CREAR CONTRATO RETROACTIVO (dentro del modal) ── */
 .button-bottom.retroactivo {
   background: linear-gradient(135deg, #F57C00, #E64A19);
   color: white;
@@ -823,4 +797,50 @@
   opacity: 0.6;
   transform: none;
   box-shadow: none;
+}
+
+/* ============================================ */
+/* 🎯 ANIMACIONES */
+/* ============================================ */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ============================================ */
+/* 🎯 RESPONSIVE */
+/* ============================================ */
+
+@media (max-width: 768px) {
+  .admin-usuarios-container {
+    margin: 15px 15px 80px 15px;
+    height: calc(100vh - 120px);
+  }
+  .filtros-section-modern   { padding: 15px; }
+  .filtros-buttons-container { flex-direction: column; }
+
+  .filtro-button-modern,
+  .custom-button-cancelar,
+  .custom-button-agregar,
+  .custom-button-limpiar { width: 100%; justify-content: center; }
+
+  .botones-accion-container { flex-direction: column; }
+  .modal-content-message    { width: 95%; padding: 30px 20px; }
+  .modal-content-detalle    { width: 95%; }
+  .form-container           { grid-template-columns: 1fr; }
+  .modal-content-crear-contrato { width: 95%; padding: 20px; }
+  .info-grid                { grid-template-columns: 1fr; }
+  .mat-cell                 { font-size: 11px !important; padding: 8px !important; }
+}
+
+@media (max-width: 480px) {
+  .modal-header-modern h2 { font-size: 18px; }
+  .detalle-content        { padding: 20px 15px; }
+  .button-bottom          { font-size: 13px; padding: 10px 20px; }
 }

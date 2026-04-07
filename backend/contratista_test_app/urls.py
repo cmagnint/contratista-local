@@ -124,6 +124,7 @@ from .views import (
     TraspasoTrabajadoresAPIView,
     ContratoRetroactivoAPIView,
     FiltrosProduccionTransferenciaAPIView,
+    FirmaOrganizacionAPIView,
 )
 
 app_name = 'contratista_test'
@@ -297,6 +298,8 @@ urlpatterns = [
     path('gestion_retroactiva_asistencia/', GestionRetroactivaAsistenciaAPIView.as_view(), name='gestion_retroactiva_asistencia'),
     path('api_traspaso_trabajadores/', TraspasoTrabajadoresAPIView.as_view(), name='traspaso-trabajadores'),
     path('api_contrato_retroactivo/', ContratoRetroactivoAPIView.as_view(), name='contrato-retroactivo'),
+    path('api_firma_organizacion/', FirmaOrganizacionAPIView.as_view(), name='api_firma_organizacion'),
+
 ]   
 
 

@@ -2618,3 +2618,19 @@ class RegistroCasaTrabajador(models.Model):
 
     def __str__(self):
         return f"{self.trabajador.nombres} → {self.casa.nombre if self.casa else 'Sin casa'} ({self.fecha_inicio} / {self.fecha_fin or 'vigente'})"
+
+class FirmaOrganizacion(models.Model):
+    TIPO_CHOICES = [
+        ('firma', 'Firma'),
+        ('huella', 'Huella'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE, related_name='firmas_organizacion')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    nombre = models.CharField(max_length=100)
+    imagen = models.ImageField(upload_to='firmas_organizacion/')
+    
+    class Meta:
+        db_table = 'firmas_organizacion'
+        unique_together = [['holding', 'tipo', 'nombre']]

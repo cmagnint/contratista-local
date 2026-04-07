@@ -3421,7 +3421,9 @@ class RegistroManoObraPersonaSerializer(serializers.ModelSerializer):
 
 class ContratoTrabajadorSerializer(serializers.ModelSerializer):
     # Campos relacionados para mostrar nombres
-    nombre_trabajador = serializers.SerializerMethodField()
+    nombres_trabajador     = serializers.CharField(source='trabajador.nombres', read_only=True)
+    apellidos_trabajador   = serializers.CharField(source='trabajador.apellidos', read_only=True)
+    nacionalidad_trabajador = serializers.CharField(source='trabajador.nacionalidad', read_only=True)
     rut_trabajador = serializers.CharField(source='trabajador.rut', read_only=True)
     nombre_sociedad = serializers.CharField(source='trabajador.sociedad.nombre', read_only=True)
     nombre_documento = serializers.CharField(source='documento.nombre', read_only=True)
@@ -3438,7 +3440,9 @@ class ContratoTrabajadorSerializer(serializers.ModelSerializer):
         fields = [
             'id', 
             'trabajador',
-            'nombre_trabajador',
+             'nombres_trabajador',      
+            'apellidos_trabajador',     
+            'nacionalidad_trabajador',
             'rut_trabajador',
             'nombre_sociedad',
             'nombre_documento',
@@ -3503,12 +3507,16 @@ class FiltrosPagoEfectivoSerializer(serializers.ModelSerializer):
     trabajador_casa = serializers.SerializerMethodField()
     trabajador_cargo = serializers.CharField(source='trabajador.cargo.nombre', allow_null=True)
     monto_a_pagar = serializers.SerializerMethodField()
+    numero_cuenta = serializers.CharField(source='trabajador.numero_cuenta', allow_null=True, default='')
+    banco_rut = serializers.CharField(source='trabajador.banco.rut', allow_null=True, default='')
+    tipo_cuenta = serializers.CharField(source='trabajador.tipo_cuenta', allow_null=True, default='CTD')
 
     class Meta:
         model = RegistroManoObraPersona
         fields = [
             'id', 'cliente', 'fundo', 'trabajador_nombre', 'trabajador_rut',
-            'trabajador_casa', 'trabajador_cargo', 'monto_a_pagar', 'fecha_ingreso'
+            'trabajador_casa', 'trabajador_cargo', 'monto_a_pagar', 'fecha_ingreso',
+            'numero_cuenta', 'banco_rut', 'tipo_cuenta'
         ]
 
     def get_cliente(self, obj):
