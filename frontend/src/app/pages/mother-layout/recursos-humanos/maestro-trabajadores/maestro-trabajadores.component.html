@@ -22,13 +22,13 @@
         <button mat-raised-button [class.active]="filtroEstado === 'vigente'"
           class="filtro-button-modern vigente" (click)="cambiarFiltro('vigente')">
           <span class="button-icon">✓</span>
-          <span class="button-text">VIGENTES</span>
+          <span class="button-text">VIGENTES ({{ countVigentes }})</span>
         </button>
 
         <button mat-raised-button [class.active]="filtroEstado === 'vencido'"
           class="filtro-button-modern vencido" (click)="cambiarFiltro('vencido')">
           <span class="button-icon">✕</span>
-          <span class="button-text">VENCIDOS</span>
+          <span class="button-text">VENCIDOS ({{ countVencidos }})</span>
         </button>
 
         <mat-form-field appearance="outline" style="min-width: 240px; margin-left: 20px;">
@@ -59,9 +59,30 @@
         <span class="button-text">CONTRATO RETROACTIVO</span>
       </button>
 
+      <!-- Badge + botones contextuales cuando hay selección -->
+      <ng-container *ngIf="selectedRows.length > 0">
+        <div class="seleccion-badge">
+          <span class="seleccion-count">{{ selectedRows.length }}</span>
+          <span class="seleccion-label">seleccionado{{ selectedRows.length > 1 ? 's' : '' }}</span>
+        </div>
+
+        <button mat-raised-button class="custom-button-finiquitar"
+          (click)="abrirModalFiniquitarMasivo(); $event.stopPropagation()">
+          <span class="button-icon">📋</span>
+          <span class="button-text">FINIQUITAR MASIVO</span>
+        </button>
+
+        <button mat-raised-button color="primary" class="custom-button-cancelar"
+          (click)="eliminarContratosSeleccionados($event)">
+          <span class="button-icon">🗑️</span>
+          <span class="button-text">ELIMINAR CONTRATOS</span>
+        </button>
+      </ng-container>
+
+      <!-- Botón eliminar deshabilitado cuando no hay selección -->
       <button mat-raised-button color="primary" class="custom-button-cancelar"
-        [disabled]="selectedRows.length === 0"
-        (click)="eliminarContratosSeleccionados($event)">
+        *ngIf="selectedRows.length === 0"
+        [disabled]="true">
         <span class="button-icon">🗑️</span>
         <span class="button-text">ELIMINAR CONTRATOS</span>
       </button>
@@ -544,6 +565,56 @@
         (click)="confirmarTerminacion()">Sí, Terminar</button>
       <button class="button-bottom confirm-no" (click)="closeModal('terminarContratoModal')">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- ── MODAL FINIQUITAR MASIVO ────────────────────────────────────────────── -->
+<div class="modal" *ngIf="modals['finiquitarMasivoModal']" (click)="closeModal('finiquitarMasivoModal')">
+  <div class="modal-content-message confirmation" style="max-width: 560px;" (click)="$event.stopPropagation()">
+
+    <div class="icon-container confirmation">
+      <div class="icon-circle confirmation" style="font-size: 32px;">📋</div>
+    </div>
+
+    <h2 class="modal-title confirmation">Finiquito Masivo</h2>
+
+    <p class="modal-message">
+      Se finiquitarán <strong>{{ selectedRows.length }} contrato{{ selectedRows.length > 1 ? 's' : '' }}</strong>.<br>
+      Esta acción no se puede deshacer.
+    </p>
+
+    <!-- Expandible detalle trabajadores -->
+    <div class="detalle-expandible">
+      <button class="btn-expandir" (click)="mostrarDetalleTrabajadores = !mostrarDetalleTrabajadores">
+        {{ mostrarDetalleTrabajadores ? '▲ Ocultar' : '▼ Ver' }} trabajadores seleccionados
+      </button>
+      <div class="lista-trabajadores" *ngIf="mostrarDetalleTrabajadores">
+        <div class="trabajador-item" *ngFor="let row of selectedRows; let i = index">
+          <span class="trabajador-num">{{ i + 1 }}.</span>
+          <span class="trabajador-info">
+            <strong>{{ row.nombres_trabajador }} {{ row.apellidos_trabajador }}</strong>
+            <span class="trabajador-rut">{{ formatRut(row.rut_trabajador) }}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <mat-form-field appearance="outline" style="width:100%; margin: 16px 0 0 0;">
+      <mat-label>Fecha de término *</mat-label>
+      <input matInput type="date"
+        [(ngModel)]="fechaTerminacionMasiva"
+        [max]="hoy">
+    </mat-form-field>
+
+    <div class="button-container confirmation">
+      <button class="button-bottom confirm-yes"
+        [disabled]="!fechaTerminacionMasiva || isFiniquitandoMasivo"
+        (click)="confirmarFiniquitoMasivo()">
+        {{ isFiniquitandoMasivo ? 'Finiquitando...' : 'Confirmar Finiquito' }}
+      </button>
+      <button class="button-bottom confirm-no" (click)="closeModal('finiquitarMasivoModal')">Cancelar</button>
+    </div>
+
   </div>
 </div>
 

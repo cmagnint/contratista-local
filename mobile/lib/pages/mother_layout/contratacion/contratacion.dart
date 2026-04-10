@@ -75,7 +75,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   String _tipoDocumento = 'Cédula Chilena';
   String _dni = '';
   final TextEditingController _dniController = TextEditingController();
-  String _nic = '';
+
   Uint8List? _signatureImage;
   String? _associatedQR;
   bool _isDisposing = false;
@@ -86,6 +86,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   // ── NUEVOS: prefijo telefónico y dominio de correo ──
   String _phonePrefix = '+56';
   String _emailDomain = '@gmail.com';
+  bool _showRutKeyboard = false;
+  TextEditingController? _activeRutController;
 
   static const List<Map<String, String>> _countryPrefixes = [
     {'label': '🇨🇱 +56', 'value': '+56'},
@@ -122,6 +124,14 @@ class ContratacionScreenState extends State<ContratacionScreen> {
 
     for (var key in _controllers.keys) {
       _focusNodes[key] = FocusNode();
+      if (key != 'RUN') {
+        // RUN abre teclado custom, su propio listener lo cierra
+        _focusNodes[key]!.addListener(() {
+          if (_focusNodes[key]!.hasFocus && _showRutKeyboard) {
+            setState(() => _showRutKeyboard = false);
+          }
+        });
+      }
     }
 
     loggerGlobal.d('holding: ${userInfo.holding}');
@@ -1350,12 +1360,18 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'area': widget.initialData['area'] ?? '',
           'cargo': widget.initialData['cargo'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
-              ? _controllers['RUN']!.text.toUpperCase()
+              ? _controllers['RUN']!.text
+                    .replaceAll('.', '')
+                    .replaceAll('-', '')
+                    .toUpperCase()
               : '',
           'dni': _tipoDocumento == 'Cédula Extranjera'
               ? _dni.toUpperCase()
               : '',
-          'nic': _nic.toUpperCase(),
+          'nic': _nicController.text
+              .replaceAll('.', '')
+              .replaceAll('-', '')
+              .toUpperCase(),
           'apellidos': _controllers['APELLIDOS']!.text.toUpperCase(),
           'nombres': _controllers['NOMBRES']!.text.toUpperCase(),
           'nacionalidad': _controllers['NACIONALIDAD']!.text.toUpperCase(),
@@ -1711,7 +1727,6 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _numeroCuentaController.clear();
       _dni = '';
       _dniController.clear();
-      _nic = '';
       _tipoDocumento = 'Cédula Chilena';
       _signatureImage = null;
       huellaDigital = null;
@@ -1726,654 +1741,493 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Scaffold(
-          appBar: AppBar(
-            title: const Text('Contratar Trabajador'),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: widget.onBack,
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: DropdownButtonFormField<String>(
-                      value: _tipoDocumento,
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _resetForm();
-                          _tipoDocumento = newValue!;
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de Documento',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: <String>['Cédula Chilena', 'Cédula Extranjera']
-                          .map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          })
-                          .toList(),
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.all(16),
-                              margin: const EdgeInsets.symmetric(vertical: 20),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.photo_library),
-                                        onPressed: () =>
-                                            _pickImageFromGallery(true),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.camera_alt),
-                                        onPressed: () =>
-                                            _takePictureAndRecognizeText(true),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Positioned(
-                              left: 16,
-                              right: 16,
-                              top: 0,
-                              child: Container(
-                                color: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                ),
-                                child: const Text(
-                                  'Carnet Frontal',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.all(16),
-                              margin: const EdgeInsets.symmetric(vertical: 20),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.photo_library),
-                                        onPressed: () =>
-                                            _pickImageFromGallery(false),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.camera_alt),
-                                        onPressed: () =>
-                                            _takePictureAndRecognizeText(false),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Positioned(
-                              left: 16,
-                              right: 16,
-                              top: 0,
-                              child: Container(
-                                color: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                ),
-                                child: const Text(
-                                  'Carnet Trasero',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton(
-                        onPressed: asociarQR,
-                        child: const Text('Asociar QR'),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            _openSignaturePad(autoPromptFingerprint: false),
-                        icon: const Icon(Icons.draw),
-                        label: const Text('Firmar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _signatureImage != null
-                              ? Colors.green
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: capturarHuellaDigital,
-                        icon: const Icon(Icons.fingerprint),
-                        label: const Text('Huella'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: huellaDigital != null
-                              ? Colors.green
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_tipoDocumento == 'Cédula Chilena')
+        GestureDetector(
+          onTap: () {
+            if (_showRutKeyboard) setState(() => _showRutKeyboard = false);
+          },
+          child: Scaffold(
+            body: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: <Widget>[
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: TextFormField(
-                        controller: _controllers['RUN'],
-                        focusNode: _focusNodes['RUN'],
-                        textCapitalization: TextCapitalization.characters,
+                      child: DropdownButtonFormField<String>(
+                        value: _tipoDocumento,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _resetForm();
+                            _tipoDocumento = newValue!;
+                          });
+                        },
                         decoration: const InputDecoration(
-                          labelText: 'RUT *',
+                          labelText: 'Tipo de Documento',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'RUT es requerido para trabajadores chilenos';
-                          }
-                          return null;
-                        },
+                        items: <String>['Cédula Chilena', 'Cédula Extranjera']
+                            .map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            })
+                            .toList(),
                       ),
                     ),
-                  if (_tipoDocumento == 'Cédula Extranjera') ...[
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: TextFormField(
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          labelText: 'DNI *',
-                          border: OutlineInputBorder(),
-                        ),
-                        controller: _dniController,
-                        onChanged: (value) {
-                          _dni = value; // sin setState
-                        },
-
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'DNI es requerido para trabajadores extranjeros';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: TextFormField(
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          labelText: 'NIC',
-                          border: OutlineInputBorder(),
-                        ),
-                        controller: _nicController,
-                        onChanged: (value) => _nic = value,
-                      ),
-                    ),
-                  ],
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: TextFormField(
-                      textCapitalization: TextCapitalization.characters,
-                      controller: _controllers['NOMBRES'],
-                      focusNode: _focusNodes['NOMBRES'],
-                      decoration: const InputDecoration(
-                        labelText: 'Nombres *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Nombres son requeridos';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: TextFormField(
-                      textCapitalization: TextCapitalization.characters,
-                      controller: _controllers['APELLIDOS'],
-                      focusNode: _focusNodes['APELLIDOS'],
-                      decoration: const InputDecoration(
-                        labelText: 'Apellidos *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Apellidos son requeridos';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // NACIONALIDAD y DIRECCION (TELEFONO se maneja por separado abajo)
-                  ...['NACIONALIDAD', 'DIRECCION'].map(
-                    (field) => Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: TextFormField(
-                        textCapitalization: TextCapitalization.characters,
-                        controller: _controllers[field],
-                        focusNode: _focusNodes[field],
-                        decoration: InputDecoration(
-                          labelText: field,
-                          border: const OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // ── CAMPO TELÉFONO CON PREFIJO DE PAÍS ──
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Selector de prefijo
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          height: 56,
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _phonePrefix,
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _phonePrefix = newValue!;
-                                });
-                              },
-                              items: _countryPrefixes
-                                  .map<DropdownMenuItem<String>>((item) {
-                                    return DropdownMenuItem<String>(
-                                      value: item['value'],
-                                      child: Text(item['label']!),
-                                    );
-                                  })
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Campo numérico
                         Expanded(
-                          child: TextFormField(
-                            controller: _controllers['TELEFONO'],
-                            focusNode: _focusNodes['TELEFONO'],
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
+                          child: Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.photo_library),
+                                          onPressed: () =>
+                                              _pickImageFromGallery(true),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.camera_alt),
+                                          onPressed: () =>
+                                              _takePictureAndRecognizeText(
+                                                true,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                left: 16,
+                                right: 16,
+                                top: 0,
+                                child: Container(
+                                  color: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: const Text(
+                                    'Carnet Frontal',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
-                            decoration: const InputDecoration(
-                              labelText: 'TELEFONO',
-                              border: OutlineInputBorder(),
-                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  // ── CAMPO CORREO CON SELECTOR DE DOMINIO ──
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Campo usuario
+                        const SizedBox(width: 20),
                         Expanded(
-                          child: TextFormField(
-                            controller: _controllers['CORREO'],
-                            focusNode: _focusNodes['CORREO'],
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'CORREO',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Selector de dominio
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          height: 56,
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _emailDomain,
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _emailDomain = newValue!;
-                                });
-                              },
-                              items: _emailDomains
-                                  .map<DropdownMenuItem<String>>((domain) {
-                                    return DropdownMenuItem<String>(
-                                      value: domain,
-                                      child: Text(domain),
-                                    );
-                                  })
-                                  .toList(),
-                            ),
+                          child: Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.photo_library),
+                                          onPressed: () =>
+                                              _pickImageFromGallery(false),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.camera_alt),
+                                          onPressed: () =>
+                                              _takePictureAndRecognizeText(
+                                                false,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                left: 16,
+                                right: 16,
+                                top: 0,
+                                child: Container(
+                                  color: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: const Text(
+                                    'Carnet Trasero',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: DropdownButtonFormField<String>(
-                      value: _sexo,
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _sexo = newValue;
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'SEXO *',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: <String>['F', 'M'].map<DropdownMenuItem<String>>((
-                        String value,
-                      ) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Sexo es requerido';
-                        }
-                        return null;
-                      },
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: asociarQR,
+                          child: const Text('Asociar QR'),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              _openSignaturePad(autoPromptFingerprint: false),
+                          icon: const Icon(Icons.draw),
+                          label: const Text('Firmar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _signatureImage != null
+                                ? Colors.green
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: capturarHuellaDigital,
+                          icon: const Icon(Icons.fingerprint),
+                          label: const Text('Huella'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: huellaDigital != null
+                                ? Colors.green
+                                : null,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: DropdownButtonFormField<String>(
-                      value: _estadoCivil,
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _estadoCivil = newValue!;
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Estado Civil',
-                        border: OutlineInputBorder(),
+                    if (_tipoDocumento == 'Cédula Chilena')
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextFormField(
+                          controller: _controllers['RUN'],
+                          focusNode: _focusNodes['RUN'],
+                          readOnly: true,
+                          showCursor: true,
+                          onTap: () {
+                            setState(() {
+                              _showRutKeyboard = true;
+                              _activeRutController = _controllers['RUN'];
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'RUT *',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'RUT es requerido para trabajadores chilenos';
+                            }
+                            return null;
+                          },
+                        ),
                       ),
-                      items:
-                          <String>[
-                            'Soltero(a)',
-                            'Casado(a)',
-                            'Conviviente civil',
-                            'Separado(a) judicialmente',
-                            'Divorciado(a)',
-                            'Viudo(a)',
-                          ].map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(8),
+                    if (_tipoDocumento == 'Cédula Extranjera') ...[
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextFormField(
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'DNI *',
+                            border: OutlineInputBorder(),
+                          ),
+                          controller: _dniController,
+                          onChanged: (value) {
+                            _dni = value;
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'DNI es requerido para trabajadores extranjeros';
+                            }
+                            return null;
+                          },
+                        ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: 'NIC',
+                            border: OutlineInputBorder(),
+                          ),
+                          controller: _nicController,
+                          readOnly: true,
+                          showCursor: true,
+                          onTap: () {
+                            setState(() {
+                              _showRutKeyboard = true;
+                              _activeRutController = _nicController;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                    Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Column(
+                      child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
+                        controller: _controllers['NOMBRES'],
+                        focusNode: _focusNodes['NOMBRES'],
+                        decoration: const InputDecoration(
+                          labelText: 'Nombres *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Nombres son requeridos';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
+                        controller: _controllers['APELLIDOS'],
+                        focusNode: _focusNodes['APELLIDOS'],
+                        decoration: const InputDecoration(
+                          labelText: 'Apellidos *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Apellidos son requeridos';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: DropdownButtonFormField<String>(
+                        value: _controllers['NACIONALIDAD']!.text.isNotEmpty
+                            ? _controllers['NACIONALIDAD']!.text
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'NACIONALIDAD',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _controllers['NACIONALIDAD']!.text = newValue ?? '';
+                          });
+                        },
+                        items:
+                            <Map<String, String>>[
+                              {'label': '🇨🇱 CHILENA', 'value': 'CHILENA'},
+                              {'label': '🇧🇴 BOLIVIANA', 'value': 'BOLIVIANA'},
+                              {'label': '🇵🇪 PERUANA', 'value': 'PERUANA'},
+                              {
+                                'label': '🇻🇪 VENEZOLANA',
+                                'value': 'VENEZOLANA',
+                              },
+                              {
+                                'label': '🇨🇴 COLOMBIANA',
+                                'value': 'COLOMBIANA',
+                              },
+                              {'label': '🇦🇷 ARGENTINA', 'value': 'ARGENTINA'},
+                              {
+                                'label': '🇪🇨 ECUATORIANA',
+                                'value': 'ECUATORIANA',
+                              },
+                              {'label': '🇵🇾 PARAGUAYA', 'value': 'PARAGUAYA'},
+                              {'label': '🇺🇾 URUGUAYA', 'value': 'URUGUAYA'},
+                              {'label': '🇧🇷 BRASILEÑA', 'value': 'BRASILEÑA'},
+                              {'label': '🌐 OTRA', 'value': 'OTRA'},
+                            ].map<DropdownMenuItem<String>>((item) {
+                              return DropdownMenuItem<String>(
+                                value: item['value'],
+                                child: Text(item['label']!),
+                              );
+                            }).toList(),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextFormField(
+                        textCapitalization: TextCapitalization.characters,
+                        controller: _controllers['DIRECCION'],
+                        focusNode: _focusNodes['DIRECCION'],
+                        decoration: const InputDecoration(
+                          labelText: 'DIRECCION',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Fecha de nacimiento',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            height: 56,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _phonePrefix,
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _phonePrefix = newValue!;
+                                  });
+                                },
+                                items: _countryPrefixes
+                                    .map<DropdownMenuItem<String>>((item) {
+                                      return DropdownMenuItem<String>(
+                                        value: item['value'],
+                                        child: Text(item['label']!),
+                                      );
+                                    })
+                                    .toList(),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8.0),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: _selectedDia,
-                                  onChanged: (String? newValue) {
-                                    setState(() {
-                                      _selectedDia = newValue!;
-                                    });
-                                  },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Día',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _getDays()
-                                      .map<DropdownMenuItem<String>>((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      })
-                                      .toList(),
-                                ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _controllers['TELEFONO'],
+                              focusNode: _focusNodes['TELEFONO'],
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'TELEFONO',
+                                border: OutlineInputBorder(),
                               ),
-                              const SizedBox(width: 8.0),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: _selectedMes,
-                                  onChanged: (String? newValue) {
-                                    setState(() {
-                                      _selectedMes = newValue!;
-                                    });
-                                  },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Mes',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _getMonths()
-                                      .map<DropdownMenuItem<String>>((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      })
-                                      .toList(),
-                                ),
-                              ),
-                              const SizedBox(width: 8.0),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: _selectedAnio,
-                                  onChanged: (String? newValue) {
-                                    setState(() {
-                                      _selectedAnio = newValue!;
-                                    });
-                                  },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Año',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _getYears()
-                                      .map<DropdownMenuItem<String>>((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      })
-                                      .toList(),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: DropdownButtonFormField<String>(
-                      value: _metodoPago,
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _metodoPago = newValue!;
-                          if (_metodoPago == 'Efectivo') {
-                            _banco = '';
-                            _selectedBancoNombre = null;
-                            _tipoCuenta = '';
-                            _numeroCuenta = '';
-                            _numeroCuentaController.clear();
-                          } else if (_metodoPago == 'Transferencia') {
-                            final bancoEstado = _bancos.firstWhere(
-                              (b) => b['nombre']
-                                  .toString()
-                                  .toLowerCase()
-                                  .contains('estado'),
-                              orElse: () => {},
-                            );
-                            if (bancoEstado.isNotEmpty) {
-                              _selectedBancoNombre = bancoEstado['nombre']
-                                  .toString();
-                              _banco = bancoEstado['id'].toString();
-                            }
-                            _tipoCuenta = 'CUENTA RUT';
-                            if (_controllers['RUN']!.text.isNotEmpty) {
-                              _numeroCuenta = _getRutWithoutFormatting(
-                                _controllers['RUN']!.text,
-                              );
-                              _numeroCuentaController.text = _numeroCuenta;
-                            }
-                          }
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Método de Pago',
-                        border: OutlineInputBorder(),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _controllers['CORREO'],
+                              focusNode: _focusNodes['CORREO'],
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: 'CORREO',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            height: 56,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _emailDomain,
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _emailDomain = newValue!;
+                                  });
+                                },
+                                items: _emailDomains
+                                    .map<DropdownMenuItem<String>>((domain) {
+                                      return DropdownMenuItem<String>(
+                                        value: domain,
+                                        child: Text(domain),
+                                      );
+                                    })
+                                    .toList(),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      items: <String>['Efectivo', 'Transferencia']
-                          .map<DropdownMenuItem<String>>((String value) {
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: DropdownButtonFormField<String>(
+                        value: _sexo,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _sexo = newValue;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'SEXO *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: <String>['F', 'M'].map<DropdownMenuItem<String>>(
+                          (String value) {
                             return DropdownMenuItem<String>(
                               value: value,
                               child: Text(value),
                             );
-                          })
-                          .toList(),
-                    ),
-                  ),
-                  if (_metodoPago == 'Transferencia') ...[
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedBancoNombre,
-                        hint: const Text('Seleccione un banco'),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedBancoNombre = newValue;
-                            _banco = _bancoMap[newValue]?.toString() ?? '';
-                          });
-                          loggerGlobal.d(
-                            'Banco seleccionado: $newValue (ID: $_banco)',
-                          );
+                          },
+                        ).toList(),
+                        validator: (value) {
+                          if (value == null || value.isEmpty)
+                            return 'Sexo es requerido';
+                          return null;
                         },
-                        decoration: const InputDecoration(
-                          labelText: 'Banco',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _bancos.map((banco) {
-                          return DropdownMenuItem<String>(
-                            value: banco['nombre'].toString(),
-                            child: Text(banco['nombre'].toString()),
-                          );
-                        }).toList(),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: DropdownButtonFormField<String>(
-                        value: _tipoCuenta.isNotEmpty ? _tipoCuenta : null,
+                        value: _estadoCivil,
                         onChanged: (String? newValue) {
                           setState(() {
-                            _tipoCuenta = newValue!;
-                            if (_tipoCuenta == 'CUENTA RUT' &&
-                                _controllers['RUN'] != null) {
-                              _numeroCuenta = _getRutWithoutFormatting(
-                                _controllers['RUN']!.text,
-                              );
-                              _numeroCuentaController.text = _numeroCuenta;
-                            } else {
-                              _numeroCuenta = '';
-                              _numeroCuentaController.clear();
-                            }
+                            _estadoCivil = newValue!;
                           });
                         },
                         decoration: const InputDecoration(
-                          labelText: 'TIPO DE CUENTA',
+                          labelText: 'Estado Civil',
                           border: OutlineInputBorder(),
                         ),
                         items:
                             <String>[
-                              'CUENTA RUT',
-                              'VISTA/CHEQUERA ELECTRÓNICA',
-                              'CUENTA DE AHORRO',
-                              'CUENTA CORRIENTE',
+                              'Soltero(a)',
+                              'Casado(a)',
+                              'Conviviente civil',
+                              'Separado(a) judicialmente',
+                              'Divorciado(a)',
+                              'Viudo(a)',
                             ].map<DropdownMenuItem<String>>((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
@@ -2384,153 +2238,365 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: TextFormField(
-                        textCapitalization: TextCapitalization.characters,
-                        controller: _numeroCuentaController,
-                        onChanged: _updateNumeroCuenta,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: <TextInputFormatter>[
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Fecha de nacimiento',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8.0),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedDia,
+                                    onChanged: (String? newValue) {
+                                      setState(() => _selectedDia = newValue!);
+                                    },
+                                    decoration: const InputDecoration(
+                                      labelText: 'Día',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: _getDays()
+                                        .map<DropdownMenuItem<String>>((
+                                          String value,
+                                        ) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        })
+                                        .toList(),
+                                  ),
+                                ),
+                                const SizedBox(width: 8.0),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedMes,
+                                    onChanged: (String? newValue) {
+                                      setState(() => _selectedMes = newValue!);
+                                    },
+                                    decoration: const InputDecoration(
+                                      labelText: 'Mes',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: _getMonths()
+                                        .map<DropdownMenuItem<String>>((
+                                          String value,
+                                        ) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        })
+                                        .toList(),
+                                  ),
+                                ),
+                                const SizedBox(width: 8.0),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedAnio,
+                                    onChanged: (String? newValue) {
+                                      setState(() => _selectedAnio = newValue!);
+                                    },
+                                    decoration: const InputDecoration(
+                                      labelText: 'Año',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: _getYears()
+                                        .map<DropdownMenuItem<String>>((
+                                          String value,
+                                        ) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        })
+                                        .toList(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: DropdownButtonFormField<String>(
+                        value: _metodoPago,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _metodoPago = newValue!;
+                            if (_metodoPago == 'Efectivo') {
+                              _banco = '';
+                              _selectedBancoNombre = null;
+                              _tipoCuenta = '';
+                              _numeroCuenta = '';
+                              _numeroCuentaController.clear();
+                            } else if (_metodoPago == 'Transferencia') {
+                              final bancoEstado = _bancos.firstWhere(
+                                (b) => b['nombre']
+                                    .toString()
+                                    .toLowerCase()
+                                    .contains('estado'),
+                                orElse: () => {},
+                              );
+                              if (bancoEstado.isNotEmpty) {
+                                _selectedBancoNombre = bancoEstado['nombre']
+                                    .toString();
+                                _banco = bancoEstado['id'].toString();
+                              }
+                              _tipoCuenta = 'CUENTA RUT';
+                              if (_controllers['RUN']!.text.isNotEmpty) {
+                                _numeroCuenta = _getRutWithoutFormatting(
+                                  _controllers['RUN']!.text,
+                                );
+                                _numeroCuentaController.text = _numeroCuenta;
+                              }
+                            }
+                          });
+                        },
                         decoration: const InputDecoration(
-                          labelText: 'Número de Cuenta',
+                          labelText: 'Método de Pago',
                           border: OutlineInputBorder(),
                         ),
+                        items: <String>['Efectivo', 'Transferencia']
+                            .map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            })
+                            .toList(),
+                      ),
+                    ),
+                    if (_metodoPago == 'Transferencia') ...[
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedBancoNombre,
+                          hint: const Text('Seleccione un banco'),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedBancoNombre = newValue;
+                              _banco = _bancoMap[newValue]?.toString() ?? '';
+                            });
+                            loggerGlobal.d(
+                              'Banco seleccionado: $newValue (ID: $_banco)',
+                            );
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'Banco',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _bancos.map((banco) {
+                            return DropdownMenuItem<String>(
+                              value: banco['nombre'].toString(),
+                              child: Text(banco['nombre'].toString()),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: DropdownButtonFormField<String>(
+                          value: _tipoCuenta.isNotEmpty ? _tipoCuenta : null,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _tipoCuenta = newValue!;
+                              if (_tipoCuenta == 'CUENTA RUT' &&
+                                  _controllers['RUN'] != null) {
+                                _numeroCuenta = _getRutWithoutFormatting(
+                                  _controllers['RUN']!.text,
+                                );
+                                _numeroCuentaController.text = _numeroCuenta;
+                              } else {
+                                _numeroCuenta = '';
+                                _numeroCuentaController.clear();
+                              }
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'TIPO DE CUENTA',
+                            border: OutlineInputBorder(),
+                          ),
+                          items:
+                              <String>[
+                                'CUENTA RUT',
+                                'VISTA/CHEQUERA ELECTRÓNICA',
+                                'CUENTA DE AHORRO',
+                                'CUENTA CORRIENTE',
+                              ].map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextFormField(
+                          textCapitalization: TextCapitalization.characters,
+                          controller: _numeroCuentaController,
+                          onChanged: _updateNumeroCuenta,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Número de Cuenta',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_imagePaths[0] != null)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showFullImage(File(_imagePaths[0]!)),
+                                    child: Image.file(
+                                      File(_imagePaths[0]!),
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Carnet Frontal',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (_imagePaths[1] != null)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showFullImage(File(_imagePaths[1]!)),
+                                    child: Image.file(
+                                      File(_imagePaths[1]!),
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Carnet Trasero',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (_signatureImage != null)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showFullImage(_signatureImage!),
+                                    child: Image.memory(
+                                      _signatureImage!,
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Firma',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (huellaDigital != null)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _showFullImage(
+                                      base64Decode(huellaDigital!),
+                                    ),
+                                    child: Image.memory(
+                                      base64Decode(huellaDigital!),
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Huella Digital',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 85),
+                      child: ElevatedButton(
+                        onPressed: _submitData,
+                        style: ButtonStyle(
+                          shape:
+                              WidgetStateProperty.all<RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4.0),
+                                ),
+                              ),
+                        ),
+                        child: const Text('Contratar Trabajador'),
                       ),
                     ),
                   ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_imagePaths[0] != null)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: () =>
-                                      _showFullImage(File(_imagePaths[0]!)),
-                                  child: Image.file(
-                                    File(_imagePaths[0]!),
-                                    fit: BoxFit.cover,
-                                    width: 100,
-                                    height: 100,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Carnet Frontal',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (_imagePaths[1] != null)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: () =>
-                                      _showFullImage(File(_imagePaths[1]!)),
-                                  child: Image.file(
-                                    File(_imagePaths[1]!),
-                                    fit: BoxFit.cover,
-                                    width: 100,
-                                    height: 100,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Carnet Trasero',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (_signatureImage != null)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => _showFullImage(_signatureImage!),
-                                  child: Image.memory(
-                                    _signatureImage!,
-                                    fit: BoxFit.cover,
-                                    width: 100,
-                                    height: 100,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Firma',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (huellaDigital != null)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => _showFullImage(
-                                    base64Decode(huellaDigital!),
-                                  ),
-                                  child: Image.memory(
-                                    base64Decode(huellaDigital!),
-                                    fit: BoxFit.cover,
-                                    width: 100,
-                                    height: 100,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Huella Digital',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 85),
-                    child: ElevatedButton(
-                      onPressed: _submitData,
-                      style: ButtonStyle(
-                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                          ),
-                        ),
-                      ),
-                      child: const Text('Contratar Trabajador'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -2556,6 +2622,20 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                 ),
               ),
             ],
+          ),
+        if (_showRutKeyboard && _activeRutController != null)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: () {},
+              child: RutKeyboard(
+                controller: _activeRutController!,
+                onClose: () => setState(() => _showRutKeyboard = false),
+                isRut: _activeRutController == _controllers['RUN'],
+              ),
+            ),
           ),
       ],
     );

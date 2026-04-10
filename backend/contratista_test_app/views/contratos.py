@@ -1090,9 +1090,7 @@ class ContratoTrabajadorAPIView(BaseAPIView):
             for h in todos_historial:
                 if h.trabajador_id != trab_id:
                     continue
-                if h.fecha_inicio > date.fromisoformat(str(fecha)):
-                    continue
-                if h.fecha_fin and h.fecha_fin < date.fromisoformat(str(fecha)):
+                if h.fecha_fin and h.fecha_fin < date.today():
                     continue
                 nombre = ''
                 if h.supervisor and h.supervisor.usuario and h.supervisor.usuario.persona:
@@ -1478,3 +1476,134 @@ class FirmaOrganizacionAPIView(BaseAPIView):
 
         return Response({'mensaje': 'Eliminada exitosamente'})
     
+# ==============================================================================
+# CONTRATO RETROACTIVO
+# ==============================================================================
+
+class ContratoRetroactivoAPIView(BaseAPIView):
+    
+    def get(self, request):
+        from django.db.models import Q
+        from datetime import datetime
+
+        holding_id = request.query_params.get('holding')
+        fecha_str  = request.query_params.get('fecha')
+
+        if not holding_id or not fecha_str:
+            return Response({'error': 'holding y fecha requeridos'}, status=400)
+
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'fecha debe ser YYYY-MM-DD'}, status=400)
+
+        todos = PersonalTrabajadores.objects.filter(holding_id=holding_id, estado=True)
+
+        resultados = []
+        for t in todos:
+            tiene_contrato = ContratoTrabajador.objects.filter(
+                trabajador_id=t.id,
+                fecha_inicio_contrato__lte=fecha
+            ).filter(
+                Q(fecha_termino_contrato__gte=fecha) | Q(fecha_termino_contrato__isnull=True)
+            ).exists()
+
+            if not tiene_contrato:
+                resultados.append({
+                    'trabajador_id':     t.id,
+                    'trabajador_nombre': f"{t.nombres} {t.apellidos or ''}".strip(),
+                    'trabajador_rut':    t.rut or '',
+                    'fecha_inicio_sugerida': fecha,
+                    'fecha_fin_periodo': None,
+                })
+
+        return Response(resultados)
+
+    def post(self, request):
+        from datetime import datetime
+        from django.db.models import Q
+
+        holding_id       = request.data.get('holding')
+        trabajador_id    = request.data.get('trabajador')
+        fecha_inicio_str = request.data.get('fecha_inicio_contrato')
+        supervisor_id    = request.data.get('supervisor_id')
+
+        campos_requeridos = ['holding', 'trabajador', 'fecha_inicio_contrato',
+                            'labor', 'folio_comercial', 'horario', 'fundo']
+        faltantes = [c for c in campos_requeridos if not request.data.get(c)]
+        if faltantes:
+            return Response({'error': f'Faltan campos: {faltantes}'}, status=400)
+
+        try:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'fecha_inicio_contrato debe ser YYYY-MM-DD'}, status=400)
+
+        tiene_contrato = ContratoTrabajador.objects.filter(
+            trabajador_id=trabajador_id,
+            fecha_inicio_contrato__lte=fecha_inicio
+        ).filter(
+            Q(fecha_termino_contrato__gte=fecha_inicio) | Q(fecha_termino_contrato__isnull=True)
+        ).exists()
+
+        if tiene_contrato:
+            return Response(
+                {'error': 'El trabajador ya tiene un contrato vigente en esa fecha'},
+                status=400
+            )
+
+        try:
+            folio = FolioComercial.objects.get(
+                id=request.data['folio_comercial'], holding_id=holding_id
+            )
+        except FolioComercial.DoesNotExist:
+            return Response({'error': 'Folio comercial no encontrado'}, status=404)
+
+        contrato_data = {
+            'holding_id':            holding_id,
+            'trabajador_id':         trabajador_id,
+            'fecha_inicio_contrato': fecha_inicio,
+            'labor_id':              request.data['labor'],
+            'folio_comercial_id':    request.data['folio_comercial'],
+            'horario_id':            request.data['horario'],
+            'fundo_id':              request.data['fundo'],
+            'cliente_id':            folio.cliente.id if folio.cliente else None,
+        }
+
+        fecha_termino = None
+        if request.data.get('fecha_termino_contrato'):
+            try:
+                fecha_termino = datetime.strptime(
+                    request.data['fecha_termino_contrato'], '%Y-%m-%d'
+                ).date()
+                contrato_data['fecha_termino_contrato'] = fecha_termino
+            except ValueError:
+                return Response({'error': 'fecha_termino_contrato debe ser YYYY-MM-DD'}, status=400)
+
+        contrato = ContratoTrabajador.objects.create(**contrato_data)
+
+        # Crear historial supervisor si se indicó y no existe registro que cubra el período
+        if supervisor_id:
+            try:
+                supervisor = Supervisores.objects.get(id=supervisor_id, holding_id=holding_id)
+
+                historial_existente = SupervisorTrabajadorHistorial.objects.filter(
+                    supervisor=supervisor,
+                    trabajador_id=trabajador_id,
+                    fecha_inicio__lte=fecha_inicio
+                ).filter(
+                    Q(fecha_fin__gte=fecha_inicio) | Q(fecha_fin__isnull=True)
+                ).exists()
+
+                if not historial_existente:
+                    SupervisorTrabajadorHistorial.objects.create(
+                        holding_id=holding_id,
+                        supervisor=supervisor,
+                        trabajador_id=trabajador_id,
+                        fecha_inicio=fecha_inicio,
+                        fecha_fin=fecha_termino
+                    )
+            except Supervisores.DoesNotExist:
+                return Response({'error': 'Supervisor no encontrado'}, status=404)
+
+        return Response({'id': contrato.id, 'mensaje': 'Contrato retroactivo creado'}, status=201)

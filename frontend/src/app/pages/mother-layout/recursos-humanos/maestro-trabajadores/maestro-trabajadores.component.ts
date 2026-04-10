@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { JwtService } from '../../../../services/jwt.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-maestro-trabajadores',
@@ -60,6 +61,10 @@ export class MaestroTrabajadoresComponent implements OnInit {
   get contratosFiltrados(): any[] {
     let base = this.contratos;
 
+    if (this.filtroEstado !== 'todos') {
+      base = base.filter(c => c.estado_contrato === this.filtroEstado.toUpperCase());
+    }
+
     if (this.filtroSupervisor === 'sin_supervisor') {
       base = base.filter(c => !c.supervisor);
     } else if (this.filtroSupervisor !== 'todos') {
@@ -74,6 +79,14 @@ export class MaestroTrabajadoresComponent implements OnInit {
       (!this.filtros.nacionalidad || (c.nacionalidad_trabajador || '').toUpperCase().includes(this.filtros.nacionalidad.toUpperCase())) &&
       (!this.filtros.cliente      || (c.nombre_cliente         || '').toUpperCase().includes(this.filtros.cliente.toUpperCase()))
     );
+  }
+
+  get countVigentes(): number {
+    return this.contratos.filter(c => c.estado_contrato === 'VIGENTE').length;
+  }
+
+  get countVencidos(): number {
+    return this.contratos.filter(c => c.estado_contrato === 'VENCIDO').length;
   }
 
   get uniqueNacionalidades(): string[] {
@@ -145,6 +158,11 @@ export class MaestroTrabajadoresComponent implements OnInit {
   public isLoadingHistorial:     boolean = false;
   public isCreatingRetroactivo:  boolean = false;
 
+  // ── Finiquito masivo ──────────────────────────────────────────────────────
+  public fechaTerminacionMasiva: string = '';
+  public mostrarDetalleTrabajadores: boolean = false;
+  public isFiniquitandoMasivo: boolean = false;
+
   // ── Columnas ──────────────────────────────────────────────────────────────
   displayedColumns: string[] = [
     'id', 'trabajador', 'apellidos', 'rut', 'nacionalidad', 'sociedad', 'cliente', 'fundo',
@@ -160,7 +178,8 @@ export class MaestroTrabajadoresComponent implements OnInit {
     detalleContratoModal:     false,
     crearContratoModal:       false,
     terminarContratoModal:    false,
-    contratoRetroactivoModal: false
+    contratoRetroactivoModal: false,
+    finiquitarMasivoModal:    false
   };
 
   public errorMessage: string = '';
@@ -192,7 +211,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
   // ── Carga de datos ────────────────────────────────────────────────────────
 
   cargarContratos(): void {
-    const params = `holding=${this.holding}&estado=${this.filtroEstado}`;
+    const params = `holding=${this.holding}&estado=todos`;
     this.apiService.get(`api_contratos_trabajadores/?${params}`).subscribe({
       next: (response) => {
         this.contratos = response;
@@ -225,7 +244,6 @@ export class MaestroTrabajadoresComponent implements OnInit {
   cambiarFiltro(filtro: string): void {
     this.filtroEstado = filtro;
     this.selectedRows = [];
-    this.cargarContratos();
   }
 
   aplicarFiltroSupervisor(): void {
@@ -455,6 +473,45 @@ export class MaestroTrabajadoresComponent implements OnInit {
     });
   }
 
+  // ── Finiquitar Masivo ─────────────────────────────────────────────────────
+
+  abrirModalFiniquitarMasivo(): void {
+    this.fechaTerminacionMasiva = '';
+    this.mostrarDetalleTrabajadores = false;
+    this.openModal('finiquitarMasivoModal');
+  }
+
+  confirmarFiniquitoMasivo(): void {
+    if (!this.fechaTerminacionMasiva || this.selectedRows.length === 0 || this.isFiniquitandoMasivo) return;
+
+    this.isFiniquitandoMasivo = true;
+
+    const requests = this.selectedRows.map(r =>
+      this.apiService.patch('api_contratos_trabajadores/', {
+        id: r.id,
+        fecha_termino_contrato: this.fechaTerminacionMasiva
+      })
+    );
+
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.isFiniquitandoMasivo = false;
+        this.closeModal('finiquitarMasivoModal');
+        this.selectedRows = [];
+        this.fechaTerminacionMasiva = '';
+        this.cargarContratos();
+        this.openModal('exitoModal');
+      },
+      error: (error) => {
+        console.error('Error al finiquitar contratos:', error);
+        this.isFiniquitandoMasivo = false;
+        this.errorMessage = error.error?.error || 'Error al finiquitar contratos';
+        this.closeModal('finiquitarMasivoModal');
+        this.openModal('errorModal');
+      }
+    });
+  }
+
   // ── Contrato Retroactivo ──────────────────────────────────────────────────
 
   abrirModalContratoRetroactivo(): void {
@@ -612,5 +669,6 @@ export class MaestroTrabajadoresComponent implements OnInit {
     if (key === 'crearContratoModal')       this.limpiarFormularioContrato();
     if (key === 'terminarContratoModal')    { this.contratoSeleccionado = null; this.fechaTerminacion = ''; }
     if (key === 'contratoRetroactivoModal') this.limpiarFormularioRetroactivo();
+    if (key === 'finiquitarMasivoModal')    { this.fechaTerminacionMasiva = ''; this.mostrarDetalleTrabajadores = false; }
   }
 }
