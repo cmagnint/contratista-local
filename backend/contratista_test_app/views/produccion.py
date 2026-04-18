@@ -629,112 +629,6 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
             logger.error(f'GenerarPlanillaEfectivoAPIView GET: error: {e}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-# ==============================================================================
-# REPROCESAR PAGOS
-# ==============================================================================
-
-class ReprocesarPagosAPIView(BaseAPIView):
-
-    def post(self, request):
-        try:
-            fecha_inicio = request.data.get('fecha_inicio')
-            fecha_fin = request.data.get('fecha_fin')
-            folio_id = request.data.get('folio_id')
-            holding_id = request.data.get('holding_id')
-            nuevo_valor_pago = request.data.get('nuevo_valor_pago')
-
-            with transaction.atomic():
-                folio = FolioComercial.objects.get(id=folio_id)
-                valor_actual = folio.valor_pago_trabajador
-
-                ultima_version = HistorialCambioFolio.objects.filter(
-                    folio_id=folio_id,
-                    fecha_inicio_validez__gte=fecha_inicio,
-                    fecha_fin_validez__lte=fecha_fin
-                ).aggregate(Max('version'))['version__max'] or 0
-
-                historial_cambio = HistorialCambioFolio.objects.create(
-                    holding_id=holding_id,
-                    folio=folio,
-                    valor_anterior=valor_actual,
-                    valor_nuevo=nuevo_valor_pago,
-                    version=ultima_version + 1,
-                    fecha_inicio_validez=fecha_inicio,
-                    fecha_fin_validez=fecha_fin
-                )
-
-                producciones = ProduccionTrabajador.objects.filter(
-                    holding_id=holding_id,
-                    folio_id=folio_id,
-                    hora_fecha_ingreso_produccion__date__range=[fecha_inicio, fecha_fin],
-                    pagado=True
-                ).select_related('trabajador')
-
-                pagos_afectados = {}
-
-                for produccion in producciones:
-                    cambios_aplicables = HistorialCambioFolio.objects.filter(
-                        folio_id=folio_id,
-                        fecha_inicio_validez__lte=produccion.hora_fecha_ingreso_produccion.date(),
-                        fecha_fin_validez__gte=produccion.hora_fecha_ingreso_produccion.date()
-                    ).order_by('version')
-
-                    valor_original = (
-                        cambios_aplicables.first().valor_anterior
-                        if cambios_aplicables.exists()
-                        else valor_actual
-                    )
-
-                    cantidad = produccion.peso_neto if produccion.peso_neto > 0 else produccion.unidades_control
-                    monto_original = cantidad * valor_original
-                    monto_nuevo = cantidad * nuevo_valor_pago
-                    diferencia = monto_nuevo - monto_original
-
-                    for pago in produccion.registropagotransferencia_set.all():
-                        if pago.id not in pagos_afectados:
-                            pagos_afectados[pago.id] = {
-                                'registro': pago,
-                                'diferencia_total': 0,
-                            }
-                        pagos_afectados[pago.id]['diferencia_total'] += diferencia
-
-                for info_pago in pagos_afectados.values():
-                    pago = info_pago['registro']
-                    nuevo_monto = pago.monto_pagado + info_pago['diferencia_total']
-
-                    HistorialCambioPago.objects.create(
-                        holding_id=holding_id,
-                        registro_transferencia=pago,
-                        monto_pagado_anterior=pago.monto_pagado,
-                        monto_pagado_nuevo=nuevo_monto,
-                        saldo_anterior=pago.saldo,
-                        saldo_nuevo=(pago.saldo or 0) + info_pago['diferencia_total'],
-                        folio=folio,
-                        valor_pago_anterior=valor_actual,
-                        valor_pago_nuevo=nuevo_valor_pago,
-                        version_cambio_folio=historial_cambio.version
-                    )
-
-                    pago.monto_pagado = nuevo_monto
-                    pago.saldo = (pago.saldo or 0) + info_pago['diferencia_total']
-                    pago.save()
-
-            logger.debug(
-                f'ReprocesarPagosAPIView POST: {len(pagos_afectados)} pagos reprocesados, '
-                f'version={historial_cambio.version}'
-            )
-            return Response({
-                'message': 'Pagos reprocesados correctamente',
-                'cambios_realizados': len(pagos_afectados),
-                'version_cambio': historial_cambio.version
-            })
-
-        except Exception as e:
-            logger.error(f'ReprocesarPagosAPIView POST: error: {e}', exc_info=True)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 # ==============================================================================
 # UNIDAD CONTROL
 # ==============================================================================
@@ -988,6 +882,29 @@ class HorarioAPIView(BaseAPIView):
         serializer = HorarioSerializer(horario, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            from ..models import ContratoHorarioSnapshot, ContratoTrabajador
+            horario = serializer.instance
+            dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+            horas_por_dia = {}
+            for i, dia in enumerate(dias):
+                inicio = getattr(horario, f'{dia}_inicio', None)
+                fin = getattr(horario, f'{dia}_fin', None)
+                colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                if inicio and fin:
+                    from datetime import datetime
+                    mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                    horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                else:
+                    horas_por_dia[str(i)] = 0.0
+            for contrato in ContratoTrabajador.objects.filter(horario=horario).select_related('trabajador', 'holding'):
+                ContratoHorarioSnapshot.objects.update_or_create(
+                    contrato=contrato,
+                    defaults={
+                        'trabajador': contrato.trabajador,
+                        'holding': contrato.holding,
+                        'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                    }
+                )
             return Response(serializer.data)
         logger.error(f'HorarioAPIView PATCH: datos inválidos: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1002,6 +919,29 @@ class HorarioAPIView(BaseAPIView):
         serializer = HorarioSerializer(horario, data=request.data)
         if serializer.is_valid():
             serializer.save()
+            from ..models import ContratoHorarioSnapshot, ContratoTrabajador
+            horario = serializer.instance
+            dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+            horas_por_dia = {}
+            for i, dia in enumerate(dias):
+                inicio = getattr(horario, f'{dia}_inicio', None)
+                fin = getattr(horario, f'{dia}_fin', None)
+                colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                if inicio and fin:
+                    from datetime import datetime
+                    mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                    horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                else:
+                    horas_por_dia[str(i)] = 0.0
+            for contrato in ContratoTrabajador.objects.filter(horario=horario).select_related('trabajador', 'holding'):
+                ContratoHorarioSnapshot.objects.update_or_create(
+                    contrato=contrato,
+                    defaults={
+                        'trabajador': contrato.trabajador,
+                        'holding': contrato.holding,
+                        'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                    }
+                )
             return Response(serializer.data)
         logger.error(f'HorarioAPIView PUT: datos inválidos: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

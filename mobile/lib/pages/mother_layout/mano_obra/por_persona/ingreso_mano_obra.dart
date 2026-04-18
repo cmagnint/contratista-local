@@ -9,8 +9,7 @@ class IngresoManoObraScreen extends StatefulWidget {
   final List<Trabajador> trabajadores;
   final List<UnidadControl> unidadesControl;
   final String cliente;
-  final String labor;
-  final int laborId;
+  final List<Map<String, dynamic>> labores;
   final int folioId;
 
   const IngresoManoObraScreen({
@@ -18,8 +17,7 @@ class IngresoManoObraScreen extends StatefulWidget {
     required this.trabajadores,
     required this.unidadesControl,
     required this.cliente,
-    required this.labor,
-    required this.laborId,
+    required this.labores,
     required this.folioId,
   });
 
@@ -30,6 +28,7 @@ class IngresoManoObraScreen extends StatefulWidget {
 class IngresoManoObraScreenState extends State<IngresoManoObraScreen> {
   ApiService apiService = ApiService();
   UnidadControl? selectedUnidadControl;
+  Map<String, dynamic>? selectedLabor;
   Map<int, bool> selectedTrabajadores = {};
   List<TextEditingController> horasControllers = [];
   List<TextEditingController> produccionControllers = [];
@@ -173,7 +172,7 @@ class IngresoManoObraScreenState extends State<IngresoManoObraScreen> {
           'sociedad': widget.trabajadores[i].sociedad,
           'supervisor': userInfo.idSupervisor,
           'folio': widget.folioId,
-          'labor': widget.laborId,
+          'labor': selectedLabor!['id'],
           'unidad_control': selectedUnidadControlId,
           'trabajador': widget.trabajadores[i].id,
           'produccion': produccion,
@@ -196,6 +195,11 @@ class IngresoManoObraScreenState extends State<IngresoManoObraScreen> {
   }
 
   bool validarCampos() {
+    if (selectedLabor == null) {
+      _mostrarError('Seleccione una labor');
+      return false;
+    }
+
     if (selectedUnidadControl == null) {
       _mostrarError('Seleccione una unidad de control');
       return false;
@@ -252,6 +256,61 @@ class IngresoManoObraScreenState extends State<IngresoManoObraScreen> {
         );
       },
     );
+  }
+
+  void _showLaborDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width * 0.05,
+            vertical: MediaQuery.of(context).size.height * 0.03,
+          ),
+          child: Column(
+            children: [
+              AppBar(
+                title: const Text(
+                  "SELECCIONE LABOR",
+                  style: TextStyle(color: Colors.white),
+                ),
+                automaticallyImplyLeading: false,
+                backgroundColor: const Color.fromARGB(255, 6, 62, 107),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: widget.labores.length,
+                  itemBuilder: (context, index) {
+                    final labor = widget.labores[index];
+                    return InkWell(
+                      onTap: () {
+                        setState(() => selectedLabor = labor);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.black, width: 1),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 16,
+                        ),
+                        child: Text(
+                          labor['nombre'],
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((_) => setState(() {}));
   }
 
   void _showUnidadControlDialog() {
@@ -423,7 +482,11 @@ class IngresoManoObraScreenState extends State<IngresoManoObraScreen> {
               ),
             ),
             _buildInfoContainer('CLIENTE', widget.cliente),
-            _buildInfoContainer('LABOR', widget.labor),
+            _buildSelectionContainer(
+              'LABOR',
+              selectedLabor?['nombre'],
+              _showLaborDialog,
+            ),
             _buildSelectionContainer(
               'UNIDAD DE CONTROL',
               selectedUnidadControl?.descripcion,
@@ -680,9 +743,6 @@ class UnidadControl {
   UnidadControl({required this.descripcion, required this.id});
 
   factory UnidadControl.fromJson(Map<String, dynamic> json) {
-    return UnidadControl(
-      descripcion: json['descripcion'], // ← El backend envía 'descripcion'
-      id: json['id'],
-    );
+    return UnidadControl(descripcion: json['descripcion'], id: json['id']);
   }
 }

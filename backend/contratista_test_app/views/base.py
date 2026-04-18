@@ -1,5 +1,5 @@
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from ..jwt_authentication import JWTAuthentication, JWTHasAnyScope
+from ..services.jwt_authentication import JWTAuthentication, JWTHasAnyScope
 from rest_framework.views import APIView
 
 class BaseAPIView(APIView):

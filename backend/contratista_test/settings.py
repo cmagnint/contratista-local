@@ -164,7 +164,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'contratista_test_app.jwt_authentication.JWTAuthentication',  # ← NUEVO: JWT primero
+        'contratista_test_app.services.jwt_authentication.JWTAuthentication',  # ← NUEVO: JWT primero
         # 'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # ← DEPRECAR gradualmente
     ),
     'DEFAULT_PERMISSION_CLASSES': (

@@ -326,14 +326,17 @@ class MotherLayoutState extends State<MotherLayout> {
           .map((u) => UnidadControl.fromJson(u))
           .toList();
 
+      List<Map<String, dynamic>> labores = (data['labores'] as List)
+          .map((l) => {'id': l['id'] as int, 'nombre': l['nombre'] as String})
+          .toList();
+
       if (mounted) {
         setState(() {
           _pages[8] = IngresoManoObraScreen(
             trabajadores: trabajadores,
             unidadesControl: unidades,
             cliente: data['folio']['cliente'],
-            labor: data['labor']['nombre'],
-            laborId: data['labor']['id'],
+            labores: labores,
             folioId: data['folio']['id'],
           );
           _selectedIndex = 8;
@@ -422,14 +425,17 @@ class MotherLayoutState extends State<MotherLayout> {
           .map((u) => UnidadControl.fromJson(u))
           .toList();
 
+      List<Map<String, dynamic>> labores = (data['labores'] as List)
+          .map((l) => {'id': l['id'] as int, 'nombre': l['nombre'] as String})
+          .toList();
+
       if (mounted) {
         setState(() {
           _pages[12] = IngresoRetroactivoScreen(
             trabajadores: trabajadores,
             unidadesControl: unidades,
             cliente: data['folio']['cliente'],
-            labor: data['labor']['nombre'],
-            laborId: data['labor']['id'],
+            labores: labores,
             folioId: data['folio']['id'],
             fecha: picked,
           );

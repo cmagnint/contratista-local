@@ -14,6 +14,7 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from django.db.models import Q
 from reportlab.platypus import (
     Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
@@ -35,6 +36,8 @@ from ..models import (
     Sociedad,
     Tramos,
     VehiculosTransporte,
+    RegistroManoObraPersona,
+    TrabajadorTransporteHistorial,
 )
 from ..serializers import (
     ChoferesTransporteSerializer,
@@ -686,18 +689,18 @@ class PagoTransportistaAPIView(BaseAPIView):
 class CalculoPagoTransportistaView(BaseAPIView):
 
     def get(self, request):
-        holding_id = request.query_params.get('holding')
+        holding_id   = request.query_params.get('holding')
         fecha_inicio = request.query_params.get('fecha_inicio')
-        fecha_fin = request.query_params.get('fecha_fin')
-        empresas = request.query_params.get('empresas')
+        fecha_fin    = request.query_params.get('fecha_fin')
+        empresas     = request.query_params.get('empresas')
 
         if not all([holding_id, fecha_inicio, fecha_fin]):
             return Response({'error': 'Faltan parámetros requeridos'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
-            fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
-            empresa_ids = [int(i) for i in empresas.split(',')] if empresas else []
+            fecha_fin    = datetime.strptime(fecha_fin,    '%Y-%m-%d').date()
+            empresa_ids  = [int(i) for i in empresas.split(',')] if empresas else []
 
             query = EmpresasTransporte.objects.filter(holding_id=holding_id)
             if empresa_ids:
@@ -706,41 +709,52 @@ class CalculoPagoTransportistaView(BaseAPIView):
             resultados = []
 
             for empresa in query:
-                if not empresa.folio_transportista:
-                    continue
+                # FolioTransportista vinculado a esta empresa a través del FolioComercial
+                folio_transportista = FolioTransportista.objects.filter(
+                    holding_id=holding_id,
+                    folio_comercial__transportistas=empresa
+                ).select_related('tramo').first()
 
-                trabajadores = PersonalTrabajadores.objects.filter(
-                    holding_id=holding_id, transportista=empresa, estado=True
-                )
+                if not folio_transportista or not folio_transportista.tramo:
+                    continue
 
                 current_date = fecha_inicio
                 while current_date <= fecha_fin:
-                    count = ProduccionTrabajador.objects.filter(
+                    # Trabajadores que en esta fecha tenían a esta empresa como transportista
+                    trabajador_ids = TrabajadorTransporteHistorial.objects.filter(
                         holding_id=holding_id,
-                        trabajador__in=trabajadores,
-                        hora_fecha_ingreso_produccion__date=current_date,
-                        pagado=False
+                        transportista=empresa,
+                        fecha_inicio__lte=current_date,
+                    ).filter(
+                        Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=current_date)
+                    ).values_list('trabajador_id', flat=True)
+
+                    # De esos, cuántos tienen registro de mano de obra en esa fecha
+                    count = RegistroManoObraPersona.objects.filter(
+                        holding_id=holding_id,
+                        trabajador_id__in=trabajador_ids,
+                        fecha_ingreso=current_date,
                     ).values('trabajador').distinct().count()
 
                     if count > 0:
-                        folio = empresa.folio_transportista
-                        monto = (
-                            folio.valor_pago_transportista * count
-                            if folio.tramo.unidad_pago == 'PASAJERO'
-                            else folio.valor_pago_transportista
+                        tramo  = folio_transportista.tramo
+                        monto  = (
+                            folio_transportista.valor_cancelacion * count
+                            if tramo.unidad_pago == 'PASAJERO'
+                            else folio_transportista.valor_cancelacion
                         )
 
                         resultados.append({
-                            'fecha': current_date,
+                            'fecha':               str(current_date),
                             'transportista_nombre': empresa.nombre,
-                            'transportista_rut': empresa.rut,
-                            'tipo_pago': folio.tramo.unidad_pago,
-                            'valor_unidad': folio.valor_pago_transportista,
-                            'cantidad_personas': count,
-                            'monto_calculado': monto,
+                            'transportista_rut':    empresa.rut,
+                            'tipo_pago':            tramo.unidad_pago,
+                            'valor_unidad':         folio_transportista.valor_cancelacion,
+                            'cantidad_personas':    count,
+                            'monto_calculado':      monto,
                             'tramo': {
-                                'origen': folio.tramo.origen,
-                                'destino': folio.tramo.destino
+                                'origen':  tramo.origen,
+                                'destino': tramo.destino
                             }
                         })
 

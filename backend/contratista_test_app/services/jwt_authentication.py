@@ -3,8 +3,8 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import AnonymousUser
-from .services.jwt_service import JWTService
-from .models import Usuarios
+from .jwt_service import JWTService
+from ..models import Usuarios
 
 
 class JWTAuthentication(BaseAuthentication):

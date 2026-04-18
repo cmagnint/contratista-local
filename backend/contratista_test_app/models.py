@@ -43,6 +43,10 @@ class Developer(models.Model):
     class Meta:
         db_table = 'developer'
 
+# ============================================================
+# ADMIN
+# ============================================================
+
 class Holding(models.Model):
     id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=255, unique=True)
@@ -626,17 +630,23 @@ class PersonalTrabajadores(models.Model):
     class Meta:
         db_table = 'personal'
 
-class TrabajadorEmpresaTransporte(models.Model):
-    id = models.AutoField(primary_key=True)
-    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
-    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.SET_NULL, null=True)
-    transportista = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True)
-    vehiculo = models.ForeignKey(VehiculosTransporte, on_delete=models.SET_NULL, null=True)
-    chofer = models.ForeignKey(ChoferesTransporte, on_delete=models.SET_NULL, null=True)
-    
-    class Meta:
-        db_table = 'trabajador_empresa_transporte'
+class TrabajadorTransporteHistorial(models.Model):
+    id            = models.AutoField(primary_key=True)
+    holding       = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    trabajador    = models.ForeignKey(PersonalTrabajadores, on_delete=models.CASCADE, related_name='historial_transporte')
+    transportista = models.ForeignKey(EmpresasTransporte, on_delete=models.SET_NULL, null=True, blank=True)
+    vehiculo      = models.ForeignKey(VehiculosTransporte, on_delete=models.SET_NULL, null=True, blank=True)
+    chofer        = models.ForeignKey(ChoferesTransporte, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_inicio  = models.DateField()
+    fecha_fin     = models.DateField(null=True, blank=True)
 
+    class Meta:
+        db_table = 'trabajador_transporte_historial'
+        indexes = [
+            models.Index(fields=['trabajador', 'fecha_inicio', 'fecha_fin']),
+            models.Index(fields=['transportista', 'fecha_inicio']),
+        ]
+        
 class Usuarios(AbstractBaseUser, PermissionsMixin):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE, null=True, blank=True)
@@ -2634,3 +2644,14 @@ class FirmaOrganizacion(models.Model):
     class Meta:
         db_table = 'firmas_organizacion'
         unique_together = [['holding', 'tipo', 'nombre']]
+
+class ContratoHorarioSnapshot(models.Model):
+    contrato = models.OneToOneField(ContratoTrabajador, on_delete=models.CASCADE, related_name='horario_snapshot')
+    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.CASCADE, related_name='horario_snapshots')
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE, related_name='horario_snapshots')
+    datos = models.JSONField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'contrato_horario'
+

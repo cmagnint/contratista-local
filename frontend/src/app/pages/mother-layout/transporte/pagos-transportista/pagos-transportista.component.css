@@ -1,574 +1,552 @@
 /* pagos-transportista.component.css */
 
 .container {
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
+  padding-top: 50px;
+  padding-bottom: 150px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: inherit;
 }
 
-h2, h3, h4, h5 {
-    color: #333;
-    margin-bottom: 1rem;
+h2 {
+  font-size: 22px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 24px;
 }
 
-/* Secciones generales */
+h3, h4, h5 {
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 12px;
+}
+
+/* ── Secciones ── */
 .seleccion-cuenta,
 .seleccion-fechas,
 .seleccion-empresas {
-    background: #f9f9f9;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: #ffffff;
+  border: 0.5px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
 }
 
-/* Formularios */
+.seleccion-cuenta h3,
+.seleccion-empresas h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.seleccion-fechas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Form ── */
 .form-group {
-    margin-bottom: 15px;
+  margin-bottom: 14px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
 }
 
 .form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #555;
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
-select, input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: white;
-    font-size: 14px;
+select, input[type="date"] {
+  width: 100%;
+  padding: 9px 12px;
+  border: 0.5px solid #d0d0d0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  color: #1a1a1a;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
 }
 
-select:focus, input:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,.25);
+select:focus, input[type="date"]:focus {
+  outline: none;
+  border-color: #14b35c;
+  box-shadow: 0 0 0 3px rgba(20, 179, 92, 0.1);
 }
 
-/* Grid de empresas */
+/* ── Empresas grid ── */
 .empresas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 15px;
-    margin-top: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
 }
 
 .empresa-card {
-    background: white;
-    padding: 15px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  background: #fafafa;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 0.5px solid #e0e0e0;
+  border-left: 4px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .empresa-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  background: #fff;
+  border-color: #d0d0d0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .empresa-card.selected {
-    border-color: #007bff;
-    background-color: #f0f7ff;
+  background: #f0faf5;
+  border-color: #14b35c;
+  border-left-color: inherit;
 }
 
 .empresa-info h4 {
-    margin: 0;
-    color: #333;
-    font-size: 1rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 4px;
 }
 
 .empresa-info p {
-    margin: 5px 0 0;
-    color: #666;
-    font-size: 0.9rem;
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+  font-family: 'Courier New', monospace;
 }
 
-/* Botones de acción */
+/* ── Acciones ── */
 .acciones {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin: 20px 0;
-}
-
-button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.2s;
-    min-width: 150px;
-}
-
-.search-button {
-    background-color: #007bff;
-    color: white;
-}
-
-.process-payment-button {
-    background-color: #28a745;
-    color: white;
-}
-
-button:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
-/* Grupo de registros por fecha */
-.grupo-fecha {
-    background: white;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    overflow: hidden;
-}
-
-.fecha-header {
-    background: #f8f9fa;
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #dee2e6;
-}
-
-.fecha-header h4 {
-    margin: 0;
-    color: #495057;
-}
-
-.fecha-actions {
-    display: flex;
-    gap: 10px;
-}
-
-/* Grupo de transportista */
-.transportista-grupo {
-    border-bottom: 1px solid #dee2e6;
-    padding: 15px;
-}
-
-.transportista-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.transportista-header h5 {
-    margin: 0;
-    color: #495057;
-}
-
-.transportista-actions {
-    display: flex;
-    gap: 10px;
-}
-
-/* Botones de selección */
-.btn-select, .btn-deselect {
-    padding: 5px 10px;
-    font-size: 0.9rem;
-    min-width: auto;
-}
-
-.btn-select {
-    background-color: #007bff;
-    color: white;
-}
-
-.btn-deselect {
-    background-color: #6c757d;
-    color: white;
-}
-
-/* Tabla de registros */
-.registros-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-}
-
-.registros-table th,
-.registros-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.registros-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-    color: #495057;
-}
-
-.checkbox-cell {
-    width: 40px;
-    text-align: center;
-}
-
-/* Total general */
-.total-general {
-    background: #f8f9fa;
-    padding: 20px;
-    margin-top: 20px;
-    border-radius: 8px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 20px;
-}
-
-.total-label {
-    font-weight: bold;
-    color: #495057;
-    font-size: 1.1em;
-}
-
-.total-amount {
-    color: #28a745;
-    font-size: 1.2em;
-    font-weight: bold;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin: 16px 0;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .seleccion-global {
-    margin: 20px 0;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 4px;
 }
 
-.btn-select-all,
-.btn-deselect-all {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    min-width: 200px;
+/* ── Botones ── */
+button {
+  padding: 9px 20px;
+  border: 0.5px solid #d0d0d0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.15s;
+  min-width: auto;
+  white-space: nowrap;
+}
+
+.search-button {
+  background: #14b35c;
+  color: #fff;
+  border-color: #14b35c;
+}
+
+.search-button:hover:not(:disabled) {
+  background: #0f9a4f;
+}
+
+.process-payment-button {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.process-payment-button:hover:not(:disabled) {
+  background: #333;
 }
 
 .btn-select-all {
-    background-color: #4CAF50;
-    color: white;
+  background: #e8f7ef;
+  color: #0f6e56;
+  border-color: #9fe1cb;
 }
 
 .btn-deselect-all {
-    background-color: #F44336;
-    color: white;
+  background: #fef2f2;
+  color: #a32d2d;
+  border-color: #f7c1c1;
 }
 
-.empresa-card {
-    transition: all 0.3s ease;
-    border-left-width: 5px;
-    border-left-style: solid;
+.btn-select {
+  background: #e8f0fb;
+  color: #185fa5;
+  border-color: #b5d4f4;
+  padding: 5px 12px;
+  font-size: 12px;
 }
 
-.empresa-card.selected {
-    transform: translateX(5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+.btn-deselect {
+  background: #f5f5f5;
+  color: #555;
+  border-color: #d0d0d0;
+  padding: 5px 12px;
+  font-size: 12px;
 }
 
+button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+button:disabled {
+  background: #f0f0f0;
+  color: #aaa;
+  border-color: #e0e0e0;
+  cursor: not-allowed;
+}
+
+/* ── Registros agrupados ── */
+.registros-container {
+  margin-top: 8px;
+}
+
+.grupo-fecha {
+  background: #fff;
+  border: 0.5px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.fecha-header {
+  background: #f7f7f7;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 0.5px solid #e8e8e8;
+}
+
+.fecha-header h4 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.fecha-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Grupo transportista ── */
 .transportista-grupo {
-    border-left-width: 5px;
-    border-left-style: solid;
-    margin-left: -5px;
-    transition: all 0.3s ease;
+  border-bottom: 0.5px solid #f0f0f0;
+  padding: 16px 20px;
+  border-left-width: 4px;
+  border-left-style: solid;
+  transition: background 0.15s;
 }
 
-/* Diseño responsivo */
-@media (max-width: 768px) {
-    .empresas-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .acciones {
-        flex-direction: column;
-    }
-    
-    button {
-        width: 100%;
-    }
-
-    .fecha-header,
-    .transportista-header {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
-    }
-
-    .fecha-actions,
-    .transportista-actions {
-        flex-direction: column;
-        width: 100%;
-    }
+.transportista-grupo:last-child {
+  border-bottom: none;
 }
 
-.badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: 500;
+.transportista-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.badge-pasajero {
-    background-color: #e3f2fd;
-    color: #1976d2;
-}
-
-.badge-viaje {
-    background-color: #f3e5f5;
-    color: #7b1fa2;
-}
-
-.registro-completo {
-    background-color: #f8f9fa;
+.transportista-header h5 {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .transportista-total {
-    color: #666;
-    font-size: 0.9rem;
-    margin: 0 1rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: #14b35c;
+  margin: 0 auto 0 12px;
 }
 
-
-.modal-overlay {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.transportista-actions {
+  display: flex;
+  gap: 8px;
 }
 
-
-.modal-pago h3 {
-    color: #333;
-    margin-bottom: 25px;
+/* ── Tabla ── */
+.registros-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
 }
 
-.metodo-pago-buttons {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
+.registros-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  border-bottom: 0.5px solid #e8e8e8;
+  background: #fafafa;
 }
 
-.metodo-pago-button {
-    padding: 15px 30px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    width: 45%;
+.registros-table td {
+  padding: 10px 12px;
+  border-bottom: 0.5px solid #f0f0f0;
+  color: #1a1a1a;
+  vertical-align: middle;
 }
 
-.efectivo-button {
-    background-color: #4CAF50;
-    color: white;
+.registros-table tr:last-child td {
+  border-bottom: none;
 }
 
-.transferencia-button {
-    background-color: #2196F3;
-    color: white;
+.registros-table tfoot td {
+  padding: 10px 12px;
+  border-top: 0.5px solid #e8e8e8;
+  font-weight: 500;
+  background: #fafafa;
+  color: #1a1a1a;
 }
 
-.metodo-pago-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.checkbox-cell {
+  width: 48px;
+  text-align: center;
 }
 
-.modal-pago {
-    background-color: white;
-    padding: 30px;
-    border-radius: 8px;
-    width: 500px;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #14b35c;
+  cursor: pointer;
 }
 
-.info-text {
-    color: #666;
-    margin-bottom: 20px;
-    font-size: 0.9em;
+.text-right {
+  text-align: right;
 }
 
-.metodo-pago-button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 20px;
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
-.metodo-pago-button small {
-    font-size: 0.8em;
-    opacity: 0.8;
+.badge-pasajero {
+  background: #e8f0fb;
+  color: #185fa5;
 }
 
-.metodo-pago-button i {
-    font-size: 1.5em;
-    margin-bottom: 8px;
+.badge-viaje {
+  background: #f0eeff;
+  color: #534ab7;
 }
 
+.tramo-info {
+  font-size: 13px;
+  color: #555;
+}
+
+/* ── Total general ── */
+.total-general {
+  background: #fff;
+  border: 0.5px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.total-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+}
+
+.total-amount {
+  font-size: 22px;
+  font-weight: 500;
+  color: #14b35c;
+}
+
+/* ── Reconfirmación ── */
 .reconfirmacion-pago {
-    margin-top: 1rem;
-    padding: 1rem;
-    border: 1px solid #ffeeba;
-    border-radius: 4px;
-    background-color: #fff3cd;
+  background: #fffbeb;
+  border: 0.5px solid #fac775;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+  width: 100%;
 }
 
 .alert {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border-radius: 4px;
-}
-
-.alert-warning {
-    background-color: #fff3cd;
-    border: 1px solid #ffeeba;
-    color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #854f0b;
+  margin-bottom: 12px;
 }
 
 .botones-confirmacion {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-top: 1rem;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .confirm-payment-button {
-    padding: 0.75rem 1.5rem;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  background: #14b35c;
+  color: #fff;
+  border-color: #14b35c;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: auto;
 }
 
 .confirm-payment-button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
+  background: #f0f0f0;
+  color: #aaa;
+  border-color: #e0e0e0;
 }
 
 .cancel-payment-button {
-    padding: 0.75rem 1.5rem;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  background: #fff;
+  color: #a32d2d;
+  border-color: #f7c1c1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: auto;
 }
 
 .cancel-payment-button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
+  background: #f0f0f0;
+  color: #aaa;
+  border-color: #e0e0e0;
 }
 
-.fas {
-    font-size: 1rem;
-}
-
+/* ── Modal ── */
 .modal-overlay {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
 .modal-pago {
-    background-color: white;
-    padding: 30px;
-    border-radius: 8px;
-    width: 400px;
-    max-width: 90%;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  padding: 32px;
+  border-radius: 16px;
+  width: 420px;
+  max-width: 90%;
+  text-align: center;
+  border: 0.5px solid #e0e0e0;
 }
 
-.alert {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem;
-    margin: 1.5rem 0;
-    border-radius: 4px;
-}
-
-.alert-warning {
-    background-color: #fff3cd;
-    border: 1px solid #ffeeba;
-    color: #856404;
-}
-
-.botones-confirmacion {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-top: 1.5rem;
-}
-
-.confirm-payment-button {
-    padding: 0.75rem 1.5rem;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: auto;
-}
-
-.cancel-payment-button {
-    padding: 0.75rem 1.5rem;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: auto;
+.modal-pago h3 {
+  font-size: 18px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 8px;
 }
 
 .info-text {
-    color: #666;
-    margin-bottom: 20px;
-    font-size: 0.9em;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 24px;
+}
+
+.metodo-pago-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.metodo-pago-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  width: 45%;
+  min-width: auto;
+  transition: all 0.2s;
+}
+
+.metodo-pago-button small {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.efectivo-button {
+  background: #f0faf5;
+  color: #0f6e56;
+  border-color: #5dcaa5;
+}
+
+.efectivo-button:hover {
+  background: #e1f5ee;
+}
+
+.transferencia-button {
+  background: #e8f0fb;
+  color: #185fa5;
+  border-color: #85b7eb;
+}
+
+.transferencia-button:hover {
+  background: #dce8f8;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .container { padding: 16px 16px 80px; }
+  .seleccion-fechas { grid-template-columns: 1fr; }
+  .empresas-grid { grid-template-columns: 1fr; }
+  .acciones { justify-content: stretch; flex-direction: column; }
+  .acciones button { width: 100%; }
+  .fecha-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .transportista-header { flex-direction: column; align-items: flex-start; }
+  .transportista-total { margin: 0; }
+  .metodo-pago-buttons { flex-direction: column; align-items: center; }
+  .metodo-pago-button { width: 100%; }
+  .total-general { justify-content: space-between; }
 }

@@ -31,10 +31,11 @@ from ..models import (
     Sociedad,
     SupervisorTrabajadorHistorial,
     Supervisores,
-    TrabajadorEmpresaTransporte,
     VehiculosTransporte,
     Holding,
     FirmaOrganizacion,
+    TrabajadorTransporteHistorial,
+    Horarios,
 )
 from ..serializers import (
     ContratoTrabajadorSerializer,
@@ -1107,6 +1108,33 @@ class ContratoTrabajadorAPIView(BaseAPIView):
         serializer = ContratoTrabajadorSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+            contrato = serializer.instance
+            if contrato.horario:
+                try:
+                    from ..models import ContratoHorarioSnapshot
+                    horario = contrato.horario
+                    dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+                    horas_por_dia = {}
+                    for i, dia in enumerate(dias):
+                        inicio = getattr(horario, f'{dia}_inicio', None)
+                        fin = getattr(horario, f'{dia}_fin', None)
+                        colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                        if inicio and fin:
+                            from datetime import datetime
+                            mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                            horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                        else:
+                            horas_por_dia[str(i)] = 0.0
+                    ContratoHorarioSnapshot.objects.update_or_create(
+                        contrato=contrato,
+                        defaults={
+                            'trabajador': contrato.trabajador,
+                            'holding': contrato.holding,
+                            'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f'Error creando snapshot horario: {e}')
             logger.debug(f'ContratoTrabajadorAPIView POST: contrato creado')
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         logger.error(f'ContratoTrabajadorAPIView POST: datos inválidos: {serializer.errors}')
@@ -1122,6 +1150,33 @@ class ContratoTrabajadorAPIView(BaseAPIView):
         serializer = ContratoTrabajadorSerializer(contrato, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            contrato = serializer.instance
+            if contrato.horario:
+                try:
+                    from ..models import ContratoHorarioSnapshot
+                    horario = contrato.horario
+                    dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+                    horas_por_dia = {}
+                    for i, dia in enumerate(dias):
+                        inicio = getattr(horario, f'{dia}_inicio', None)
+                        fin = getattr(horario, f'{dia}_fin', None)
+                        colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                        if inicio and fin:
+                            from datetime import datetime
+                            mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                            horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                        else:
+                            horas_por_dia[str(i)] = 0.0
+                    ContratoHorarioSnapshot.objects.update_or_create(
+                        contrato=contrato,
+                        defaults={
+                            'trabajador': contrato.trabajador,
+                            'holding': contrato.holding,
+                            'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f'Error creando snapshot horario: {e}')
             return Response(serializer.data)
         logger.error(f'ContratoTrabajadorAPIView PUT: datos inválidos para contrato {contrato_id}: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1130,8 +1185,19 @@ class ContratoTrabajadorAPIView(BaseAPIView):
         ids = request.data.get('ids', [])
         if not ids:
             return Response({'error': 'Se requiere lista de IDs'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Obtener trabajadores afectados antes de borrar
+        contratos = ContratoTrabajador.objects.filter(id__in=ids).select_related('trabajador')
+        trabajador_ids = [c.trabajador_id for c in contratos]
+        
         deleted_count = ContratoTrabajador.objects.filter(id__in=ids).delete()[0]
-        logger.debug(f'ContratoTrabajadorAPIView DELETE: {deleted_count} contratos eliminados')
+        
+        # Cerrar historiales de los trabajadores afectados
+        hoy = date.today()
+        TrabajadorTransporteHistorial.objects.filter(
+            trabajador_id__in=trabajador_ids, fecha_fin__isnull=True
+        ).update(fecha_fin=hoy)
+        
         return Response({'mensaje': f'Se eliminaron {deleted_count} contratos', 'eliminados': deleted_count})
 
     def patch(self, request):
@@ -1160,6 +1226,21 @@ class ContratoTrabajadorAPIView(BaseAPIView):
 
         contrato.fecha_termino_contrato = fecha_termino
         contrato.save(update_fields=['fecha_termino_contrato'])
+        TrabajadorTransporteHistorial.objects.filter(
+            trabajador=contrato.trabajador,
+            fecha_fin__isnull=True
+        ).update(fecha_fin=fecha_termino)
+
+        # También cerrar supervisor y casa si quieres consistencia
+        SupervisorTrabajadorHistorial.objects.filter(
+            trabajador=contrato.trabajador,
+            fecha_fin__isnull=True
+        ).update(fecha_fin=fecha_termino)
+
+        RegistroCasaTrabajador.objects.filter(
+            trabajador=contrato.trabajador,
+            fecha_fin__isnull=True
+        ).update(fecha_fin=fecha_termino)
         logger.debug(f'ContratoTrabajadorAPIView PATCH: contrato {contrato_id} terminado con fecha {fecha_termino}')
         return Response({
             'mensaje': 'Contrato terminado exitosamente',
@@ -1327,6 +1408,31 @@ class CrearContratoWebAPIView(BaseAPIView):
                     fecha_termino_historial = datetime.strptime(request.data['fecha_termino_contrato'], '%Y-%m-%d').date()
 
                 contrato = ContratoTrabajador.objects.create(**contrato_data)
+                try:
+                    horario = Horarios.objects.get(id=request.data['horario'])
+                    from ..models import ContratoHorarioSnapshot
+                    dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+                    horas_por_dia = {}
+                    for i, dia in enumerate(dias):
+                        inicio = getattr(horario, f'{dia}_inicio', None)
+                        fin = getattr(horario, f'{dia}_fin', None)
+                        colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                        if inicio and fin:
+                            from datetime import datetime
+                            mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                            horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                        else:
+                            horas_por_dia[str(i)] = 0.0
+                    ContratoHorarioSnapshot.objects.update_or_create(
+                        contrato=contrato,
+                        defaults={
+                            'trabajador': trabajador,
+                            'holding_id': request.data['holding'],
+                            'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f'Error creando snapshot horario: {e}')
                 logger.debug(f'CrearContratoWebAPIView POST: contrato {contrato.id} creado para trabajador {trabajador.id}')
 
                 casa_id = request.data.get('casa_id')
@@ -1383,12 +1489,18 @@ class CrearContratoWebAPIView(BaseAPIView):
                         except ChoferesTransporte.DoesNotExist:
                             raise Exception(f'Chofer {chofer_id} no encontrado')
 
-                    TrabajadorEmpresaTransporte.objects.create(
+                    TrabajadorTransporteHistorial.objects.filter(
+                        trabajador=trabajador, fecha_fin__isnull=True
+                    ).update(fecha_fin=fecha_inicio - timedelta(days=1))
+
+                    TrabajadorTransporteHistorial.objects.create(
                         holding_id=request.data['holding'],
                         trabajador=trabajador,
                         transportista_id=transportista_id or None,
                         vehiculo_id=vehiculo_id or None,
                         chofer_id=chofer_id or None,
+                        fecha_inicio=fecha_inicio,
+                        fecha_fin=fecha_termino_historial,
                     )
                     transporte_asignado = True
 
@@ -1581,7 +1693,32 @@ class ContratoRetroactivoAPIView(BaseAPIView):
                 return Response({'error': 'fecha_termino_contrato debe ser YYYY-MM-DD'}, status=400)
 
         contrato = ContratoTrabajador.objects.create(**contrato_data)
-
+        try:
+            horario = Horarios.objects.get(id=request.data['horario'])
+            from ..models import ContratoHorarioSnapshot, PersonalTrabajadores
+            trabajador_obj = PersonalTrabajadores.objects.get(id=trabajador_id)
+            dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+            horas_por_dia = {}
+            for i, dia in enumerate(dias):
+                inicio = getattr(horario, f'{dia}_inicio', None)
+                fin = getattr(horario, f'{dia}_fin', None)
+                colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                if inicio and fin:
+                    from datetime import datetime
+                    mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                    horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                else:
+                    horas_por_dia[str(i)] = 0.0
+            ContratoHorarioSnapshot.objects.update_or_create(
+                contrato=contrato,
+                defaults={
+                    'trabajador': trabajador_obj,
+                    'holding_id': holding_id,
+                    'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                }
+            )
+        except Exception as e:
+            logger.error(f'Error creando snapshot horario retroactivo: {e}')
         # Crear historial supervisor si se indicó y no existe registro que cubra el período
         if supervisor_id:
             try:
@@ -1607,3 +1744,4 @@ class ContratoRetroactivoAPIView(BaseAPIView):
                 return Response({'error': 'Supervisor no encontrado'}, status=404)
 
         return Response({'id': contrato.id, 'mensaje': 'Contrato retroactivo creado'}, status=201)
+    

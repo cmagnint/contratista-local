@@ -1746,6 +1746,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
             if (_showRutKeyboard) setState(() => _showRutKeyboard = false);
           },
           child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Contratar Trabajador'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              ),
+            ),
             body: SingleChildScrollView(
               child: Form(
                 key: _formKey,

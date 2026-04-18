@@ -18,7 +18,7 @@ from django.db import transaction
 from django.core.mail import send_mail
 
 # Importar modelos
-from .models import (
+from ..models import (
     ConfiguracionSIIAutomaticaCompra, 
     FacturaCompraSIIPorDistribuir, 
     FacturaCompraSIIDistribuida,

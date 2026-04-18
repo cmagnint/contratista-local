@@ -26,7 +26,6 @@ class CheckHealthAPIView(PublicAPIView):
     def get(self, request):
         return Response({'status': 'healthy'}, status=status.HTTP_200_OK)
 
-
 # ==============================================================================
 # PASSWORD RESET
 # ==============================================================================
@@ -199,7 +198,6 @@ class PasswordResetAPIView(PublicAPIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
 # ==============================================================================
 # JWT
 # ==============================================================================
@@ -256,7 +254,6 @@ class VerifyJWTAPIView(PublicAPIView):
             for s in sociedades
         ]
 
-
 class RefreshJWTAPIView(PublicAPIView):
 
     def post(self, request):
@@ -278,7 +275,6 @@ class RefreshJWTAPIView(PublicAPIView):
             )
 
         return Response({'success': True, 'jwt_token': new_access_token}, status=status.HTTP_200_OK)
-
 
 # ==============================================================================
 # LOGIN
@@ -404,7 +400,6 @@ class LoginAPIView(PublicAPIView):
         if user.persona and user.persona.nombres:
             return user.persona.nombres
         return user.email.split('@')[0]
-
 
 # ==============================================================================
 # SUPERADMIN CHECK

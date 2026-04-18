@@ -2134,14 +2134,14 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
 
             primer_trabajador = asistencias.first().trabajador
 
-            try:
-                contrato = ContratoTrabajador.objects.select_related(
-                    'folio_comercial__cliente', 'labor', 'fundo'
-                ).get(
-                    trabajador=primer_trabajador, holding=holding,
-                    fecha_inicio_contrato__lte=fecha, fecha_termino_contrato__gte=fecha
-                )
-            except ContratoTrabajador.DoesNotExist:
+            contrato = ContratoTrabajador.objects.select_related(
+                'folio_comercial__cliente', 'labor', 'fundo'
+            ).filter(
+                trabajador=primer_trabajador, holding=holding,
+                fecha_inicio_contrato__lte=fecha, fecha_termino_contrato__gte=fecha
+            ).order_by('-fecha_inicio_contrato').first()
+
+            if not contrato:
                 logger.error(f'GestionRetroactivaManoObraPersonaAPIView GET: sin contrato activo para trabajador {primer_trabajador.id} en fecha {fecha}')
                 return Response({'error': 'El trabajador no tiene un contrato activo para esa fecha'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2156,12 +2156,13 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
             trabajadores = []
             for asistencia in asistencias:
                 trab = asistencia.trabajador
-                try:
-                    contrato_t = ContratoTrabajador.objects.select_related('fundo').get(
-                        trabajador=trab, holding=holding,
-                        fecha_inicio_contrato__lte=fecha, fecha_termino_contrato__gte=fecha
-                    )
-                except ContratoTrabajador.DoesNotExist:
+                contrato_t = ContratoTrabajador.objects.select_related('fundo').filter(
+                    trabajador=trab, holding=holding,
+                    fecha_inicio_contrato__lte=fecha, fecha_termino_contrato__gte=fecha,
+                    folio_comercial=folio
+                ).order_by('-fecha_inicio_contrato').first()
+
+                if not contrato_t:
                     continue
 
                 horas_mo = float(
@@ -2198,7 +2199,6 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
         except Exception as e:
             logger.error(f'GestionRetroactivaManoObraPersonaAPIView GET: error: {e}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     def post(self, request):
         try:
             data = request.data.copy()
@@ -2263,8 +2263,7 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
 # ==============================================================================
 
 class GestionRetroactivaAsistenciaAPIView(BaseAPIView):
-    permission_classes = [IsAuthenticated]
-
+    
     def get(self, request):
         try:
             supervisor_id = request.query_params.get('supervisor_id')

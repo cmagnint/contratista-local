@@ -1,4 +1,3 @@
-#contratista-local
 from rest_framework import serializers
 from datetime import date
 from datetime import datetime
@@ -61,12 +60,9 @@ from .models import (
     FacturaCompraSIIDistribuida,
     Cuenta,
     FacturaCompraSIIPorDistribuir,
-    ConfiguracionSIIAutomaticaVenta,
     FacturaVentaSIIPorDistribuir,
     FacturaVentaSIIDistribuida,
     CartolaMovimiento,
-    RegistroIngreso,
-    RegistroEgreso,
     DocumentosChofer,
     DocumentosVehiculo,
     RegistroAsistencia,

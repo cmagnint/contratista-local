@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from datetime import timedelta
 
 from .base import BaseAPIView, PublicAPIView
 from ..models import (
@@ -21,11 +22,11 @@ from ..models import (
     ProduccionTrabajador,
     RegistroAsistencia,
     Supervisores,
-    TrabajadorEmpresaTransporte,
     Usuarios,
     Perfiles,
     RegistroCasaTrabajador,
     SupervisorTrabajadorHistorial,
+    TrabajadorTransporteHistorial,
 )
 from ..serializers import (
     APKLinkSerializer,
@@ -471,12 +472,18 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                 folio = FolioComercial.objects.get(id=folio_id)
                 horario = Horarios.objects.filter(id=horario_id).first() if horario_id else None
 
-                if data.get('transportista') or data.get('vehiculo'):
-                    TrabajadorEmpresaTransporte.objects.create(
+                if folio_id and (data.get('transportista') or data.get('vehiculo')):
+                    TrabajadorTransporteHistorial.objects.filter(
+                        trabajador=personal, fecha_fin__isnull=True
+                    ).update(fecha_fin=folio.fecha_inicio_contrato - timedelta(days=1))
+
+                    TrabajadorTransporteHistorial.objects.create(
                         holding_id=data.get('holding'),
                         trabajador=personal,
                         transportista_id=data.get('transportista'),
-                        vehiculo_id=data.get('vehiculo')
+                        vehiculo_id=data.get('vehiculo'),
+                        fecha_inicio=folio.fecha_inicio_contrato,
+                        fecha_fin=folio.fecha_termino_contrato,  # puede ser null
                     )
 
                 contrato = ContratoTrabajador.objects.create(
@@ -491,7 +498,28 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                     fecha_termino_contrato=folio.fecha_termino_contrato,
                 )
                 logger.debug(f'PersonalTrabajadoresMobileAPIView POST: contrato {contrato.id} creado')
-
+                if horario:
+                    from ..models import ContratoHorarioSnapshot
+                    dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+                    horas_por_dia = {}
+                    for i, dia in enumerate(dias):
+                        inicio = getattr(horario, f'{dia}_inicio', None)
+                        fin = getattr(horario, f'{dia}_fin', None)
+                        colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
+                        if inicio and fin:
+                            from datetime import datetime
+                            mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
+                            horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
+                        else:
+                            horas_por_dia[str(i)] = 0.0
+                    ContratoHorarioSnapshot.objects.update_or_create(
+                        contrato=contrato,
+                        defaults={
+                            'trabajador': personal,
+                            'holding_id': data.get('holding'),
+                            'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
+                        }
+                    )
                 fecha_asistencia = personal.fecha_ingreso if personal.fecha_ingreso else timezone.now().date()
                 horas_dia = self.calcular_horas_dia(horario, fecha_asistencia) if horario else 9.0
 

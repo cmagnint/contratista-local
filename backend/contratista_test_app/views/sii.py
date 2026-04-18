@@ -66,8 +66,8 @@ from ..serializers import (
     ValidarDistribucionSerializer,
     CuentaSerializer,
 )
-from ..tasks import procesar_configuracion_automatica
-from ..browser_session_manager import BrowserSessionManager
+from ..services.tasks import procesar_configuracion_automatica
+from ..services.browser_session_manager import BrowserSessionManager
 
 logger = logging.getLogger('contratista_test_app')
 
@@ -1569,7 +1569,7 @@ class FacturasCompraAutomaticoAPIView(BaseAPIView):
             )
             
             # Ejecutar búsqueda de PDFs específica
-            from ..tasks import buscar_pdfs_facturas_existentes
+            from ..services.tasks import buscar_pdfs_facturas_existentes
             task_result = buscar_pdfs_facturas_existentes.delay(holding_id)
             
             return Response({
@@ -1647,7 +1647,7 @@ class FacturasCompraAutomaticoAPIView(BaseAPIView):
                 }, status=status.HTTP_200_OK)
             
             # Ejecutar búsqueda de PDFs en background
-            from ..tasks import buscar_pdfs_facturas_existentes
+            from ..services.tasks import buscar_pdfs_facturas_existentes
             task_result = buscar_pdfs_facturas_existentes.delay(holding_id)
             
             return Response({
@@ -2185,7 +2185,7 @@ class FacturasCompraAutomaticoAPIView(BaseAPIView):
             
             # Ejecutar búsqueda de PDFs en segundo plano
             try:
-                from ..tasks import buscar_pdfs_facturas_existentes
+                from ..services.tasks import buscar_pdfs_facturas_existentes
                 
                 # Ejecutar tarea
                 buscar_pdfs_facturas_existentes.delay(holding_id)
@@ -2206,7 +2206,7 @@ class FacturasCompraAutomaticoAPIView(BaseAPIView):
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
                 # Procesar sincrónicamente
-                from ..tasks import buscar_pdfs_facturas_existentes_sync
+                from ..services.tasks import buscar_pdfs_facturas_existentes_sync
                 resultado = buscar_pdfs_facturas_existentes_sync(holding_id)
                 
                 return Response({
@@ -5179,7 +5179,7 @@ class FacturasVentaAutomaticoAPIView(BaseAPIView):
             )
             
             # Ejecutar búsqueda de PDFs específica
-            from ..tasks import buscar_pdfs_facturas_venta_existentes
+            from ..services.tasks import buscar_pdfs_facturas_venta_existentes
             task_result = buscar_pdfs_facturas_venta_existentes.delay(holding_id)
             
             return Response({
@@ -5256,7 +5256,7 @@ class FacturasVentaAutomaticoAPIView(BaseAPIView):
                 }, status=status.HTTP_200_OK)
             
             # Ejecutar búsqueda de PDFs en background
-            from ..tasks import buscar_pdfs_facturas_venta_existentes
+            from ..services.tasks import buscar_pdfs_facturas_venta_existentes
             task_result = buscar_pdfs_facturas_venta_existentes.delay(holding_id)
             
             return Response({
@@ -5482,7 +5482,7 @@ class FacturasVentaAutomaticoAPIView(BaseAPIView):
                 )
             
             # Ejecutar proceso en background
-            from ..tasks import procesar_configuracion_venta_automatica
+            from ..services.tasks import procesar_configuracion_venta_automatica
             task_result = procesar_configuracion_venta_automatica.delay(configuracion.id)
             
             return Response({

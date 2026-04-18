@@ -11,8 +11,7 @@ class IngresoRetroactivoScreen extends StatefulWidget {
   final List<Trabajador> trabajadores;
   final List<UnidadControl> unidadesControl;
   final String cliente;
-  final String labor;
-  final int laborId;
+  final List<Map<String, dynamic>> labores;
   final int folioId;
   final DateTime fecha;
 
@@ -21,8 +20,7 @@ class IngresoRetroactivoScreen extends StatefulWidget {
     required this.trabajadores,
     required this.unidadesControl,
     required this.cliente,
-    required this.labor,
-    required this.laborId,
+    required this.labores,
     required this.folioId,
     required this.fecha,
   });
@@ -35,6 +33,7 @@ class IngresoRetroactivoScreen extends StatefulWidget {
 class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
   ApiService apiService = ApiService();
   UnidadControl? selectedUnidadControl;
+  Map<String, dynamic>? selectedLabor;
   Map<int, bool> selectedTrabajadores = {};
   List<TextEditingController> horasControllers = [];
   List<TextEditingController> produccionControllers = [];
@@ -178,7 +177,7 @@ class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
           'sociedad': widget.trabajadores[i].sociedad,
           'supervisor': userInfo.idSupervisor,
           'folio': widget.folioId,
-          'labor': widget.laborId,
+          'labor': selectedLabor!['id'],
           'unidad_control': selectedUnidadControlId,
           'trabajador': widget.trabajadores[i].id,
           'produccion': produccion,
@@ -204,6 +203,11 @@ class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
   }
 
   bool validarCampos() {
+    if (selectedLabor == null) {
+      _mostrarError('Seleccione una labor');
+      return false;
+    }
+
     if (selectedUnidadControl == null) {
       _mostrarError('Seleccione una unidad de control');
       return false;
@@ -262,6 +266,61 @@ class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
     );
   }
 
+  void _showLaborDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width * 0.05,
+            vertical: MediaQuery.of(context).size.height * 0.03,
+          ),
+          child: Column(
+            children: [
+              AppBar(
+                title: const Text(
+                  "SELECCIONE LABOR",
+                  style: TextStyle(color: Colors.white),
+                ),
+                automaticallyImplyLeading: false,
+                backgroundColor: const Color.fromARGB(255, 180, 60, 0),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: widget.labores.length,
+                  itemBuilder: (context, index) {
+                    final labor = widget.labores[index];
+                    return InkWell(
+                      onTap: () {
+                        setState(() => selectedLabor = labor);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.black, width: 1),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 16,
+                        ),
+                        child: Text(
+                          labor['nombre'],
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((_) => setState(() {}));
+  }
+
   void _showUnidadControlDialog() {
     String searchQuery = '';
     List<UnidadControl> sortedUnidades = List.from(widget.unidadesControl)
@@ -295,7 +354,7 @@ class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
                       style: TextStyle(color: Colors.white),
                     ),
                     automaticallyImplyLeading: false,
-                    backgroundColor: const Color.fromARGB(255, 6, 62, 107),
+                    backgroundColor: const Color.fromARGB(255, 180, 60, 0),
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -420,7 +479,6 @@ class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
         ),
         child: Column(
           children: [
-            // Badge retroactivo
             Container(
               width: double.infinity,
               color: const Color.fromARGB(255, 180, 60, 0),
@@ -446,7 +504,11 @@ class IngresoRetroactivoScreenState extends State<IngresoRetroactivoScreen> {
               ),
             ),
             _buildInfoContainer('CLIENTE', widget.cliente),
-            _buildInfoContainer('LABOR', widget.labor),
+            _buildSelectionContainer(
+              'LABOR',
+              selectedLabor?['nombre'],
+              _showLaborDialog,
+            ),
             _buildSelectionContainer(
               'UNIDAD DE CONTROL',
               selectedUnidadControl?.descripcion,

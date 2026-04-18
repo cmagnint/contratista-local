@@ -37,7 +37,6 @@ from ..serializers import (
 
 logger = logging.getLogger('contratista_test_app')
 
-
 # ==============================================================================
 # HOLDING
 # ==============================================================================
@@ -245,7 +244,6 @@ class HoldingAPIView(BaseAPIView):
 
         logger.debug(f'_crear_modulos_defecto: completado para holding {holding.id}')
 
-
 # ==============================================================================
 # SOCIEDAD
 # ==============================================================================
@@ -329,6 +327,9 @@ class SociedadAPIView(BaseAPIView):
             status=status.HTTP_200_OK
         )
 
+# ==============================================================================
+# SOCIEDAD DETAIL
+# ==============================================================================
 
 class SociedadDetailAPIView(BaseAPIView):
 
@@ -351,6 +352,9 @@ class SociedadDetailAPIView(BaseAPIView):
         logger.error(f'SociedadDetailAPIView PATCH: datos inválidos: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# ==============================================================================
+# SOCIEDAD USUARIOS
+# ==============================================================================
 
 class SociedadesUsuarioAPIView(BaseAPIView):
     required_scopes = ['admin', 'write', 'read']
@@ -370,7 +374,6 @@ class SociedadesUsuarioAPIView(BaseAPIView):
             for s in usuario.empresas_asignadas.all()
         ]
         return Response({'usuario_id': usuario_id, 'sociedades': sociedades_data}, status=status.HTTP_200_OK)
-
 
 # ==============================================================================
 # ADMIN (USUARIOS ADMINISTRADORES)
@@ -550,7 +553,6 @@ class AdminAPIView(BaseAPIView):
             status=status.HTTP_200_OK
         )
 
-
 # ==============================================================================
 # MÓDULOS WEB / MÓVIL
 # ==============================================================================
@@ -581,7 +583,6 @@ class SubModulosMovilAPIView(BaseAPIView):
     def get(self, request, holding_id):
         submodulos = SubModulosMovil.objects.filter(holding_id=holding_id)
         return Response(SubModulosMovilSerializer(submodulos, many=True).data, status=status.HTTP_200_OK)
-
 
 # ==============================================================================
 # PERFILES
@@ -696,6 +697,10 @@ class PerfilesAPIView(BaseAPIView):
             logger.error(f'PerfilesAPIView DELETE: perfil no encontrado en holding {holding_id}')
             return Response({'error': 'Perfil no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
+# ==============================================================================
+# AREA ADMINISTRACION
+# ==============================================================================
+
 class AreaAdministracionAPIView(BaseAPIView):
     
     def get(self, request, format=None):
@@ -751,6 +756,10 @@ class AreaAdministracionAPIView(BaseAPIView):
             return Response(serializer.data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# ==============================================================================
+# CARGO ADMINISTRACION
+# ==============================================================================
 
 class CargoAdministracionAPIView(BaseAPIView):
     
