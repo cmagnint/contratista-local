@@ -458,6 +458,11 @@ seleccionarSociedad(sociedad: { id: number; nombre: string }): void {
     this.leftSidenav.close();
   }
 
+  navigateToInformeCasas() {
+    this.router.navigate(['/fs/inf-casas']);
+    this.leftSidenav.close();
+  }
+
   navigateToHorario() {
     this.router.navigate(['/fs/r-h-horarios']);
     this.leftSidenav.close();

@@ -207,8 +207,13 @@
           <ul class="sub-menu-list" [class.show]="isGroupOpen('parametrosSubGroupRH')">
             
             <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CASAS')" (click)="navigateToCasas()">
-              <mat-icon>house</mat-icon>
+              <mat-icon>receipt</mat-icon>
               <span class="icon-label">Casas</span>
+            </li>
+
+            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CASAS')" (click)="navigateToInformeCasas()">
+              <mat-icon>house</mat-icon>
+              <span class="icon-label">Informe Casas</span>
             </li>
             
             <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'HORARIOS')" (click)="navigateToHorario()">

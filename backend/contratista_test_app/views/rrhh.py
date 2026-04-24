@@ -4,7 +4,6 @@ import io
 import logging
 import os
 import tempfile
-import traceback
 import zipfile
 import zoneinfo
 from collections import defaultdict
@@ -14,7 +13,7 @@ from io import BytesIO
 from math import floor
 
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Q, Sum
+from django.db.models import  Q, Sum
 from django.http import HttpResponse
 from django.utils import timezone
 from reportlab.lib import colors
@@ -36,7 +35,6 @@ from ..models import (
     ContratoTrabajador,
     Descuentos,
     DiasTrabajadosAprobados,
-    FolioComercial,
     Haberes,
     HoraExtraordinaria,
     LicenciaMedica,
@@ -53,6 +51,7 @@ from ..models import (
     TrabajadorHaber,
     UnidadControl,
     Vacaciones,
+    RegistroCasaTrabajador,
 )
 from ..serializers import (
     AFPTrabajadoresSerializer,
@@ -64,6 +63,7 @@ from ..serializers import (
     PersonalConAsignacionesSerializer,
     RegistroManoObraPersonaSerializer,
     SaludTrabajadoresSerializer,
+    FolioComercialLabor,
 )
 
 logger = logging.getLogger('contratista_test_app')
@@ -195,7 +195,72 @@ class CasasTrabajadoresAPIView(BaseAPIView):
         logger.error(f'CasasTrabajadoresAPIView PUT: datos inválidos: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# ==============================================================================
+# INFORME CASAS TRABAJADORES
+# ==============================================================================
 
+class InformeCasasAPIView(BaseAPIView):
+    def get(self, request, format=None):
+        holding_id = request.query_params.get('holding')
+        fecha = request.query_params.get('fecha')  # YYYY-MM-DD opcional
+
+        if not holding_id:
+            return Response({'message': 'holding requerido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.utils import timezone
+        if not fecha:
+            fecha = timezone.now().date()
+
+        registros = RegistroCasaTrabajador.objects.filter(
+            holding_id=holding_id,
+            fecha_inicio__lte=fecha,
+        ).filter(
+            Q(fecha_fin__gte=fecha) | Q(fecha_fin__isnull=True)
+        ).select_related('trabajador', 'casa')
+
+        casas = CasasTrabajadores.objects.filter(holding_id=holding_id, estado=True)
+
+        data = []
+        for casa in casas:
+            ocupantes = [
+                {
+                    'id': r.trabajador.id,
+                    'nombres': r.trabajador.nombres,
+                    'apellidos': r.trabajador.apellidos,
+                    'rut': r.trabajador.rut,
+                    'fecha_inicio': r.fecha_inicio,
+                    'fecha_fin': r.fecha_fin,
+                }
+                for r in registros if r.casa_id == casa.id
+            ]
+            data.append({
+                'casa_id': casa.id,
+                'casa_nombre': casa.nombre,
+                'total': len(ocupantes),
+                'ocupantes': ocupantes,
+            })
+
+        sin_casa = [
+            {
+                'id': r.trabajador.id,
+                'nombres': r.trabajador.nombres,
+                'apellidos': r.trabajador.apellidos,
+                'rut': r.trabajador.rut,
+                'fecha_inicio': r.fecha_inicio,
+                'fecha_fin': r.fecha_fin,
+            }
+            for r in registros if r.casa_id is None
+        ]
+        if sin_casa:
+            data.append({
+                'casa_id': None,
+                'casa_nombre': 'Sin casa',
+                'total': len(sin_casa),
+                'ocupantes': sin_casa,
+            })
+
+        return Response({'fecha': fecha, 'casas': data})
+    
 # ==============================================================================
 # INFORME DÍAS TRABAJADOS
 # ==============================================================================
@@ -1915,7 +1980,7 @@ class GestionManoObraPersonaAPIView(BaseAPIView):
 
             try:
                 contrato = ContratoTrabajador.objects.select_related(
-                    'folio_comercial__cliente', 'labor', 'fundo'
+                    'folio_comercial__cliente', 'fundo'
                 ).get(
                     trabajador=primer_trabajador, holding=holding,
                     fecha_inicio_contrato__lte=hoy, fecha_termino_contrato__gte=hoy
@@ -1925,15 +1990,13 @@ class GestionManoObraPersonaAPIView(BaseAPIView):
                 return Response({'error': 'El trabajador no tiene un contrato activo'}, status=status.HTTP_404_NOT_FOUND)
 
             folio = contrato.folio_comercial
-            labor = contrato.labor
 
             if not folio:
                 return Response({'error': 'El contrato no tiene folio asociado'}, status=status.HTTP_404_NOT_FOUND)
 
-            if not labor:
-                labor = folio.labores.first()
-                if not labor:
-                    return Response({'error': 'El contrato y el folio no tienen labor asociada'}, status=status.HTTP_404_NOT_FOUND)
+            labores = FolioComercialLabor.objects.filter(folio=folio).select_related('labor')
+            if not labores.exists():
+                return Response({'error': 'El folio no tiene labores asociadas'}, status=status.HTTP_404_NOT_FOUND)
 
             trabajadores = []
             for asistencia in asistencias:
@@ -1971,8 +2034,13 @@ class GestionManoObraPersonaAPIView(BaseAPIView):
 
             return Response({
                 'trabajadores': trabajadores,
-                'folio': {'id': folio.id, 'cliente': folio.cliente.nombre if folio.cliente else 'Sin cliente', 'fecha_inicio': folio.fecha_inicio_contrato, 'fecha_termino': folio.fecha_termino_contrato},
-                'labor': {'id': labor.id, 'nombre': labor.nombre},
+                'folio': {
+                    'id': folio.id,
+                    'cliente': folio.cliente.nombre if folio.cliente else 'Sin cliente',
+                    'fecha_inicio': folio.fecha_inicio_contrato,
+                    'fecha_termino': folio.fecha_termino_contrato
+                },
+                'labores': [{'id': fl.labor.id, 'nombre': fl.labor.nombre} for fl in labores],
                 'unidades_control': [{'id': u.id, 'descripcion': u.nombre} for u in unidades],
                 'supervisor_id': int(supervisor_id),
             }, status=status.HTTP_200_OK)
@@ -2135,7 +2203,7 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
             primer_trabajador = asistencias.first().trabajador
 
             contrato = ContratoTrabajador.objects.select_related(
-                'folio_comercial__cliente', 'labor', 'fundo'
+                'folio_comercial__cliente', 'fundo'
             ).filter(
                 trabajador=primer_trabajador, holding=holding,
                 fecha_inicio_contrato__lte=fecha, fecha_termino_contrato__gte=fecha
@@ -2146,12 +2214,13 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
                 return Response({'error': 'El trabajador no tiene un contrato activo para esa fecha'}, status=status.HTTP_404_NOT_FOUND)
 
             folio = contrato.folio_comercial
-            labor = contrato.labor or (folio.labores.first() if folio else None)
 
             if not folio:
                 return Response({'error': 'El contrato no tiene folio asociado'}, status=status.HTTP_404_NOT_FOUND)
-            if not labor:
-                return Response({'error': 'El contrato y el folio no tienen labor asociada'}, status=status.HTTP_404_NOT_FOUND)
+
+            labores = FolioComercialLabor.objects.filter(folio=folio).select_related('labor')
+            if not labores.exists():
+                return Response({'error': 'El folio no tiene labores asociadas'}, status=status.HTTP_404_NOT_FOUND)
 
             trabajadores = []
             for asistencia in asistencias:
@@ -2190,15 +2259,20 @@ class GestionRetroactivaManoObraPersonaAPIView(BaseAPIView):
 
             return Response({
                 'trabajadores': trabajadores,
-                'folio': {'id': folio.id, 'cliente': folio.cliente.nombre if folio.cliente else 'Sin cliente'},
-                'labor': {'id': labor.id, 'nombre': labor.nombre},
+                'folio': {
+                    'id': folio.id,
+                    'cliente': folio.cliente.nombre if folio.cliente else 'Sin cliente'
+                },
+                'labores': [{'id': fl.labor.id, 'nombre': fl.labor.nombre} for fl in labores],
                 'unidades_control': [{'id': u.id, 'descripcion': u.nombre} for u in unidades],
                 'supervisor_id': int(supervisor_id),
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
+            logger.debug('Error: ', e)
             logger.error(f'GestionRetroactivaManoObraPersonaAPIView GET: error: {e}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def post(self, request):
         try:
             data = request.data.copy()
@@ -2280,16 +2354,18 @@ class GestionRetroactivaAsistenciaAPIView(BaseAPIView):
             try:
                 fecha_consulta = datetime.strptime(fecha_str, '%Y-%m-%d').date()
             except ValueError:
+                logger.error(f'Fecha con formato inválido: {fecha_str}')
                 return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
 
             hoy = timezone.now().astimezone(zoneinfo.ZoneInfo('America/Santiago')).date()
             if fecha_consulta >= hoy:
+                logger.error(f'Fecha no permitida: {fecha_consulta} (debe ser anterior a hoy {hoy})')
                 return Response({'error': 'La fecha debe ser anterior al día de hoy', 'acceso_asistencia': False}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 supervisor = Supervisores.objects.select_related('usuario', 'holding').get(id=supervisor_id, holding_id=holding_id)
             except Supervisores.DoesNotExist:
-                logger.error(f'GestionRetroactivaAsistenciaAPIView GET: supervisor {supervisor_id} no encontrado')
+                logger.error(f'Supervisor id={supervisor_id} no encontrado en holding id={holding_id}')
                 return Response({'error': 'Supervisor no encontrado', 'acceso_asistencia': False}, status=status.HTTP_404_NOT_FOUND)
 
             ids_en_fecha = SupervisorTrabajadorHistorial.objects.filter(
@@ -2326,7 +2402,7 @@ class GestionRetroactivaAsistenciaAPIView(BaseAPIView):
                         'horas_maximas': horas_maximas - horas_reg,
                     })
                 except Exception as e:
-                    logger.error(f'GestionRetroactivaAsistenciaAPIView GET: error procesando trabajador {trabajador.id}: {e}')
+                    logger.error(f'Error procesando trabajador id={trabajador.id}: {e}')
                     continue
 
             return Response({
@@ -2338,7 +2414,7 @@ class GestionRetroactivaAsistenciaAPIView(BaseAPIView):
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.error(f'GestionRetroactivaAsistenciaAPIView GET: error: {e}', exc_info=True)
+            logger.error(f'Error inesperado en GestionRetroactivaAsistencia: {e}', exc_info=True)
             return Response({'error': str(e), 'acceso_asistencia': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):

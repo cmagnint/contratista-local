@@ -9,15 +9,22 @@ interface Cliente { id: number; nombre: string; campos_clientes: any[]; }
 interface Fundo { id: number; nombre_campo: string; }
 interface Cargo { id: number; nombre: string; }
 interface Casa { id: number; nombre: string; }
+
 interface Produccion {
     id: number;
+    registro_ids: number[];
+    trabajador_id: number;
     trabajador_nombre: string;
+    trabajador_apellidos: string;
     trabajador_rut: string;
+    trabajador_dni: string;
     montos_a_pagar: number[];
     monto_total: number;
     monto_redondeado?: number;
     saldo?: number;
+    pagado: boolean;
 }
+
 interface MultiploPago { valor: number; etiqueta: string; }
 
 @Component({
@@ -34,22 +41,25 @@ export class PagoEfectivoComponent implements OnInit {
     fundos: Fundo[] = [];
     cargos: Cargo[] = [];
     casas: Casa[] = [];
-    produccionesPendientes: Produccion[] = [];
+
+    produccionesPagadas: Produccion[] = [];
+    produccionesNoPagadas: Produccion[] = [];
 
     sociedadSeleccionada: Sociedad | null = null;
     cuentaSeleccionada: Cuenta | null = null;
 
-    // Selecciones múltiples
     clientesSeleccionados: number[] = [];
     fundosSeleccionados: number[] = [];
     cargosSeleccionados: number[] = [];
     casasSeleccionadas: number[] = [];
 
-    // Control dropdowns abiertos
     dropdownAbierto: string | null = null;
 
     fechaInicio: string = '';
     fechaFin: string = '';
+
+    totalPagado: number = 0;
+    totalNoPagado: number = 0;
     totalGeneral: number = 0;
 
     multiplosDisponibles: MultiploPago[] = [
@@ -140,7 +150,7 @@ export class PagoEfectivoComponent implements OnInit {
         }
     }
 
-    // ---- Helpers selección múltiple ----
+    // ---- Multi-select helpers ----
 
     toggleItem(lista: number[], id: number) {
         const idx = lista.indexOf(id);
@@ -180,7 +190,6 @@ export class PagoEfectivoComponent implements OnInit {
 
     onClienteToggle(id: number) {
         this.toggleItem(this.clientesSeleccionados, id);
-        // Reconstruir fundos disponibles
         this.fundos = [];
         this.fundosSeleccionados = [];
         this.clientesSeleccionados.forEach(clienteId => {
@@ -203,6 +212,8 @@ export class PagoEfectivoComponent implements OnInit {
         }
     }
 
+    // ---- Búsqueda ----
+
     buscarProducciones() {
         if (!this.fechaInicio || !this.fechaFin) {
             alert('Por favor seleccione un rango de fechas');
@@ -219,47 +230,54 @@ export class PagoEfectivoComponent implements OnInit {
 
         if (this.clientesSeleccionados.length > 0 && this.clientesSeleccionados.length < this.clientes.length)
             url += `&cliente_ids=${this.clientesSeleccionados.join(',')}`;
-
         if (this.fundosSeleccionados.length > 0 && this.fundosSeleccionados.length < this.fundos.length)
             url += `&fundo_ids=${this.fundosSeleccionados.join(',')}`;
-
         if (this.cargosSeleccionados.length > 0 && this.cargosSeleccionados.length < this.cargos.length)
             url += `&cargo_ids=${this.cargosSeleccionados.join(',')}`;
-
         if (this.casasSeleccionadas.length > 0 && this.casasSeleccionadas.length < this.casas.length)
             url += `&casa_ids=${this.casasSeleccionadas.join(',')}`;
 
         this.apiService.get(url).subscribe({
             next: (data) => {
-                const produccionesAgrupadas = new Map<string, Produccion>();
+                const mapa = new Map<number, Produccion>();
 
                 data.forEach((prod: any) => {
-                    const key = prod.trabajador_rut;
-                    if (produccionesAgrupadas.has(key)) {
-                        const existing = produccionesAgrupadas.get(key)!;
-                        existing.montos_a_pagar.push(prod.monto_a_pagar);
-                        existing.monto_total += prod.monto_a_pagar;
+                    const key = prod.trabajador_id;
+                    if (mapa.has(key)) {
+                        const ex = mapa.get(key)!;
+                        ex.registro_ids.push(prod.id);
+                        ex.montos_a_pagar.push(prod.monto_a_pagar);
+                        ex.monto_total += prod.monto_a_pagar;
+                        if (prod.pagado) ex.pagado = true;
                     } else {
-                        produccionesAgrupadas.set(key, {
+                        const nombreCompleto = `${prod.trabajador_nombre || ''} ${prod.trabajador_apellidos || ''}`.trim();
+                        mapa.set(key, {
                             id: prod.id,
-                            trabajador_nombre: prod.trabajador_nombre,
-                            trabajador_rut: prod.trabajador_rut,
+                            registro_ids: [prod.id],
+                            trabajador_id: prod.trabajador_id,
+                            trabajador_nombre: nombreCompleto,
+                            trabajador_apellidos: prod.trabajador_apellidos,
+                            trabajador_rut: prod.trabajador_rut || '-',
+                            trabajador_dni: prod.trabajador_dni || '-',
                             montos_a_pagar: [prod.monto_a_pagar],
-                            monto_total: prod.monto_a_pagar
+                            monto_total: prod.monto_a_pagar,
+                            pagado: !!prod.pagado
                         });
                     }
                 });
 
-                this.produccionesPendientes = Array.from(produccionesAgrupadas.values())
-                    .map(prod => {
-                        const monto_redondeado = Math.floor(prod.monto_total / this.multiploSeleccionado) * this.multiploSeleccionado;
-                        const saldo = prod.monto_total - monto_redondeado;
-                        return { ...prod, monto_redondeado, saldo };
-                    });
+                const lista = Array.from(mapa.values()).map(prod => {
+                    const monto_redondeado = Math.floor(prod.monto_total / this.multiploSeleccionado) * this.multiploSeleccionado;
+                    const saldo = prod.monto_total - monto_redondeado;
+                    return { ...prod, monto_redondeado, saldo };
+                });
 
-                this.totalGeneral = this.produccionesPendientes.reduce(
-                    (sum, prod) => sum + (prod.monto_redondeado || 0), 0
-                );
+                this.produccionesPagadas = lista.filter(p => p.pagado);
+                this.produccionesNoPagadas = lista.filter(p => !p.pagado);
+
+                this.totalPagado = this.produccionesPagadas.reduce((s, p) => s + (p.monto_redondeado || 0), 0);
+                this.totalNoPagado = this.produccionesNoPagadas.reduce((s, p) => s + (p.monto_redondeado || 0), 0);
+                this.totalGeneral = this.totalPagado + this.totalNoPagado;
             },
             error: (error) => {
                 console.error('Error al buscar producciones:', error);
@@ -268,9 +286,11 @@ export class PagoEfectivoComponent implements OnInit {
         });
     }
 
+    // ---- Procesar pago ----
+
     procesarPago() {
         if (!this.sociedadSeleccionada || !this.cuentaSeleccionada ||
-            !this.produccionesPendientes.length || !this.multiploSeleccionado) {
+            !this.produccionesNoPagadas.length || !this.multiploSeleccionado) {
             alert('No hay datos suficientes para procesar el pago');
             return;
         }
@@ -281,8 +301,8 @@ export class PagoEfectivoComponent implements OnInit {
             return;
         }
 
-        const pagos = this.produccionesPendientes.map(prod => ({
-            produccion_id: prod.id,
+        const pagos = this.produccionesNoPagadas.map(prod => ({
+            registro_ids: prod.registro_ids,
             monto_pagado: prod.monto_redondeado,
             saldo: prod.saldo
         }));
@@ -299,7 +319,6 @@ export class PagoEfectivoComponent implements OnInit {
             next: () => {
                 alert('Pago procesado correctamente');
                 this.buscarProducciones();
-                this.multiploSeleccionado = 5000;
             },
             error: (error) => {
                 console.error('Error al procesar el pago:', error);
@@ -307,6 +326,8 @@ export class PagoEfectivoComponent implements OnInit {
             }
         });
     }
+
+    // ---- PDF ----
 
     generarPlanillaPDF() {
         if (!this.fechaInicio || !this.fechaFin || !this.multiploSeleccionado) {
@@ -334,14 +355,14 @@ export class PagoEfectivoComponent implements OnInit {
         this.apiService.getPDF(url).subscribe({
             next: (response: any) => {
                 const blob = new Blob([response], { type: 'application/pdf' });
-                const url = window.URL.createObjectURL(blob);
+                const blobUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 const fecha = new Date().toISOString().slice(0, 10);
-                a.href = url;
+                a.href = blobUrl;
                 a.download = `planilla_efectivo_${fecha}.pdf`;
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+                window.URL.revokeObjectURL(blobUrl);
                 document.body.removeChild(a);
             },
             error: (error: any) => {
@@ -349,5 +370,9 @@ export class PagoEfectivoComponent implements OnInit {
                 alert('Error al generar la planilla PDF');
             }
         });
+    }
+
+    hayResultados(): boolean {
+        return this.produccionesPagadas.length > 0 || this.produccionesNoPagadas.length > 0;
     }
 }

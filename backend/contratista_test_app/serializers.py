@@ -1,3 +1,4 @@
+#contratista-local
 from rest_framework import serializers
 from datetime import date
 from datetime import datetime
@@ -1072,49 +1073,37 @@ class PersonalTrabajadoresSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
     
 class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
-    """
-    Serializer para la creación de trabajadores desde móviles.
-    """
-    carnet_front_image = serializers.ImageField(required=False, allow_null=True)
-    carnet_back_image = serializers.ImageField(required=False, allow_null=True)
+    carnet_front_image = serializers.ImageField(required=False, allow_null=True, default=None)
+    carnet_back_image = serializers.ImageField(required=False, allow_null=True, default=None)
     firma = serializers.ImageField(required=False, allow_null=True)
-    huella_digital = serializers.ImageField(required=False, allow_null=True)  # ✅ NUEVO
+    huella_digital = serializers.ImageField(required=False, allow_null=True)
 
-    
     rut = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     dni = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     nic = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    
+
     class Meta:
         model = PersonalTrabajadores
         fields = [
-            'id', 'holding', 'sociedad', 'area', 'cargo', 
+            'id', 'holding', 'sociedad', 'area', 'cargo',
             'afp', 'salud', 'banco',
-            
-            'nombres', 'apellidos', 'rut', 'dni', 'nic', 
-            'nacionalidad', 'sexo', 'estado_civil', 'telefono', 
+            'nombres', 'apellidos', 'rut', 'dni', 'nic',
+            'nacionalidad', 'sexo', 'estado_civil', 'telefono',
             'correo', 'direccion', 'fecha_nacimiento',
-            
             'fecha_ingreso',
-            
             'metodo_pago', 'tipo_cuenta_bancaria', 'numero_cuenta',
-            
-            'carnet_front_image', 'carnet_back_image', 'firma','huella_digital',
-            
-            'estado', 'sueldo_base','area', 'cargo'  
+            'carnet_front_image', 'carnet_back_image', 'firma', 'huella_digital',
+            'estado', 'sueldo_base', 'area', 'cargo'
         ]
-        
         extra_kwargs = {
             'id': {'read_only': True},
             'holding': {'write_only': True},
-            
             'sociedad': {'required': False, 'allow_null': True},
             'area': {'required': False, 'allow_null': True},
             'cargo': {'required': False, 'allow_null': True},
             'afp': {'required': False, 'allow_null': True},
             'salud': {'required': False, 'allow_null': True},
             'banco': {'required': False, 'allow_null': True},
-            
             'apellidos': {'required': False, 'allow_blank': True},
             'nacionalidad': {'required': False, 'allow_blank': True},
             'sexo': {'required': False, 'allow_blank': True},
@@ -1124,60 +1113,64 @@ class PersonalTrabajadoresMobileSerializer(serializers.ModelSerializer):
             'direccion': {'required': False, 'allow_blank': True},
             'metodo_pago': {'required': False, 'allow_blank': True},
             'tipo_cuenta_bancaria': {'required': False, 'allow_blank': True},
-            
             'fecha_nacimiento': {'required': False, 'allow_null': True},
             'fecha_ingreso': {'required': False, 'allow_null': True},
-            
             'numero_cuenta': {'required': False, 'allow_null': True},
             'sueldo_base': {'required': False, 'allow_null': True},
             'estado': {'default': True},
         }
-    
+
     def to_internal_value(self, data):
         valid_fields = set(self.Meta.fields)
         filtered_data = {}
         ignored_fields = []
-        
+
         for key, value in data.items():
             if key in valid_fields:
                 if key in ['numero_cuenta'] and value in ('', 'null', 'undefined', None):
                     filtered_data[key] = None
+                # ✅ Si carnet viene como string (no archivo), ignorarlo
+                elif key in ['carnet_front_image', 'carnet_back_image', 'firma', 'huella_digital']:
+                    if isinstance(value, str):
+                        # Es string base64 o vacío, no un archivo — ignorar
+                        ignored_fields.append(f"{key}=<string, ignorado>")
+                        continue
+                    else:
+                        filtered_data[key] = value
                 else:
                     filtered_data[key] = value
             else:
                 ignored_fields.append(f"{key}={value}")
-        
+
         if ignored_fields:
             print(f"[DEBUG] Campos ignorados: {', '.join(ignored_fields)}")
-        
+
         return super().to_internal_value(filtered_data)
-    
+
     def validate(self, data):
         rut = data.get('rut', '').strip() if data.get('rut') else ''
         dni = data.get('dni', '').strip() if data.get('dni') else ''
-        
+
         if not rut and not dni:
             raise serializers.ValidationError(
                 "Debe proporcionar RUT (para chilenos) o DNI (para extranjeros)"
             )
-        
+
         nombres = data.get('nombres', '').strip() if data.get('nombres') else ''
-        
         if not nombres:
             raise serializers.ValidationError("Los nombres son obligatorios")
-            
+
         return data
-    
+
     def create(self, validated_data):
         return PersonalTrabajadores.objects.create(**validated_data)
-    
+
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         return instance
     
-
 class UnidadControlSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -3499,20 +3492,26 @@ class FiltrosPagoEfectivoSerializer(serializers.ModelSerializer):
     cliente = serializers.SerializerMethodField()
     fundo = serializers.SerializerMethodField()
     trabajador_nombre = serializers.CharField(source='trabajador.nombres')
-    trabajador_rut = serializers.CharField(source='trabajador.rut')
+    trabajador_apellidos = serializers.CharField(source='trabajador.apellidos', allow_null=True, default='')
+    trabajador_id = serializers.IntegerField(source='trabajador.id')
+    trabajador_rut = serializers.CharField(source='trabajador.rut', allow_null=True)
+    trabajador_dni = serializers.CharField(source='trabajador.dni', allow_null=True)
     trabajador_casa = serializers.SerializerMethodField()
     trabajador_cargo = serializers.CharField(source='trabajador.cargo.nombre', allow_null=True)
     monto_a_pagar = serializers.SerializerMethodField()
     numero_cuenta = serializers.CharField(source='trabajador.numero_cuenta', allow_null=True, default='')
     banco_rut = serializers.CharField(source='trabajador.banco.rut', allow_null=True, default='')
     tipo_cuenta = serializers.CharField(source='trabajador.tipo_cuenta', allow_null=True, default='CTD')
+    pagado = serializers.BooleanField(read_only=True)
+
 
     class Meta:
         model = RegistroManoObraPersona
         fields = [
-            'id', 'cliente', 'fundo', 'trabajador_nombre', 'trabajador_rut',
-            'trabajador_casa', 'trabajador_cargo', 'monto_a_pagar', 'fecha_ingreso',
-            'numero_cuenta', 'banco_rut', 'tipo_cuenta'
+            'id', 'cliente', 'fundo', 'trabajador_id', 'trabajador_nombre', 'trabajador_apellidos',
+            'trabajador_rut', 'trabajador_dni', 'trabajador_casa', 'trabajador_cargo',
+            'monto_a_pagar', 'fecha_ingreso', 'numero_cuenta', 'banco_rut', 'tipo_cuenta',
+            'pagado',
         ]
 
     def get_cliente(self, obj):

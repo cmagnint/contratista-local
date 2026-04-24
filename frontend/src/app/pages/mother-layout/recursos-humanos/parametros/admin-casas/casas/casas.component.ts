@@ -2,7 +2,7 @@
 
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
-import { ContratistaApiService } from '../../../../../services/contratista-api.service';
+import { ContratistaApiService } from '../../../../../../services/contratista-api.service';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';

@@ -20,7 +20,7 @@ import { LaboresComercialComponent } from './pages/mother-layout/comercial/param
 import { UnidadControlComercialComponent } from './pages/mother-layout/comercial/parametros/unidad-control-comercial/unidad-control-comercial.component';
 import { AfpComponent } from './pages/mother-layout/administracion/parametros/afp/afp.component';
 import { SaludComponent } from './pages/mother-layout/administracion/parametros/salud/salud.component';
-import { CasasComponent } from './pages/mother-layout/recursos-humanos/parametros/casas/casas.component';
+import { CasasComponent } from './pages/mother-layout/recursos-humanos/parametros/admin-casas/casas/casas.component';
 import { HorariosComponent } from './pages/mother-layout/recursos-humanos/parametros/horarios/horarios.component';
 import { GenerarQrComponent } from './pages/mother-layout/recursos-humanos/generar-qr/generar-qr.component';
 import { AutoRegistroComponent } from './pages/mother-layout/recursos-humanos/auto-registro/auto-registro.component';
@@ -62,6 +62,7 @@ import { FormatosComponent } from './pages/mother-layout/recursos-humanos/genera
 import { GenerarTxtBancoComponent } from './pages/mother-layout/pagos/generar-txt-banco/generar-txt-banco.component';
 import { EnrolamientoComponent } from './pages/mother-layout/recursos-humanos/enrolamiento/enrolamiento.component';
 import { TraspasoTrabajadoresComponent } from './pages/mother-layout/recursos-humanos/traspaso-trabajadores/traspaso-trabajadores.component';
+import { InformeCasasComponent } from './pages/mother-layout/recursos-humanos/parametros/admin-casas/informe-casas/informe-casas.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -98,6 +99,7 @@ export const routes: Routes = [
       { path: 'r-h-afp', component: AfpComponent },
       { path: 'r-h-salud', component: SaludComponent },
       { path: 'r-h-casas', component: CasasComponent },
+      { path: 'inf-casas', component: InformeCasasComponent },
       { path: 'r-h-horarios', component: HorariosComponent },
       { path: 'generar-qr', component: GenerarQrComponent },
       { path: 'autoregistro-personal', component: AutoRegistroComponent },

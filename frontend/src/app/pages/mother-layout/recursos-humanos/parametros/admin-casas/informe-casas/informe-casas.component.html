@@ -1,0 +1,59 @@
+<div class="contenedor">
+  <header class="cabecera">
+    <h1>Informe de Casas</h1>
+    <div class="resumen">
+      <span><strong>{{ casas.length }}</strong> casas</span>
+      <span><strong>{{ totalPersonas() }}</strong> personas</span>
+    </div>
+  </header>
+
+  <div class="filtros">
+    <div class="campo">
+      <label>Fecha</label>
+      <input type="date" [(ngModel)]="fecha" (change)="cargar()">
+    </div>
+    <div class="campo">
+      <label>Buscar</label>
+      <input type="text" [(ngModel)]="filtro" placeholder="Nombre, RUT o casa...">
+    </div>
+    <button class="btn-csv" (click)="exportarCSV()">Exportar CSV</button>
+  </div>
+
+  <div class="cargando" *ngIf="cargando">Cargando...</div>
+
+  <div class="lista" *ngIf="!cargando">
+    <div class="casa" *ngFor="let casa of casasFiltradas">
+      <div class="casa-header" (click)="toggle(casa.casa_id)">
+        <div class="casa-info">
+          <span class="flecha" [class.abierta]="abierta(casa.casa_id)">▶</span>
+          <strong>{{ casa.casa_nombre }}</strong>
+        </div>
+        <span class="badge">{{ casa.ocupantes.length }}</span>
+      </div>
+
+      <div class="ocupantes" *ngIf="abierta(casa.casa_id)">
+        <table *ngIf="casa.ocupantes.length > 0">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>RUT</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let o of casa.ocupantes">
+              <td>{{ o.nombres }} {{ o.apellidos }}</td>
+              <td>{{ o.rut }}</td>
+              <td>{{ o.fecha_inicio }}</td>
+              <td>{{ o.fecha_fin || 'vigente' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div *ngIf="casa.ocupantes.length === 0" class="vacio">Sin ocupantes</div>
+      </div>
+    </div>
+
+    <div *ngIf="casasFiltradas.length === 0" class="vacio">Sin resultados</div>
+  </div>
+</div>

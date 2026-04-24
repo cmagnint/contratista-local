@@ -27,6 +27,7 @@ from ..models import (
     RegistroCasaTrabajador,
     SupervisorTrabajadorHistorial,
     TrabajadorTransporteHistorial,
+    RegistroManoObraPersona,
 )
 from ..serializers import (
     APKLinkSerializer,
@@ -386,6 +387,10 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
             except (ValueError, TypeError):
                 pass
 
+        for campo in ['rut', 'dni', 'nic', 'banco', 'tipo_cuenta_bancaria', 'numero_cuenta']:
+            if campo in data and data[campo] in ('', 'null', 'undefined'):
+                data[campo] = None
+
         if not data.get('area'):
             return Response({'error': 'El área es obligatoria'}, status=status.HTTP_400_BAD_REQUEST)
         if not data.get('cargo'):
@@ -396,7 +401,9 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
             existing_personal = PersonalTrabajadores.objects.filter(rut=data['rut']).first()
         elif data.get('dni'):
             existing_personal = PersonalTrabajadores.objects.filter(dni=data['dni']).first()
-
+        for campo in ['rut', 'dni', 'nic', 'banco', 'tipo_cuenta_bancaria', 'numero_cuenta']:
+            if campo in data and data[campo] in ('', 'null', 'undefined'):
+                data[campo] = None
         if existing_personal:
             old_front_image = existing_personal.carnet_front_image.name if existing_personal.carnet_front_image else None
             old_back_image = existing_personal.carnet_back_image.name if existing_personal.carnet_back_image else None
@@ -1090,33 +1097,43 @@ class DescargarApkAPIView(PublicAPIView):
 # ==============================================================================
 
 class InformeRendimientoAPIView(BaseAPIView):
-
     def post(self, request):
         try:
-            fecha_inicio = request.data.get('fecha_inicio')
-            fecha_fin = request.data.get('fecha_fin')
-            cliente_id = request.data.get('cliente_id')
-            supervisor_id = request.data.get('supervisor_id')
-            jefe_cuadrilla_id = request.data.get('jefe_cuadrilla_id')
-            labor_id = request.data.get('labor_id')
+            fecha_inicio   = request.data.get('fecha_inicio')
+            fecha_fin      = request.data.get('fecha_fin')
+            cliente_id     = request.data.get('cliente_id')
+            supervisor_id  = request.data.get('supervisor_id')
+            labor_id       = request.data.get('labor_id')
 
-            queryset = ProduccionTrabajador.objects.select_related(
-                'trabajador', 'labor', 'unidad_control'
-            ).all()
+            queryset = RegistroManoObraPersona.objects.select_related(
+                'trabajador', 'labor', 'unidad_control', 'supervisor', 'folio'
+            ).filter(holding_id=request.data.get('holding'))
 
             if fecha_inicio and fecha_fin:
-                queryset = queryset.filter(hora_fecha_ingreso_produccion__range=[fecha_inicio, fecha_fin])
+                queryset = queryset.filter(fecha_ingreso__range=[fecha_inicio, fecha_fin])
             if cliente_id:
                 queryset = queryset.filter(folio__cliente_id=cliente_id)
             if supervisor_id:
-                queryset = queryset.filter(trabajador__supervisor_directo__id=supervisor_id)
-            if jefe_cuadrilla_id:
-                queryset = queryset.filter(trabajador__jefe_cuadrilla__id=jefe_cuadrilla_id)
+                queryset = queryset.filter(supervisor_id=supervisor_id)
             if labor_id:
                 queryset = queryset.filter(labor_id=labor_id)
 
-            return Response(ProduccionTrabajadorReporteSerializer(queryset, many=True).data, status=status.HTTP_200_OK)
+            data = []
+            for r in queryset:
+                data.append({
+                    'nombre_trabajador': f"{r.trabajador.nombres} {r.trabajador.apellidos or ''}".strip() if r.trabajador else 'Sin nombre',
+                    'labor_id':          r.labor_id,
+                    'nombre_labor':      r.labor.nombre if r.labor else 'Sin labor',
+                    'unidad_control_id': r.unidad_control_id,
+                    'nombre_unidad_control': r.unidad_control.nombre if r.unidad_control else 'Sin UC',
+                    'unidades_control':  float(r.produccion),
+                    'horas':             float(r.horas),
+                    'fecha':             str(r.fecha_ingreso),
+                    'supervisor':        r.supervisor.usuario.persona.nombres if r.supervisor and r.supervisor.usuario and r.supervisor.usuario.persona else 'Sin supervisor',
+                })
+
+            return Response(data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.error(f'InformeRendimientoAPIView POST: error: {e}', exc_info=True)
+            logger.error(f'InformeRendimientoAPIView: {e}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

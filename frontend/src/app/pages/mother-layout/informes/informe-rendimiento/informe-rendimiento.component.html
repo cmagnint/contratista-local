@@ -1,73 +1,224 @@
-<div class="container-fluid">
-    <div class="layout-container">
-      <div class="sidebar">
-        <form [formGroup]="filtroForm" (ngSubmit)="buscarDatos()">
-          <h3>Filtros</h3>
-          
-          <mat-form-field>
-            <mat-label>Fecha Inicio</mat-label>
-            <input matInput [matDatepicker]="pickerInicio" formControlName="fecha_inicio">
-            <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
-            <mat-datepicker #pickerInicio></mat-datepicker>
+<div class="informe-container">
+
+  <!-- FILTROS STICKY -->
+  <div class="filtros-fijos">
+    <div class="filtros-section-modern">
+
+      <div class="filtros-header" (click)="filtrosVisible = !filtrosVisible">
+        <h3 class="filtros-title">FILTRAR RENDIMIENTO</h3>
+        <span class="toggle-icon">{{ filtrosVisible ? '▲' : '▼' }}</span>
+      </div>
+
+      <div class="filtros-body" *ngIf="filtrosVisible">
+        <form [formGroup]="filtroForm" class="filtros-grid">
+
+          <mat-form-field appearance="outline" class="filtro-field">
+            <mat-label>Fecha Inicio *</mat-label>
+            <input matInput [matDatepicker]="pi" formControlName="fecha_inicio">
+            <mat-datepicker-toggle matSuffix [for]="pi"></mat-datepicker-toggle>
+            <mat-datepicker #pi></mat-datepicker>
           </mat-form-field>
-  
-          <mat-form-field>
-            <mat-label>Fecha Fin</mat-label>
-            <input matInput [matDatepicker]="pickerFin" formControlName="fecha_fin">
-            <mat-datepicker-toggle matSuffix [for]="pickerFin"></mat-datepicker-toggle>
-            <mat-datepicker #pickerFin></mat-datepicker>
+
+          <mat-form-field appearance="outline" class="filtro-field">
+            <mat-label>Fecha Fin *</mat-label>
+            <input matInput [matDatepicker]="pf" formControlName="fecha_fin">
+            <mat-datepicker-toggle matSuffix [for]="pf"></mat-datepicker-toggle>
+            <mat-datepicker #pf></mat-datepicker>
           </mat-form-field>
-  
-          <mat-form-field>
+
+          <mat-form-field appearance="outline" class="filtro-field">
             <mat-label>Cliente</mat-label>
             <mat-select formControlName="cliente_id">
-              <mat-option [value]="">Todos</mat-option>
-              <mat-option *ngFor="let cliente of clientes" [value]="cliente.id">
-                {{cliente.nombre}}
-              </mat-option>
+              <mat-option value="">Todos</mat-option>
+              <mat-option *ngFor="let c of clientes" [value]="c.id">{{c.nombre}}</mat-option>
             </mat-select>
           </mat-form-field>
-  
-          <mat-form-field>
+
+          <mat-form-field appearance="outline" class="filtro-field">
             <mat-label>Supervisor</mat-label>
             <mat-select formControlName="supervisor_id">
-              <mat-option [value]="">Todos</mat-option>
-              <mat-option *ngFor="let supervisor of supervisores" [value]="supervisor.id">
-                {{supervisor.nombre}}
-              </mat-option>
+              <mat-option value="">Todos</mat-option>
+              <mat-option *ngFor="let s of supervisores" [value]="s.id">{{s.nombre}}</mat-option>
             </mat-select>
           </mat-form-field>
-  
-          <mat-form-field>
-            <mat-label>Jefe de Cuadrilla</mat-label>
-            <mat-select formControlName="jefe_cuadrilla_id">
-              <mat-option [value]="">Todos</mat-option>
-              <mat-option *ngFor="let jefe of jefesCuadrilla" [value]="jefe.id">
-                {{jefe.nombre}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-  
-          <mat-form-field>
+
+          <mat-form-field appearance="outline" class="filtro-field">
             <mat-label>Labor</mat-label>
             <mat-select formControlName="labor_id">
-              <mat-option [value]="">Todas</mat-option>
-              <mat-option *ngFor="let labor of labores" [value]="labor.id">
-                {{labor.nombre}}
-              </mat-option>
+              <mat-option value="">Todas</mat-option>
+              <mat-option *ngFor="let l of labores" [value]="l.id">{{l.nombre}}</mat-option>
             </mat-select>
           </mat-form-field>
-  
-          <button mat-raised-button color="primary" type="submit">
-            Buscar
-          </button>
+
+          <div class="filtro-botones">
+            <button class="btn-buscar" [disabled]="buscando" (click)="buscarDatos()">
+              <span>🔍</span> {{ buscando ? 'BUSCANDO...' : 'BUSCAR' }}
+            </button>
+            <button class="btn-limpiar" (click)="limpiarFiltros()">
+              <span>🧹</span> LIMPIAR
+            </button>
+          </div>
+
         </form>
-      </div>
-  
-      <div class="main-content">
-        <div class="chart-container">
-          <canvas #rendimientoChart></canvas>
-        </div>
       </div>
     </div>
   </div>
+
+  <!-- MENSAJES -->
+  <div class="msg msg-info"  *ngIf="infoMessage">ℹ️ {{infoMessage}}</div>
+  <div class="msg msg-error" *ngIf="errorMessage">❌ {{errorMessage}}</div>
+
+  <ng-container *ngIf="bloquesUC.length > 0">
+
+    <!-- STATS GLOBALES -->
+    <div class="stats-grid">
+
+      <div class="stat-card">
+        <div class="stat-icon">👷</div>
+        <div class="stat-valor">{{totalTrabajadoresGlobal}}</div>
+        <div class="stat-label">Trabajadores</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">🔧</div>
+        <div class="stat-valor">{{totalLabores}}</div>
+        <div class="stat-label">Labores</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">📐</div>
+        <div class="stat-valor">{{totalUCs}}</div>
+        <div class="stat-label">Unidades Control</div>
+      </div>
+
+    </div>
+
+    <!-- AVISO SI HAY VARIAS UC -->
+    <div class="aviso-multi-uc" *ngIf="bloquesUC.length > 1">
+      ⚠️ Se encontraron <strong>{{bloquesUC.length}} unidades de control distintas</strong>.
+      Cada UC se muestra por separado porque son comparables solo entre sí.
+    </div>
+
+    <!-- BLOQUE POR CADA UC -->
+    <div class="bloque-uc" *ngFor="let b of bloquesUC">
+
+      <!-- HEADER BLOQUE -->
+      <div class="bloque-header">
+        <span class="bloque-icon">📏</span>
+        <div class="bloque-titulo">
+          <div class="bloque-uc-nombre">{{b.uc}}</div>
+          <div class="bloque-uc-sub">
+            {{b.totalTrabajadores}} trabajadores · Prod. total: {{b.totalProd | number:'1.0-0'}} {{b.uc}}
+          </div>
+        </div>
+        <div class="labor-chip" *ngIf="b.laborSel" (click)="limpiarLabor(b)">
+          <span>🏷️ {{b.laborSel}}</span>
+          <span class="chip-close">✕</span>
+        </div>
+      </div>
+
+      <!-- STATS POR UC -->
+      <div class="stats-grid stats-uc">
+
+        <div class="stat-card small">
+          <div class="stat-icon-sm">📦</div>
+          <div class="stat-valor-sm">{{b.totalProd | number:'1.0-0'}}</div>
+          <div class="stat-label-sm">Total ({{b.uc}})</div>
+        </div>
+
+        <div class="stat-card small">
+          <div class="stat-icon-sm">📊</div>
+          <div class="stat-valor-sm">{{b.promProd | number:'1.1-1'}}</div>
+          <div class="stat-label-sm">Promedio ({{b.uc}})</div>
+        </div>
+
+        <div class="stat-card small top-card">
+          <div class="stat-icon-sm">🏆</div>
+          <div class="stat-valor-sm stat-nombre">{{b.topTrabajador}}</div>
+          <div class="stat-label-sm">Top</div>
+        </div>
+
+      </div>
+
+      <!-- GRAFICOS -->
+      <div class="graficos-grid">
+
+        <div class="grafico-card">
+          <div class="grafico-body">
+            <canvas [id]="b.barId"></canvas>
+          </div>
+        </div>
+
+        <div class="grafico-card">
+          <div class="grafico-body">
+            <canvas [id]="b.donaId"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RANKINGS -->
+      <div class="rankings-grid">
+
+        <div class="ranking-card">
+          <div class="ranking-header top">🏆 TOP 10 — {{b.uc}}</div>
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Trabajador</th>
+                <th>{{b.uc}}</th>
+                <th>Días</th>
+                <th>Prom/Día</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let f of b.top10" [class.pos1]="f.pos===1">
+                <td><span class="pos-badge top">{{f.pos}}</span></td>
+                <td class="nombre-col">{{f.nombre}}</td>
+                <td><strong>{{f.uc | number:'1.1-1'}}</strong></td>
+                <td>{{f.dias}}</td>
+                <td>{{f.promDia | number:'1.1-1'}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="ranking-card">
+          <div class="ranking-header bottom">📉 BOTTOM 10 — {{b.uc}}</div>
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Trabajador</th>
+                <th>{{b.uc}}</th>
+                <th>Días</th>
+                <th>Prom/Día</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let f of b.bottom10">
+                <td><span class="pos-badge bottom">{{f.pos}}</span></td>
+                <td class="nombre-col">{{f.nombre}}</td>
+                <td><strong>{{f.uc | number:'1.1-1'}}</strong></td>
+                <td>{{f.dias}}</td>
+                <td>{{f.promDia | number:'1.1-1'}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+
+  </ng-container>
+
+  <!-- EMPTY STATE -->
+  <div class="empty-state"
+       *ngIf="bloquesUC.length === 0 && !infoMessage && !errorMessage && !buscando">
+    <div class="empty-icon">📈</div>
+    <p>Selecciona fechas y presiona Buscar</p>
+  </div>
+
+</div>

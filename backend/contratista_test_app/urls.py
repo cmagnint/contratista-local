@@ -149,6 +149,7 @@ from .views import (
     ProcesarCartolaEgresoAPIView,
     MovimientoEgresoSaldosAPIView,
     HistorialPagosAPIView,
+    InformeCasasAPIView,
 )
 
 #transporte.py
@@ -296,6 +297,7 @@ urlpatterns = [
     path('api_afp_trabajadores/<int:holding_id>/', AFPTrabajadoresAPIView.as_view(), name='api_afp_trabajadores_by_holding'),
     path('api_casas_trabajadores/', CasasTrabajadoresAPIView.as_view(), name='api_casas_trabajadores'),
     path('api_casas_trabajadores/<int:holding_id>/', CasasTrabajadoresAPIView.as_view(), name='api_casas_trabajadores_by_holding'),
+    path('informe-casas/', InformeCasasAPIView.as_view(), name='informe-casas'),
     path('informe-dias-trabajados/', InformeDiasTrabajadosAPIView.as_view(), name='informe-dias-trabajados'),
     path('dias-trabajados-aprobados/', DiasTrabajadosAprobadosAPIView.as_view(), name='dias-trabajados-aprobados'),
     path('meses-cerrados/', MesCerradoAPIView.as_view(), name='meses-cerrados'),

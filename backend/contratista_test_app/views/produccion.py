@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Exists, OuterRef
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -331,15 +331,24 @@ class FiltrosProduccionEfectivoAPIView(BaseAPIView):
             fecha_fin = request.GET.get('fecha_fin')
 
             if not all([holding_id, fecha_inicio, fecha_fin]):
-                return Response({'error': 'Faltan parámetros requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Faltan parámetros requeridos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            registros_pagados = RegistroPagoEfectivo.objects.filter(
+                producciones=OuterRef('pk')
+            )
 
             queryset = RegistroManoObraPersona.objects.filter(
                 holding_id=holding_id,
                 fecha_ingreso__range=[fecha_inicio, fecha_fin],
                 trabajador__metodo_pago='Efectivo'
-            ).select_related('trabajador', 'trabajador__cargo', 'folio', 'folio__cliente', 'labor')
-
-            logger.debug(f'FiltrosProduccionEfectivoAPIView GET: {queryset.count()} registros base')
+            ).annotate(
+                pagado=Exists(registros_pagados)
+            ).select_related(
+                'trabajador', 'trabajador__cargo', 'folio', 'folio__cliente', 'labor'
+            )
 
             cliente_ids = request.GET.get('cliente_ids')
             if cliente_ids:
@@ -369,14 +378,15 @@ class FiltrosProduccionEfectivoAPIView(BaseAPIView):
                     queryset = queryset.filter(trabajador_id__in=trabajadores_en_casas)
 
             serializer = FiltrosPagoEfectivoSerializer(queryset, many=True)
-            logger.debug(f'FiltrosProduccionEfectivoAPIView GET: {len(serializer.data)} registros retornados')
+            logger.debug(
+                f'FiltrosProduccionEfectivoAPIView GET: {len(serializer.data)} registros retornados'
+            )
             return Response(serializer.data)
 
         except Exception as e:
             logger.error(f'FiltrosProduccionEfectivoAPIView GET: error: {e}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+        
 # ==============================================================================
 # PROCESAR PAGO EFECTIVO
 # ==============================================================================
@@ -392,33 +402,61 @@ class ProcesarPagoEfectivoAPIView(BaseAPIView):
             multiplo_pago = request.data.get('multiplo_pago')
 
             if not all([holding_id, sociedad_id, cuenta_id, pagos, multiplo_pago]):
-                return Response({'error': 'Faltan datos requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Faltan datos requeridos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             with transaction.atomic():
                 for pago in pagos:
-                    produccion = ProduccionTrabajador.objects.get(id=pago['produccion_id'])
+                    registro_ids = pago.get('registro_ids', [])
+                    if not registro_ids:
+                        continue
+
+                    registros = RegistroManoObraPersona.objects.filter(
+                        id__in=registro_ids,
+                        holding_id=holding_id,
+                    )
+
+                    ya_pagados = RegistroPagoEfectivo.objects.filter(
+                        producciones__in=registros
+                    ).exists()
+
+                    if ya_pagados:
+                        continue
+
+                    if not registros.exists():
+                        continue
+
+                    trabajador = registros.first().trabajador
 
                     registro_pago = RegistroPagoEfectivo.objects.create(
                         holding_id=holding_id,
                         sociedad_id=sociedad_id,
                         cuenta_origen_id=cuenta_id,
-                        trabajador=produccion.trabajador,
+                        trabajador=trabajador,
                         monto_pagado=pago['monto_pagado'],
                         multiplo_pago=multiplo_pago,
                         saldo=pago['saldo']
                     )
-                    registro_pago.producciones.add(produccion)
+                    registro_pago.producciones.add(*registros)
 
-                    produccion.pagado = True
-                    produccion.save()
-
-            logger.debug(f'ProcesarPagoEfectivoAPIView POST: {len(pagos)} pagos en efectivo procesados')
-            return Response({'message': 'Pagos en efectivo procesados correctamente'})
+            logger.debug(
+                f'ProcesarPagoEfectivoAPIView POST: {len(pagos)} pagos en efectivo procesados'
+            )
+            return Response(
+                {'message': 'Pagos en efectivo procesados correctamente'},
+                status=status.HTTP_200_OK
+            )
 
         except Exception as e:
-            logger.error(f'ProcesarPagoEfectivoAPIView POST: error: {e}', exc_info=True)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            logger.error(
+                f'ProcesarPagoEfectivoAPIView POST: error: {e}', exc_info=True
+            )
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # ==============================================================================
 # GENERAR PLANILLA EFECTIVO
@@ -438,7 +476,7 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
                 f'desde={fecha_inicio.date()} hasta={fecha_fin.date()} multiplo={multiplo}'
             )
 
-            # Generar lista de días (desde lunes de la semana de fecha_inicio)
+            # Lista de días (desde lunes de la semana de fecha_inicio)
             dias = []
             fecha_actual = fecha_inicio
             while fecha_actual.weekday() > 0:
@@ -473,6 +511,9 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
                         casa_id__in=ids, fecha_fin__isnull=True
                     ).values_list('trabajador_id', flat=True)
                     queryset = queryset.filter(trabajador_id__in=trab_en_casas)
+
+            # FIX: evitar duplicados por JOIN M2M (folio__fundos)
+            queryset = queryset.distinct()
 
             logger.debug(f'GenerarPlanillaEfectivoAPIView GET: {queryset.count()} registros encontrados')
 

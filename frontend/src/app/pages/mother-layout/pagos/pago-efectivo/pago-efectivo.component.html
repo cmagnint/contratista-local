@@ -46,7 +46,7 @@
         </div>
     </div>
 
-    <!-- Filtros multi-select -->
+    <!-- Filtros -->
     <div class="filtros-seccion">
 
         <!-- Cliente -->
@@ -166,41 +166,104 @@
             Buscar producciones
         </button>
         <button (click)="generarPlanillaPDF()"
-                [disabled]="!produccionesPendientes.length || !multiploSeleccionado"
+                [disabled]="!hayResultados() || !multiploSeleccionado"
                 class="generate-pdf-button">
             Generar Planilla PDF
         </button>
-        <button (click)="procesarPago()" [disabled]="!produccionesPendientes.length" class="process-payment-button">
+        <button (click)="procesarPago()"
+                [disabled]="!produccionesNoPagadas.length"
+                class="process-payment-button">
             Cierre Pago
         </button>
     </div>
 
-    <!-- Tabla -->
-    <div class="tabla-producciones" *ngIf="produccionesPendientes.length > 0">
+    <!-- Resumen totales -->
+    <div class="resumen-totales" *ngIf="hayResultados()">
+        <div class="card-total pagado">
+            <span class="etiqueta">Pagado</span>
+            <span class="monto">{{totalPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+        <div class="card-total pendiente">
+            <span class="etiqueta">Pendiente</span>
+            <span class="monto">{{totalNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+        <div class="card-total general">
+            <span class="etiqueta">Total</span>
+            <span class="monto">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+    </div>
+
+    <!-- PAGADOS -->
+    <div class="tabla-producciones pagados" *ngIf="produccionesPagadas.length > 0">
+        <h3 class="titulo-grupo">
+            <span class="marca pagado">✓ PAGADOS</span>
+            <span class="contador">{{produccionesPagadas.length}} trabajadores</span>
+        </h3>
         <table>
             <thead>
                 <tr>
                     <th>Trabajador</th>
                     <th>RUT</th>
+                    <th>DNI</th>
+                    <th>Monto Total</th>
+                    <th>Monto Pagado</th>
+                    <th>Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let prod of produccionesPagadas" class="fila-pagado">
+                    <td>{{prod.trabajador_nombre}}</td>
+                    <td>{{prod.trabajador_rut}}</td>
+                    <td>{{prod.trabajador_dni}}</td>
+                    <td>{{prod.monto_total | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td>{{prod.monto_redondeado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td>{{prod.saldo | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="4" class="total-label">Total Pagado</td>
+                    <td class="total-amount">{{totalPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- NO PAGADOS -->
+    <div class="tabla-producciones no-pagados" *ngIf="produccionesNoPagadas.length > 0">
+        <h3 class="titulo-grupo">
+            <span class="marca pendiente">⏱ PENDIENTES</span>
+            <span class="contador">{{produccionesNoPagadas.length}} trabajadores</span>
+        </h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>RUT</th>
+                    <th>DNI</th>
                     <th>Monto Total</th>
                     <th>Monto a Pagar</th>
                     <th>Saldo</th>
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let prod of produccionesPendientes">
+                <tr *ngFor="let prod of produccionesNoPagadas" class="fila-pendiente">
                     <td>{{prod.trabajador_nombre}}</td>
                     <td>{{prod.trabajador_rut}}</td>
+                    <td>{{prod.trabajador_dni}}</td>
                     <td>{{prod.monto_total | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                     <td>{{prod.monto_redondeado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                     <td>{{prod.saldo | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
                 <tr class="total-row">
-                    <td colspan="3" class="total-label">Total General</td>
-                    <td class="total-amount">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td colspan="4" class="total-label">Total Pendiente</td>
+                    <td class="total-amount">{{totalNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                     <td></td>
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <div class="sin-datos" *ngIf="!hayResultados()">
+        Sin resultados. Ajusta los filtros y presiona "Buscar producciones".
     </div>
 </div>

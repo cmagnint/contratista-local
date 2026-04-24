@@ -336,7 +336,7 @@ export class PersonalComponent implements OnInit {
       }
     });
   }
-
+  
   cargarTrabajadores():void{
   this.contratistaApiService.get(`api_personal/?holding=${this.holding}`).subscribe({
     next: (response) => {
