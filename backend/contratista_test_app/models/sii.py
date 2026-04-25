@@ -661,7 +661,6 @@ class RegistroPagoEfectivo(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     sociedad = models.ForeignKey(Sociedad, on_delete=models.SET_NULL, null=True)
-    cuenta_origen = models.ForeignKey(CuentaOrigen, on_delete=models.SET_NULL, null=True)
     trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.SET_NULL, null=True)
     monto_pagado = models.IntegerField()
     fecha_pago = models.DateTimeField(auto_now_add=True)

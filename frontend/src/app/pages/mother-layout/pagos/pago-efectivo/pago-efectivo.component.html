@@ -1,22 +1,13 @@
 <div class="container">
     <h2>Pago en Efectivo</h2>
 
-    <!-- Cuenta -->
+    <!-- Sociedad -->
     <div class="seleccion-cuenta">
         <div class="form-group">
             <label for="sociedad">Sociedad:</label>
             <select id="sociedad" (change)="onSociedadChange($event)">
                 <option value="">Seleccione una sociedad</option>
                 <option *ngFor="let sociedad of sociedades" [value]="sociedad.id">{{sociedad.nombre}}</option>
-            </select>
-        </div>
-        <div class="form-group" *ngIf="sociedadSeleccionada">
-            <label for="cuenta">Cuenta de origen:</label>
-            <select id="cuenta" (change)="onCuentaChange($event)">
-                <option value="">Seleccione una cuenta</option>
-                <option *ngFor="let cuenta of cuentas" [value]="cuenta.id">
-                    {{cuenta.banco_nombre}} - {{cuenta.numero_cuenta}}
-                </option>
             </select>
         </div>
     </div>
@@ -162,7 +153,7 @@
 
     <!-- Acciones -->
     <div class="acciones">
-        <button (click)="buscarProducciones()" [disabled]="!cuentaSeleccionada" class="search-button">
+        <button (click)="buscarProducciones()" [disabled]="!sociedadSeleccionada" class="search-button">
             Buscar producciones
         </button>
         <button (click)="generarPlanillaPDF()"
@@ -179,6 +170,18 @@
 
     <!-- Resumen totales -->
     <div class="resumen-totales" *ngIf="hayResultados()">
+        <div class="card-total real">
+            <span class="etiqueta">Monto Real</span>
+            <span class="monto">{{totalSinRedondearGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+        <div class="card-total general">
+            <span class="etiqueta">A Pagar (Redondeado)</span>
+            <span class="monto">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+        <div class="card-total saldo">
+            <span class="etiqueta">Saldo Total</span>
+            <span class="monto">{{totalSaldoGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
         <div class="card-total pagado">
             <span class="etiqueta">Pagado</span>
             <span class="monto">{{totalPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
@@ -186,10 +189,6 @@
         <div class="card-total pendiente">
             <span class="etiqueta">Pendiente</span>
             <span class="monto">{{totalNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
-        </div>
-        <div class="card-total general">
-            <span class="etiqueta">Total</span>
-            <span class="monto">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
         </div>
     </div>
 
@@ -205,7 +204,7 @@
                     <th>Trabajador</th>
                     <th>RUT</th>
                     <th>DNI</th>
-                    <th>Monto Total</th>
+                    <th>Monto Real</th>
                     <th>Monto Pagado</th>
                     <th>Saldo</th>
                 </tr>
@@ -220,9 +219,10 @@
                     <td>{{prod.saldo | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
                 <tr class="total-row">
-                    <td colspan="4" class="total-label">Total Pagado</td>
+                    <td colspan="3" class="total-label">Totales</td>
+                    <td class="total-amount">{{totalSinRedondearPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                     <td class="total-amount">{{totalPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
-                    <td></td>
+                    <td class="total-amount">{{totalSaldoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
             </tbody>
         </table>
@@ -240,7 +240,7 @@
                     <th>Trabajador</th>
                     <th>RUT</th>
                     <th>DNI</th>
-                    <th>Monto Total</th>
+                    <th>Monto Real</th>
                     <th>Monto a Pagar</th>
                     <th>Saldo</th>
                 </tr>
@@ -255,9 +255,10 @@
                     <td>{{prod.saldo | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
                 <tr class="total-row">
-                    <td colspan="4" class="total-label">Total Pendiente</td>
+                    <td colspan="3" class="total-label">Totales</td>
+                    <td class="total-amount">{{totalSinRedondearNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                     <td class="total-amount">{{totalNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
-                    <td></td>
+                    <td class="total-amount">{{totalSaldoNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
             </tbody>
         </table>

@@ -349,3 +349,13 @@ tbody td {
     border-radius: 8px;
     margin-top: 20px;
 }
+
+.card-total.real {
+    background: #f5f3ff;
+    border-color: #8b5cf6;
+}
+
+.card-total.saldo {
+    background: #fef2f2;
+    border-color: #ef4444;
+}

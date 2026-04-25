@@ -397,11 +397,10 @@ class ProcesarPagoEfectivoAPIView(BaseAPIView):
         try:
             holding_id = request.data.get('holding_id')
             sociedad_id = request.data.get('sociedad_id')
-            cuenta_id = request.data.get('cuenta_id')
             pagos = request.data.get('pagos')
             multiplo_pago = request.data.get('multiplo_pago')
 
-            if not all([holding_id, sociedad_id, cuenta_id, pagos, multiplo_pago]):
+            if not all([holding_id, sociedad_id, pagos, multiplo_pago]):
                 return Response(
                     {'error': 'Faltan datos requeridos'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -433,7 +432,6 @@ class ProcesarPagoEfectivoAPIView(BaseAPIView):
                     registro_pago = RegistroPagoEfectivo.objects.create(
                         holding_id=holding_id,
                         sociedad_id=sociedad_id,
-                        cuenta_origen_id=cuenta_id,
                         trabajador=trabajador,
                         monto_pagado=pago['monto_pagado'],
                         multiplo_pago=multiplo_pago,
@@ -457,10 +455,34 @@ class ProcesarPagoEfectivoAPIView(BaseAPIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
 # ==============================================================================
 # GENERAR PLANILLA EFECTIVO
 # ==============================================================================
+
+MESES_ES = {
+    1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+    5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+    9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+}
+
+
+def formatear_rut(valor):
+    """Formatea a XX.XXX.XXX-X. Limpia puntos/guiones/espacios primero."""
+    if not valor or valor == '-':
+        return '-'
+    limpio = str(valor).replace('.', '').replace('-', '').replace(' ', '').strip().upper()
+    if len(limpio) < 2:
+        return valor
+    cuerpo, dv = limpio[:-1], limpio[-1]
+    # Puntos cada 3 dígitos desde la derecha
+    cuerpo_formateado = ''
+    for i, c in enumerate(reversed(cuerpo)):
+        if i > 0 and i % 3 == 0:
+            cuerpo_formateado = '.' + cuerpo_formateado
+        cuerpo_formateado = c + cuerpo_formateado
+    return f"{cuerpo_formateado}-{dv}"
+
 
 class GenerarPlanillaEfectivoAPIView(BaseAPIView):
 
@@ -476,7 +498,7 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
                 f'desde={fecha_inicio.date()} hasta={fecha_fin.date()} multiplo={multiplo}'
             )
 
-            # Lista de días (desde lunes de la semana de fecha_inicio)
+            # Lista de días: retrocede al lunes de la semana de fecha_inicio
             dias = []
             fecha_actual = fecha_inicio
             while fecha_actual.weekday() > 0:
@@ -512,37 +534,58 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
                     ).values_list('trabajador_id', flat=True)
                     queryset = queryset.filter(trabajador_id__in=trab_en_casas)
 
-            # FIX: evitar duplicados por JOIN M2M (folio__fundos)
             queryset = queryset.distinct()
 
             logger.debug(f'GenerarPlanillaEfectivoAPIView GET: {queryset.count()} registros encontrados')
 
-            # Agrupar por trabajador
+            # Agrupar por trabajador (key = trabajador.id)
             trabajadores_data = {}
             for prod in queryset:
-                worker_key = (
-                    prod.trabajador.rut if prod.trabajador and prod.trabajador.rut
-                    else prod.trabajador.dni if prod.trabajador and prod.trabajador.dni
-                    else '-'
-                )
+                if not prod.trabajador:
+                    continue
+
+                t = prod.trabajador
+                worker_key = t.id
+
+                # Identificador: RUT → NIC → DNI → '-'
+                identificador = t.rut or t.nic or t.dni or '-'
+                identificador = formatear_rut(identificador)
+
+                # Nombre completo
+                nombre_completo = f"{t.nombres or ''} {t.apellidos or ''}".strip()
+
+                # Normalizar fecha a date
                 fecha = prod.fecha_ingreso
+                if hasattr(fecha, 'date') and callable(fecha.date):
+                    fecha = fecha.date()
+
+                # Solo dentro del rango
+                if not (fecha_inicio.date() <= fecha <= fecha_fin.date()):
+                    continue
 
                 monto = 0
                 if prod.folio and prod.labor:
-                    fc_labor = FolioComercialLabor.objects.filter(folio=prod.folio, labor=prod.labor).first()
+                    fc_labor = FolioComercialLabor.objects.filter(
+                        folio=prod.folio, labor=prod.labor
+                    ).first()
                     if fc_labor:
                         monto = float(prod.produccion * fc_labor.valor_pago_trabajador)
 
                 if worker_key not in trabajadores_data:
                     trabajadores_data[worker_key] = {
-                        'nombre': prod.trabajador.nombres,
-                        'rut': worker_key,
+                        'nombre': nombre_completo,
+                        'rut': identificador,
                         'pagos_diarios': {dia.date(): 0 for dia in dias},
                         'total': 0,
                         'saldo_anterior': 0
                     }
 
-                trabajadores_data[worker_key]['pagos_diarios'][fecha] = round(monto)
+                # Sumar (no sobreescribir): soporta varias labores en el mismo día
+                if fecha in trabajadores_data[worker_key]['pagos_diarios']:
+                    trabajadores_data[worker_key]['pagos_diarios'][fecha] += monto
+                else:
+                    trabajadores_data[worker_key]['pagos_diarios'][fecha] = monto
+
                 trabajadores_data[worker_key]['total'] += monto
 
             # Generar PDF
@@ -556,11 +599,20 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
 
             ancho_pagina = (landscape(A4)[0] - 10*mm) * 0.90
             DIAS_POR_FILA = 7
-            ancho_dia = (ancho_pagina * 0.50) / DIAS_POR_FILA
+            ancho_dia = (ancho_pagina * 0.46) / DIAS_POR_FILA
             anchos_columnas = (
-                [ancho_pagina * 0.10, ancho_pagina * 0.06]
+                [ancho_pagina * 0.15, ancho_pagina * 0.09]
                 + [ancho_dia] * DIAS_POR_FILA
                 + [ancho_pagina * 0.06, ancho_pagina * 0.06, ancho_pagina * 0.07, ancho_pagina * 0.11]
+            )
+
+            # Estilo para nombre con wrap
+            nombre_style = ParagraphStyle(
+                'NombreStyle',
+                fontSize=7,
+                leading=8,
+                alignment=0,  # izquierda
+                wordWrap='CJK'
             )
 
             def prepare_table_data(trabajadores_data, dias):
@@ -586,10 +638,12 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
                         end_idx = min((grupo + 1) * DIAS_POR_FILA, len(dias))
                         current_dias = dias[start_idx:end_idx]
 
-                        row = [worker_data['nombre'], worker_data['rut']] if grupo == 0 else ['', '']
+                        nombre_cell = Paragraph(worker_data['nombre'], nombre_style) if grupo == 0 else ''
+                        row = [nombre_cell, worker_data['rut']] if grupo == 0 else ['', '']
                         dias_alineados = [''] * DIAS_POR_FILA
                         for d in current_dias:
-                            dias_alineados[d.weekday()] = d.strftime('%d/%m')
+                            if fecha_inicio <= d <= fecha_fin:
+                                dias_alineados[d.weekday()] = d.strftime('%d/%m')
                         row.extend(dias_alineados)
                         row.extend(
                             [
@@ -609,7 +663,7 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
                         for d in current_dias:
                             if fecha_inicio <= d <= fecha_fin:
                                 monto = worker_data['pagos_diarios'].get(d.date(), 0)
-                                montos_alineados[d.weekday()] = f'{monto:,.0f}'
+                                montos_alineados[d.weekday()] = f'{monto:,.0f}' if monto else '0'
                         montos_row.extend(montos_alineados)
                         montos_row.extend(['', '', '', ''])
                         table_data.append(montos_row)
@@ -650,9 +704,16 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
             estilos.extend(span_info)
             table.setStyle(TableStyle(estilos))
 
+            # Header en español
+            mes_inicio = MESES_ES[fecha_inicio.month]
+            mes_fin = MESES_ES[fecha_fin.month]
+            año_fin = fecha_fin.year
+
             header_style = ParagraphStyle('CustomHeader', fontSize=10, alignment=1, spaceAfter=5*mm)
             header = Paragraph(
-                f'<b>PLANILLA DE PAGO</b><br/>Semana del {fecha_inicio.strftime("%d %b")} al {fecha_fin.strftime("%d %b %y")}',
+                f'<b>PLANILLA DE PAGO</b><br/>'
+                f'Semana del {fecha_inicio.day:02d} de {mes_inicio} al '
+                f'{fecha_fin.day:02d} de {mes_fin} {año_fin}',
                 header_style
             )
 
@@ -669,7 +730,7 @@ class GenerarPlanillaEfectivoAPIView(BaseAPIView):
         except Exception as e:
             logger.error(f'GenerarPlanillaEfectivoAPIView GET: error: {e}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        
 # ==============================================================================
 # UNIDAD CONTROL
 # ==============================================================================

@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../../../services/contratista-api.service';
 
 interface Sociedad { id: number; nombre: string; cuentas_origen: any[]; }
-interface Cuenta { id: number; banco_nombre: string; numero_cuenta: string; }
 interface Cliente { id: number; nombre: string; campos_clientes: any[]; }
 interface Fundo { id: number; nombre_campo: string; }
 interface Cargo { id: number; nombre: string; }
@@ -36,7 +35,6 @@ interface MultiploPago { valor: number; etiqueta: string; }
 })
 export class PagoEfectivoComponent implements OnInit {
     sociedades: Sociedad[] = [];
-    cuentas: Cuenta[] = [];
     clientes: Cliente[] = [];
     fundos: Fundo[] = [];
     cargos: Cargo[] = [];
@@ -46,7 +44,6 @@ export class PagoEfectivoComponent implements OnInit {
     produccionesNoPagadas: Produccion[] = [];
 
     sociedadSeleccionada: Sociedad | null = null;
-    cuentaSeleccionada: Cuenta | null = null;
 
     clientesSeleccionados: number[] = [];
     fundosSeleccionados: number[] = [];
@@ -58,9 +55,20 @@ export class PagoEfectivoComponent implements OnInit {
     fechaInicio: string = '';
     fechaFin: string = '';
 
+    // Redondeado (a pagar)
     totalPagado: number = 0;
     totalNoPagado: number = 0;
     totalGeneral: number = 0;
+
+    // Sin redondear (monto real)
+    totalSinRedondearPagado: number = 0;
+    totalSinRedondearNoPagado: number = 0;
+    totalSinRedondearGeneral: number = 0;
+
+    // Saldos
+    totalSaldoPagado: number = 0;
+    totalSaldoNoPagado: number = 0;
+    totalSaldoGeneral: number = 0;
 
     multiplosDisponibles: MultiploPago[] = [
         { valor: 1000, etiqueta: '$1.000' },
@@ -136,17 +144,8 @@ export class PagoEfectivoComponent implements OnInit {
         const sociedadId = selectElement.value;
         if (sociedadId) {
             this.sociedadSeleccionada = this.sociedades.find(s => s.id === Number(sociedadId)) || null;
-            this.apiService.get(`api_cuentas_origen/${sociedadId}`).subscribe(
-                data => this.cuentas = data
-            );
-        }
-    }
-
-    onCuentaChange(event: Event) {
-        const selectElement = event.target as HTMLSelectElement;
-        const cuentaId = selectElement.value;
-        if (cuentaId) {
-            this.cuentaSeleccionada = this.cuentas.find(c => c.id === Number(cuentaId)) || null;
+        } else {
+            this.sociedadSeleccionada = null;
         }
     }
 
@@ -275,9 +274,20 @@ export class PagoEfectivoComponent implements OnInit {
                 this.produccionesPagadas = lista.filter(p => p.pagado);
                 this.produccionesNoPagadas = lista.filter(p => !p.pagado);
 
+                // Redondeado
                 this.totalPagado = this.produccionesPagadas.reduce((s, p) => s + (p.monto_redondeado || 0), 0);
                 this.totalNoPagado = this.produccionesNoPagadas.reduce((s, p) => s + (p.monto_redondeado || 0), 0);
                 this.totalGeneral = this.totalPagado + this.totalNoPagado;
+
+                // Sin redondear
+                this.totalSinRedondearPagado = this.produccionesPagadas.reduce((s, p) => s + p.monto_total, 0);
+                this.totalSinRedondearNoPagado = this.produccionesNoPagadas.reduce((s, p) => s + p.monto_total, 0);
+                this.totalSinRedondearGeneral = this.totalSinRedondearPagado + this.totalSinRedondearNoPagado;
+
+                // Saldos
+                this.totalSaldoPagado = this.produccionesPagadas.reduce((s, p) => s + (p.saldo || 0), 0);
+                this.totalSaldoNoPagado = this.produccionesNoPagadas.reduce((s, p) => s + (p.saldo || 0), 0);
+                this.totalSaldoGeneral = this.totalSaldoPagado + this.totalSaldoNoPagado;
             },
             error: (error) => {
                 console.error('Error al buscar producciones:', error);
@@ -289,7 +299,7 @@ export class PagoEfectivoComponent implements OnInit {
     // ---- Procesar pago ----
 
     procesarPago() {
-        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada ||
+        if (!this.sociedadSeleccionada ||
             !this.produccionesNoPagadas.length || !this.multiploSeleccionado) {
             alert('No hay datos suficientes para procesar el pago');
             return;
@@ -310,7 +320,6 @@ export class PagoEfectivoComponent implements OnInit {
         const datosPago = {
             holding_id: holdingId,
             sociedad_id: this.sociedadSeleccionada.id,
-            cuenta_id: this.cuentaSeleccionada.id,
             pagos: pagos,
             multiplo_pago: this.multiploSeleccionado
         };
