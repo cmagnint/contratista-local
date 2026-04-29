@@ -33,10 +33,9 @@
         </div>
     </div>
 
-    <!-- Filtros multi-select -->
+    <!-- Filtros -->
     <div class="filtros-seccion">
 
-        <!-- Cliente -->
         <div class="form-group">
             <label>Cliente:</label>
             <div class="multi-select-container">
@@ -63,7 +62,6 @@
             </div>
         </div>
 
-        <!-- Fundo -->
         <div class="form-group">
             <label>Fundo:</label>
             <div class="multi-select-container">
@@ -91,7 +89,6 @@
             </div>
         </div>
 
-        <!-- Cargo -->
         <div class="form-group">
             <label>Cargo:</label>
             <div class="multi-select-container">
@@ -118,7 +115,6 @@
             </div>
         </div>
 
-        <!-- Casa -->
         <div class="form-group">
             <label>Casa:</label>
             <div class="multi-select-container">
@@ -148,7 +144,7 @@
     </div>
 
     <!-- Nombre archivo TXT -->
-    <div class="form-group nombre-txt-group" *ngIf="produccionesPendientes.length > 0 && !pagoCerrado">
+    <div class="form-group" *ngIf="produccionesNoPagadas.length > 0">
         <label for="nombreArchivo">Nombre base para archivos TXT:</label>
         <input id="nombreArchivo" type="text" [(ngModel)]="nombreArchivoBase"
                placeholder="Ejemplo: transferencias_semana1" maxlength="50">
@@ -156,47 +152,99 @@
 
     <!-- Acciones -->
     <div class="acciones">
-        <button (click)="buscarProducciones()" [disabled]="!cuentaSeleccionada" class="search-button">
+        <button (click)="buscarProducciones()" class="search-button">
             Buscar producciones
         </button>
+        <button (click)="generarPlanillaPDF()"
+                [disabled]="!hayResultados()"
+                class="generate-pdf-button">
+            Generar PDF
+        </button>
         <button (click)="generarTXTBanco()"
-                [disabled]="!produccionesPendientes.length || pagoCerrado"
-                class="generate-csv-button">
+                [disabled]="!produccionesNoPagadas.length || !cuentaSeleccionada"
+                class="generate-pdf-button">
             Generar TXT Banco
         </button>
         <button (click)="procesarPago()"
-                [disabled]="!produccionesPendientes.length || pagoCerrado"
+                [disabled]="!produccionesNoPagadas.length || !cuentaSeleccionada"
                 class="process-payment-button">
             Cierre de Pago
         </button>
     </div>
 
-    <!-- Aviso pago cerrado -->
-    <div class="pago-cerrado-aviso" *ngIf="pagoCerrado">
-        ✅ Pago cerrado. Para generar un nuevo TXT realice una nueva búsqueda.
+    <!-- Resumen -->
+    <div class="resumen-totales" *ngIf="hayResultados()">
+        <div class="card-total pagado">
+            <span class="etiqueta">Total Pagado</span>
+            <span class="monto">{{totalPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+        <div class="card-total pendiente">
+            <span class="etiqueta">Total Pendiente</span>
+            <span class="monto">{{totalNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
+        <div class="card-total general">
+            <span class="etiqueta">Total General</span>
+            <span class="monto">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</span>
+        </div>
     </div>
 
-    <!-- Tabla -->
-    <div class="tabla-producciones" *ngIf="produccionesPendientes.length > 0">
+    <!-- Tabla pagados -->
+    <div class="tabla-producciones pagados" *ngIf="produccionesPagadas.length > 0">
+        <div class="titulo-grupo">
+            <span class="marca pagado">PAGADOS</span>
+            <span class="contador">({{produccionesPagadas.length}} trabajadores)</span>
+        </div>
         <table>
             <thead>
                 <tr>
                     <th>Trabajador</th>
                     <th>RUT</th>
-                    <th>Monto a Pagar</th>
+                    <th>Monto</th>
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let prod of produccionesPendientes">
+                <tr *ngFor="let prod of produccionesPagadas" class="fila-pagado">
                     <td>{{prod.trabajador_nombre}}</td>
                     <td>{{prod.trabajador_rut}}</td>
                     <td>{{prod.monto_total | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
                 <tr class="total-row">
-                    <td colspan="2" class="total-label">Total General</td>
-                    <td class="total-amount">{{totalGeneral | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                    <td colspan="2" class="total-label">Total Pagado</td>
+                    <td class="total-amount">{{totalPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- Tabla pendientes -->
+    <div class="tabla-producciones no-pagados" *ngIf="produccionesNoPagadas.length > 0">
+        <div class="titulo-grupo">
+            <span class="marca pendiente">PENDIENTES</span>
+            <span class="contador">({{produccionesNoPagadas.length}} trabajadores)</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>RUT</th>
+                    <th>Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let prod of produccionesNoPagadas" class="fila-pendiente">
+                    <td>{{prod.trabajador_nombre}}</td>
+                    <td>{{prod.trabajador_rut}}</td>
+                    <td>{{prod.monto_total | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="2" class="total-label">Total Pendiente</td>
+                    <td class="total-amount">{{totalNoPagado | currency:'CLP':'symbol-narrow':'1.0-0'}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="sin-datos" *ngIf="busquedaRealizada && !hayResultados()">
+        No se encontraron producciones para los filtros seleccionados.
     </div>
 </div>

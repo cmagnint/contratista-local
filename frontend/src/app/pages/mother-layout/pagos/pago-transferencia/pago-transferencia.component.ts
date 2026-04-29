@@ -9,15 +9,21 @@ interface Cliente { id: number; nombre: string; campos_clientes: any[]; }
 interface Fundo { id: number; nombre_campo: string; }
 interface Cargo { id: number; nombre: string; }
 interface Casa { id: number; nombre: string; }
+
 interface Produccion {
     id: number;
+    registro_ids: number[];
+    trabajador_id: number;
     trabajador_nombre: string;
+    trabajador_apellidos: string;
     trabajador_rut: string;
+    trabajador_dni: string;
     montos_a_pagar: number[];
     monto_total: number;
     numero_cuenta: string;
     banco_rut: string;
     tipo_cuenta: string;
+    pagado: boolean;
 }
 
 @Component({
@@ -34,7 +40,9 @@ export class PagoTransferenciaComponent implements OnInit {
     fundos: Fundo[] = [];
     cargos: Cargo[] = [];
     casas: Casa[] = [];
-    produccionesPendientes: Produccion[] = [];
+
+    produccionesPagadas: Produccion[] = [];
+    produccionesNoPagadas: Produccion[] = [];
 
     sociedadSeleccionada: Sociedad | null = null;
     cuentaSeleccionada: Cuenta | null = null;
@@ -48,10 +56,13 @@ export class PagoTransferenciaComponent implements OnInit {
 
     fechaInicio: string = '';
     fechaFin: string = '';
+
+    totalPagado: number = 0;
+    totalNoPagado: number = 0;
     totalGeneral: number = 0;
 
-    pagoCerrado: boolean = false;
     nombreArchivoBase: string = '';
+    busquedaRealizada: boolean = false;
 
     private isBrowser: boolean;
 
@@ -122,16 +133,22 @@ export class PagoTransferenciaComponent implements OnInit {
             this.apiService.get(`api_cuentas_origen/${sociedadId}`).subscribe(
                 data => this.cuentas = data
             );
+        } else {
+            this.sociedadSeleccionada = null;
+            this.cuentaSeleccionada = null;
+            this.cuentas = [];
         }
     }
 
     onCuentaChange(event: Event) {
         const selectElement = event.target as HTMLSelectElement;
         const cuentaId = selectElement.value;
-        if (cuentaId) {
-            this.cuentaSeleccionada = this.cuentas.find(c => c.id === Number(cuentaId)) || null;
-        }
+        this.cuentaSeleccionada = cuentaId
+            ? this.cuentas.find(c => c.id === Number(cuentaId)) || null
+            : null;
     }
+
+    // ---- Multi-select helpers ----
 
     toggleItem(lista: number[], id: number) {
         const idx = lista.indexOf(id);
@@ -191,6 +208,8 @@ export class PagoTransferenciaComponent implements OnInit {
         }
     }
 
+    // ---- Búsqueda ----
+
     buscarProducciones() {
         if (!this.fechaInicio || !this.fechaFin) {
             alert('Por favor seleccione un rango de fechas');
@@ -202,8 +221,6 @@ export class PagoTransferenciaComponent implements OnInit {
             alert('No se pudo obtener el ID del holding');
             return;
         }
-
-        this.pagoCerrado = false;
 
         let url = `produccion-filtrada-transferencia/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}`;
 
@@ -218,32 +235,45 @@ export class PagoTransferenciaComponent implements OnInit {
 
         this.apiService.get(url).subscribe({
             next: (data) => {
-                const produccionesAgrupadas = new Map<string, Produccion>();
+                const mapa = new Map<number, Produccion>();
 
                 data.forEach((prod: any) => {
-                    const key = prod.trabajador_rut;
-                    if (produccionesAgrupadas.has(key)) {
-                        const existing = produccionesAgrupadas.get(key)!;
-                        existing.montos_a_pagar.push(prod.monto_a_pagar);
-                        existing.monto_total += prod.monto_a_pagar;
+                    const key = prod.trabajador_id;
+                    if (mapa.has(key)) {
+                        const ex = mapa.get(key)!;
+                        ex.registro_ids.push(prod.id);
+                        ex.montos_a_pagar.push(prod.monto_a_pagar);
+                        ex.monto_total += prod.monto_a_pagar;
+                        if (prod.pagado) ex.pagado = true;
                     } else {
-                        produccionesAgrupadas.set(key, {
+                        const nombreCompleto = `${prod.trabajador_nombre || ''} ${prod.trabajador_apellidos || ''}`.trim();
+                        mapa.set(key, {
                             id: prod.id,
-                            trabajador_nombre: prod.trabajador_nombre,
-                            trabajador_rut: prod.trabajador_rut,
+                            registro_ids: [prod.id],
+                            trabajador_id: prod.trabajador_id,
+                            trabajador_nombre: nombreCompleto,
+                            trabajador_apellidos: prod.trabajador_apellidos,
+                            trabajador_rut: prod.trabajador_rut || '-',
+                            trabajador_dni: prod.trabajador_dni || '-',
                             montos_a_pagar: [prod.monto_a_pagar],
                             monto_total: prod.monto_a_pagar,
                             numero_cuenta: prod.numero_cuenta || '',
                             banco_rut: prod.banco_rut || '',
-                            tipo_cuenta: prod.tipo_cuenta || 'CTD'
+                            tipo_cuenta: prod.tipo_cuenta || 'CTD',
+                            pagado: !!prod.pagado
                         });
                     }
                 });
 
-                this.produccionesPendientes = Array.from(produccionesAgrupadas.values());
-                this.totalGeneral = this.produccionesPendientes.reduce(
-                    (sum, prod) => sum + prod.monto_total, 0
-                );
+                const lista = Array.from(mapa.values());
+                this.produccionesPagadas = lista.filter(p => p.pagado);
+                this.produccionesNoPagadas = lista.filter(p => !p.pagado);
+
+                this.totalPagado = this.produccionesPagadas.reduce((s, p) => s + p.monto_total, 0);
+                this.totalNoPagado = this.produccionesNoPagadas.reduce((s, p) => s + p.monto_total, 0);
+                this.totalGeneral = this.totalPagado + this.totalNoPagado;
+
+                this.busquedaRealizada = true;
             },
             error: (error) => {
                 console.error('Error al buscar producciones:', error);
@@ -252,8 +282,14 @@ export class PagoTransferenciaComponent implements OnInit {
         });
     }
 
+    hayResultados(): boolean {
+        return this.produccionesPagadas.length > 0 || this.produccionesNoPagadas.length > 0;
+    }
+
+    // ---- Procesar pago ----
+
     procesarPago() {
-        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
+        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesNoPagadas.length) {
             alert('No hay datos para procesar el pago');
             return;
         }
@@ -264,19 +300,20 @@ export class PagoTransferenciaComponent implements OnInit {
             return;
         }
 
-        const produccionesIds = this.produccionesPendientes.map(prod => prod.id);
+        const registrosIds: number[] = [];
+        this.produccionesNoPagadas.forEach(p => registrosIds.push(...p.registro_ids));
 
         const datosPago = {
             holding_id: holdingId,
             sociedad_id: this.sociedadSeleccionada.id,
             cuenta_id: this.cuentaSeleccionada.id,
-            producciones: produccionesIds
+            producciones: registrosIds
         };
 
         this.apiService.post('procesar-pago/', datosPago).subscribe({
             next: () => {
                 alert('Pago procesado correctamente');
-                this.pagoCerrado = true;
+                this.buscarProducciones();
             },
             error: (error) => {
                 console.error('Error al procesar el pago:', error);
@@ -285,8 +322,10 @@ export class PagoTransferenciaComponent implements OnInit {
         });
     }
 
+    // ---- TXT Banco (intacto) ----
+
     async generarTXTBanco(): Promise<void> {
-        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesPendientes.length) {
+        if (!this.sociedadSeleccionada || !this.cuentaSeleccionada || !this.produccionesNoPagadas.length) {
             alert('Faltan datos para generar el TXT');
             return;
         }
@@ -297,7 +336,7 @@ export class PagoTransferenciaComponent implements OnInit {
 
         const rutCliente = this.cuentaSeleccionada.numero_cuenta;
 
-        const csvLines = this.produccionesPendientes.map(prod => [
+        const csvLines = this.produccionesNoPagadas.map(prod => [
             'TOB',
             rutCliente,
             this.cuentaSeleccionada!.numero_cuenta,
@@ -342,5 +381,50 @@ export class PagoTransferenciaComponent implements OnInit {
         } catch (error: any) {
             alert(error.error?.message || 'Error al generar TXT');
         }
+    }
+
+    // ---- PDF ----
+
+    generarPlanillaPDF() {
+        if (!this.fechaInicio || !this.fechaFin) {
+            alert('Por favor seleccione un rango de fechas');
+            return;
+        }
+
+        const holdingId = this.getHoldingId();
+        if (!holdingId) {
+            alert('No se pudo obtener el ID del holding');
+            return;
+        }
+
+        let url = `generar-planilla-transferencia/?holding_id=${holdingId}&fecha_inicio=${this.fechaInicio}&fecha_fin=${this.fechaFin}`;
+
+        if (this.clientesSeleccionados.length > 0 && this.clientesSeleccionados.length < this.clientes.length)
+            url += `&cliente_ids=${this.clientesSeleccionados.join(',')}`;
+        if (this.fundosSeleccionados.length > 0 && this.fundosSeleccionados.length < this.fundos.length)
+            url += `&fundo_ids=${this.fundosSeleccionados.join(',')}`;
+        if (this.cargosSeleccionados.length > 0 && this.cargosSeleccionados.length < this.cargos.length)
+            url += `&cargo_ids=${this.cargosSeleccionados.join(',')}`;
+        if (this.casasSeleccionadas.length > 0 && this.casasSeleccionadas.length < this.casas.length)
+            url += `&casa_ids=${this.casasSeleccionadas.join(',')}`;
+
+        this.apiService.getPDF(url).subscribe({
+            next: (response: any) => {
+                const blob = new Blob([response], { type: 'application/pdf' });
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const fecha = new Date().toISOString().slice(0, 10);
+                a.href = blobUrl;
+                a.download = `planilla_transferencia_${fecha}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            },
+            error: (error: any) => {
+                console.error('Error al generar PDF:', error);
+                alert('Error al generar la planilla PDF');
+            }
+        });
     }
 }

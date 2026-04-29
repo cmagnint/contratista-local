@@ -83,6 +83,7 @@ from .views import (
     FiltrosProduccionAPIView,
     OpcionesFiltrosAPIView,
     FiltrosProduccionTransferenciaAPIView,
+    GenerarPlanillaTransferenciaAPIView,
     ProcesarPagoAPIView,
     PagosRealizadosAPIView,
     FiltrosProduccionEfectivoAPIView,
@@ -150,6 +151,7 @@ from .views import (
     MovimientoEgresoSaldosAPIView,
     HistorialPagosAPIView,
     InformeCasasAPIView,
+    CambiarCasaAPIView,
 )
 
 #transporte.py
@@ -279,6 +281,7 @@ urlpatterns = [
     path('produccion-filtrada/', FiltrosProduccionAPIView.as_view(), name='produccion-filtrada'),
     path('opciones-filtros/<int:holding_id>/', OpcionesFiltrosAPIView.as_view(), name='opciones-filtros'),
     path('produccion-filtrada-transferencia/', FiltrosProduccionTransferenciaAPIView.as_view(), name='produccion-filtrada-transferencia'),
+    path('generar-planilla-transferencia/', GenerarPlanillaTransferenciaAPIView.as_view()),
     path('procesar-pago/', ProcesarPagoAPIView.as_view(), name='procesar-pago'),
     path('pagos-realizados/', PagosRealizadosAPIView.as_view(), name='transferencias-realizadas'),
     path('produccion-filtrada-efectivo/', FiltrosProduccionEfectivoAPIView.as_view(), name='produccion-filtrada-efectivo'),
@@ -297,8 +300,8 @@ urlpatterns = [
     path('api_afp_trabajadores/<int:holding_id>/', AFPTrabajadoresAPIView.as_view(), name='api_afp_trabajadores_by_holding'),
     path('api_casas_trabajadores/', CasasTrabajadoresAPIView.as_view(), name='api_casas_trabajadores'),
     path('api_casas_trabajadores/<int:holding_id>/', CasasTrabajadoresAPIView.as_view(), name='api_casas_trabajadores_by_holding'),
-    path('informe-casas/', InformeCasasAPIView.as_view(), name='informe-casas'),
-    path('informe-dias-trabajados/', InformeDiasTrabajadosAPIView.as_view(), name='informe-dias-trabajados'),
+    path('informe-casas/cambiar-casa/', CambiarCasaAPIView.as_view(), name='cambiar-casa-trabajador'),
+    path('informe-casas/', InformeCasasAPIView.as_view(), name='informe-casas'),path('informe-dias-trabajados/', InformeDiasTrabajadosAPIView.as_view(), name='informe-dias-trabajados'),
     path('dias-trabajados-aprobados/', DiasTrabajadosAprobadosAPIView.as_view(), name='dias-trabajados-aprobados'),
     path('meses-cerrados/', MesCerradoAPIView.as_view(), name='meses-cerrados'),
     path('api_haberes/', HaberesAPIView.as_view(), name='api_haberes'),
@@ -317,7 +320,7 @@ urlpatterns = [
     path('gestion_retroactiva_mano_obra_persona/', GestionRetroactivaManoObraPersonaAPIView.as_view(), name='gestion_retroactiva_mano_obra_persona'),
     path('gestion_retroactiva_asistencia/', GestionRetroactivaAsistenciaAPIView.as_view(), name='gestion_retroactiva_asistencia'),
     path('api_traspaso_trabajadores/', TraspasoTrabajadoresAPIView.as_view(), name='traspaso-trabajadores'),
-
+    
     # -------------------------------------------------------------------------
     # SII
     # -------------------------------------------------------------------------

@@ -23,8 +23,16 @@
 
   <div class="lista" *ngIf="!cargando">
     <div class="casa" *ngFor="let casa of casasFiltradas">
+
       <div class="casa-header" (click)="toggle(casa.casa_id)">
         <div class="casa-info">
+          <!-- Checkbox select-all de la casa -->
+          <span class="check-wrap" (click)="toggleCasa(casa, $event)" *ngIf="casa.ocupantes.length > 0">
+            <span class="checkbox"
+              [class.checked]="todaCasaSeleccionada(casa)"
+              [class.indeterminate]="algunoEnCasa(casa)">
+            </span>
+          </span>
           <span class="flecha" [class.abierta]="abierta(casa.casa_id)">▶</span>
           <strong>{{ casa.casa_nombre }}</strong>
         </div>
@@ -35,25 +43,102 @@
         <table *ngIf="casa.ocupantes.length > 0">
           <thead>
             <tr>
+              <th class="col-check"></th>
               <th>Nombre</th>
               <th>RUT</th>
               <th>Desde</th>
               <th>Hasta</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let o of casa.ocupantes">
+            <tr *ngFor="let o of casa.ocupantes" [class.fila-seleccionada]="estaSeleccionado(o.id)">
+              <td class="col-check">
+                <span class="check-wrap" (click)="toggleSeleccion(o.id, $event)">
+                  <span class="checkbox" [class.checked]="estaSeleccionado(o.id)"></span>
+                </span>
+              </td>
               <td>{{ o.nombres }} {{ o.apellidos }}</td>
               <td>{{ o.rut }}</td>
               <td>{{ o.fecha_inicio }}</td>
               <td>{{ o.fecha_fin || 'vigente' }}</td>
+              <td>
+                <button
+                  class="btn-cambiar"
+                  (click)="abrirCambioIndividual(o, $event)"
+                  title="Cambiar de casa">
+                  Cambiar
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
         <div *ngIf="casa.ocupantes.length === 0" class="vacio">Sin ocupantes</div>
       </div>
+
     </div>
 
     <div *ngIf="casasFiltradas.length === 0" class="vacio">Sin resultados</div>
+  </div>
+</div>
+
+<!-- Barra de acción flotante -->
+<div class="barra-accion" [class.visible]="seleccionados.size > 0">
+  <span class="barra-contador">
+    <strong>{{ seleccionados.size }}</strong>
+    {{ seleccionados.size === 1 ? 'trabajador seleccionado' : 'trabajadores seleccionados' }}
+  </span>
+  <div class="barra-botones">
+    <button class="btn-limpiar" (click)="limpiarSeleccion()">Limpiar</button>
+    <button class="btn-migrar" (click)="abrirModal()">Cambiar de casa →</button>
+  </div>
+</div>
+
+<!-- Modal migración -->
+<div class="modal-overlay" *ngIf="modalAbierto" (click)="cerrarModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h3>Cambiar de casa</h3>
+      <button class="btn-cerrar" (click)="cerrarModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Lista de trabajadores afectados -->
+      <div class="modal-lista-wrap">
+        <p class="modal-label">
+          {{ trabajadoresSeleccionados.length === 1 ? 'Trabajador' : 'Trabajadores' }}
+        </p>
+        <ul class="modal-lista">
+          <li *ngFor="let t of trabajadoresSeleccionados">
+            <span class="nombre">{{ t.nombres }} {{ t.apellidos }}</span>
+            <span class="rut">{{ t.rut }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Selector de destino -->
+      <div class="campo">
+        <label>Casa destino</label>
+        <select [(ngModel)]="nuevaCasaId">
+          <option [value]="-1">Sin casa</option>
+          <option *ngFor="let c of casasDisponibles" [value]="c.casa_id">
+            {{ c.casa_nombre }}
+          </option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancelar" (click)="cerrarModal()" [disabled]="guardando">
+        Cancelar
+      </button>
+      <button class="btn-confirmar" (click)="confirmarCambio()" [disabled]="guardando">
+        {{ guardando ? 'Guardando...' : 'Confirmar migración' }}
+      </button>
+    </div>
+
   </div>
 </div>

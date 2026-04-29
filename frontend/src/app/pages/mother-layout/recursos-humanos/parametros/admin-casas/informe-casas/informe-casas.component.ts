@@ -35,6 +35,12 @@ export class InformeCasasComponent implements OnInit {
   public filtro: string = '';
   public expandidas: Set<number | string> = new Set();
 
+  // Selección y modal
+  public seleccionados: Set<number> = new Set();
+  public modalAbierto: boolean = false;
+  public nuevaCasaId: number = -1;
+  public guardando: boolean = false;
+
   constructor(
     private apiService: ContratistaApiService,
     @Inject(PLATFORM_ID) private platformId: Object
@@ -53,6 +59,7 @@ export class InformeCasasComponent implements OnInit {
     this.apiService.get(`informe-casas/?holding=${this.holding}&fecha=${this.fecha}`).subscribe({
       next: (response) => {
         this.casas = response.casas || [];
+        this.seleccionados = new Set();
         this.cargando = false;
       },
       error: (error) => {
@@ -61,6 +68,8 @@ export class InformeCasasComponent implements OnInit {
       }
     });
   }
+
+  // ── Acordeón ──────────────────────────────────────────────────────────────
 
   toggle(id: number | string | null): void {
     const key = id ?? 'sin';
@@ -74,6 +83,8 @@ export class InformeCasasComponent implements OnInit {
   abierta(id: number | string | null): boolean {
     return this.expandidas.has(id ?? 'sin');
   }
+
+  // ── Filtro ────────────────────────────────────────────────────────────────
 
   get casasFiltradas(): Casa[] {
     if (!this.filtro.trim()) return this.casas;
@@ -94,6 +105,97 @@ export class InformeCasasComponent implements OnInit {
   totalPersonas(): number {
     return this.casas.reduce((s, c) => s + c.total, 0);
   }
+
+  // ── Selección ─────────────────────────────────────────────────────────────
+
+  toggleSeleccion(id: number, event: Event): void {
+    event.stopPropagation();
+    const next = new Set(this.seleccionados);
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.seleccionados = next;
+  }
+
+  estaSeleccionado(id: number): boolean {
+    return this.seleccionados.has(id);
+  }
+
+  toggleCasa(casa: Casa, event: Event): void {
+    event.stopPropagation();
+    const next = new Set(this.seleccionados);
+    if (this.todaCasaSeleccionada(casa)) {
+      casa.ocupantes.forEach(o => next.delete(o.id));
+    } else {
+      casa.ocupantes.forEach(o => next.add(o.id));
+    }
+    this.seleccionados = next;
+  }
+
+  todaCasaSeleccionada(casa: Casa): boolean {
+    return casa.ocupantes.length > 0 && casa.ocupantes.every(o => this.seleccionados.has(o.id));
+  }
+
+  algunoEnCasa(casa: Casa): boolean {
+    return casa.ocupantes.some(o => this.seleccionados.has(o.id)) && !this.todaCasaSeleccionada(casa);
+  }
+
+  limpiarSeleccion(): void {
+    this.seleccionados = new Set();
+  }
+
+  // ── Modal migración ───────────────────────────────────────────────────────
+
+  /** Selecciona un único trabajador y abre el modal directamente */
+  abrirCambioIndividual(ocupante: Ocupante, event: Event): void {
+    event.stopPropagation();
+    this.seleccionados = new Set([ocupante.id]);
+    this.abrirModal();
+  }
+
+  abrirModal(): void {
+    if (this.seleccionados.size === 0) return;
+    const primera = this.casasDisponibles[0];
+    this.nuevaCasaId = primera?.casa_id ?? -1;
+    this.modalAbierto = true;
+  }
+
+  cerrarModal(): void {
+    this.modalAbierto = false;
+    this.guardando = false;
+  }
+
+  get casasDisponibles(): Casa[] {
+    return this.casas.filter(c => c.casa_id !== null);
+  }
+
+  get trabajadoresSeleccionados(): Ocupante[] {
+    const todos = this.casas.flatMap(c => c.ocupantes);
+    return todos.filter(o => this.seleccionados.has(o.id));
+  }
+
+  confirmarCambio(): void {
+    if (this.seleccionados.size === 0 || this.guardando) return;
+    this.guardando = true;
+
+    const body = {
+      trabajador_ids: Array.from(this.seleccionados),
+      nueva_casa_id: this.nuevaCasaId === -1 ? null : this.nuevaCasaId,
+      holding_id: this.holding
+    };
+
+    this.apiService.post('informe-casas/cambiar-casa/', body).subscribe({
+      next: () => {
+        this.cerrarModal();
+        this.seleccionados = new Set();
+        this.cargar();
+      },
+      error: (error) => {
+        console.error('Error al migrar trabajadores:', error);
+        this.guardando = false;
+      }
+    });
+  }
+
+  // ── Exportar ──────────────────────────────────────────────────────────────
 
   exportarCSV(): void {
     const filas = [['Casa', 'Nombres', 'Apellidos', 'RUT', 'Fecha Inicio', 'Fecha Fin']];

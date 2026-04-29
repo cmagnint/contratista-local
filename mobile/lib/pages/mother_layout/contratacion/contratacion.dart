@@ -61,7 +61,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
   String _selectedDia = '01';
   String _selectedMes = '01';
   String _selectedAnio = '2000';
-  String _metodoPago = 'Efectivo';
+  String _metodoPago = 'EFECTIVO';
   String _banco = '';
   String _tipoCuenta = '';
   String _numeroCuenta = '';
@@ -1719,7 +1719,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
       _selectedDia = '01';
       _selectedMes = '01';
       _selectedAnio = '2000';
-      _metodoPago = 'Efectivo';
+      _metodoPago = 'EFECTIVO';
       _banco = '';
       _selectedBancoNombre = null;
       _tipoCuenta = '';
@@ -2345,13 +2345,13 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                         onChanged: (String? newValue) {
                           setState(() {
                             _metodoPago = newValue!;
-                            if (_metodoPago == 'Efectivo') {
+                            if (_metodoPago == 'EFECTIVO') {
                               _banco = '';
                               _selectedBancoNombre = null;
                               _tipoCuenta = '';
                               _numeroCuenta = '';
                               _numeroCuentaController.clear();
-                            } else if (_metodoPago == 'Transferencia') {
+                            } else if (_metodoPago == 'TRANSFERENCIA') {
                               final bancoEstado = _bancos.firstWhere(
                                 (b) => b['nombre']
                                     .toString()
@@ -2378,7 +2378,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                           labelText: 'Método de Pago',
                           border: OutlineInputBorder(),
                         ),
-                        items: <String>['Efectivo', 'Transferencia']
+                        items: <String>['EFECTIVO', 'TRANSFERENCIA']
                             .map<DropdownMenuItem<String>>((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
@@ -2388,7 +2388,7 @@ class ContratacionScreenState extends State<ContratacionScreen> {
                             .toList(),
                       ),
                     ),
-                    if (_metodoPago == 'Transferencia') ...[
+                    if (_metodoPago == 'TRANSFERENCIA') ...[
                       Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: DropdownButtonFormField<String>(

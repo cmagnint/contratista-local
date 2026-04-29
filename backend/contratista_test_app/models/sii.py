@@ -646,7 +646,7 @@ class RegistroPagoTransferencia(models.Model):
     trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.SET_NULL, null=True)
     monto_pagado = models.IntegerField()
     fecha_pago = models.DateTimeField(auto_now_add=True)
-    producciones = models.ManyToManyField('ProduccionTrabajador')
+    producciones = models.ManyToManyField('RegistroManoObraPersona')
     archivo_csv = models.FileField(upload_to='pagos_csv/', null=True, blank=True)
     saldo = models.IntegerField(null=True, blank=True)
     historial_cambios = models.ManyToManyField(

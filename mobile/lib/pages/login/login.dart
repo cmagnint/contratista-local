@@ -448,7 +448,7 @@ class LoginScreenState extends State<LoginScreen>
         'rut': rutNumber,
         'password': passwordController.text,
         'origin': 'MOVIL',
-        'version': '1.0.0',
+        'version': '1.2.0',
       }, includeAuth: false);
 
       final responseData = jsonDecode(response.body);

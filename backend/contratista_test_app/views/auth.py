@@ -318,7 +318,7 @@ class LoginAPIView(PublicAPIView):
 
         if origin == 'MOVIL':
             try:
-                version_requerida = Developer.objects.get(id=1).version_movil
+                version_requerida = Developer.objects.get(id=2).version_movil
                 version_cliente = request.data.get('version')
                 if version_requerida != version_cliente:
                     return Response({

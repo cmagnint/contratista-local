@@ -52,7 +52,8 @@
   font-weight: 500;
 }
 
-.campo input {
+.campo input,
+.campo select {
   padding: 8px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -60,7 +61,8 @@
   min-width: 200px;
 }
 
-.campo input:focus {
+.campo input:focus,
+.campo select:focus {
   outline: none;
   border-color: #3b82f6;
 }
@@ -89,6 +91,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-bottom: 80px; /* espacio para la barra flotante */
 }
 
 .casa {
@@ -161,6 +164,7 @@ thead th {
 tbody td {
   padding: 8px;
   border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
 }
 
 tbody tr:last-child td {
@@ -169,4 +173,314 @@ tbody tr:last-child td {
 
 tbody tr:hover {
   background: #f9fafb;
+}
+
+.fila-seleccionada {
+  background: #eff6ff !important;
+}
+
+/* ── Checkbox custom ─────────────────────────────────────────────────────── */
+
+.col-check {
+  width: 36px;
+  padding-left: 4px !important;
+}
+
+.check-wrap {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.checkbox {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.checkbox.checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.checkbox.checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 5px;
+  height: 8px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.checkbox.indeterminate {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.checkbox.indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 5px;
+  width: 8px;
+  height: 2px;
+  background: white;
+}
+
+.check-wrap:hover .checkbox:not(.checked):not(.indeterminate) {
+  border-color: #93c5fd;
+}
+
+/* ── Botón cambiar individual ────────────────────────────────────────────── */
+
+.btn-cambiar {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-cambiar:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* ── Barra de acción flotante ────────────────────────────────────────────── */
+
+.barra-accion {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  background: #1e293b;
+  color: white;
+  border-radius: 10px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 500;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+
+.barra-accion.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+.barra-contador {
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.barra-contador strong {
+  color: white;
+  font-size: 15px;
+}
+
+.barra-botones {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-limpiar {
+  padding: 7px 14px;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-limpiar:hover {
+  color: white;
+  border-color: #64748b;
+}
+
+.btn-migrar {
+  padding: 7px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.btn-migrar:hover {
+  background: #2563eb;
+}
+
+/* ── Modal ────────────────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 10px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: 80vh;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #111827;
+}
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #9ca3af;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+.btn-cerrar:hover {
+  color: #374151;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.modal-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.modal-lista-wrap {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.modal-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-lista li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.modal-lista .nombre {
+  color: #111827;
+  font-weight: 500;
+}
+
+.modal-lista .rut {
+  color: #9ca3af;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  flex-shrink: 0;
+}
+
+.btn-cancelar {
+  padding: 8px 16px;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-cancelar:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.btn-confirmar {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.btn-confirmar:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-cancelar:disabled,
+.btn-confirmar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

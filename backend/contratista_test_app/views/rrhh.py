@@ -260,6 +260,56 @@ class InformeCasasAPIView(BaseAPIView):
             })
 
         return Response({'fecha': fecha, 'casas': data})
+
+# ==============================================================================
+# CAMBIAR CASAS TRABAJADORES
+# ==============================================================================
+
+class CambiarCasaAPIView(BaseAPIView):
+    
+    def post(self, request, format=None):
+        trabajador_ids = request.data.get('trabajador_ids')
+        nueva_casa_id = request.data.get('nueva_casa_id')
+        holding_id = request.data.get('holding_id')
+        if not holding_id:
+            return Response({'message': 'holding_id requerido'}, status=400)
+        if not isinstance(trabajador_ids, list) or len(trabajador_ids) == 0:
+            return Response({'message': 'trabajador_ids debe ser una lista no vacía'}, status=400)
+
+        from django.utils import timezone
+        from django.db import transaction
+        from datetime import timedelta
+        hoy = timezone.now().date()
+        ayer = hoy - timedelta(days=1)
+
+        with transaction.atomic():
+            abiertos = RegistroCasaTrabajador.objects.filter(
+                trabajador_id__in=trabajador_ids,
+                holding_id=holding_id,
+                fecha_fin__isnull=True,
+            )
+
+            # Caso mismo día: el registro abierto empezó hoy → sobrescribir casa in-place.
+            # Evita generar fecha_fin=ayer < fecha_inicio=hoy (rango inválido).
+            mismo_dia = abiertos.filter(fecha_inicio=hoy)
+            ids_mismo_dia = set(mismo_dia.values_list('trabajador_id', flat=True))
+            mismo_dia.update(casa_id=nueva_casa_id)
+
+            # Caso normal: cerrar el abierto con ayer, abrir uno nuevo hoy.
+            a_migrar = [tid for tid in trabajador_ids if tid not in ids_mismo_dia]
+            abiertos.filter(trabajador_id__in=a_migrar).update(fecha_fin=ayer)
+            RegistroCasaTrabajador.objects.bulk_create([
+                RegistroCasaTrabajador(
+                    trabajador_id=tid,
+                    holding_id=holding_id,
+                    casa_id=nueva_casa_id,
+                    fecha_inicio=hoy,
+                    fecha_fin=None,
+                )
+                for tid in a_migrar
+            ])
+
+        return Response({'ok': True, 'migrados': len(trabajador_ids)})   
     
 # ==============================================================================
 # INFORME DÍAS TRABAJADOS
