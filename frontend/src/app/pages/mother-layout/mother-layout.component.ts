@@ -543,6 +543,16 @@ seleccionarSociedad(sociedad: { id: number; nombre: string }): void {
     this.leftSidenav.close();
   }
 
+  navigateToAsociarContratos() {
+    this.router.navigate(['/fs/asoc-cont']);
+    this.leftSidenav.close();
+  }
+
+  navigateToParametrosContratos() {
+    this.router.navigate(['/fs/par-cont']);
+    this.leftSidenav.close();
+  }
+
   navigateToMaestroTrabajadores() {
     this.router.navigate(['/fs/maestro-trabajadores']);
     this.leftSidenav.close();

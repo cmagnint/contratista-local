@@ -63,6 +63,8 @@ import { GenerarTxtBancoComponent } from './pages/mother-layout/pagos/generar-tx
 import { EnrolamientoComponent } from './pages/mother-layout/recursos-humanos/enrolamiento/enrolamiento.component';
 import { TraspasoTrabajadoresComponent } from './pages/mother-layout/recursos-humanos/traspaso-trabajadores/traspaso-trabajadores.component';
 import { InformeCasasComponent } from './pages/mother-layout/recursos-humanos/parametros/admin-casas/informe-casas/informe-casas.component';
+import { AsociarContratosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/asociar-contratos/asociar-contratos.component';
+import { ParametrosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/parametros/parametros.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -107,6 +109,8 @@ export const routes: Routes = [
       { path: 'generar-contrato',  component: GenerarContratosComponent },
       { path: 'enrolamiento', component: EnrolamientoComponent },
       { path: 'traspaso-trabajadores', component: TraspasoTrabajadoresComponent },
+      { path: 'asoc-cont', component: AsociarContratosComponent },
+      { path: 'par-cont', component: ParametrosComponent },
       // RUTAS DE CLIENTES
       { path: 'administrar-clientes', component: AdministrarClientesComponent },
       { path: 'administrar-area-cargos-cliente', component: AreasCargosClientesComponent },

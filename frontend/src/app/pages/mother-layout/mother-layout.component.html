@@ -259,6 +259,16 @@
               <span class="icon-label">Generar Contratos</span>
             </li>
 
+            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CREAR CONTRATO')" (click)="navigateToAsociarContratos()">
+              <mat-icon>handshake</mat-icon>
+              <span class="icon-label">Asociar Contratos</span>
+            </li>
+            
+            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'CREAR CONTRATO')" (click)="navigateToParametrosContratos()">
+              <mat-icon>handshake</mat-icon>
+              <span class="icon-label">Parametros Contrato</span>
+            </li>
+
             <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'FORMATOS')" (click)="navigateToFormatos()">
               <mat-icon>format_color_fill</mat-icon>
               <span class="icon-label">Formatos</span>

@@ -36,6 +36,8 @@ from ..models import (
     FirmaOrganizacion,
     TrabajadorTransporteHistorial,
     Horarios,
+    ContratoAsociadoTrabajador,
+    Parametro,
 )
 from ..serializers import (
     ContratoTrabajadorSerializer,
@@ -123,89 +125,63 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _normalizar_pdf_a_carta(self, pdf_file):
-        """
-        Normalización con PyMuPDF - Páginas aisladas SIN convertir a imagen
-        """
         import fitz
         import io
-        
-        TARGET_WIDTH = 612.0
+
+        TARGET_WIDTH  = 612.0
         TARGET_HEIGHT = 792.0
-        
-        try:
-            # Leer PDF
-            if hasattr(pdf_file, 'read'):
-                pdf_file.seek(0)
-                pdf_bytes = pdf_file.read()
-            else:
-                with open(pdf_file, "rb") as f:
-                    pdf_bytes = f.read()
-            
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            print(f"📄 Normalizando PDF: {len(doc)} páginas")
-            
-            output_doc = fitz.open()
-            
-            for page_num in range(len(doc)):
-                page = doc[page_num]
-                rect = page.rect
-                original_width = rect.width
-                original_height = rect.height
-                
-                print(f"  Página {page_num + 1}: {original_width:.1f}x{original_height:.1f}")
-                
-                # ⭐ SOLUCIÓN: Crear documento temporal para CADA página
-                # Esto aísla completamente las páginas
-                temp_doc = fitz.open()
-                temp_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-                temp_page = temp_doc[0]
-                
-                # Crear página nueva de 612x792
-                new_page = output_doc.new_page(width=TARGET_WIDTH, height=TARGET_HEIGHT)
-                
-                # Calcular escala uniforme
-                scale = min(TARGET_WIDTH / original_width, TARGET_HEIGHT / original_height)
-                scaled_width = original_width * scale
-                scaled_height = original_height * scale
-                
-                # Centrar
-                offset_x = (TARGET_WIDTH - scaled_width) / 2
-                offset_y = (TARGET_HEIGHT - scaled_height) / 2
-                
-                dest_rect = fitz.Rect(
-                    offset_x,
-                    offset_y,
-                    offset_x + scaled_width,
-                    offset_y + scaled_height
-                )
-                
-                # ✅ Mostrar desde documento TEMPORAL (aislado)
-                new_page.show_pdf_page(
-                    dest_rect,
-                    temp_doc,  # ← Documento temporal de 1 página
-                    0,         # ← Siempre página 0 del temp
-                    clip=temp_page.rect
-                )
-                
-                temp_doc.close()  # Cerrar temporal
-                
-                print(f"  ✅ Página {page_num + 1} normalizada (aislada)")
-            
-            # Guardar
-            output_bytes = output_doc.tobytes(garbage=4, deflate=True, clean=True)
-            doc.close()
-            output_doc.close()
-            
-            output = io.BytesIO(output_bytes)
-            
-            print(f"✅ PDF normalizado con páginas aisladas")
-            return output
-            
-        except Exception as e:
-            print(f"❌ Error: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            raise
+        TOLERANCE     = 1.0  # puntos
+
+        if hasattr(pdf_file, 'read'):
+            pdf_file.seek(0)
+            pdf_bytes = pdf_file.read()
+        else:
+            with open(pdf_file, "rb") as f:
+                pdf_bytes = f.read()
+
+        # ── FAST PATH: si todas las páginas ya son carta, devolver sin procesar ──
+        doc_check = fitz.open(stream=pdf_bytes, filetype="pdf")
+        todas_carta = all(
+            abs(page.rect.width  - TARGET_WIDTH)  < TOLERANCE and
+            abs(page.rect.height - TARGET_HEIGHT) < TOLERANCE
+            for page in doc_check
+        )
+        doc_check.close()
+
+        if todas_carta:
+            return io.BytesIO(pdf_bytes)  # cero procesamiento, cero memoria extra
+
+        # ── SLOW PATH: normalizar páginas que no son carta ────────────────────────
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        output_doc = fitz.open()
+
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            rect = page.rect
+            original_width  = rect.width
+            original_height = rect.height
+
+            temp_doc = fitz.open()
+            temp_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+            temp_page = temp_doc[0]
+
+            new_page = output_doc.new_page(width=TARGET_WIDTH, height=TARGET_HEIGHT)
+
+            scale        = min(TARGET_WIDTH / original_width, TARGET_HEIGHT / original_height)
+            scaled_width = original_width  * scale
+            scaled_height= original_height * scale
+            offset_x     = (TARGET_WIDTH  - scaled_width)  / 2
+            offset_y     = (TARGET_HEIGHT - scaled_height) / 2
+
+            dest_rect = fitz.Rect(offset_x, offset_y, offset_x + scaled_width, offset_y + scaled_height)
+            new_page.show_pdf_page(dest_rect, temp_doc, 0, clip=temp_page.rect)
+            temp_doc.close()
+
+        output_bytes = output_doc.tobytes(garbage=4, deflate=True, clean=True)
+        doc.close()
+        output_doc.close()
+
+        return io.BytesIO(output_bytes)
     
     def _crear_documento(self, request):
         """Crear documento con variables posicionadas (soporta merge de PDFs)"""
@@ -1079,31 +1055,48 @@ class ContratoTrabajadorAPIView(BaseAPIView):
             else:
                 horario_map[c.id] = None
 
+        # Cargar todos los historiales del holding de una sola vez
         todos_historial = SupervisorTrabajadorHistorial.objects.filter(
             holding_id=holding_id
         ).select_related('supervisor__usuario__persona')
 
         data = ContratoTrabajadorSerializer(queryset, many=True).data
+
         for contrato in data:
-            trab_id = contrato.get('trabajador')
-            fecha   = contrato.get('fecha_inicio_contrato')
-            supervisores = []
+            trab_id          = contrato.get('trabajador')
+            fecha_inicio_str = contrato.get('fecha_inicio_contrato')
+
+            try:
+                fecha_inicio_contrato = datetime.strptime(str(fecha_inicio_str), '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                fecha_inicio_contrato = date.today()
+
+            # Buscar el historial cuyo período cubre la fecha_inicio del contrato
+            historial_match = None
             for h in todos_historial:
                 if h.trabajador_id != trab_id:
                     continue
-                if h.fecha_fin and h.fecha_fin < date.today():
+                if h.fecha_inicio > fecha_inicio_contrato:
                     continue
-                nombre = ''
-                if h.supervisor and h.supervisor.usuario and h.supervisor.usuario.persona:
-                    p = h.supervisor.usuario.persona
-                    nombre = f'{p.nombres} {p.apellidos or ""}'.strip()
-                supervisores.append({'id': h.supervisor.id, 'nombre': nombre})
+                if h.fecha_fin and h.fecha_fin < fecha_inicio_contrato:
+                    continue
+                # Cubre la fecha: quedarse con el más reciente (fecha_inicio más alta)
+                if historial_match is None or h.fecha_inicio > historial_match.fecha_inicio:
+                    historial_match = h
+
+            supervisores = []
+            if historial_match and historial_match.supervisor:
+                p = None
+                if historial_match.supervisor.usuario and historial_match.supervisor.usuario.persona:
+                    p = historial_match.supervisor.usuario.persona
+                nombre = f'{p.nombres} {p.apellidos or ""}'.strip() if p else ''
+                supervisores = [{'id': historial_match.supervisor.id, 'nombre': nombre}]
+
             contrato['supervisores'] = supervisores
             contrato['supervisor']   = supervisores[0] if supervisores else None
             contrato['horario_info'] = horario_map.get(contrato.get('id'))
 
         return Response(data)
-
     def post(self, request):
         serializer = ContratoTrabajadorSerializer(data=request.data)
         if serializer.is_valid():
@@ -1693,6 +1686,7 @@ class ContratoRetroactivoAPIView(BaseAPIView):
                 return Response({'error': 'fecha_termino_contrato debe ser YYYY-MM-DD'}, status=400)
 
         contrato = ContratoTrabajador.objects.create(**contrato_data)
+
         try:
             horario = Horarios.objects.get(id=request.data['horario'])
             from ..models import ContratoHorarioSnapshot, PersonalTrabajadores
@@ -1704,7 +1698,6 @@ class ContratoRetroactivoAPIView(BaseAPIView):
                 fin = getattr(horario, f'{dia}_fin', None)
                 colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
                 if inicio and fin:
-                    from datetime import datetime
                     mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
                     horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
                 else:
@@ -1719,29 +1712,475 @@ class ContratoRetroactivoAPIView(BaseAPIView):
             )
         except Exception as e:
             logger.error(f'Error creando snapshot horario retroactivo: {e}')
-        # Crear historial supervisor si se indicó y no existe registro que cubra el período
+
         if supervisor_id:
             try:
                 supervisor = Supervisores.objects.get(id=supervisor_id, holding_id=holding_id)
 
-                historial_existente = SupervisorTrabajadorHistorial.objects.filter(
-                    supervisor=supervisor,
+                # Solo crear si NO existe ya un historial de cualquier supervisor
+                # que cubra exactamente este período del contrato retroactivo
+                solapado = SupervisorTrabajadorHistorial.objects.filter(
                     trabajador_id=trabajador_id,
-                    fecha_inicio__lte=fecha_inicio
+                    fecha_inicio__lte=fecha_inicio,
                 ).filter(
                     Q(fecha_fin__gte=fecha_inicio) | Q(fecha_fin__isnull=True)
                 ).exists()
 
-                if not historial_existente:
+                if not solapado:
                     SupervisorTrabajadorHistorial.objects.create(
                         holding_id=holding_id,
                         supervisor=supervisor,
                         trabajador_id=trabajador_id,
                         fecha_inicio=fecha_inicio,
-                        fecha_fin=fecha_termino
+                        fecha_fin=fecha_termino,
                     )
+
             except Supervisores.DoesNotExist:
                 return Response({'error': 'Supervisor no encontrado'}, status=404)
 
         return Response({'id': contrato.id, 'mensaje': 'Contrato retroactivo creado'}, status=201)
-    
+
+# ==============================================================================
+# PARAMETRO
+# ==============================================================================
+class ParametroAPIView(BaseAPIView):
+
+    def get(self, request, *args, **kwargs):
+        solo_con_formato = request.query_params.get('con_formato') == 'true'
+        qs = Parametro.objects.filter(holding=request.user.holding)
+        if solo_con_formato:
+            qs = qs.exclude(formato__isnull=True)
+        data = []
+        for p in qs:
+            data.append({
+                'id': p.id,
+                'nombre': p.nombre,
+                'formato_id': p.formato_id,
+                'formato_nombre': p.formato.nombre if p.formato else None,
+            })
+        return Response(data)
+
+    def post(self, request, *args, **kwargs):
+        nombre = request.data.get('nombre', '').strip()
+        if not nombre:
+            return Response({'error': 'nombre es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        parametro = Parametro.objects.create(
+            holding=request.user.holding,
+            nombre=nombre,
+        )
+        return Response({'id': parametro.id, 'nombre': parametro.nombre}, status=status.HTTP_201_CREATED)
+
+    def put(self, request, parametro_id, *args, **kwargs):
+        try:
+            parametro = Parametro.objects.get(id=parametro_id, holding=request.user.holding)
+        except Parametro.DoesNotExist:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if 'nombre' in request.data:
+            parametro.nombre = request.data['nombre'].strip()
+        if 'formato_id' in request.data:
+            formato_id = request.data['formato_id']
+            if formato_id is None:
+                parametro.formato = None
+            else:
+                try:
+                    parametro.formato = ContratoVariables.objects.get(
+                        id=formato_id, holding=request.user.holding
+                    )
+                except ContratoVariables.DoesNotExist:
+                    return Response({'error': 'Formato no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        parametro.save()
+        return Response({
+            'id': parametro.id,
+            'nombre': parametro.nombre,
+            'formato_id': parametro.formato_id,
+            'formato_nombre': parametro.formato.nombre if parametro.formato else None,
+        })
+
+    def delete(self, request, parametro_id, *args, **kwargs):
+        try:
+            parametro = Parametro.objects.get(id=parametro_id, holding=request.user.holding)
+        except Parametro.DoesNotExist:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        nombre = parametro.nombre
+        parametro.delete()
+        return Response({'mensaje': f"Parámetro '{nombre}' eliminado"})
+
+
+# ==============================================================================
+# CONTRATO ASOCIADO TRABAJADOR
+# ==============================================================================
+class ContratoAsociadoTrabajadorAPIView(BaseAPIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, *args, **kwargs):
+        trabajador_id = request.query_params.get('trabajador_id')
+        parametro_id = request.query_params.get('parametro_id')
+
+        if not trabajador_id:
+            return Response({'error': 'trabajador_id es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = ContratoAsociadoTrabajador.objects.filter(
+            holding=request.user.holding,
+            trabajador_id=trabajador_id,
+        ).select_related('parametro')
+
+        if parametro_id:
+            qs = qs.filter(parametro_id=parametro_id)
+
+        data = [{
+            'id': c.id,
+            'parametro_id': c.parametro_id,
+            'parametro_nombre': c.parametro.nombre,
+            'archivo_pdf_url': request.build_absolute_uri(c.archivo_pdf.url),
+            'orden': c.orden,
+            'fecha_subida': c.fecha_subida.strftime('%Y-%m-%d %H:%M'),
+        } for c in qs]
+
+        return Response(data)
+
+    def post(self, request, *args, **kwargs):
+        trabajador_id = request.data.get('trabajador_id')
+        parametro_id = request.data.get('parametro_id')
+        archivo = request.FILES.get('archivo_pdf')
+
+        if not trabajador_id or not parametro_id or not archivo:
+            return Response(
+                {'error': 'trabajador_id, parametro_id y archivo_pdf son requeridos'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            trabajador = PersonalTrabajadores.objects.get(
+                id=trabajador_id, holding=request.user.holding
+            )
+        except PersonalTrabajadores.DoesNotExist:
+            return Response({'error': 'Trabajador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            parametro = Parametro.objects.get(
+                id=parametro_id, holding=request.user.holding
+            )
+        except Parametro.DoesNotExist:
+            return Response({'error': 'Parámetro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Calcular orden incremental
+        ultimo = ContratoAsociadoTrabajador.objects.filter(
+            trabajador=trabajador, parametro=parametro
+        ).order_by('-orden').first()
+        siguiente_orden = (ultimo.orden + 1) if ultimo else 1
+
+        contrato = ContratoAsociadoTrabajador.objects.create(
+            holding=request.user.holding,
+            trabajador=trabajador,
+            parametro=parametro,
+            archivo_pdf=archivo,
+            orden=siguiente_orden,
+        )
+
+        return Response({
+            'id': contrato.id,
+            'parametro_id': contrato.parametro_id,
+            'parametro_nombre': parametro.nombre,
+            'archivo_pdf_url': request.build_absolute_uri(contrato.archivo_pdf.url),
+            'orden': contrato.orden,
+            'fecha_subida': contrato.fecha_subida.strftime('%Y-%m-%d %H:%M'),
+        }, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, contrato_id, *args, **kwargs):
+        try:
+            contrato = ContratoAsociadoTrabajador.objects.get(
+                id=contrato_id, holding=request.user.holding
+            )
+        except ContratoAsociadoTrabajador.DoesNotExist:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        contrato.archivo_pdf.delete(save=False)
+        contrato.delete()
+        return Response({'mensaje': 'Asociación eliminada'})
+
+# ==============================================================================
+# TRABAJADORES POR PARÁMETRO (para el selector del modo nuevo)
+# ==============================================================================
+class TrabajadoresPorParametroAPIView(BaseAPIView):
+
+    def get(self, request, *args, **kwargs):
+        parametro_id = request.query_params.get('parametro_id')
+        sociedad_id  = request.query_params.get('sociedad_id')
+
+        if not parametro_id:
+            return Response({'error': 'parametro_id es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parametro = Parametro.objects.get(id=parametro_id, holding=request.user.holding)
+        except Parametro.DoesNotExist:
+            return Response({'error': 'Parámetro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not parametro.formato:
+            return Response({'error': 'El parámetro no tiene formato asignado'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Contratos asociados agrupados por trabajador
+        qs = ContratoAsociadoTrabajador.objects.filter(
+            holding=request.user.holding,
+            parametro=parametro,
+        ).select_related('trabajador', 'trabajador__sociedad', 'trabajador__cargo')
+
+        # Filtrar por sociedad si se proporciona
+        if sociedad_id:
+            qs = qs.filter(trabajador__sociedad_id=sociedad_id)
+
+        # Agrupar por trabajador
+        mapa = {}
+        for ca in qs:
+            t = ca.trabajador
+            if t.id not in mapa:
+                mapa[t.id] = {
+                    'trabajador_id': t.id,
+                    'nombres':       t.nombres,
+                    'apellidos':     t.apellidos or '',
+                    'rut':           t.rut or t.dni or '',
+                    'cargo':         t.cargo.nombre if t.cargo else '',
+                    'pdfs': [],
+                }
+            mapa[t.id]['pdfs'].append({
+                'id':             ca.id,
+                'orden':          ca.orden,
+                'archivo_pdf_url': request.build_absolute_uri(ca.archivo_pdf.url),
+            })
+
+        return Response(list(mapa.values()))
+
+
+# ==============================================================================
+# GENERAR DOCUMENTOS POR PARÁMETRO (modo nuevo)
+# ==============================================================================
+class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
+    """
+    Igual que GenerarDocumentosMasivoAPIView pero:
+    - El PDF base viene de ContratoAsociadoTrabajador.archivo_pdf
+    - Las variables vienen de Parametro.formato.variables
+    - Valida que contrato_asociado.parametro == parametro enviado
+    """
+
+    def post(self, request, *args, **kwargs):
+        parametro_id   = request.data.get('parametro_id')
+        trabajadores   = request.data.get('trabajadores', [])  # [{trabajador_id, contrato_asociado_id}]
+        fecha_emision  = request.data.get('fecha_emision')
+        sociedad_id    = request.data.get('sociedad_id')
+        marcar_generado = request.data.get('marcar_como_generado', False)
+
+        if not parametro_id:
+            return Response({'error': 'parametro_id es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        if not trabajadores:
+            return Response({'error': 'Se requiere al menos un trabajador'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parametro = Parametro.objects.get(id=parametro_id, holding=request.user.holding)
+        except Parametro.DoesNotExist:
+            return Response({'error': 'Parámetro no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not parametro.formato:
+            return Response({'error': 'El parámetro no tiene formato asignado'}, status=status.HTTP_400_BAD_REQUEST)
+
+        urls_generadas = []
+        errores = []
+
+        for item in trabajadores:
+            trabajador_id        = item.get('trabajador_id')
+            contrato_asociado_id = item.get('contrato_asociado_id')
+
+            try:
+                trabajador = PersonalTrabajadores.objects.get(
+                    id=trabajador_id, holding=request.user.holding
+                )
+                contrato_asociado = ContratoAsociadoTrabajador.objects.get(
+                    id=contrato_asociado_id, holding=request.user.holding
+                )
+
+                # Invariante spec §31
+                if contrato_asociado.parametro_id != int(parametro_id):
+                    errores.append({
+                        'trabajador_id': trabajador_id,
+                        'error': 'El PDF no pertenece al parámetro seleccionado'
+                    })
+                    continue
+
+                datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
+                datos_variables['trabajador_id'] = trabajador.id
+
+                # Generar usando el PDF del trabajador como base
+                pdf_buffer = self._generar_con_pdf_custom(
+                    pdf_path   = contrato_asociado.archivo_pdf.path,
+                    variables  = parametro.formato.variables,
+                    datos      = datos_variables,
+                    holding    = request.user.holding,
+                )
+
+                pdf_url = self._guardar_contrato_generado(
+                    pdf_buffer, trabajador, parametro.formato, request, marcar_generado
+                )
+
+                urls_generadas.append({
+                    'trabajador_id':     trabajador.id,
+                    'trabajador_nombre': f'{trabajador.nombres} {trabajador.apellidos}',
+                    'url':               pdf_url,
+                    'success':           True,
+                })
+
+            except PersonalTrabajadores.DoesNotExist:
+                errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
+            except ContratoAsociadoTrabajador.DoesNotExist:
+                errores.append({'trabajador_id': trabajador_id, 'error': 'PDF asociado no encontrado'})
+            except Exception as e:
+                logger.error(f'GenerarDocumentosPorParametroAPIView: error trabajador {trabajador_id}', exc_info=True)
+                errores.append({'trabajador_id': trabajador_id, 'error': str(e)})
+
+        return Response({
+            'mensaje':        f'Se generaron {len(urls_generadas)} contratos exitosamente',
+            'contratos':      urls_generadas,
+            'errores':        errores,
+            'total_exitosos': len(urls_generadas),
+            'total_errores':  len(errores),
+        }, status=status.HTTP_200_OK)
+
+    def _generar_con_pdf_custom(self, pdf_path, variables, datos, holding):
+        """
+        Igual que _generar_documento_coordenadas_nativas pero recibe
+        pdf_path y variables directamente en vez de documento_id.
+        """
+        reader = PdfReader(open(pdf_path, 'rb'))
+
+        BASE_FONT_SIZE = 9
+        BASE_OFFSET_X  = -8
+        BASE_OFFSET_Y  = -15.2
+        FONT_BASELINE  = BASE_FONT_SIZE * 0.3
+        campos_centrados = [
+            'rut', 'dni', 'nic', 'estado_civil',
+            'fecha_nacimiento', 'fecha_emision',
+            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino',
+        ]
+
+        variables_por_pagina = {}
+        for variable_data in variables:
+            nombre_variable = variable_data.get('nombre')
+            for ubicacion in variable_data.get('ubicaciones', []):
+                pagina = ubicacion.get('pagina', 1)
+                if pagina not in variables_por_pagina:
+                    variables_por_pagina[pagina] = []
+                variables_por_pagina[pagina].append({
+                    'nombre': nombre_variable,
+                    'posX':   ubicacion.get('posX', 0),
+                    'posY':   ubicacion.get('posY', 0),
+                    'width':  ubicacion.get('width'),
+                    'height': ubicacion.get('height'),
+                })
+
+        firma_empleador_disponible = bool(holding.firma_empleador)
+        trabajador = None
+        if 'trabajador_id' in datos:
+            try:
+                trabajador = PersonalTrabajadores.objects.get(id=datos['trabajador_id'])
+            except PersonalTrabajadores.DoesNotExist:
+                pass
+
+        final_writer = PdfWriter()
+
+        for page_num in range(len(reader.pages)):
+            ui_page_num = page_num + 1
+            temp_buffer = io.BytesIO()
+            temp_writer = PdfWriter()
+            temp_writer.add_page(reader.pages[page_num])
+            temp_writer.write(temp_buffer)
+            temp_buffer.seek(0)
+            temp_reader   = PdfReader(temp_buffer)
+            isolated_page = temp_reader.pages[0]
+            page_width    = float(isolated_page.mediabox.width)
+            page_height   = float(isolated_page.mediabox.height)
+
+            if ui_page_num not in variables_por_pagina:
+                final_writer.add_page(isolated_page)
+                continue
+
+            overlay_buffer = io.BytesIO()
+            can = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+            variables_escritas = 0
+
+            for variable in variables_por_pagina[ui_page_num]:
+                nombre = variable['nombre']
+
+                if nombre == 'firma_empleador':
+                    if firma_empleador_disponible:
+                        try:
+                            firma_path = holding.firma_empleador.path
+                            if os.path.exists(firma_path):
+                                img_w = variable.get('width', 150)
+                                img_h = variable.get('height', 50)
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
+                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_w, height=img_h,
+                                              preserveAspectRatio=True, mask='auto')
+                                variables_escritas += 1
+                        except Exception:
+                            pass
+                    continue
+
+                elif nombre == 'firma':
+                    if trabajador and bool(trabajador.firma) and os.path.exists(trabajador.firma.path):
+                        img_w = variable.get('width', 100)
+                        img_h = variable.get('height', 40)
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
+                        try:
+                            can.drawImage(trabajador.firma.path, pdf_x, pdf_y, width=img_w, height=img_h,
+                                          preserveAspectRatio=True, mask='auto')
+                            variables_escritas += 1
+                        except Exception:
+                            pass
+                    continue
+
+                elif nombre == 'huella':
+                    if trabajador and bool(trabajador.huella_digital) and os.path.exists(trabajador.huella_digital.path):
+                        img_w = variable.get('width', 80)
+                        img_h = variable.get('height', 100)
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
+                        try:
+                            can.drawImage(trabajador.huella_digital.path, pdf_x, pdf_y, width=img_w, height=img_h,
+                                          preserveAspectRatio=True, mask='auto')
+                            variables_escritas += 1
+                        except Exception:
+                            pass
+                    continue
+
+                if nombre not in datos or not datos[nombre]:
+                    continue
+
+                valor  = str(datos[nombre])
+                pdf_x  = variable['posX'] + BASE_OFFSET_X
+                pdf_y  = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+
+                can.setFont('Helvetica', BASE_FONT_SIZE)
+                if nombre in campos_centrados:
+                    tw = can.stringWidth(valor, 'Helvetica', BASE_FONT_SIZE)
+                    can.drawString(pdf_x - (tw / 2), pdf_y, valor)
+                else:
+                    can.drawString(pdf_x, pdf_y, valor)
+                variables_escritas += 1
+
+            can.save()
+            overlay_buffer.seek(0)
+
+            if variables_escritas > 0:
+                try:
+                    overlay_reader = PdfReader(overlay_buffer)
+                    isolated_page.merge_page(overlay_reader.pages[0])
+                except Exception:
+                    pass
+
+            final_writer.add_page(isolated_page)
+
+        output_buffer = io.BytesIO()
+        final_writer.write(output_buffer)
+        output_buffer.seek(0)
+        return output_buffer
+

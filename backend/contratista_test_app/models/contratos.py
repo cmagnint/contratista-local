@@ -131,3 +131,48 @@ class HoraExtraordinaria(models.Model):
         indexes = [
             models.Index(fields=['trabajador', 'fecha']),  # Optimiza consultas por trabajador y fecha
         ]
+
+class Parametro(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    nombre = models.CharField(max_length=255)
+    formato = models.ForeignKey(
+        ContratoVariables,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='parametros'
+    )
+
+    class Meta:
+        db_table = 'parametros_contrato'
+
+    def __str__(self):
+        return self.nombre
+
+
+class ContratoAsociadoTrabajador(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    trabajador = models.ForeignKey(
+        PersonalTrabajadores,
+        on_delete=models.CASCADE,
+        related_name='contratos_asociados'
+    )
+    parametro = models.ForeignKey(
+        Parametro,
+        on_delete=models.CASCADE,
+        related_name='contratos_asociados'
+    )
+    archivo_pdf = models.FileField(upload_to='contratos_asociados/')
+    orden = models.PositiveIntegerField()
+    fecha_subida = models.DateTimeField(auto_now_add=True,null=True,blank=True)
+
+    class Meta:
+        db_table = 'contratos_asociados_trabajador'
+        ordering = ['orden']
+        unique_together = [['trabajador', 'parametro', 'orden']]
+
+    def __str__(self):
+        return f"{self.trabajador} → {self.parametro.nombre} (orden {self.orden})"
+

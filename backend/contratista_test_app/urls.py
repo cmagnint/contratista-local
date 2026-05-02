@@ -46,6 +46,10 @@ from .views import (
     CrearContratoWebAPIView,
     FirmaOrganizacionAPIView,
     ContratoRetroactivoAPIView,
+    ParametroAPIView,
+    ContratoAsociadoTrabajadorAPIView,
+    TrabajadoresPorParametroAPIView,
+    GenerarDocumentosPorParametroAPIView,
 )
 
 #documentos.py
@@ -230,7 +234,13 @@ urlpatterns = [
     path('api_crear_contrato_web/', CrearContratoWebAPIView.as_view(), name='crear-contrato-web'),
     path('api_contrato_retroactivo/', ContratoRetroactivoAPIView.as_view(), name='contrato-retroactivo'),
     path('api_firma_organizacion/', FirmaOrganizacionAPIView.as_view(), name='api_firma_organizacion'),
-
+    path('api_parametros/', ParametroAPIView.as_view(), name='api_parametros'),
+    path('api_parametros/<int:parametro_id>/', ParametroAPIView.as_view(), name='api_parametro_detail'),
+    path('api_contratos_asociados/', ContratoAsociadoTrabajadorAPIView.as_view(), name='api_contratos_asociados'),
+    path('api_contratos_asociados/<int:contrato_id>/', ContratoAsociadoTrabajadorAPIView.as_view(), name='api_contrato_asociado_detail'),
+    path('api_trabajadores_por_parametro/', TrabajadoresPorParametroAPIView.as_view(), name='trabajadores-por-parametro'),
+    path('api_generar-documentos-por-parametro/', GenerarDocumentosPorParametroAPIView.as_view(), name='generar-por-parametro'),
+    
     # -------------------------------------------------------------------------
     # DOCUMENTOS
     # -------------------------------------------------------------------------

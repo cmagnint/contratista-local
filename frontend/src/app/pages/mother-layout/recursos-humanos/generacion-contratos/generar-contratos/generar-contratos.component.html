@@ -1,256 +1,358 @@
-<!-- generar-contratos.component.html - VERSIÓN MODERNA CON FILTROS -->
-
 <div class="admin-usuarios-container">
-  
+
   <!-- ============================================ -->
-  <!-- 🎯 SELECCIÓN DE SOCIEDAD -->
+  <!-- SOCIEDAD -->
   <!-- ============================================ -->
   <div class="filtros-section-modern">
     <h3 class="filtros-title">SELECCIONAR SOCIEDAD</h3>
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Sociedad</mat-label>
-      <mat-select [(ngModel)]="sociedad" (selectionChange)="cargarTrabajadores()">
-        <mat-option *ngFor="let soc of sociedades" [value]="soc.id">
-          {{ soc.nombre }}
-        </mat-option>
+      <mat-select [(ngModel)]="sociedad" (selectionChange)="onSociedadChange()">
+        <mat-option *ngFor="let soc of sociedades" [value]="soc.id">{{ soc.nombre }}</mat-option>
       </mat-select>
     </mat-form-field>
   </div>
 
   <!-- ============================================ -->
-  <!-- 🎯 FILTROS DE TRABAJADORES (solo si hay sociedad) -->
+  <!-- SELECTOR DE MODO -->
   <!-- ============================================ -->
-  <div class="filtros-section-modern" *ngIf="sociedad">
-    <h3 class="filtros-title">FILTRAR TRABAJADORES</h3>
+  <div class="filtros-section-modern" *ngIf="sociedad && !modoGeneracion">
+    <h3 class="filtros-title">MODO DE GENERACIÓN</h3>
     <div class="filtros-buttons-container">
-      <button 
-        mat-raised-button 
-        [class.active]="filtroContrato === 'sin_contrato'"
-        class="filtro-button-modern sin-contrato"
-        (click)="cambiarFiltroContrato('sin_contrato')">
-        <span class="button-icon">📋</span>
-        <span class="button-text">SIN CONTRATO</span>
+      <button mat-raised-button class="filtro-button-modern con-contrato" (click)="seleccionarModo('CLASICO')">
+        <span class="button-icon">📄</span>
+        <span class="button-text">CLÁSICO</span>
+        <span class="button-desc">Chileno / Extranjero</span>
       </button>
-      <button 
-        mat-raised-button 
-        [class.active]="filtroContrato === 'con_contrato'"
-        class="filtro-button-modern con-contrato"
-        (click)="cambiarFiltroContrato('con_contrato')">
-        <span class="button-icon">✓</span>
-        <span class="button-text">CON CONTRATO</span>
-      </button>
-      <button 
-        mat-raised-button 
-        [class.active]="filtroContrato === 'todos'"
-        class="filtro-button-modern todos"
-        (click)="cambiarFiltroContrato('todos')">
-        <span class="button-icon">🔍</span>
-        <span class="button-text">TODOS</span>
+      <button mat-raised-button class="filtro-button-modern sin-contrato" (click)="seleccionarModo('PARAMETRO')">
+        <span class="button-icon">🗂️</span>
+        <span class="button-text">POR PARÁMETRO</span>
+        <span class="button-desc">Usa PDF del trabajador</span>
       </button>
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 SELECCIÓN DE TIPO DE FORMATO -->
-  <!-- ============================================ -->
-  <div class="filtros-section-modern" *ngIf="sociedad && trabajadores.length > 0 && !tipoFormato">
-    <h3 class="filtros-title">TIPO DE FORMATO</h3>
-    <div class="filtros-buttons-container">
-      <button 
-        mat-raised-button 
-        [class.active]="tipoFormato === 'CHILENO'"
-        class="filtro-button-modern con-contrato"
-        (click)="cambiarTipoFormato('CHILENO')">
-        <span class="button-icon">🇨🇱</span>
-        <span class="button-text">CHILENO</span>
-      </button>
-      <button 
-        mat-raised-button 
-        [class.active]="tipoFormato === 'EXTRANJERO'"
-        class="filtro-button-modern sin-contrato"
-        (click)="cambiarTipoFormato('EXTRANJERO')">
-        <span class="button-icon">🌎</span>
-        <span class="button-text">EXTRANJERO</span>
-      </button>
-    </div>
+  <!-- Cambiar modo -->
+  <div class="modo-activo-bar" *ngIf="modoGeneracion">
+    <span class="modo-label">
+      Modo: <strong>{{ modoGeneracion === 'CLASICO' ? 'Clásico' : 'Por Parámetro' }}</strong>
+    </span>
+    <button class="btn-cambiar-modo" (click)="seleccionarModo(''); modoGeneracion = ''">
+      <mat-icon>swap_horiz</mat-icon> Cambiar modo
+    </button>
   </div>
 
-  <!-- ============================================ -->
-  <!-- 🎯 SELECCIÓN DE DOCUMENTO Y FECHA -->
-  <!-- ============================================ -->
-  <div class="filtros-section-modern" *ngIf="tipoFormato && documentos.length >= 0">
-    <h3 class="filtros-title">CONFIGURACIÓN DEL CONTRATO</h3>
-    <div class="config-container">
-      <mat-form-field appearance="outline" class="config-field">
-        <mat-label>Tipo de Documento</mat-label>
-        <mat-select [(ngModel)]="documentoSeleccionado">
-          <mat-option *ngFor="let doc of documentos" [value]="doc.id">
-            {{ doc.nombre }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+  <!-- ╔══════════════════════════════════════════╗ -->
+  <!-- ║             MODO CLÁSICO                 ║ -->
+  <!-- ╚══════════════════════════════════════════╝ -->
+  <ng-container *ngIf="modoGeneracion === 'CLASICO'">
 
-      <mat-form-field appearance="outline" class="config-field">
-        <mat-label>Fecha de Emisión</mat-label>
-        <input matInput type="date" [(ngModel)]="fechaEmision">
-      </mat-form-field>
+    <!-- Filtro trabajadores -->
+    <div class="filtros-section-modern">
+      <h3 class="filtros-title">FILTRAR TRABAJADORES</h3>
+      <div class="filtros-buttons-container">
+        <button mat-raised-button
+          [class.active]="filtroContrato === 'sin_contrato'"
+          class="filtro-button-modern sin-contrato"
+          (click)="cambiarFiltroContrato('sin_contrato')">
+          <span class="button-icon">📋</span>
+          <span class="button-text">SIN CONTRATO</span>
+        </button>
+        <button mat-raised-button
+          [class.active]="filtroContrato === 'con_contrato'"
+          class="filtro-button-modern con-contrato"
+          (click)="cambiarFiltroContrato('con_contrato')">
+          <span class="button-icon">✓</span>
+          <span class="button-text">CON CONTRATO</span>
+        </button>
+        <button mat-raised-button
+          [class.active]="filtroContrato === 'todos'"
+          class="filtro-button-modern todos"
+          (click)="cambiarFiltroContrato('todos')">
+          <span class="button-icon">🔍</span>
+          <span class="button-text">TODOS</span>
+        </button>
+      </div>
     </div>
-  </div>
+
+    <!-- Tipo formato -->
+    <div class="filtros-section-modern" *ngIf="trabajadores.length > 0 && !tipoFormato">
+      <h3 class="filtros-title">TIPO DE FORMATO</h3>
+      <div class="filtros-buttons-container">
+        <button mat-raised-button class="filtro-button-modern con-contrato" (click)="cambiarTipoFormato('CHILENO')">
+          <span class="button-icon">🇨🇱</span><span class="button-text">CHILENO</span>
+        </button>
+        <button mat-raised-button class="filtro-button-modern sin-contrato" (click)="cambiarTipoFormato('EXTRANJERO')">
+          <span class="button-icon">🌎</span><span class="button-text">EXTRANJERO</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Documento + fecha -->
+    <div class="filtros-section-modern" *ngIf="tipoFormato">
+      <h3 class="filtros-title">CONFIGURACIÓN DEL CONTRATO</h3>
+      <div class="config-container">
+        <mat-form-field appearance="outline" class="config-field">
+          <mat-label>Tipo de Documento</mat-label>
+          <mat-select [(ngModel)]="documentoSeleccionado">
+            <mat-option *ngFor="let doc of documentos" [value]="doc.id">{{ doc.nombre }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="config-field">
+          <mat-label>Fecha de Emisión</mat-label>
+          <input matInput type="date" [(ngModel)]="fechaEmision">
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Botón generar clásico -->
+    <button mat-raised-button color="primary" class="custom-button-generar"
+      [disabled]="selectedRows.length === 0 || !documentoSeleccionado"
+      (click)="generarContratosClasico()"
+      *ngIf="tipoFormato && trabajadores.length > 0">
+      <span class="button-icon">📄</span>
+      <span class="button-text">GENERAR CONTRATOS ({{ selectedRows.length }})</span>
+    </button>
+
+    <!-- Tabla clásica -->
+    <table mat-table [dataSource]="trabajadores" class="mat-elevation-z8" *ngIf="trabajadores.length > 0">
+
+      <ng-container matColumnDef="select">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">
+          <mat-checkbox (change)="$event ? toggleAllRows() : null"
+            [checked]="selection.hasValue() && isAllSelected()"
+            [indeterminate]="selection.hasValue() && !isAllSelected()">
+          </mat-checkbox>
+        </th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">
+          <mat-checkbox (click)="$event.stopPropagation()"
+            (change)="$event ? selection.toggle(t) : null"
+            [checked]="selection.isSelected(t)">
+          </mat-checkbox>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="id">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">ID</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell"><span class="id-badge">{{ t.id }}</span></td>
+      </ng-container>
+
+      <ng-container matColumnDef="nombres">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Nombres</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">{{ t.nombres }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="apellidos">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Apellidos</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">{{ t.apellidos }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="rut">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell"><span class="rut-badge">{{ t.rut }}</span></td>
+      </ng-container>
+
+      <ng-container matColumnDef="estado_contrato">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Estado</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">
+          <span class="contrato-badge" [class.generado]="t.tiene_contrato" [class.pendiente]="!t.tiene_contrato">
+            {{ t.tiene_contrato ? '✓ GENERADO' : '⊗ PENDIENTE' }}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="cargo">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Cargo</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">{{ t.cargo?.nombre || 'N/A' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="fecha_ingreso">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Fecha Ingreso</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell"><span class="fecha-badge">{{ t.fecha_ingreso || 'N/A' }}</span></td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+        [class.selected]="selection.isSelected(row)"
+        (click)="selection.toggle(row)">
+      </tr>
+    </table>
+
+    <div class="no-data-message" *ngIf="sociedad && trabajadores.length === 0">
+      <mat-icon>info</mat-icon>
+      <p>No se encontraron trabajadores con los filtros seleccionados</p>
+    </div>
+
+  </ng-container>
+  <!-- ── FIN MODO CLÁSICO ── -->
+
+
+  <!-- ╔══════════════════════════════════════════╗ -->
+  <!-- ║           MODO POR PARÁMETRO             ║ -->
+  <!-- ╚══════════════════════════════════════════╝ -->
+  <ng-container *ngIf="modoGeneracion === 'PARAMETRO'">
+
+    <!-- Selector parámetro + fecha -->
+    <div class="filtros-section-modern">
+      <h3 class="filtros-title">CONFIGURACIÓN</h3>
+      <div class="config-container">
+        <mat-form-field appearance="outline" class="config-field">
+          <mat-label>Parámetro</mat-label>
+          <mat-select [(ngModel)]="parametroSeleccionado" (selectionChange)="onParametroChange()">
+            <mat-option *ngFor="let p of parametros" [value]="p.id">{{ p.nombre }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="config-field">
+          <mat-label>Fecha de Emisión</mat-label>
+          <input matInput type="date" [(ngModel)]="fechaEmision">
+        </mat-form-field>
+      </div>
+
+      <p class="hint-parametro" *ngIf="parametros.length === 0">
+        No hay parámetros con formato asignado. Ve a <strong>Parámetros</strong> y asigna un formato primero.
+      </p>
+    </div>
+
+    <!-- Botón generar por parámetro -->
+    <button mat-raised-button color="primary" class="custom-button-generar"
+      [disabled]="selectedRowsParam.length === 0"
+      (click)="generarContratosPorParametro()"
+      *ngIf="trabajadoresParametro.length > 0">
+      <span class="button-icon">🗂️</span>
+      <span class="button-text">GENERAR POR PARÁMETRO ({{ selectedRowsParam.length }})</span>
+    </button>
+
+    <!-- Tabla por parámetro -->
+    <table mat-table [dataSource]="trabajadoresParametro" class="mat-elevation-z8"
+      *ngIf="trabajadoresParametro.length > 0">
+
+      <ng-container matColumnDef="select">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">
+          <mat-checkbox (change)="$event ? toggleAllRowsParam() : null"
+            [checked]="selectionParam.hasValue() && isAllSelectedParam()"
+            [indeterminate]="selectionParam.hasValue() && !isAllSelectedParam()">
+          </mat-checkbox>
+        </th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">
+          <mat-checkbox (click)="$event.stopPropagation()"
+            (change)="$event ? selectionParam.toggle(t) : null"
+            [checked]="selectionParam.isSelected(t)">
+          </mat-checkbox>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="nombres">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Trabajador</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">
+          <span class="nombre-celda">{{ t.nombres }} {{ t.apellidos }}</span>
+          <span class="cargo-celda">{{ t.cargo }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="rut">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">
+          <span class="rut-badge">{{ t.rut }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="pdf_selector">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">PDF Base</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">
+          <select class="select-pdf-param" [(ngModel)]="t.pdfSeleccionadoId" (click)="$event.stopPropagation()">
+            <option *ngFor="let pdf of t.pdfs" [ngValue]="pdf.id">
+              PDF #{{ pdf.orden }}
+            </option>
+          </select>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumnsParam"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumnsParam;"
+        [class.selected]="selectionParam.isSelected(row)"
+        (click)="selectionParam.toggle(row)">
+      </tr>
+    </table>
+
+    <div class="no-data-message"
+      *ngIf="parametroSeleccionado && trabajadoresParametro.length === 0">
+      <mat-icon>info</mat-icon>
+      <p>Ningún trabajador tiene PDFs asociados a este parámetro</p>
+    </div>
+
+  </ng-container>
+  <!-- ── FIN MODO PARÁMETRO ── -->
+
 
   <!-- ============================================ -->
-  <!-- 🎯 BOTÓN DE GENERAR CONTRATOS -->
+  <!-- MODAL DECISION ESTADO (modo clásico)         -->
   <!-- ============================================ -->
-  <button 
-    mat-raised-button 
-    color="primary" 
-    class="custom-button-generar" 
-    [disabled]="selectedRows.length === 0 || !documentoSeleccionado"
-    (click)="generarContratos()"
-    *ngIf="tipoFormato && trabajadores.length > 0">
-    <span class="button-icon">📄</span>
-    <span class="button-text">GENERAR CONTRATOS ({{ selectedRows.length }})</span>
-  </button>
-
-  <!-- Modal de Decisión de Estado -->
   <div class="modal" *ngIf="modals['decisionEstadoModal']" (click)="closeModal('decisionEstadoModal')">
     <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
-      
-      <div class="icon-container confirmation">
-        <div class="icon-circle confirmation">?</div>
-      </div>
-      
+      <div class="icon-container confirmation"><div class="icon-circle confirmation">?</div></div>
       <h2 class="modal-title confirmation">Estado de los Contratos</h2>
       <p class="modal-message">¿Cómo desea marcar estos contratos después de generarlos?</p>
-      
       <div class="button-container decision">
-        <button 
-          class="button-bottom confirm-yes" 
-          (click)="procederGeneracion(true)"
-          style="background: #4caf50;">
-          <span style="display: block; font-weight: bold; margin-bottom: 4px;">✓ CONTRATO GENERADO</span>
-          <span style="font-size: 12px; opacity: 0.9;">Los trabajadores se marcarán como "Con Contrato"</span>
+        <button class="button-bottom confirm-yes" (click)="procederGeneracion(true)" style="background:#4caf50;">
+          <span style="display:block;font-weight:bold;margin-bottom:4px">✓ CONTRATO GENERADO</span>
+          <span style="font-size:12px;opacity:.9">Los trabajadores se marcarán como "Con Contrato"</span>
         </button>
-        
-        <button 
-          class="button-bottom confirm-no" 
-          (click)="procederGeneracion(false)"
-          style="background: #ff9800;">
-          <span style="display: block; font-weight: bold; margin-bottom: 4px;">⊗ PENDIENTE</span>
-          <span style="font-size: 12px; opacity: 0.9;">Los trabajadores seguirán como "Sin Contrato"</span>
+        <button class="button-bottom confirm-no" (click)="procederGeneracion(false)" style="background:#ff9800;">
+          <span style="display:block;font-weight:bold;margin-bottom:4px">⊗ PENDIENTE</span>
+          <span style="font-size:12px;opacity:.9">Los trabajadores seguirán como "Sin Contrato"</span>
         </button>
-        
-        <button 
-          class="button-bottom" 
-          (click)="closeModal('decisionEstadoModal')"
-          style="background: #757575;">
-          Cancelar
-        </button>
+        <button class="button-bottom" (click)="closeModal('decisionEstadoModal')" style="background:#757575;">Cancelar</button>
       </div>
     </div>
   </div>
-  
+
   <!-- ============================================ -->
-  <!-- 🎯 TABLA DE TRABAJADORES -->
+  <!-- MODAL CONFIRMAR REGENERAR                    -->
   <!-- ============================================ -->
-  <table mat-table [dataSource]="trabajadores" class="mat-elevation-z8" *ngIf="trabajadores.length > 0">
-    
-    <!-- Columna de Selección -->
-    <ng-container matColumnDef="select">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">
-        <mat-checkbox 
-          (change)="$event ? toggleAllRows() : null"
-          [checked]="selection.hasValue() && isAllSelected()"
-          [indeterminate]="selection.hasValue() && !isAllSelected()">
-        </mat-checkbox>
-      </th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        <mat-checkbox 
-          (click)="$event.stopPropagation()"
-          (change)="$event ? selection.toggle(trabajador) : null"
-          [checked]="selection.isSelected(trabajador)">
-        </mat-checkbox>
-      </td>
-    </ng-container>
+  <div class="modal" *ngIf="modals['confirmacionRegenerarModal']" (click)="closeModal('confirmacionRegenerarModal')">
+    <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+      <div class="icon-container confirmation"><div class="icon-circle confirmation">⚠</div></div>
+      <h2 class="modal-title confirmation">Confirmar Regeneración</h2>
+      <p class="modal-message">{{ confirmMessage }}</p>
+      <div class="button-container confirmation">
+        <button class="button-bottom confirm-yes" (click)="confirmarGeneracionClasica()">Sí, Regenerar</button>
+        <button class="button-bottom confirm-no" (click)="closeModal('confirmacionRegenerarModal')">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- ID -->
-    <ng-container matColumnDef="id">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">ID</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        <span class="id-badge">{{ trabajador.id }}</span>
-      </td>
-    </ng-container>
+  <!-- ============================================ -->
+  <!-- MODAL ÉXITO -->
+  <!-- ============================================ -->
+  <div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
+    <div class="modal-content-message success" (click)="$event.stopPropagation()">
+      <div class="icon-container success"><div class="icon-circle success">✓</div></div>
+      <h2 class="modal-title success">¡Éxito!</h2>
+      <p class="modal-message">Los contratos se han generado exitosamente.</p>
+      <div class="button-container">
+        <button class="button-bottom success" (click)="closeModal('exitoModal')">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- Nombres -->
-    <ng-container matColumnDef="nombres">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Nombres</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        {{ trabajador.nombres }}
-      </td>
-    </ng-container>
-
-    <!-- Apellidos -->
-    <ng-container matColumnDef="apellidos">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Apellidos</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        {{ trabajador.apellidos }}
-      </td>
-    </ng-container>
-
-    <!-- RUT -->
-    <ng-container matColumnDef="rut">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">RUT</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        <span class="rut-badge">{{ trabajador.rut }}</span>
-      </td>
-    </ng-container>
-
-    <!-- Estado de Contrato -->
-    <ng-container matColumnDef="estado_contrato">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Estado Contrato</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        <span class="contrato-badge" 
-              [class.generado]="trabajador.tiene_contrato" 
-              [class.pendiente]="!trabajador.tiene_contrato">
-          {{ trabajador.tiene_contrato ? '✓ GENERADO' : '⊗ PENDIENTE' }}
-        </span>
-      </td>
-    </ng-container>
-
-    <!-- Cargo -->
-    <ng-container matColumnDef="cargo">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Cargo</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        {{ trabajador.cargo?.nombre || 'N/A' }}
-      </td>
-    </ng-container>
-
-    <!-- Fecha Ingreso -->
-    <ng-container matColumnDef="fecha_ingreso">
-      <th mat-header-cell *matHeaderCellDef class="mat-header">Fecha Ingreso</th>
-      <td mat-cell *matCellDef="let trabajador" class="mat-cell">
-        <span class="fecha-badge">{{ trabajador.fecha_ingreso || 'N/A' }}</span>
-      </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr 
-      mat-row 
-      *matRowDef="let row; columns: displayedColumns;"
-      [class.selected]="selection.isSelected(row)"
-      (click)="selection.toggle(row)">
-    </tr>
-  </table>
-
-  <!-- Mensaje si no hay trabajadores -->
-  <div class="no-data-message" *ngIf="sociedad && trabajadores.length === 0">
-    <mat-icon>info</mat-icon>
-    <p>No se encontraron trabajadores con los filtros seleccionados</p>
+  <!-- ============================================ -->
+  <!-- MODAL ERROR -->
+  <!-- ============================================ -->
+  <div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
+    <div class="modal-content-message error" (click)="$event.stopPropagation()">
+      <div class="icon-container error"><div class="icon-circle error">✕</div></div>
+      <h2 class="modal-title error">Error</h2>
+      <p class="modal-message">{{ errorMessage }}</p>
+      <div class="button-container">
+        <button class="button-bottom error" (click)="closeModal('errorModal')">Cerrar</button>
+      </div>
+    </div>
   </div>
 
 </div>
 
 <!-- ============================================ -->
-<!-- 🎯 PANEL DE CONTRATOS GENERADOS -->
+<!-- PANEL CONTRATOS GENERADOS -->
 <!-- ============================================ -->
 <div class="contratos-generados-panel" *ngIf="mostrarContratos && contratosGenerados.length > 0">
   <div class="panel-header">
@@ -260,119 +362,32 @@
     </h3>
     <button class="close-panel-btn" (click)="cerrarPanelContratos()">✕</button>
   </div>
-
   <div class="panel-actions">
-    <button 
-      mat-raised-button 
-      class="download-all-btn"
-      (click)="descargarTodosContratos()">
+    <button mat-raised-button class="download-all-btn" (click)="descargarTodosContratos()">
       <mat-icon>cloud_download</mat-icon>
       {{ contratosGenerados.length === 1 ? 'DESCARGAR CONTRATO' : 'DESCARGAR TODOS (ZIP)' }}
     </button>
   </div>
-
   <table mat-table [dataSource]="contratosGenerados" class="contratos-table">
-    
     <ng-container matColumnDef="trabajador">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Trabajador</th>
-      <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <span class="trabajador-nombre">{{ contrato.trabajador_nombre }}</span>
-      </td>
+      <td mat-cell *matCellDef="let c" class="mat-cell"><span class="trabajador-nombre">{{ c.trabajador_nombre }}</span></td>
     </ng-container>
-
     <ng-container matColumnDef="trabajador_id">
       <th mat-header-cell *matHeaderCellDef class="mat-header">ID</th>
-      <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <span class="id-badge">{{ contrato.trabajador_id }}</span>
-      </td>
+      <td mat-cell *matCellDef="let c" class="mat-cell"><span class="id-badge">{{ c.trabajador_id }}</span></td>
     </ng-container>
-
     <ng-container matColumnDef="estado">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Estado</th>
-      <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <span class="estado-badge success">✓ GENERADO</span>
-      </td>
+      <td mat-cell *matCellDef="let c" class="mat-cell"><span class="estado-badge success">✓ GENERADO</span></td>
     </ng-container>
-
     <ng-container matColumnDef="acciones">
       <th mat-header-cell *matHeaderCellDef class="mat-header">Acciones</th>
-      <td mat-cell *matCellDef="let contrato" class="mat-cell">
-        <button 
-          class="download-btn"
-          (click)="descargarContrato(contrato.url, contrato.trabajador_nombre)"
-          title="Descargar contrato">
-          <mat-icon>download</mat-icon>
-        </button>
+      <td mat-cell *matCellDef="let c" class="mat-cell">
+        <button class="download-btn" (click)="descargarContrato(c.url)"><mat-icon>download</mat-icon></button>
       </td>
     </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="['trabajador', 'trabajador_id', 'estado', 'acciones']"></tr>
-    <tr mat-row *matRowDef="let row; columns: ['trabajador', 'trabajador_id', 'estado', 'acciones'];"></tr>
+    <tr mat-header-row *matHeaderRowDef="['trabajador','trabajador_id','estado','acciones']"></tr>
+    <tr mat-row *matRowDef="let row; columns: ['trabajador','trabajador_id','estado','acciones'];"></tr>
   </table>
-</div>
-
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE CONFIRMACIÓN PARA REGENERAR -->
-<!-- ============================================ -->
-<div class="modal" *ngIf="modals['confirmacionRegenerarModal']" (click)="closeModal('confirmacionRegenerarModal')">
-  <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
-    
-    <div class="icon-container confirmation">
-      <div class="icon-circle confirmation">⚠</div>
-    </div>
-    
-    <h2 class="modal-title confirmation">Confirmar Regeneración</h2>
-    <p class="modal-message">{{ confirmMessage }}</p>
-    
-    <div class="button-container confirmation">
-      <button class="button-bottom confirm-yes" (click)="confirmarGeneracion()">
-        Sí, Regenerar
-      </button>
-      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionRegenerarModal')">
-        Cancelar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ÉXITO -->
-<!-- ============================================ -->
-<div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
-  <div class="modal-content-message success" (click)="$event.stopPropagation()">
-    
-    <div class="icon-container success">
-      <div class="icon-circle success">✓</div>
-    </div>
-    
-    <h2 class="modal-title success">¡Éxito!</h2>
-    <p class="modal-message">Los contratos se han generado exitosamente.</p>
-    
-    <div class="button-container">
-      <button class="button-bottom success" (click)="closeModal('exitoModal')">
-        Cerrar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================ -->
-<!-- 🎯 MODAL DE ERROR -->
-<!-- ============================================ -->
-<div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
-  <div class="modal-content-message error" (click)="$event.stopPropagation()">
-    
-    <div class="icon-container error">
-      <div class="icon-circle error">✕</div>
-    </div>
-    
-    <h2 class="modal-title error">Error</h2>
-    <p class="modal-message">{{ errorMessage }}</p>
-    
-    <div class="button-container">
-      <button class="button-bottom error" (click)="closeModal('errorModal')">
-        Cerrar
-      </button>
-    </div>
-  </div>
 </div>

@@ -1,0 +1,136 @@
+<div class="asociar-container">
+
+  <!-- PANEL IZQUIERDO: Lista de trabajadores -->
+  <div class="panel-trabajadores">
+    <div class="panel-header">
+      <h3>TRABAJADORES</h3>
+      <input
+        type="text"
+        class="buscador"
+        placeholder="Buscar por nombre o RUT..."
+        [(ngModel)]="filtroBusqueda"
+        (input)="aplicarFiltro()">
+    </div>
+    <ul class="lista-trabajadores">
+      <li
+        *ngFor="let t of trabajadoresFiltrados"
+        class="trabajador-item"
+        [class.activo]="trabajadorSeleccionado?.id === t.id"
+        (click)="seleccionarTrabajador(t)">
+        <span class="trab-nombre">{{ t.nombres }} {{ t.apellidos }}</span>
+        <span class="trab-rut">{{ t.rut || t.dni || '—' }}</span>
+      </li>
+      <li class="sin-resultados" *ngIf="trabajadoresFiltrados.length === 0">
+        Sin resultados
+      </li>
+    </ul>
+  </div>
+
+  <!-- PANEL DERECHO: Asociaciones del trabajador seleccionado -->
+  <div class="panel-asociaciones" *ngIf="trabajadorSeleccionado; else sinSeleccion">
+
+    <div class="asociaciones-header">
+      <h3>{{ trabajadorSeleccionado.nombres }} {{ trabajadorSeleccionado.apellidos }}</h3>
+      <span class="rut-label">{{ trabajadorSeleccionado.rut || trabajadorSeleccionado.dni }}</span>
+    </div>
+
+    <!-- Formulario de subida -->
+    <div class="upload-section">
+      <h4>Asociar nuevo PDF</h4>
+      <div class="upload-form">
+        <select class="select-parametro" [(ngModel)]="parametroParaSubir">
+          <option [ngValue]="null" disabled>Seleccionar parámetro...</option>
+          <option *ngFor="let p of parametros" [value]="p.id">{{ p.nombre }}</option>
+        </select>
+
+        <label class="file-label">
+          <input
+            type="file"
+            accept="application/pdf"
+            (change)="onArchivoSeleccionado($event)"
+            style="display:none"
+            #fileInput>
+          <span class="file-btn" (click)="fileInput.click()">
+            <mat-icon>upload_file</mat-icon>
+            {{ archivoSeleccionado ? archivoSeleccionado.name : 'Seleccionar PDF' }}
+          </span>
+        </label>
+
+        <button
+          class="btn-subir"
+          [disabled]="!parametroParaSubir || !archivoSeleccionado || subiendoArchivo"
+          (click)="subirPDF()">
+          {{ subiendoArchivo ? 'Subiendo...' : 'Asociar' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- PDFs asociados agrupados por parámetro -->
+    <div class="asociaciones-list" *ngIf="asociaciones.length > 0; else sinAsociaciones">
+      <div class="grupo-parametro" *ngFor="let grupo of agrupadoPorParametro()">
+        <h4 class="grupo-titulo">{{ grupo.parametro }}</h4>
+        <div class="pdf-item" *ngFor="let a of grupo.items">
+          <span class="pdf-orden">#{{ a.orden }}</span>
+          <span class="pdf-fecha">{{ a.fecha_subida }}</span>
+          <div class="pdf-acciones">
+            <button class="btn-ver" (click)="abrirPDF(a.archivo_pdf_url)" title="Ver PDF">
+              <mat-icon>visibility</mat-icon>
+            </button>
+            <button class="btn-eliminar" (click)="confirmarEliminar(a.id)" title="Eliminar">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #sinAsociaciones>
+      <div class="sin-datos">
+        <mat-icon>folder_open</mat-icon>
+        <p>Este trabajador no tiene PDFs asociados</p>
+      </div>
+    </ng-template>
+
+  </div>
+
+  <ng-template #sinSeleccion>
+    <div class="panel-asociaciones sin-seleccion">
+      <mat-icon>person_search</mat-icon>
+      <p>Selecciona un trabajador para ver sus asociaciones</p>
+    </div>
+  </ng-template>
+
+</div>
+
+<!-- Modal confirmar eliminar -->
+<div class="modal-overlay" *ngIf="modals['confirmarEliminar']" (click)="closeModal('confirmarEliminar')">
+  <div class="modal-box warning" (click)="$event.stopPropagation()">
+    <div class="modal-icon">⚠</div>
+    <h3>¿Eliminar asociación?</h3>
+    <p>Esta acción no afecta contratos ya generados.</p>
+    <div class="modal-actions">
+      <button class="btn-confirmar" (click)="eliminarAsociacion()">Eliminar</button>
+      <button class="btn-cancelar" (click)="closeModal('confirmarEliminar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal error -->
+<div class="modal-overlay" *ngIf="modals['error']" (click)="closeModal('error')">
+  <div class="modal-box error" (click)="$event.stopPropagation()">
+    <div class="modal-icon">✕</div>
+    <h3>Error</h3>
+    <p>{{ errorMessage }}</p>
+    <button class="btn-cerrar" (click)="closeModal('error')">Cerrar</button>
+  </div>
+</div>
+
+<!-- Modal éxito -->
+<div class="modal-overlay" *ngIf="modals['exito']" (click)="closeModal('exito')">
+  <div class="modal-box success" (click)="$event.stopPropagation()">
+    <div class="modal-icon">✓</div>
+    <h3>¡Listo!</h3>
+    <p>{{ exitoMessage }}</p>
+    <button class="btn-cerrar" (click)="closeModal('exito')">Cerrar</button>
+  </div>
+</div>

@@ -244,6 +244,7 @@
 
 .admin-usuarios-container {
   margin: 20px 20px 100px 20px;
+  padding-bottom: 120px;
 }
 
 .admin-usuarios-container table {
@@ -264,6 +265,7 @@
   border-left: 5px solid #4CAF50;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   animation: slideDown 0.3s ease-out;
+  padding-bottom: 150px;
 }
 
 .panel-header {
@@ -429,4 +431,95 @@
 .button-container.decision .button-bottom:hover {
   transform: translateX(5px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* ── Modo activo bar ── */
+.modo-activo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e8f5ef;
+  border: 1px solid #c8ecd9;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 4px;
+}
+
+.modo-label {
+  font-size: 13px;
+  color: #003c28;
+}
+
+.btn-cambiar-modo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  background: #003c28;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-cambiar-modo:hover { background: #005a3c; }
+
+.btn-cambiar-modo mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Hint parámetro ── */
+.hint-parametro {
+  font-size: 13px;
+  color: #f57c00;
+  background: #fff8e1;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 3px solid #f57c00;
+  margin: 8px 0 0;
+}
+
+/* ── Celda trabajador modo parámetro ── */
+.nombre-celda {
+  display: block;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #1a2e27;
+}
+
+.cargo-celda {
+  display: block;
+  font-size: 11.5px;
+  color: #8fa89f;
+}
+
+/* ── Select PDF por trabajador ── */
+.select-pdf-param {
+  padding: 7px 10px;
+  border: 1px solid #dde8e4;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #4a5a54;
+  background: #f4f6f5;
+  outline: none;
+  cursor: pointer;
+  min-width: 110px;
+}
+
+.select-pdf-param:focus {
+  border-color: #00a86b;
+}
+
+/* ── Botón modo selector ── */
+.filtro-button-modern .button-desc {
+  display: block;
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+  font-weight: 400;
 }

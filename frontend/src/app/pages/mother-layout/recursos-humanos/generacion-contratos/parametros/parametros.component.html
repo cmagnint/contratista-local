@@ -1,0 +1,219 @@
+<div class="parametros-container">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div class="header-left">
+      <h2 class="page-title">Parámetros de Contrato</h2>
+      <span class="page-subtitle">Gestiona los parámetros y sus formatos asociados</span>
+    </div>
+    <button class="btn-nuevo" (click)="abrirModalCrear()">
+      <mat-icon>add</mat-icon>
+      Nuevo Parámetro
+    </button>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-number">{{ parametros.length }}</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card accent">
+      <span class="stat-number">{{ totalConFormato }}</span>
+      <span class="stat-label">Con formato</span>
+    </div>
+    <div class="stat-card muted">
+      <span class="stat-number">{{ parametros.length - totalConFormato }}</span>
+      <span class="stat-label">Sin formato</span>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <div class="tabla-wrapper" *ngIf="parametros.length > 0; else sinParametros">
+    <table class="tabla-parametros">
+      <thead>
+        <tr>
+          <th class="col-id">ID</th>
+          <th class="col-nombre">Nombre</th>
+          <th class="col-formato">Formato Asignado</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of parametros" [class.editando]="editandoId === p.id">
+
+          <!-- ID -->
+          <td class="col-id">
+            <span class="id-chip">{{ p.id }}</span>
+          </td>
+
+          <!-- NOMBRE -->
+          <td class="col-nombre">
+            <ng-container *ngIf="editandoId === p.id; else verNombre">
+              <input
+                class="input-inline"
+                type="text"
+                [(ngModel)]="editNombre"
+                placeholder="Nombre del parámetro"
+                (keyup.enter)="guardarEdicion(p)"
+                (keyup.escape)="cancelarEdicion()">
+            </ng-container>
+            <ng-template #verNombre>
+              <span class="nombre-texto">{{ p.nombre }}</span>
+            </ng-template>
+          </td>
+
+          <!-- FORMATO -->
+          <td class="col-formato">
+            <ng-container *ngIf="editandoId === p.id; else verFormato">
+              <select class="select-inline" [(ngModel)]="editFormatoId">
+                <option [ngValue]="null">— Sin formato —</option>
+                <option *ngFor="let f of formatos" [ngValue]="f.id">{{ f.nombre }}</option>
+              </select>
+            </ng-container>
+            <ng-template #verFormato>
+              <span class="formato-chip" [class.sin-formato]="!p.formato_id">
+                <mat-icon *ngIf="p.formato_id">description</mat-icon>
+                <mat-icon *ngIf="!p.formato_id">remove</mat-icon>
+                {{ p.formato_nombre || 'Sin formato' }}
+              </span>
+            </ng-template>
+          </td>
+
+          <!-- ESTADO -->
+          <td class="col-estado">
+            <span class="estado-badge" [class.listo]="p.formato_id" [class.pendiente]="!p.formato_id">
+              {{ p.formato_id ? 'Listo' : 'Pendiente' }}
+            </span>
+          </td>
+
+          <!-- ACCIONES -->
+          <td class="col-acciones">
+            <ng-container *ngIf="editandoId === p.id; else verAcciones">
+              <button class="btn-accion guardar" [disabled]="guardando" (click)="guardarEdicion(p)" title="Guardar">
+                <mat-icon>check</mat-icon>
+              </button>
+              <button class="btn-accion cancelar" (click)="cancelarEdicion()" title="Cancelar">
+                <mat-icon>close</mat-icon>
+              </button>
+            </ng-container>
+            <ng-template #verAcciones>
+              <button class="btn-accion editar" (click)="iniciarEdicion(p)" title="Editar">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button class="btn-accion eliminar" (click)="confirmarEliminar(p)" title="Eliminar">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </ng-template>
+          </td>
+
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SIN DATOS -->
+  <ng-template #sinParametros>
+    <div class="empty-state">
+      <div class="empty-icon">
+        <mat-icon>tune</mat-icon>
+      </div>
+      <h3>No hay parámetros creados</h3>
+      <p>Crea el primer parámetro para comenzar a asociar formatos y PDFs de trabajadores.</p>
+      <button class="btn-nuevo" (click)="abrirModalCrear()">
+        <mat-icon>add</mat-icon>
+        Crear primer parámetro
+      </button>
+    </div>
+  </ng-template>
+
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL CREAR -->
+<!-- ============================================ -->
+<div class="modal-overlay" *ngIf="modals['crear']" (click)="closeModal('crear')">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Nuevo Parámetro</h3>
+      <button class="btn-close-modal" (click)="closeModal('crear')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-hint">
+        El parámetro es un agrupador. Después podrás asignarle un formato y asociar PDFs de trabajadores.
+      </p>
+      <label class="campo-label">Nombre del parámetro</label>
+      <input
+        class="campo-input"
+        type="text"
+        [(ngModel)]="nuevoNombre"
+        placeholder="Ej: Labor Cosecha, Cuartel Norte..."
+        (keyup.enter)="crearParametro()"
+        autofocus>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secundario" (click)="closeModal('crear')">Cancelar</button>
+      <button
+        class="btn-primario"
+        [disabled]="!nuevoNombre.trim() || creando"
+        (click)="crearParametro()">
+        {{ creando ? 'Creando...' : 'Crear Parámetro' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL CONFIRMAR ELIMINAR -->
+<!-- ============================================ -->
+<div class="modal-overlay" *ngIf="modals['confirmarEliminar']" (click)="closeModal('confirmarEliminar')">
+  <div class="modal-box compact" (click)="$event.stopPropagation()">
+    <div class="modal-icon-wrap warning">
+      <mat-icon>warning_amber</mat-icon>
+    </div>
+    <h3>¿Eliminar parámetro?</h3>
+    <p class="modal-nombre">{{ parametroAEliminar?.nombre }}</p>
+    <p class="modal-advertencia">
+      Se eliminarán también todas las asociaciones de PDFs vinculadas a este parámetro.
+    </p>
+    <div class="modal-footer centered">
+      <button class="btn-secundario" (click)="closeModal('confirmarEliminar')">Cancelar</button>
+      <button class="btn-peligro" (click)="eliminarParametro()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL ERROR -->
+<!-- ============================================ -->
+<div class="modal-overlay" *ngIf="modals['error']" (click)="closeModal('error')">
+  <div class="modal-box compact" (click)="$event.stopPropagation()">
+    <div class="modal-icon-wrap error">
+      <mat-icon>error_outline</mat-icon>
+    </div>
+    <h3>Error</h3>
+    <p>{{ errorMessage }}</p>
+    <div class="modal-footer centered">
+      <button class="btn-primario" (click)="closeModal('error')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL ÉXITO -->
+<!-- ============================================ -->
+<div class="modal-overlay" *ngIf="modals['exito']" (click)="closeModal('exito')">
+  <div class="modal-box compact" (click)="$event.stopPropagation()">
+    <div class="modal-icon-wrap success">
+      <mat-icon>check_circle_outline</mat-icon>
+    </div>
+    <h3>¡Listo!</h3>
+    <p>{{ exitoMessage }}</p>
+    <div class="modal-footer centered">
+      <button class="btn-primario" (click)="closeModal('exito')">Cerrar</button>
+    </div>
+  </div>
+</div>
