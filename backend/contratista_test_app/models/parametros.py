@@ -287,3 +287,13 @@ class APKLink(models.Model):
 
     def __str__(self):
         return f"Enlace APK para {self.holding} - {'Activo' if self.activo else 'Inactivo'}"
+
+class ElementoSeguridad(models.Model):
+    id = models.AutoField(primary_key=True)
+    holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
+    elemento = models.TextField()
+    cantidad = models.FloatField()
+
+    class Meta:
+        db_table = 'elemento_seguridad'
+        unique_together = [['holding', 'elemento']]

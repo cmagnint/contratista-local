@@ -172,6 +172,11 @@ from .views import (
     GenerarProformaTransportistaAPIView,
 )
 
+#parametros.py
+from .views import (
+    ElementoSeguridadAPIView,
+)
+
 app_name = 'contratista_test'
 
 urlpatterns = [
@@ -391,4 +396,6 @@ urlpatterns = [
     path('generar-proformas/<int:proforma_id>/pdf/', GenerarProformaTransportistaAPIView.as_view(), name='descargar-pdf-proforma'),
     path('generar-proformas/<int:proforma_id>/', GenerarProformaTransportistaAPIView.as_view(), name='actualizar-proforma'),
 
+    #PARAMETROS
+    path('elementos_seguridad/', ElementoSeguridadAPIView.as_view(), name='elementos_seguridad'),
 ]

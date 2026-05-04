@@ -65,6 +65,7 @@ import { TraspasoTrabajadoresComponent } from './pages/mother-layout/recursos-hu
 import { InformeCasasComponent } from './pages/mother-layout/recursos-humanos/parametros/admin-casas/informe-casas/informe-casas.component';
 import { AsociarContratosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/asociar-contratos/asociar-contratos.component';
 import { ParametrosComponent } from './pages/mother-layout/recursos-humanos/generacion-contratos/parametros/parametros.component';
+import { ElementosSeguridadComponent } from './pages/mother-layout/recursos-humanos/parametros/elementos-seguridad/elementos-seguridad.component';
 
 export const routes: Routes = [
   { path: '', component: SmartPreloadComponent, pathMatch: 'full' },
@@ -103,6 +104,7 @@ export const routes: Routes = [
       { path: 'r-h-casas', component: CasasComponent },
       { path: 'inf-casas', component: InformeCasasComponent },
       { path: 'r-h-horarios', component: HorariosComponent },
+      { path: 'elem-seg', component: ElementosSeguridadComponent,},
       { path: 'generar-qr', component: GenerarQrComponent },
       { path: 'autoregistro-personal', component: AutoRegistroComponent },
       { path: 'formatos', component: FormatosComponent },

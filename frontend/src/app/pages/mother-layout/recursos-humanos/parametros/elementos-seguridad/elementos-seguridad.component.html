@@ -1,0 +1,155 @@
+<div class="admin-container" (click)="deseleccionarFila($event)">
+
+  <!-- Botones de acción -->
+  <button mat-raised-button color="primary" class="custom-button"
+    (click)="openModal('crearElemento')">
+    CREAR ELEMENTO
+  </button>
+
+  <button mat-raised-button color="primary" class="custom-button-modificar"
+    [disabled]="!(selectedRows.length === 1)"
+    (click)="openModal('modificarElemento')">
+    MODIFICAR ELEMENTO
+  </button>
+
+  <button mat-raised-button color="primary" class="custom-button-cancelar"
+    [disabled]="!(selectedRows.length > 0)"
+    (click)="openModal('confirmacionModal')">
+    ELIMINAR ELEMENTO(S)
+  </button>
+
+  <!-- ============================================ -->
+  <!-- MODAL CREAR -->
+  <!-- ============================================ -->
+  <div class="modal" *ngIf="modals['crearElemento']" (click)="closeModal('crearElemento')">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+
+      <h2>CREAR ELEMENTO DE SEGURIDAD</h2>
+
+      <div class="modal-section">
+        <h3>Información del Elemento</h3>
+
+        <div class="input-container">
+          <label for="elemento">Elemento:</label>
+          <input type="text" class="input-field" id="elemento" name="elemento"
+            [(ngModel)]="elemento"
+            (ngModelChange)="elemento = $event.toUpperCase()"
+            placeholder="Ej: CASCO, GUANTES, CHALECO">
+        </div>
+
+        <div class="input-container">
+          <label for="cantidad">Cantidad:</label>
+          <input type="number" class="input-field input-number" id="cantidad" name="cantidad"
+            [(ngModel)]="cantidad"
+            min="0"
+            step="0.01"
+            placeholder="Ej: 10">
+        </div>
+      </div>
+
+      <div class="button-container">
+        <button class="button-bottom" (click)="crearElemento()">Crear Elemento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL MODIFICAR -->
+  <!-- ============================================ -->
+  <div class="modal" *ngIf="modals['modificarElemento']" (click)="closeModal('modificarElemento')">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+
+      <h2>MODIFICAR ELEMENTO DE SEGURIDAD</h2>
+
+      <div class="modal-section">
+        <h3>Información del Elemento</h3>
+
+        <div class="input-container">
+          <label for="elementoNew">Elemento:</label>
+          <input type="text" class="input-field" id="elementoNew" name="elementoNew"
+            [(ngModel)]="elementoNew"
+            (ngModelChange)="elementoNew = $event.toUpperCase()"
+            placeholder="Modifique el nombre del elemento">
+        </div>
+
+        <div class="input-container">
+          <label for="cantidadNew">Cantidad:</label>
+          <input type="number" class="input-field input-number" id="cantidadNew" name="cantidadNew"
+            [(ngModel)]="cantidadNew"
+            min="0"
+            step="0.01"
+            placeholder="Ej: 10">
+        </div>
+      </div>
+
+      <div class="button-container">
+        <button class="button-bottom" (click)="modificarElemento()">Modificar Elemento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- TABLA -->
+  <!-- ============================================ -->
+  <table mat-table [dataSource]="elementosCargados" class="mat-elevation-z8"
+    (click)="$event.stopPropagation()">
+
+    <ng-container matColumnDef="elemento">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Elemento</th>
+      <td mat-cell *matCellDef="let row" class="mat-cell">
+        <span class="elemento-badge">{{ row.elemento }}</span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="cantidad">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Cantidad</th>
+      <td mat-cell *matCellDef="let row" class="mat-cell">
+        <span class="cantidad-badge">{{ row.cantidad }}</span>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="columnasDesplegadas"></tr>
+    <tr mat-row *matRowDef="let row; columns: columnasDesplegadas;"
+      [class.selected]="isSelected(row)"
+      (click)="selectRow(row)">
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================ -->
+<!-- MODALES DE ESTADO -->
+<!-- ============================================ -->
+
+<div class="modal" *ngIf="modals['exitoModal']" (click)="closeModal('exitoModal')">
+  <div class="modal-content-message success" (click)="$event.stopPropagation()">
+    <div class="icon-circle success">✓</div>
+    <h2 class="modal-title success">¡Éxito!</h2>
+    <p class="modal-message">La operación se completó exitosamente.</p>
+    <div class="button-container">
+      <button class="button-bottom success" (click)="closeModal('exitoModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" *ngIf="modals['errorModal']" (click)="closeModal('errorModal')">
+  <div class="modal-content-message error" (click)="$event.stopPropagation()">
+    <div class="icon-circle error">✕</div>
+    <h2 class="modal-title error">Error</h2>
+    <p class="modal-message">{{ errorMessage }}</p>
+    <div class="button-container">
+      <button class="button-bottom error" (click)="closeModal('errorModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" *ngIf="modals['confirmacionModal']" (click)="closeModal('confirmacionModal')">
+  <div class="modal-content-message confirmation" (click)="$event.stopPropagation()">
+    <div class="icon-circle confirmation">?</div>
+    <h2 class="modal-title confirmation">Confirmar eliminación</h2>
+    <p class="modal-message">¿Está seguro que desea eliminar el(los) elemento(s) seleccionado(s)?</p>
+    <div class="button-container confirmation">
+      <button class="button-bottom confirm-yes" (click)="eliminarElementosSeleccionados()">Sí</button>
+      <button class="button-bottom confirm-no" (click)="closeModal('confirmacionModal')">No</button>
+    </div>
+  </div>
+</div>

@@ -9,3 +9,4 @@ from .rrhh import *
 from .sii import *
 from .contratos import *
 from .documentos import *
+from .parametros import *

@@ -463,6 +463,11 @@ seleccionarSociedad(sociedad: { id: number; nombre: string }): void {
     this.leftSidenav.close();
   }
 
+  navigateToElementoSeguridad() {
+    this.router.navigate(['/fs/elem-seg']);
+    this.leftSidenav.close();
+  }
+
   navigateToHorario() {
     this.router.navigate(['/fs/r-h-horarios']);
     this.leftSidenav.close();

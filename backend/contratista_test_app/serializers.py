@@ -71,6 +71,7 @@ from .models import (
     ContratoTrabajador,
     FolioComercialLabor,
     RegistroCasaTrabajador,
+    ElementoSeguridad,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -163,6 +164,7 @@ class HorarioSimpleSerializer(serializers.ModelSerializer):
                 total_minutos += minutos_dia - colacion
         
         return round(total_minutos / 60, 1)
+
 class FundoSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = CamposClientes
@@ -3546,5 +3548,9 @@ class FiltrosPagoEfectivoSerializer(serializers.ModelSerializer):
                 return float(obj.produccion * fc_labor.valor_pago_trabajador)
         return 0
 
+class ElementoSeguridadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ElementoSeguridad
+        fields = '__all__'
 
 

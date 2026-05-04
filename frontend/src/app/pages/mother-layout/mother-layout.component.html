@@ -220,6 +220,11 @@
               <mat-icon>schedule</mat-icon>
               <span class="icon-label">Horarios</span>
             </li>
+
+            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'HORARIOS')" (click)="navigateToElementoSeguridad()">
+              <mat-icon>security</mat-icon>
+              <span class="icon-label">Elementos Seguridad</span>
+            </li>
           
           </ul>
 
