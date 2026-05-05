@@ -105,24 +105,73 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         return self._actualizar_documento(request, documento_id)
     
     def delete(self, request, documento_id, *args, **kwargs):
+        """
+        Elimina un formato de contrato y también borra el PDF físico asociado.
+
+        - Valida que el formato pertenezca al holding del usuario.
+        - Borra el archivo PDF desde MEDIA_ROOT.
+        - Borra el registro ContratoVariables.
+        """
         try:
             documento = get_object_or_404(ContratoVariables, id=documento_id)
-            
+
             if documento.holding != request.user.holding:
                 return Response(
-                    {"error": "No tienes permisos para eliminar este documento"}, 
+                    {"error": "No tienes permisos para eliminar este documento"},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             nombre = documento.nombre
+
+            # Guardar referencia antes de eliminar el registro
+            archivo_pdf = documento.archivo_pdf
+            archivo_nombre = archivo_pdf.name if archivo_pdf else None
+
+            # Si existen parámetros asociados, se desasocian explícitamente.
+            # Aunque el modelo usa SET_NULL, esto deja el flujo más claro.
+            Parametro.objects.filter(
+                formato=documento,
+                holding=request.user.holding
+            ).update(formato=None)
+
+            # Borrar archivo físico del PDF
+            archivo_eliminado = False
+            if archivo_pdf and archivo_pdf.name:
+                try:
+                    if archivo_pdf.storage.exists(archivo_pdf.name):
+                        archivo_pdf.delete(save=False)
+                        archivo_eliminado = True
+                except Exception as file_error:
+                    logger.error(
+                        f"Error al eliminar PDF físico del formato {documento_id}: {file_error}",
+                        exc_info=True
+                    )
+                    return Response(
+                        {
+                            "error": "No se pudo eliminar el archivo PDF asociado",
+                            "detalle": str(file_error)
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
+            # Borrar registro de base de datos
             documento.delete()
-            
+
             return Response({
-                "mensaje": f"Documento '{nombre}' eliminado exitosamente"
-            })
-            
+                "mensaje": f"Formato '{nombre}' eliminado exitosamente",
+                "archivo_pdf": archivo_nombre,
+                "archivo_eliminado": archivo_eliminado
+            }, status=status.HTTP_200_OK)
+
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(
+                f"DocumentoVariablesNativasAPIView DELETE: error eliminando documento {documento_id}",
+                exc_info=True
+            )
+            return Response(
+                {"error": f"Error al eliminar el documento: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     def _normalizar_pdf_a_carta(self, pdf_file):
         import fitz
@@ -184,92 +233,118 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         return io.BytesIO(output_bytes)
     
     def _crear_documento(self, request):
-        """Crear documento con variables posicionadas (soporta merge de PDFs)"""
+        """
+        Crear documento con variables posicionadas.
+        IMPORTANTE:
+        - Mantiene el PDF en su tamaño/formato original.
+        - No normaliza a carta 612x792.
+        - Esto permite que las coordenadas guardadas desde Angular calcen
+        con el mismo PDF al abrir/modificar/generar.
+        """
         try:
-            from pypdf import PdfWriter, PdfReader  # ✅ Actualizado
+            from pypdf import PdfWriter, PdfReader
             from django.core.files.base import ContentFile
             import io
-            
+            import json
+
             nombre = request.data.get('nombre', 'Documento sin nombre')
             tipo = request.data.get('tipo', 'CHILENO')
             requiere_merge = request.data.get('requiere_merge', 'false') == 'true'
-            
-            # ========== MANEJO DE PDF (SIMPLE O FUSIONADO) ==========
+
+            # ==========================================================
+            # MANEJO DE PDF: SIMPLE O FUSIONADO, SIN NORMALIZAR
+            # ==========================================================
             if requiere_merge:
-                # Fusionar múltiples PDFs
                 num_partes = int(request.data.get('num_partes', 1))
-                print(f"🔀 Fusionando {num_partes} PDFs...")
-                
-                writer = PdfWriter()  # ✅ PdfWriter en lugar de PdfMerger
-                
-                # ⭐ Normalizar cada parte ANTES de fusionar
+                print(f"🔀 Fusionando {num_partes} PDFs manteniendo tamaño original...")
+
+                writer = PdfWriter()
+
                 for i in range(num_partes):
                     parte_file = request.FILES.get(f'pdf_parte_{i}')
-                    if parte_file:
-                        print(f"  📄 Parte {i+1}: {parte_file.size} bytes")
-                        
-                        # Normalizar a 612x792 con PyMuPDF
-                        parte_normalizada = self._normalizar_pdf_a_carta(parte_file)
-                        
-                        # ✅ Agregar páginas con PdfWriter
-                        reader = PdfReader(parte_normalizada)
-                        for page in reader.pages:
-                            writer.add_page(page)
-                    else:
+
+                    if not parte_file:
                         print(f"  ⚠️ No se encontró pdf_parte_{i}")
-                
-                # Crear archivo fusionado en memoria
+                        continue
+
+                    if parte_file.size == 0:
+                        return Response({
+                            "error": f"La parte {i + 1} del PDF está vacía"
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    print(f"  📄 Parte {i + 1}: {parte_file.size} bytes")
+
+                    # ✅ Mantener el PDF original, sin normalizar
+                    parte_file.seek(0)
+                    reader = PdfReader(parte_file)
+
+                    for page in reader.pages:
+                        writer.add_page(page)
+
+                if len(writer.pages) == 0:
+                    return Response({
+                        "error": "No se pudo fusionar ningún PDF válido"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
                 merged_buffer = io.BytesIO()
-                writer.write(merged_buffer)  # ✅ Sin close()
+                writer.write(merged_buffer)
                 merged_buffer.seek(0)
-                
-                print(f"✅ PDF fusionado: {len(merged_buffer.getvalue())} bytes")
-                
-                # Crear archivo Django desde el buffer
+
+                print(f"✅ PDF fusionado manteniendo tamaños originales: {len(merged_buffer.getvalue())} bytes")
+
                 nombre_archivo = f"{nombre.lower().replace(' ', '_')}.pdf"
                 pdf_file = ContentFile(merged_buffer.read(), name=nombre_archivo)
+
             else:
-                # ⭐ Normalizar archivo único
                 pdf_file_original = request.FILES.get('archivo_pdf')
-                
+
                 if not pdf_file_original:
                     return Response({
                         "error": "El archivo PDF es obligatorio"
                     }, status=status.HTTP_400_BAD_REQUEST)
-                
+
                 if pdf_file_original.size == 0:
                     return Response({
                         "error": "El archivo PDF está vacío"
                     }, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Normalizar a 612x792 con PyMuPDF
-                pdf_normalizado = self._normalizar_pdf_a_carta(pdf_file_original)
-                
-                # Convertir a ContentFile para Django
+
+                # ✅ Mantener PDF original, sin normalizar a carta
+                pdf_file_original.seek(0)
                 nombre_archivo = pdf_file_original.name
-                pdf_file = ContentFile(pdf_normalizado.read(), name=nombre_archivo)
-            
-            # ========== PROCESAR VARIABLES ==========
+                pdf_file = ContentFile(pdf_file_original.read(), name=nombre_archivo)
+
+                print(f"📄 PDF original conservado: {nombre_archivo}, {pdf_file_original.size} bytes")
+
+            # ==========================================================
+            # PROCESAR VARIABLES
+            # ==========================================================
             variables_data = request.data.get('variables')
+
             if isinstance(variables_data, str):
-                variables_json = json.loads(variables_data)
+                try:
+                    variables_json = json.loads(variables_data)
+                except json.JSONDecodeError:
+                    return Response({
+                        "error": "El formato de variables no es válido"
+                    }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 variables_json = variables_data or []
-            
+
             # Validar estructura de variables
             for variable in variables_json:
                 if 'nombre' not in variable:
-                    return Response(
-                        {"error": "Todas las variables deben tener un nombre"}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                    return Response({
+                        "error": "Todas las variables deben tener un nombre"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
                 if 'ubicaciones' not in variable:
-                    return Response(
-                        {"error": "Todas las variables deben tener ubicaciones"}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            
-            # ========== CREAR DOCUMENTO ==========
+                    return Response({
+                        "error": "Todas las variables deben tener ubicaciones"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            # ==========================================================
+            # CREAR DOCUMENTO
+            # ==========================================================
             documento = ContratoVariables.objects.create(
                 holding=request.user.holding,
                 nombre=nombre,
@@ -277,19 +352,23 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 archivo_pdf=pdf_file,
                 variables=variables_json
             )
-            
-            print(f"✅ Documento guardado: ID {documento.id}, {len(variables_json)} variables, PDF normalizado a 612x792 con PyMuPDF")
-            
+
+            print(
+                f"✅ Documento guardado: ID {documento.id}, "
+                f"{len(variables_json)} variables, PDF original conservado"
+            )
+
             return Response({
                 "id": documento.id,
-                "mensaje": "Documento guardado exitosamente (PDF normalizado a 612x792)",
-                "num_paginas": num_partes if requiere_merge else 1
+                "mensaje": "Documento guardado exitosamente",
+                "num_paginas": len(writer.pages) if requiere_merge else 1
             }, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
             print(f"❌ Error al guardar el documento: {str(e)}")
             import traceback
             traceback.print_exc()
+
             return Response({
                 "error": f"Error al guardar el documento: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -473,11 +552,13 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                         page.insert_image(rect, filename=huella_path, keep_proportion=True)
                     continue
                 
-                elif nombre_variable == 'elemento_seguridad':
+                elif nombre_variable in ['elemento_seguridad', 'cantidad_seguridad']:
                     valor = var_data.get('valor') or ''
+
                     if valor:
                         x_text = x_nativo + OFFSET_X
                         y_text = y_nativo + BASE_FONT_SIZE
+
                         page.insert_text(
                             fitz.Point(x_text, y_text),
                             str(valor),
@@ -485,6 +566,7 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                             fontname="helv",
                             color=(0, 0, 0)
                         )
+
                     continue
 
                 # Variables de texto
@@ -947,6 +1029,28 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                             pdf_x = variable['posX'] + BASE_OFFSET_X
                             pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
                             can.drawString(pdf_x, pdf_y, '[HUELLA PENDIENTE]')
+                    continue
+
+                elif nombre in ['elemento_seguridad', 'cantidad_seguridad']:
+                    valor = variable.get('valor') or ''
+
+                    if valor:
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+
+                        can.setFont('Helvetica', BASE_FONT_SIZE)
+                        can.drawString(pdf_x, pdf_y, str(valor))
+
+                        variables_escritas += 1
+
+                        if debug:
+                            can.saveState()
+                            can.setStrokeColorRGB(1, 0, 0)
+                            can.setLineWidth(1)
+                            can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
+                            can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
+                            can.restoreState()
+
                     continue
 
                 if nombre not in datos_variables:

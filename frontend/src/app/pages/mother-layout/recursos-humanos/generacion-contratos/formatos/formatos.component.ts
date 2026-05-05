@@ -45,6 +45,13 @@ interface VariableConDatos {
   valorPrueba: string;
 }
 
+
+interface ElementoSeguridadOption {
+  id: number;
+  elemento: string;
+  cantidad: string | null;
+}
+
 @Component({
   selector: 'app-formatos',
   standalone: true,
@@ -61,6 +68,7 @@ export class FormatosComponent implements OnInit {
   isBrowser: boolean;
   errorMessage: string | null = null;
   public holding: string = '';
+  private readonly PDF_DISPLAY_MULTIPLIER = 1.4;
 
   // Store the original File object
   originalPdfFile: File | null = null;
@@ -94,11 +102,15 @@ export class FormatosComponent implements OnInit {
   pdfNativeWidth: number = 0;
   pdfNativeHeight: number = 0;
   
-  //Propiedades Elemento Seguridad
-  elementosSeguridad: string[] = [];
+  // Propiedades Elemento Seguridad
+  elementosSeguridad: ElementoSeguridadOption[] = [];
   mostrarModalElementoSeguridad: boolean = false;
-  elementoSeleccionadoTemp: string = '';
+  elementoSeleccionadoTemp: ElementoSeguridadOption | null = null;
+  elementoSeguridadPendiente: ElementoSeguridadOption | null = null;
   variableBuscada: string = '';
+  filtroDocumentoBuscado: string = '';
+  filtroDocumentoTipo: string = '';
+  filtroDocumentoFecha: string = '';
 
   // ⭐ PROPIEDADES PARA FIRMA EMPLEADOR
   firmaEmpleadorDisponible: boolean = false;
@@ -153,14 +165,13 @@ export class FormatosComponent implements OnInit {
     { nombre: 'numero_cuenta', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'cargo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'area', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'elementos_proteccion', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'contacto_emergencia_nombre', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'contacto_emergencia_telefono', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma_empleador', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'huella', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'elemento_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-
+    { nombre: 'cantidad_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
   ];
   
   // Track variables placed on each page
@@ -262,26 +273,37 @@ export class FormatosComponent implements OnInit {
   }
 
   cargarElementosSeguridad(): void {
-    this.apiService.get('api_elemento_seguridad/')
+    if (!this.holding) {
+      console.warn('No se puede cargar elementos de seguridad: holding no disponible');
+      return;
+    }
+
+    this.apiService.get(`api_elemento_seguridad/?holding=${this.holding}`)
       .subscribe({
         next: (response: any) => {
           this.elementosSeguridad = Array.isArray(response) ? response : [];
         },
         error: (error) => {
           console.error('Error al cargar elementos de seguridad:', error);
+          this.elementosSeguridad = [];
         }
       });
   }
 
   confirmarElementoSeguridad(): void {
     if (!this.elementoSeleccionadoTemp) return;
-    this.mostrarModalElementoSeguridad = false;
-    this.modoColocacion = true;
-    const pdfContainer = document.getElementById('pdf-container');
-    if (pdfContainer) {
-      pdfContainer.style.cursor = 'crosshair';
-      pdfContainer.addEventListener('click', this.handlePdfClick.bind(this), { once: true });
+
+    const variableElemento = this.variables.find(v => v.nombre === 'elemento_seguridad');
+
+    if (!variableElemento) {
+      alert('No existe la variable elemento_seguridad');
+      return;
     }
+
+    this.elementoSeguridadPendiente = this.elementoSeleccionadoTemp;
+    this.mostrarModalElementoSeguridad = false;
+
+    this.iniciarColocacionVariable(variableElemento);
   }
   
   /**
@@ -343,6 +365,18 @@ export class FormatosComponent implements OnInit {
             this.isLoading = false;
           }
         });
+    }
+  }
+
+  iniciarColocacionVariable(variable: VariableDocumento): void {
+    this.variableSeleccionada = variable;
+    this.modoColocacion = true;
+
+    const pdfContainer = document.getElementById('pdf-container');
+
+    if (pdfContainer) {
+      pdfContainer.style.cursor = 'crosshair';
+      pdfContainer.addEventListener('click', this.handlePdfClick.bind(this), { once: true });
     }
   }
   
@@ -416,13 +450,13 @@ export class FormatosComponent implements OnInit {
       'numero_cuenta': '123456789',
       'cargo': 'Operario Agrícola',
       'area': 'Producción',
-      'elementos_proteccion': 'Casco, guantes, zapatos de seguridad',
       'contacto_emergencia_nombre': 'María González',
       'contacto_emergencia_telefono': '+56 9 8765 4321',
       'firma_empleador': '[Firma Empleador]',
       'firma': '[Firma Trabajador]',
       'huella': '[Huella Digital]',
       'elemento_seguridad': '[Elemento de Seguridad]',
+      'cantidad_seguridad': '[Cantidad del Elemento]',
 
     };
     
@@ -557,96 +591,118 @@ export class FormatosComponent implements OnInit {
 
     pagesContainer.innerHTML = '';
     this.pdfPages = [];
-    
+
     const containerWidth = pagesContainer.clientWidth || 800;
     const pixelRatio = window.devicePixelRatio || 1;
-    
+
     console.log(`📄 Renderizando ${this.pdfDocuments.length} documentos...`);
 
     for (let docIndex = 0; docIndex < this.pdfDocuments.length; docIndex++) {
       const pdfDoc = this.pdfDocuments[docIndex];
       const paginasAnteriores = docIndex > 0 ? this.totalPagesAcumuladas[docIndex - 1] : 0;
-      
-      console.log(`📘 Documento ${docIndex + 1}: ${pdfDoc.numPages} páginas (offset: ${paginasAnteriores})`);
-      
+
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
         try {
           const pageNumGlobal = paginasAnteriores + pageNum;
-          
           const page = await pdfDoc.getPage(pageNum);
-          
-          const viewport = page.getViewport({ scale: 1.0 });
-          const scale = (containerWidth * 0.9) / viewport.width;
-          const scaledViewport = page.getViewport({ scale: scale * 1.4 * pixelRatio });
-          
+
+          const nativeViewport = page.getViewport({ scale: 1.0 });
+
+          const nativeWidth = nativeViewport.width;
+          const nativeHeight = nativeViewport.height;
+
+          const baseScale = (containerWidth * 0.9) / nativeWidth;
+          const visualScale = baseScale * this.PDF_DISPLAY_MULTIPLIER;
+
+          const renderViewport = page.getViewport({
+            scale: visualScale * pixelRatio
+          });
+
+          const displayWidth = nativeWidth * visualScale;
+          const displayHeight = nativeHeight * visualScale;
+
           const pageDiv = document.createElement('div');
           pageDiv.className = 'pdf-page-container';
-          
+
           const pageHeader = document.createElement('div');
           pageHeader.className = 'pdf-page-header';
           pageHeader.textContent = `PÁGINA ${pageNumGlobal}`;
-          
+
           const pageContentDiv = document.createElement('div');
           pageContentDiv.className = 'pdf-page';
           pageContentDiv.setAttribute('data-page', pageNumGlobal.toString());
-          pageContentDiv.style.width = `${scaledViewport.width / pixelRatio}px`;
-          pageContentDiv.style.height = `${scaledViewport.height / pixelRatio}px`;
-          
+
+          // ✅ Datos por página. No dependemos de this.pdfNativeWidth global.
+          pageContentDiv.setAttribute('data-native-width', nativeWidth.toString());
+          pageContentDiv.setAttribute('data-native-height', nativeHeight.toString());
+          pageContentDiv.setAttribute('data-visual-scale', visualScale.toString());
+
+          pageContentDiv.style.width = `${displayWidth}px`;
+          pageContentDiv.style.height = `${displayHeight}px`;
+
           const canvas = document.createElement('canvas');
           canvas.className = 'pdf-canvas';
-          canvas.width = scaledViewport.width;
-          canvas.height = scaledViewport.height;
-          canvas.style.width = `${scaledViewport.width / pixelRatio}px`;
-          canvas.style.height = `${scaledViewport.height / pixelRatio}px`;
-          
-          const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+
+          canvas.width = renderViewport.width;
+          canvas.height = renderViewport.height;
+
+          canvas.style.width = `${displayWidth}px`;
+          canvas.style.height = `${displayHeight}px`;
+
+          const context = canvas.getContext('2d', {
+            alpha: false,
+            willReadFrequently: true
+          });
+
           if (!context) continue;
-          
+
           await page.render({
             canvasContext: context,
-            viewport: scaledViewport,
+            viewport: renderViewport,
             renderInteractiveForms: true
           }).promise;
-          
+
           const pageFooter = document.createElement('div');
           pageFooter.className = 'pdf-page-footer';
           pageFooter.textContent = 'Haga clic para posicionar variables | Arrastre para mover';
-          
+
           pageContentDiv.appendChild(canvas);
           pageDiv.appendChild(pageHeader);
           pageDiv.appendChild(pageContentDiv);
           pageDiv.appendChild(pageFooter);
-          
+
           pagesContainer.appendChild(pageDiv);
-          
-          const nativeViewport = page.getViewport({ scale: 1.0 });
-          
+
           this.pdfPages.push({
             pageNumber: pageNumGlobal,
-            nativeWidth: nativeViewport.width,
-            nativeHeight: nativeViewport.height,
-            canvas: canvas,
-            viewport: scaledViewport,
+            nativeWidth,
+            nativeHeight,
+            canvas,
+            viewport: renderViewport,
             container: pageContentDiv
           });
-          
-          console.log(`✅ Página ${pageNumGlobal} renderizada (Doc ${docIndex + 1}, Pág ${pageNum})`);
-          
+
+          console.log(`✅ Página ${pageNumGlobal} renderizada`, {
+            nativeWidth,
+            nativeHeight,
+            displayWidth,
+            displayHeight,
+            visualScale
+          });
+
         } catch (error) {
           console.error(`Error al renderizar página ${pageNum} del documento ${docIndex + 1}:`, error);
         }
       }
     }
-    
-    if (this.pdfDocuments.length > 0) {
-      const firstPage = await this.pdfDocuments[0].getPage(1);
-      const nativeViewport = firstPage.getViewport({ scale: 1.0 });
-      this.pdfNativeWidth = nativeViewport.width;
-      this.pdfNativeHeight = nativeViewport.height;
+
+    if (this.pdfPages.length > 0) {
+      this.pdfNativeWidth = this.pdfPages[0].nativeWidth;
+      this.pdfNativeHeight = this.pdfPages[0].nativeHeight;
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     this.ngZone.run(() => {
       setTimeout(() => {
         this.redibujarTodasLasVariables();
@@ -728,37 +784,105 @@ export class FormatosComponent implements OnInit {
    */
   cargarVariablesDesdeDocumento(variablesDocumento: any[]): void {
     if (!variablesDocumento || variablesDocumento.length === 0) return;
-    
+
     this.resetearVariables();
-    
+
     variablesDocumento.forEach(varDoc => {
       const varIndex = this.variables.findIndex(v => v.nombre === varDoc.nombre);
-      
-      if (varIndex >= 0) {
-        this.variables[varIndex].colocada = true;
-        this.variables[varIndex].posX = varDoc.posX || 0;
-        this.variables[varIndex].posY = varDoc.posY || 0;
-        this.variables[varIndex].pagina = varDoc.pagina || 1;
-        
-        if (varDoc.ubicaciones && Array.isArray(varDoc.ubicaciones)) {
-          this.variables[varIndex].ubicaciones = [...varDoc.ubicaciones];
-          
-          varDoc.ubicaciones.forEach((ubicacion: { pagina: number; posX: any; posY: any; id: any; }) => {
-            if (!this.variablesPorPagina.has(ubicacion.pagina)) {
-              this.variablesPorPagina.set(ubicacion.pagina, []);
-            }
-            
-            this.variablesPorPagina.get(ubicacion.pagina)?.push({
-              nombre: varDoc.nombre,
-              posX: ubicacion.posX,
-              posY: ubicacion.posY,
-              elementId: ubicacion.id || `var-${varDoc.nombre}-${Date.now()}`,
-              variableIndex: varIndex
-            });
-          });
-        }
+
+      if (varIndex < 0) return;
+
+      const ubicaciones = Array.isArray(varDoc.ubicaciones)
+        ? varDoc.ubicaciones.map((u: any) => ({
+            id: u.id || `var-${varDoc.nombre}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            pagina: Number(u.pagina || 1),
+            posX: Number(u.posX || 0),
+            posY: Number(u.posY || 0),
+            width: u.width !== undefined ? Number(u.width) : undefined,
+            height: u.height !== undefined ? Number(u.height) : undefined,
+            valor: u.valor
+          }))
+        : [];
+
+      this.variables[varIndex].colocada = ubicaciones.length > 0;
+      this.variables[varIndex].ubicaciones = ubicaciones;
+
+      if (ubicaciones.length > 0) {
+        const ultima = ubicaciones[ubicaciones.length - 1];
+        this.variables[varIndex].posX = ultima.posX;
+        this.variables[varIndex].posY = ultima.posY;
+        this.variables[varIndex].pagina = ultima.pagina;
       }
+
+      ubicaciones.forEach((ubicacion: any) => {
+        if (!this.variablesPorPagina.has(ubicacion.pagina)) {
+          this.variablesPorPagina.set(ubicacion.pagina, []);
+        }
+
+        this.variablesPorPagina.get(ubicacion.pagina)?.push({
+          nombre: varDoc.nombre,
+          posX: ubicacion.posX,
+          posY: ubicacion.posY,
+          elementId: ubicacion.id,
+          variableIndex: varIndex
+        });
+      });
     });
+  }
+
+  private normalizarUrlPdf(pdfUrl: string): string {
+    if (!pdfUrl) return '';
+
+    const PRODUCCION_BASE_URL = 'https://contratista.terramobile.cl';
+
+    const protocoloActual = window.location.protocol;
+    const hostActual = window.location.hostname;
+
+    const esLocal =
+      hostActual === 'localhost' ||
+      hostActual === '127.0.0.1' ||
+      hostActual === '0.0.0.0';
+
+    // Caso 1: URL relativa, ejemplo: /media/contracts/formats/archivo.pdf
+    if (pdfUrl.startsWith('/')) {
+      // En localhost, si los PDFs están en el servidor productivo,
+      // usar la URL real del backend.
+      if (esLocal) {
+        return `${PRODUCCION_BASE_URL}${pdfUrl}`;
+      }
+
+      // En producción, usar el mismo dominio actual.
+      return `${window.location.origin}${pdfUrl}`;
+    }
+
+    try {
+      const url = new URL(pdfUrl);
+
+      // Caso 2: estamos en localhost
+      if (esLocal) {
+        // Si el backend devuelve http://contratista.terramobile.cl,
+        // lo forzamos a https.
+        if (
+          url.hostname === 'contratista.terramobile.cl' &&
+          url.protocol === 'http:'
+        ) {
+          url.protocol = 'https:';
+        }
+
+        return url.toString();
+      }
+
+      // Caso 3: producción con HTTPS.
+      // Evita mixed content si el backend devuelve http.
+      if (protocoloActual === 'https:' && url.protocol === 'http:') {
+        url.protocol = 'https:';
+      }
+
+      return url.toString();
+
+    } catch {
+      return pdfUrl;
+    }
   }
 
   /**
@@ -770,7 +894,7 @@ export class FormatosComponent implements OnInit {
       return;
     }
 
-    pdfUrl = pdfUrl.replace('http://', 'https://');
+    pdfUrl = this.normalizarUrlPdf(pdfUrl);
     
     console.log('PDF URL:', pdfUrl);
     
@@ -809,6 +933,65 @@ export class FormatosComponent implements OnInit {
         this.isLoading = false;
       });
   }
+
+  eliminarFormatoDocumento(documento: any, event?: MouseEvent): void {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  if (!documento?.id) {
+    alert('No se pudo identificar el formato a eliminar.');
+    return;
+  }
+
+  const confirmar = confirm(
+    `¿Está seguro de eliminar el formato "${documento.nombre}"?\n\n` +
+    `También se eliminará el PDF asociado.\n\n` +
+    `Esta acción no se puede deshacer.`
+  );
+
+  if (!confirmar) return;
+
+  this.isLoading = true;
+
+  this.apiService.delete(`api_documento_nativo/${documento.id}/`, {})
+    .subscribe({
+      next: (response: any) => {
+        console.log('Formato eliminado:', response);
+
+        this.documentosCargados = this.documentosCargados.filter(
+          (doc: any) => doc.id !== documento.id
+        );
+
+        if (this.documentoSeleccionado?.id === documento.id) {
+          this.documentoSeleccionado = null;
+          this.documentoGuardadoId = null;
+          this.pdfSrc = null;
+          this.pdfPreviewUrl = null;
+          this.resetearVariables();
+
+          const pdfContainer = document.getElementById('pdf-container');
+          if (pdfContainer) {
+            pdfContainer.innerHTML = '';
+          }
+        }
+
+        this.isLoading = false;
+        alert(response?.mensaje || 'Formato eliminado exitosamente.');
+      },
+      error: (error) => {
+        console.error('Error al eliminar formato:', error);
+        this.isLoading = false;
+
+        alert(
+          error?.error?.error ||
+          error?.error?.detalle ||
+          'No se pudo eliminar el formato.'
+        );
+      }
+    });
+}
 
   /**
    * Obtener el número de variables colocadas en el documento
@@ -858,24 +1041,24 @@ export class FormatosComponent implements OnInit {
   }
 
   seleccionarVariable(variable: VariableDocumento): void {
+    if (variable.nombre === 'cantidad_seguridad') {
+      alert('La cantidad se posiciona automáticamente después de posicionar un elemento de seguridad.');
+      return;
+    }
+
     if (variable.nombre === 'elemento_seguridad') {
       if (this.elementosSeguridad.length === 0) {
         alert('No hay elementos de seguridad configurados para este holding');
         return;
       }
+
       this.variableSeleccionada = variable;
       this.elementoSeleccionadoTemp = this.elementosSeguridad[0];
       this.mostrarModalElementoSeguridad = true;
       return;
     }
 
-    this.variableSeleccionada = variable;
-    this.modoColocacion = true;
-    const pdfContainer = document.getElementById('pdf-container');
-    if (pdfContainer) {
-      pdfContainer.style.cursor = 'crosshair';
-      pdfContainer.addEventListener('click', this.handlePdfClick.bind(this), { once: true });
-    }
+    this.iniciarColocacionVariable(variable);
   }
 
   /**
@@ -1320,66 +1503,113 @@ export class FormatosComponent implements OnInit {
   }
 
   handlePdfClick(event: MouseEvent): void {
-    if (this.variableSeleccionada && this.modoColocacion) {
-      if (!this.variableSeleccionada || !this.modoColocacion) return;
-      
-      const clickedPage = this.findClickedPage(event);
-      if (!clickedPage) return;
-      
-      const pageNumber = parseInt(clickedPage.getAttribute('data-page') || '0');
-      if (pageNumber <= 0) return;
-      
-      const coords = this.calcularCoordenadasNativas(clickedPage, event.clientX, event.clientY);
-      
-      const variableIndex = this.variables.findIndex(v => v === this.variableSeleccionada);
-      
-      const elementId = `var-${this.variableSeleccionada.nombre}-${Date.now()}`;
-      
-      this.variableSeleccionada.posX = coords.posX;
-      this.variableSeleccionada.posY = coords.posY;
-      this.variableSeleccionada.pagina = pageNumber;
-      this.variableSeleccionada.colocada = true;
-      
-      const pageData = this.pdfPages.find(p => p.pageNumber === pageNumber);
+    if (!this.variableSeleccionada || !this.modoColocacion) return;
 
-      this.variableSeleccionada.ubicaciones.push({
-        pagina: pageNumber,
-        posX: coords.posX,
-        posY: coords.posY,
-        id: elementId,
-        pageWidth: pageData?.nativeWidth || this.pdfNativeWidth,
-        pageHeight: pageData?.nativeHeight || this.pdfNativeHeight,
-        ...(this.variableSeleccionada.nombre === 'elemento_seguridad' && { valor: this.elementoSeleccionadoTemp })
-      });
-      
-      if (!this.variablesPorPagina.has(pageNumber)) {
-        this.variablesPorPagina.set(pageNumber, []);
-      }
-      
-      this.variablesPorPagina.get(pageNumber)?.push({
-        nombre: this.variableSeleccionada.nombre,
-        posX: coords.posX, 
-        posY: coords.posY,
-        elementId: elementId,
-        variableIndex: variableIndex
-      });
-      
-      this.mostrarVariableEnPdf({
-        nombre: this.variableSeleccionada.nombre,
-        posX: coords.posX,
-        posY: coords.posY,
-        elementId: elementId,
-        variableIndex: variableIndex
-      }, clickedPage);
-      
-      this.modoColocacion = false;
-      document.getElementById('pdf-container')!.style.cursor = 'default';
-      this.variableSeleccionada = null;
-      
-      if (this.modoModificacion) {
-        this.actualizarInterfazModoModificacion();
+    const clickedPage = this.findClickedPage(event);
+    if (!clickedPage) return;
+
+    const pageNumber = parseInt(clickedPage.getAttribute('data-page') || '0', 10);
+    if (pageNumber <= 0) return;
+
+    const coords = this.calcularCoordenadasNativas(clickedPage, event.clientX, event.clientY);
+    const variableActual = this.variableSeleccionada;
+
+    const variableIndex = this.variables.findIndex(v => v === variableActual);
+    const elementId = `var-${variableActual.nombre}-${Date.now()}`;
+
+    variableActual.posX = coords.posX;
+    variableActual.posY = coords.posY;
+    variableActual.pagina = pageNumber;
+    variableActual.colocada = true;
+
+    const pageData = this.pdfPages.find(p => p.pageNumber === pageNumber);
+
+    let valorEspecial: string | undefined = undefined;
+
+    if (variableActual.nombre === 'elemento_seguridad') {
+      valorEspecial = this.elementoSeguridadPendiente?.elemento || '';
+    }
+
+    if (variableActual.nombre === 'cantidad_seguridad') {
+      valorEspecial = this.elementoSeguridadPendiente?.cantidad || '';
+    }
+
+    variableActual.ubicaciones.push({
+      pagina: pageNumber,
+      posX: coords.posX,
+      posY: coords.posY,
+      id: elementId,
+      pageWidth: pageData?.nativeWidth || this.pdfNativeWidth,
+      pageHeight: pageData?.nativeHeight || this.pdfNativeHeight,
+      ...(
+        ['elemento_seguridad', 'cantidad_seguridad'].includes(variableActual.nombre)
+          ? { valor: valorEspecial }
+          : {}
+      )
+    });
+
+    if (!this.variablesPorPagina.has(pageNumber)) {
+      this.variablesPorPagina.set(pageNumber, []);
+    }
+
+    const variablePosicionada: VariablePosicionada = {
+      nombre: variableActual.nombre,
+      posX: coords.posX,
+      posY: coords.posY,
+      elementId: elementId,
+      variableIndex: variableIndex
+    };
+
+    this.variablesPorPagina.get(pageNumber)?.push(variablePosicionada);
+    this.mostrarVariableEnPdf(variablePosicionada, clickedPage);
+
+    if (this.modoModificacion) {
+      this.actualizarInterfazModoModificacion();
+    }
+
+    /**
+     * Si acabamos de posicionar el elemento,
+     * ahora se activa automáticamente la posición de la cantidad.
+     */
+    if (variableActual.nombre === 'elemento_seguridad') {
+      const variableCantidad = this.variables.find(v => v.nombre === 'cantidad_seguridad');
+
+      if (variableCantidad) {
+        this.variableSeleccionada = variableCantidad;
+        this.modoColocacion = true;
+
+        const pdfContainer = document.getElementById('pdf-container');
+
+        if (pdfContainer) {
+          pdfContainer.style.cursor = 'crosshair';
+
+          setTimeout(() => {
+            pdfContainer.addEventListener('click', this.handlePdfClick.bind(this), { once: true });
+          }, 0);
+        }
+
+        alert(`Ahora posiciona la cantidad: ${this.elementoSeguridadPendiente?.cantidad || 'Sin cantidad'}`);
+        return;
       }
     }
+
+    /**
+     * Si acabamos de posicionar la cantidad,
+     * se termina el flujo de elemento + cantidad.
+     */
+    if (variableActual.nombre === 'cantidad_seguridad') {
+      this.elementoSeguridadPendiente = null;
+      this.elementoSeleccionadoTemp = null;
+    }
+
+    this.modoColocacion = false;
+
+    const pdfContainer = document.getElementById('pdf-container');
+    if (pdfContainer) {
+      pdfContainer.style.cursor = 'default';
+    }
+
+    this.variableSeleccionada = null;
   }
 
   /**
@@ -1542,7 +1772,10 @@ export class FormatosComponent implements OnInit {
       
     } else {
       const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(u => u.id === variable.elementId);
-      const textoMostrar = (variable.nombre === 'elemento_seguridad' && ubicacion?.valor)
+      const textoMostrar = (
+        ['elemento_seguridad', 'cantidad_seguridad'].includes(variable.nombre) &&
+        ubicacion?.valor
+      )
         ? ubicacion.valor
         : this.obtenerValorEjemplo(variable.nombre);
       const textSpan = document.createElement('span');
@@ -1556,11 +1789,41 @@ export class FormatosComponent implements OnInit {
     variableElement.setAttribute('data-variable-index', variable.variableIndex.toString());
     variableElement.style.position = 'absolute';
     
-    const scaleX = pageRect.width / this.pdfNativeWidth;
-    const scaleY = pageRect.height / this.pdfNativeHeight;
-    
+    const nativeWidth = Number(pageElement.getAttribute('data-native-width')) || this.pdfNativeWidth;
+    const nativeHeight = Number(pageElement.getAttribute('data-native-height')) || this.pdfNativeHeight;
+
+    const scaleX = pageElement.offsetWidth / nativeWidth;
+    const scaleY = pageElement.offsetHeight / nativeHeight;
+
     const displayX = variable.posX * scaleX;
     const displayY = variable.posY * scaleY;
+
+    const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(
+    u => u.id === variable.elementId
+    );
+
+    if (ubicacion?.width) {
+      variableElement.style.width = `${ubicacion.width * scaleX}px`;
+    }
+
+    if (ubicacion?.height) {
+      variableElement.style.height = `${ubicacion.height * scaleY}px`;
+    }
+
+    // Luego continúa normal
+    console.log(`📍 Variable "${variable.nombre}" - Posición:`, {
+      nativas: { x: variable.posX, y: variable.posY },
+      display: { x: displayX, y: displayY },
+      escala: { scaleX, scaleY }
+    });
+
+    if (isNaN(displayX) || isNaN(displayY) || !isFinite(displayX) || !isFinite(displayY)) {
+      console.error(`❌ ERROR: Coordenadas display inválidas`);
+      return;
+    }
+
+    variableElement.style.left = `${displayX}px`;
+    variableElement.style.top = `${displayY}px`;
     
     console.log(`📍 Variable "${variable.nombre}" - Posición:`, {
       nativas: { x: variable.posX, y: variable.posY },
@@ -1627,41 +1890,53 @@ export class FormatosComponent implements OnInit {
       this.agregarHandlesRedimension(variableElement, variable, pageElement);
     }
     
-    // ⭐ Botón de eliminar
-    const deleteBtn = document.createElement('div');
+    // ⭐ Botón de eliminar mejorado
+    const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
-    deleteBtn.innerHTML = '×';
+    deleteBtn.innerHTML = '✕';
     deleteBtn.title = 'Eliminar variable';
+    deleteBtn.type = 'button';
+
     deleteBtn.style.cssText = `
       position: absolute !important;
-      top: -6px !important;
-      right: -6px !important;
-      width: 16px !important;
-      height: 16px !important;
-      background-color: #dc3545 !important;
-      color: white !important;
-      border: none !important;
-      border-radius: 50% !important;
+      top: -28px !important;
+      right: -10px !important;
+      width: 24px !important;
+      height: 24px !important;
+      background: #ef4444 !important;
+      color: #ffffff !important;
+      border: 2px solid #ffffff !important;
+      border-radius: 999px !important;
       cursor: pointer !important;
-      font-size: 11px !important;
-      line-height: 16px !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      line-height: 1 !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      z-index: 101 !important;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
-      opacity: 0.9 !important;
+      z-index: 999 !important;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25) !important;
+      opacity: 1 !important;
+      padding: 0 !important;
     `;
     
-    deleteBtn.addEventListener('click', (event) => {
+    deleteBtn.addEventListener('mousedown', (event) => {
+      event.preventDefault();
       event.stopPropagation();
-      console.log(`🗑️ Eliminando variable "${variable.nombre}"...`);
+    });
+
+    deleteBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log(`🗑️ Eliminando variable "${variable.nombre}".`);
       this.eliminarVariable(variable.elementId, variable.variableIndex);
     });
-    
+
     variableElement.appendChild(deleteBtn);
   }
   
+ 
+ 
   /**
    * Agregar handles de redimensionamiento
    */
@@ -1733,6 +2008,84 @@ export class FormatosComponent implements OnInit {
         handle.style.top = 'calc(50% - 4px)';
         break;
     }
+  }
+
+  normalizarTexto(valor: any): string {
+    return (valor || '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  documentosFiltrados(): any[] {
+    const busqueda = this.normalizarTexto(this.filtroDocumentoBuscado);
+    const tipo = this.normalizarTexto(this.filtroDocumentoTipo);
+    const fecha = this.filtroDocumentoFecha;
+
+    return (this.documentosCargados || []).filter((doc: any) => {
+      const nombreDoc = this.normalizarTexto(doc.nombre);
+      const tipoDoc = this.normalizarTexto(doc.tipo);
+      const fechaDoc = doc.fecha_creacion ? new Date(doc.fecha_creacion) : null;
+
+      const coincideNombre =
+        !busqueda ||
+        nombreDoc.includes(busqueda) ||
+        tipoDoc.includes(busqueda) ||
+        (doc.fecha_creacion || '').toString().includes(busqueda);
+
+      const coincideTipo =
+        !tipo ||
+        tipoDoc === tipo;
+
+      const coincideFecha =
+        !fecha ||
+        (
+          fechaDoc &&
+          fechaDoc.toISOString().slice(0, 10) === fecha
+        );
+
+      return coincideNombre && coincideTipo && coincideFecha;
+    });
+  }
+
+  documentosAgrupadosPorTipo(): { tipo: string; documentos: any[] }[] {
+    const docs = this.documentosFiltrados();
+
+    const ordenTipos = ['CHILENO', 'EXTRANJERO'];
+    const grupos: { [key: string]: any[] } = {};
+
+    docs.forEach((doc: any) => {
+      const tipo = (doc.tipo || 'SIN TIPO').toUpperCase();
+      if (!grupos[tipo]) grupos[tipo] = [];
+      grupos[tipo].push(doc);
+    });
+
+    return Object.keys(grupos)
+      .sort((a, b) => {
+        const ia = ordenTipos.indexOf(a);
+        const ib = ordenTipos.indexOf(b);
+
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
+      })
+      .map(tipo => ({
+        tipo,
+        documentos: grupos[tipo].sort((a, b) => {
+          const fa = a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0;
+          const fb = b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0;
+          return fb - fa;
+        })
+      }));
+  }
+
+  limpiarFiltrosDocumentos(): void {
+    this.filtroDocumentoBuscado = '';
+    this.filtroDocumentoTipo = '';
+    this.filtroDocumentoFecha = '';
   }
   
   /**
@@ -1841,17 +2194,17 @@ export class FormatosComponent implements OnInit {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       
-      const pageRect = pageElement.getBoundingClientRect();
-      const scaleX = this.pdfNativeWidth / pageRect.width;
-      const scaleY = this.pdfNativeHeight / pageRect.height;
+      const nativeWidth = Number(pageElement.getAttribute('data-native-width')) || this.pdfNativeWidth;
+      const nativeHeight = Number(pageElement.getAttribute('data-native-height')) || this.pdfNativeHeight;
+
+      const scaleX = nativeWidth / pageElement.offsetWidth;
+      const scaleY = nativeHeight / pageElement.offsetHeight;
       
       const finalWidth = element.offsetWidth;
       const finalHeight = element.offsetHeight;
       const finalLeft = element.offsetLeft;
       const finalTop = element.offsetTop;
-      
-      const nativeWidth = finalWidth * scaleX;
-      const nativeHeight = finalHeight * scaleY;
+
       const nativeX = finalLeft * scaleX;
       const nativeY = finalTop * scaleY;
       
@@ -2077,6 +2430,18 @@ export class FormatosComponent implements OnInit {
     }
   }
 
+  formatearNombreVariable(nombre: string): string {
+    if (!nombre) return '';
+
+    const texto = nombre
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+
   guardarFormato(): void {
     if (!this.originalPdfFile) {
       alert('Por favor, seleccione un archivo PDF primero');
@@ -2232,6 +2597,19 @@ export class FormatosComponent implements OnInit {
   
   cerrarModalDatosPrueba(): void {
     this.mostrarModalDatosPrueba = false;
+  }
+
+  cancelarElementoSeguridad(): void {
+    this.mostrarModalElementoSeguridad = false;
+    this.elementoSeleccionadoTemp = null;
+    this.elementoSeguridadPendiente = null;
+    this.variableSeleccionada = null;
+    this.modoColocacion = false;
+
+    const pdfContainer = document.getElementById('pdf-container');
+    if (pdfContainer) {
+      pdfContainer.style.cursor = 'default';
+    }
   }
   
   confirmarGenerarPDF(): void {

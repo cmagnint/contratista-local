@@ -52,7 +52,7 @@ class ElementoSeguridadAPIView(BaseAPIView):
             elemento_seguridad = ElementoSeguridad.objects.get(id=obj_id)
         except ElementoSeguridad.DoesNotExist:
             logger.error(f'ElementoSeguridadAPIView PATCH: elemento_seguridad {obj_id} no encontrada')
-            return Response({'message': 'Perfil no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': 'Elemento de seguridad no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ElementoSeguridadSerializer(elemento_seguridad, data=request.data, partial=True)
         if serializer.is_valid():
@@ -67,7 +67,7 @@ class ElementoSeguridadAPIView(BaseAPIView):
             elemento_seguridad = ElementoSeguridad.objects.get(id=obj_id)
         except ElementoSeguridad.DoesNotExist:
             logger.error(f'ElementoSeguridadAPIView PUT: elemento_seguridad {obj_id} no encontrada')
-            return Response({'message': 'Cargo no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': 'Elemento de seguridad no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ElementoSeguridadSerializer(elemento_seguridad, data=request.data)
         if serializer.is_valid():
@@ -79,10 +79,28 @@ class ElementoSeguridadAPIView(BaseAPIView):
 class ElementoSeguridadListAPIView(BaseAPIView):
     def get(self, request, *args, **kwargs):
         try:
-            elementos = ElementoSeguridad.objects.filter(
-                holding=request.user.holding
-            ).values_list('elemento', flat=True).order_by('elemento')
-            return Response(list(elementos))
+            holding_id = request.query_params.get('holding')
+
+            if holding_id:
+                elementos = ElementoSeguridad.objects.filter(
+                    holding_id=holding_id
+                ).order_by('elemento')
+            else:
+                elementos = ElementoSeguridad.objects.filter(
+                    holding=request.user.holding
+                ).order_by('elemento')
+
+            data = [
+                {
+                    'id': e.id,
+                    'elemento': e.elemento,
+                    'cantidad': e.cantidad,
+                }
+                for e in elementos
+            ]
+
+            return Response(data)
+
         except Exception as e:
             logger.error('ElementoSeguridadListAPIView GET: error inesperado', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
