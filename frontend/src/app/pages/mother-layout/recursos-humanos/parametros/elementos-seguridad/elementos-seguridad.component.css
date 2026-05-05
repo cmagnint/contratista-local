@@ -80,22 +80,22 @@
   box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
 }
 
-.cantidad-badge {
+.codigo-badge {
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
   color: #1565C0;
   padding: 4px 12px;
   border-radius: 6px;
   border-left: 3px solid #2196F3;
   display: inline-block;
-  min-width: 50px;
+  min-width: 60px;
   text-align: center;
   transition: all 0.3s ease;
 }
 
-.cantidad-badge:hover {
+.codigo-badge:hover {
   background: linear-gradient(135deg, rgba(33, 150, 243, 0.15), rgba(33, 150, 243, 0.08));
   transform: translateX(2px);
 }

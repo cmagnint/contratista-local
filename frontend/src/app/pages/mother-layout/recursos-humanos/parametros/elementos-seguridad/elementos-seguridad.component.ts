@@ -9,7 +9,6 @@ interface ElementoSeguridad {
   id: number;
   holding: number;
   elemento: string;
-  cantidad: number;
 }
 
 @Component({
@@ -32,15 +31,15 @@ export class ElementosSeguridadComponent implements OnInit {
     errorModal: false,
   };
 
+  codigo: string = '';
   elemento: string = '';
-  cantidad: number | null = null;
+  codigoNew: string = '';
   elementoNew: string = '';
-  cantidadNew: number | null = null;
 
   errorMessage: string = '';
   holdingId: number | null = null;
 
-  columnasDesplegadas: string[] = ['elemento', 'cantidad'];
+  columnasDesplegadas: string[] = ['id', 'elemento'];
 
   constructor(private api: ContratistaApiService) {}
 
@@ -66,21 +65,20 @@ export class ElementosSeguridadComponent implements OnInit {
 
   openModal(modalName: string): void {
     if (modalName === 'modificarElemento' && this.selectedRows.length === 1) {
-      this.elementoNew = this.selectedRows[0].elemento;
-      this.cantidadNew = this.selectedRows[0].cantidad;
-    }
+  this.elementoNew = this.selectedRows[0].elemento;
+}
     this.modals[modalName] = true;
   }
 
   closeModal(modalName: string): void {
     this.modals[modalName] = false;
     if (modalName === 'crearElemento') {
+      this.codigo = '';
       this.elemento = '';
-      this.cantidad = null;
     }
     if (modalName === 'modificarElemento') {
+      this.codigoNew = '';
       this.elementoNew = '';
-      this.cantidadNew = null;
     }
   }
 
@@ -102,15 +100,14 @@ export class ElementosSeguridadComponent implements OnInit {
   }
 
   crearElemento(): void {
-    if (!this.elemento.trim() || this.cantidad === null) {
+    if (!this.codigo.trim() || !this.elemento.trim()) {
       this.errorMessage = 'Todos los campos son obligatorios.';
       this.openModal('errorModal');
       return;
     }
     this.api.post('elementos_seguridad/', {
       holding: this.holdingId,
-      elemento: this.elemento,
-      cantidad: this.cantidad
+      elemento: this.elemento
     }).subscribe({
       next: () => {
         this.closeModal('crearElemento');
@@ -125,15 +122,14 @@ export class ElementosSeguridadComponent implements OnInit {
   }
 
   modificarElemento(): void {
-    if (!this.elementoNew.trim() || this.cantidadNew === null) {
+    if (!this.codigoNew.trim() || !this.elementoNew.trim()) {
       this.errorMessage = 'Todos los campos son obligatorios.';
       this.openModal('errorModal');
       return;
     }
     this.api.patch('elementos_seguridad/', {
       id: this.selectedRows[0].id,
-      elemento: this.elementoNew,
-      cantidad: this.cantidadNew
+      elemento: this.elementoNew
     }).subscribe({
       next: () => {
         this.closeModal('modificarElemento');

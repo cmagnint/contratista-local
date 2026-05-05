@@ -1515,3 +1515,22 @@ h2 {
   object-fit: contain !important;
   pointer-events: none !important;
 }
+
+.variable-search {
+  margin-bottom: 12px;
+}
+
+.variable-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.variable-search input:focus {
+  outline: none;
+  border-color: #4a80f5;
+  box-shadow: 0 0 0 2px rgba(74, 128, 245, 0.15);
+}

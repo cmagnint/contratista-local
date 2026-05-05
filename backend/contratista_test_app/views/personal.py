@@ -722,6 +722,7 @@ class PersonalFiltradoAPIView(BaseAPIView):
         holding_id = request.query_params.get('holding')
         sociedad_id = request.query_params.get('sociedad_id')
         filtro_contrato = request.query_params.get('filtro_contrato', 'sin_contrato')
+        estado_vigencia = request.query_params.get('estado_vigencia', 'activo')
 
         if not holding_id:
             return Response({'error': 'El parámetro holding es necesario'}, status=status.HTTP_400_BAD_REQUEST)
@@ -731,28 +732,40 @@ class PersonalFiltradoAPIView(BaseAPIView):
         if sociedad_id:
             query &= Q(sociedad_id=sociedad_id)
 
-        contrato_vigente_base = ContratoTrabajador.objects.filter(
+        contrato_vigente = ContratoTrabajador.objects.filter(
             trabajador=OuterRef('pk'),
-            fecha_inicio_contrato__lte=hoy
+            fecha_inicio_contrato__lte=hoy,
         ).filter(
             Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
         )
 
-        trabajadores = PersonalTrabajadores.objects.filter(query).filter(
-            Exists(contrato_vigente_base)
+        contrato_vencido = ContratoTrabajador.objects.filter(
+            trabajador=OuterRef('pk'),
+            fecha_termino_contrato__lt=hoy,
         )
 
+        trabajadores = PersonalTrabajadores.objects.filter(query)
+
+        if estado_vigencia == 'activo':
+            trabajadores = trabajadores.filter(Exists(contrato_vigente))
+            contrato_ref = contrato_vigente
+        elif estado_vigencia == 'vencido':
+            trabajadores = trabajadores.filter(
+                Exists(contrato_vencido),
+                ~Exists(contrato_vigente),
+            )
+            contrato_ref = contrato_vencido
+        else:
+            contrato_ref = ContratoTrabajador.objects.filter(trabajador=OuterRef('pk'))
+            trabajadores = trabajadores.filter(Exists(contrato_ref))
+
         if filtro_contrato == 'sin_contrato':
-            trabajadores = trabajadores.filter(
-                Exists(contrato_vigente_base.filter(contrato_generado=False))
-            )
+            trabajadores = trabajadores.filter(Exists(contrato_ref.filter(contrato_generado=False)))
         elif filtro_contrato == 'con_contrato':
-            trabajadores = trabajadores.filter(
-                Exists(contrato_vigente_base.filter(contrato_generado=True))
-            )
+            trabajadores = trabajadores.filter(Exists(contrato_ref.filter(contrato_generado=True)))
 
         trabajadores = trabajadores.annotate(
-            tiene_contrato=Exists(contrato_vigente_base.filter(contrato_generado=True))
+            tiene_contrato=Exists(contrato_ref.filter(contrato_generado=True))
         )
 
         return Response(PersonalConAsignacionesSerializer(trabajadores, many=True).data)

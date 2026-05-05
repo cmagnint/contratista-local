@@ -36,7 +36,7 @@ class CarnetOCRAPIView(BaseAPIView):
                 imagen_convertida_base64 = base64.b64encode(content).decode('utf-8')
 
             client = vision_v1.ImageAnnotatorClient(
-                client_options={"api_key": 'AIzaSyA2sAcNQfKjrDfCIDUWOT4vVPICZkhmkUc'}
+                client_options={"api_key": 'GOOGLE_VISION_API_KEY_REMOVED'}
             )
             image = vision_v1.Image(content=content)
             response = client.text_detection(image=image)
@@ -146,6 +146,7 @@ class PDFToImageAPIView(BaseAPIView):
 # ==============================================================================
 # FIRMA EMPLEADOR
 # ==============================================================================
+
 class FirmaEmpleadorAPIView(PublicAPIView):
     def get(self, request, *args, **kwargs):
         try:
@@ -253,3 +254,4 @@ class FirmaHuellaAPIView(BaseAPIView):
             'firma': trabajador.firma.url if trabajador.firma else None,
             'huella_digital': trabajador.huella_digital.url if trabajador.huella_digital else None,
         }, status=status.HTTP_200_OK)
+    

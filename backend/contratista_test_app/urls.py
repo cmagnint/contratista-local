@@ -175,6 +175,7 @@ from .views import (
 #parametros.py
 from .views import (
     ElementoSeguridadAPIView,
+    ElementoSeguridadListAPIView,
 )
 
 app_name = 'contratista_test'
@@ -398,4 +399,7 @@ urlpatterns = [
 
     #PARAMETROS
     path('elementos_seguridad/', ElementoSeguridadAPIView.as_view(), name='elementos_seguridad'),
+    path('api_elemento_seguridad/', ElementoSeguridadListAPIView.as_view(), name='elemento_seguridad_list_plana'),
+
+
 ]

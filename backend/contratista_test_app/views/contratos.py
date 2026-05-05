@@ -400,7 +400,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     'posX': ubicacion.get('posX', 0),
                     'posY': ubicacion.get('posY', 0),
                     'width': ubicacion.get('width'),
-                    'height': ubicacion.get('height')
+                    'height': ubicacion.get('height'),
+                    'valor': ubicacion.get('valor'),
                 })
 
         holding = documento.holding
@@ -470,6 +471,20 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                         x_img = x_nativo + OFFSET_X
                         rect = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
                         page.insert_image(rect, filename=huella_path, keep_proportion=True)
+                    continue
+                
+                elif nombre_variable == 'elemento_seguridad':
+                    valor = var_data.get('valor') or ''
+                    if valor:
+                        x_text = x_nativo + OFFSET_X
+                        y_text = y_nativo + BASE_FONT_SIZE
+                        page.insert_text(
+                            fitz.Point(x_text, y_text),
+                            str(valor),
+                            fontsize=BASE_FONT_SIZE,
+                            fontname="helv",
+                            color=(0, 0, 0)
+                        )
                     continue
 
                 # Variables de texto
@@ -837,6 +852,7 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     'posY':   ubicacion.get('posY', 0),
                     'width':  ubicacion.get('width'),
                     'height': ubicacion.get('height'),
+                    'valor':  ubicacion.get('valor'),
                 })
 
         holding = documento.holding
@@ -2073,6 +2089,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                     'posY':   ubicacion.get('posY', 0),
                     'width':  ubicacion.get('width'),
                     'height': ubicacion.get('height'),
+                    'valor':  ubicacion.get('valor'),
                 })
 
         firma_empleador_disponible = bool(holding.firma_empleador)
@@ -2151,7 +2168,17 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                         except Exception:
                             pass
                     continue
-
+                
+                elif nombre == 'elemento_seguridad':
+                    valor = variable.get('valor') or ''
+                    if valor:
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                        can.setFont('Helvetica', BASE_FONT_SIZE)
+                        can.drawString(pdf_x, pdf_y, str(valor))
+                        variables_escritas += 1
+                    continue
+    
                 if nombre not in datos or not datos[nombre]:
                     continue
 

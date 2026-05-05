@@ -13,8 +13,9 @@ interface Ubicacion {
   id: string;
   pageWidth: number;
   pageHeight: number;
-  width?: number;   // Para firma_empleador, firma y huella
-  height?: number;  // Para firma_empleador, firma y huella
+  width?: number;
+  height?: number;
+  valor?: string;
 }
 
 interface VariableDocumento {
@@ -93,6 +94,12 @@ export class FormatosComponent implements OnInit {
   pdfNativeWidth: number = 0;
   pdfNativeHeight: number = 0;
   
+  //Propiedades Elemento Seguridad
+  elementosSeguridad: string[] = [];
+  mostrarModalElementoSeguridad: boolean = false;
+  elementoSeleccionadoTemp: string = '';
+  variableBuscada: string = '';
+
   // ⭐ PROPIEDADES PARA FIRMA EMPLEADOR
   firmaEmpleadorDisponible: boolean = false;
   firmaEmpleadorUrl: string | null = null;
@@ -151,7 +158,9 @@ export class FormatosComponent implements OnInit {
     { nombre: 'contacto_emergencia_telefono', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma_empleador', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'huella', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] }
+    { nombre: 'huella', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'elemento_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+
   ];
   
   // Track variables placed on each page
@@ -202,6 +211,7 @@ export class FormatosComponent implements OnInit {
     
     if (this.holding) {
       this.cargarFirmaEmpleador();
+      this.cargarElementosSeguridad();
     }
   }
 
@@ -249,6 +259,29 @@ export class FormatosComponent implements OnInit {
           this.firmaEmpleadorDisponible = false;
         }
       });
+  }
+
+  cargarElementosSeguridad(): void {
+    this.apiService.get('api_elemento_seguridad/')
+      .subscribe({
+        next: (response: any) => {
+          this.elementosSeguridad = Array.isArray(response) ? response : [];
+        },
+        error: (error) => {
+          console.error('Error al cargar elementos de seguridad:', error);
+        }
+      });
+  }
+
+  confirmarElementoSeguridad(): void {
+    if (!this.elementoSeleccionadoTemp) return;
+    this.mostrarModalElementoSeguridad = false;
+    this.modoColocacion = true;
+    const pdfContainer = document.getElementById('pdf-container');
+    if (pdfContainer) {
+      pdfContainer.style.cursor = 'crosshair';
+      pdfContainer.addEventListener('click', this.handlePdfClick.bind(this), { once: true });
+    }
   }
   
   /**
@@ -388,7 +421,9 @@ export class FormatosComponent implements OnInit {
       'contacto_emergencia_telefono': '+56 9 8765 4321',
       'firma_empleador': '[Firma Empleador]',
       'firma': '[Firma Trabajador]',
-      'huella': '[Huella Digital]'
+      'huella': '[Huella Digital]',
+      'elemento_seguridad': '[Elemento de Seguridad]',
+
     };
     
     return ejemplos[nombreVariable] || nombreVariable;
@@ -823,9 +858,19 @@ export class FormatosComponent implements OnInit {
   }
 
   seleccionarVariable(variable: VariableDocumento): void {
+    if (variable.nombre === 'elemento_seguridad') {
+      if (this.elementosSeguridad.length === 0) {
+        alert('No hay elementos de seguridad configurados para este holding');
+        return;
+      }
+      this.variableSeleccionada = variable;
+      this.elementoSeleccionadoTemp = this.elementosSeguridad[0];
+      this.mostrarModalElementoSeguridad = true;
+      return;
+    }
+
     this.variableSeleccionada = variable;
     this.modoColocacion = true;
-    
     const pdfContainer = document.getElementById('pdf-container');
     if (pdfContainer) {
       pdfContainer.style.cursor = 'crosshair';
@@ -1303,7 +1348,8 @@ export class FormatosComponent implements OnInit {
         posY: coords.posY,
         id: elementId,
         pageWidth: pageData?.nativeWidth || this.pdfNativeWidth,
-        pageHeight: pageData?.nativeHeight || this.pdfNativeHeight
+        pageHeight: pageData?.nativeHeight || this.pdfNativeHeight,
+        ...(this.variableSeleccionada.nombre === 'elemento_seguridad' && { valor: this.elementoSeleccionadoTemp })
       });
       
       if (!this.variablesPorPagina.has(pageNumber)) {
@@ -1495,9 +1541,12 @@ export class FormatosComponent implements OnInit {
       variableElement.appendChild(img);
       
     } else {
-      // ⭐ ANTES: variableElement.textContent = this.obtenerValorEjemplo(variable.nombre);
+      const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(u => u.id === variable.elementId);
+      const textoMostrar = (variable.nombre === 'elemento_seguridad' && ubicacion?.valor)
+        ? ubicacion.valor
+        : this.obtenerValorEjemplo(variable.nombre);
       const textSpan = document.createElement('span');
-      textSpan.textContent = this.obtenerValorEjemplo(variable.nombre);
+      textSpan.textContent = textoMostrar;
       textSpan.style.pointerEvents = 'none';
       variableElement.appendChild(textSpan);
     }
@@ -2148,11 +2197,20 @@ export class FormatosComponent implements OnInit {
     * Obtener variables filtradas según el tipo de contrato
   */
   get variablesFiltradas(): VariableDocumento[] {
+    let vars = this.variables;
+
     if (this.tipoContrato === 'CHILENO') {
-      return this.variables.filter(v => v.nombre !== 'dni' && v.nombre !== 'nic');
+      vars = vars.filter(v => v.nombre !== 'dni' && v.nombre !== 'nic');
     } else {
-      return this.variables.filter(v => v.nombre !== 'rut');
+      vars = vars.filter(v => v.nombre !== 'rut');
     }
+
+    if (this.variableBuscada.trim()) {
+      const term = this.variableBuscada.toLowerCase().trim();
+      vars = vars.filter(v => v.nombre.toLowerCase().includes(term));
+    }
+
+    return [...vars].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }
 
   /**

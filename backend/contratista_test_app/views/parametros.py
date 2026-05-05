@@ -37,7 +37,9 @@ class ElementoSeguridadAPIView(BaseAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, format=None):
+        logger.info(f'DELETE request.data: {request.data}')
         ids = request.data.get('ids', [])
+        logger.info(f'DELETE ids: {ids}')
         ElementoSeguridad.objects.filter(id__in=ids).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -72,3 +74,14 @@ class ElementoSeguridadAPIView(BaseAPIView):
             return Response(serializer.data)
         logger.error(f'ElementoSeguridadAPIView PUT: datos inválidos: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ElementoSeguridadListAPIView(BaseAPIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            elementos = ElementoSeguridad.objects.filter(
+                holding=request.user.holding
+            ).values_list('elemento', flat=True).order_by('elemento')
+            return Response(list(elementos))
+        except Exception as e:
+            logger.error('ElementoSeguridadListAPIView GET: error inesperado', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
