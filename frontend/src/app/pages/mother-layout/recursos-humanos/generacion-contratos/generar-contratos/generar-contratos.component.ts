@@ -54,16 +54,16 @@ export class GenerarContratosComponent implements OnInit {
   confirmMessage = '';
 
   // ─── Modo ─────────────────────────────────────────
-  // 'CLASICO' | 'PARAMETRO'
   modoGeneracion: string = '';
 
   // ─── Modo clásico ─────────────────────────────────
   trabajadores: any[] = [];
   documentos: any[]   = [];
   documentoSeleccionado: number | null = null;
-  filtroContrato = 'sin_contrato';
-  tipoFormato    = '';
-  selection      = new SelectionModel<any>(true, []);
+  filtroContrato  = 'sin_contrato';
+  filtroVigencia  = 'activo';          // NUEVO: 'activo' | 'vencido'
+  tipoFormato     = '';
+  selection       = new SelectionModel<any>(true, []);
   selectedRows: any[] = [];
 
   displayedColumns: string[] = [
@@ -73,7 +73,7 @@ export class GenerarContratosComponent implements OnInit {
   // ─── Modo parámetro ───────────────────────────────
   parametros: any[]          = [];
   parametroSeleccionado: number | null = null;
-  trabajadoresParametro: any[] = [];  // [{trabajador_id, nombres, apellidos, rut, cargo, pdfs[], pdfSeleccionadoId}]
+  trabajadoresParametro: any[] = [];
   selectionParam = new SelectionModel<any>(true, []);
   selectedRowsParam: any[]   = [];
 
@@ -116,34 +116,40 @@ export class GenerarContratosComponent implements OnInit {
 
     if (modo === 'CLASICO') {
       this.cargarTrabajadores();
-    } else {
+    } else if (modo === 'PARAMETRO') {
       this.cargarParametros();
     }
   }
 
   resetModo(): void {
     // clásico
-    this.trabajadores         = [];
-    this.documentos           = [];
+    this.trabajadores          = [];
+    this.documentos            = [];
     this.documentoSeleccionado = null;
-    this.tipoFormato          = '';
+    this.tipoFormato           = '';
+    this.filtroVigencia        = 'activo';   // NUEVO
     this.selection.clear();
-    this.selectedRows         = [];
+    this.selectedRows          = [];
     // parámetro
-    this.parametros           = [];
+    this.parametros            = [];
     this.parametroSeleccionado = null;
     this.trabajadoresParametro = [];
     this.selectionParam.clear();
-    this.selectedRowsParam    = [];
+    this.selectedRowsParam     = [];
     // compartido
-    this.contratosGenerados   = [];
-    this.mostrarContratos     = false;
+    this.contratosGenerados    = [];
+    this.mostrarContratos      = false;
   }
 
   // ─── Modo CLÁSICO ─────────────────────────────────
   cargarTrabajadores(): void {
     if (!this.sociedad) return;
-    const params = `holding=${this.holding}&sociedad_id=${this.sociedad}&filtro_contrato=${this.filtroContrato}`;
+    const params = [
+      `holding=${this.holding}`,
+      `sociedad_id=${this.sociedad}`,
+      `filtro_contrato=${this.filtroContrato}`,
+      `estado_vigencia=${this.filtroVigencia}`,   // NUEVO
+    ].join('&');
     this.apiService.get(`api_personal_filtrado/?${params}`).subscribe({
       next: (res) => {
         this.trabajadores = res;
@@ -155,6 +161,16 @@ export class GenerarContratosComponent implements OnInit {
 
   cambiarFiltroContrato(filtro: string): void {
     this.filtroContrato        = filtro;
+    this.tipoFormato           = '';
+    this.documentos            = [];
+    this.documentoSeleccionado = null;
+    this.selection.clear();
+    this.cargarTrabajadores();
+  }
+
+  // NUEVO
+  cambiarFiltroVigencia(vigencia: string): void {
+    this.filtroVigencia        = vigencia;
     this.tipoFormato           = '';
     this.documentos            = [];
     this.documentoSeleccionado = null;
@@ -191,9 +207,9 @@ export class GenerarContratosComponent implements OnInit {
   }
 
   generarContratosClasico(): void {
-    if (!this.selectedRows.length) { this.mostrarError('Selecciona al menos un trabajador'); return; }
-    if (!this.documentoSeleccionado)   { this.mostrarError('Selecciona un tipo de documento'); return; }
-    if (!this.fechaEmision)             { this.mostrarError('Selecciona una fecha de emisión'); return; }
+    if (!this.selectedRows.length)    { this.mostrarError('Selecciona al menos un trabajador'); return; }
+    if (!this.documentoSeleccionado)  { this.mostrarError('Selecciona un tipo de documento');   return; }
+    if (!this.fechaEmision)           { this.mostrarError('Selecciona una fecha de emisión');   return; }
 
     const conContrato = this.selectedRows.filter(t => t.tiene_contrato);
     if (conContrato.length > 0 && this.filtroContrato !== 'con_contrato') {
@@ -251,7 +267,6 @@ export class GenerarContratosComponent implements OnInit {
     const params = `parametro_id=${this.parametroSeleccionado}&sociedad_id=${this.sociedad}`;
     this.apiService.get(`api_trabajadores_por_parametro/?${params}`).subscribe({
       next: (res) => {
-        // Agregar pdfSeleccionadoId = primer pdf (menor orden)
         this.trabajadoresParametro = res.map((t: any) => ({
           ...t,
           pdfSeleccionadoId: t.pdfs?.[0]?.id ?? null,
@@ -275,13 +290,13 @@ export class GenerarContratosComponent implements OnInit {
 
   generarContratosPorParametro(): void {
     if (!this.selectedRowsParam.length) { this.mostrarError('Selecciona al menos un trabajador'); return; }
-    if (!this.fechaEmision)              { this.mostrarError('Selecciona una fecha de emisión'); return; }
+    if (!this.fechaEmision)             { this.mostrarError('Selecciona una fecha de emisión');   return; }
 
     const payload = {
-      parametro_id:   this.parametroSeleccionado,
-      sociedad_id:    this.sociedad,
-      fecha_emision:  this.fechaEmision,
-      trabajadores:   this.selectedRowsParam.map(t => ({
+      parametro_id:  this.parametroSeleccionado,
+      sociedad_id:   this.sociedad,
+      fecha_emision: this.fechaEmision,
+      trabajadores:  this.selectedRowsParam.map(t => ({
         trabajador_id:        t.trabajador_id,
         contrato_asociado_id: t.pdfSeleccionadoId,
       })),
@@ -343,7 +358,7 @@ export class GenerarContratosComponent implements OnInit {
   openModal(key: string): void  { this.modals[key] = true;  }
   closeModal(key: string): void {
     this.modals[key] = false;
-    if (key === 'errorModal')               this.errorMessage   = '';
+    if (key === 'errorModal')                this.errorMessage   = '';
     if (key === 'confirmacionRegenerarModal') this.confirmMessage = '';
   }
 

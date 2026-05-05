@@ -21,13 +21,17 @@
     <div class="filtros-buttons-container">
       <button mat-raised-button class="filtro-button-modern con-contrato" (click)="seleccionarModo('CLASICO')">
         <span class="button-icon">📄</span>
-        <span class="button-text">CLÁSICO</span>
-        <span class="button-desc">Chileno / Extranjero</span>
+        <span>
+          <span class="button-text">CLÁSICO</span>
+          <span class="button-desc">Chileno / Extranjero</span>
+        </span>
       </button>
       <button mat-raised-button class="filtro-button-modern sin-contrato" (click)="seleccionarModo('PARAMETRO')">
         <span class="button-icon">🗂️</span>
-        <span class="button-text">POR PARÁMETRO</span>
-        <span class="button-desc">Usa PDF del trabajador</span>
+        <span>
+          <span class="button-text">POR PARÁMETRO</span>
+          <span class="button-desc">Usa PDF del trabajador</span>
+        </span>
       </button>
     </div>
   </div>
@@ -42,12 +46,34 @@
     </button>
   </div>
 
+
   <!-- ╔══════════════════════════════════════════╗ -->
   <!-- ║             MODO CLÁSICO                 ║ -->
   <!-- ╚══════════════════════════════════════════╝ -->
   <ng-container *ngIf="modoGeneracion === 'CLASICO'">
 
-    <!-- Filtro trabajadores -->
+    <!-- ── Filtro vigencia (NUEVO) ── -->
+    <div class="filtros-section-modern">
+      <h3 class="filtros-title">ESTADO DEL CONTRATO LABORAL</h3>
+      <div class="filtros-buttons-container">
+        <button mat-raised-button
+          [class.active]="filtroVigencia === 'activo'"
+          class="filtro-button-modern vigencia-activo"
+          (click)="cambiarFiltroVigencia('activo')">
+          <span class="button-icon">✅</span>
+          <span class="button-text">CONTRATO ACTIVO</span>
+        </button>
+        <button mat-raised-button
+          [class.active]="filtroVigencia === 'vencido'"
+          class="filtro-button-modern vigencia-vencido"
+          (click)="cambiarFiltroVigencia('vencido')">
+          <span class="button-icon">⏳</span>
+          <span class="button-text">CONTRATO VENCIDO</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtro contrato generado -->
     <div class="filtros-section-modern">
       <h3 class="filtros-title">FILTRAR TRABAJADORES</h3>
       <div class="filtros-buttons-container">

@@ -72,6 +72,21 @@
   box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
 }
 
+/* ── Filtros vigencia (NUEVO) ── */
+.filtro-button-modern.vigencia-activo.active {
+  background: linear-gradient(135deg, #00897B, #00695C) !important;
+  color: white !important;
+  border-color: #00897B !important;
+  box-shadow: 0 4px 8px rgba(0, 137, 123, 0.3);
+}
+
+.filtro-button-modern.vigencia-vencido.active {
+  background: linear-gradient(135deg, #E53935, #C62828) !important;
+  color: white !important;
+  border-color: #E53935 !important;
+  box-shadow: 0 4px 8px rgba(229, 57, 53, 0.3);
+}
+
 /* ============================================ */
 /* 🎯 BADGE DE ESTADO DE CONTRATO */
 /* ============================================ */
@@ -98,7 +113,7 @@
 }
 
 /* ============================================ */
-/* 🎯 MODAL DE CONFIRMACIÓN (si no lo tienes) */
+/* 🎯 MODAL DE CONFIRMACIÓN */
 /* ============================================ */
 
 .modal {
@@ -232,12 +247,10 @@
   margin-top: 30px !important;
 }
 
-/* O si quieres más espacio en la configuración */
 .config-container {
   margin-bottom: 20px;
 }
 
-/* Espaciado del botón generar */
 .custom-button-generar {
   margin: 20px 0 30px 0 !important;
 }
@@ -399,7 +412,6 @@
   }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .contratos-generados-panel {
     padding: 15px;
