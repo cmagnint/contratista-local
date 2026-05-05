@@ -292,6 +292,7 @@ class ElementoSeguridad(models.Model):
     id = models.AutoField(primary_key=True)
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     elemento = models.TextField()
+    cantidad = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = 'elemento_seguridad'

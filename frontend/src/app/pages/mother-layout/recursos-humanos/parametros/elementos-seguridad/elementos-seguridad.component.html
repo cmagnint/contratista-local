@@ -30,20 +30,21 @@
         <h3>Información del Elemento</h3>
 
         <div class="input-container">
-          <label for="codigo">Código:</label>
-          <input type="text" class="input-field input-codigo" id="codigo" name="codigo"
-            [(ngModel)]="codigo"
-            (ngModelChange)="codigo = $event.toUpperCase()"
-            placeholder="Ej: EPP-001">
-        </div>
-
-        <div class="input-container">
           <label for="elemento">Elemento:</label>
           <input type="text" class="input-field" id="elemento" name="elemento"
             [(ngModel)]="elemento"
             (ngModelChange)="elemento = $event.toUpperCase()"
             placeholder="Ej: CASCO, GUANTES, CHALECO">
         </div>
+
+        <div class="input-container">
+          <label for="cantidad">Cantidad:</label>
+          <input type="text" class="input-field" id="cantidad" name="cantidad"
+            [(ngModel)]="cantidad"
+            (ngModelChange)="cantidad = $event.toUpperCase()"
+            placeholder="Ej: 1 PAR, DOS PARES, 5 UNIDADES">
+        </div>
+
       </div>
 
       <div class="button-container">
@@ -65,10 +66,14 @@
 
         <div class="input-container">
           <label for="codigoNew">Código:</label>
-          <input type="text" class="input-field input-codigo" id="codigoNew" name="codigoNew"
+          <input
+            type="text"
+            class="input-field input-codigo"
+            id="codigoNew"
+            name="codigoNew"
             [(ngModel)]="codigoNew"
-            (ngModelChange)="codigoNew = $event.toUpperCase()"
-            placeholder="Modifique el código">
+            placeholder="Código"
+            readonly>
         </div>
 
         <div class="input-container">
@@ -77,6 +82,14 @@
             [(ngModel)]="elementoNew"
             (ngModelChange)="elementoNew = $event.toUpperCase()"
             placeholder="Modifique el nombre del elemento">
+        </div>
+
+        <div class="input-container">
+          <label for="cantidadNew">Cantidad:</label>
+          <input type="text" class="input-field" id="cantidadNew" name="cantidadNew"
+            [(ngModel)]="cantidadNew"
+            (ngModelChange)="cantidadNew = $event.toUpperCase()"
+            placeholder="Modifique la cantidad de elementos">
         </div>
       </div>
 
@@ -103,6 +116,13 @@
       <th mat-header-cell *matHeaderCellDef class="mat-header">Elemento</th>
       <td mat-cell *matCellDef="let row" class="mat-cell">
         <span class="elemento-badge">{{ row.elemento }}</span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="cantidad">
+      <th mat-header-cell *matHeaderCellDef class="mat-header">Cantidad</th>
+      <td mat-cell *matCellDef="let row" class="mat-cell">
+        <span class="cantidad-badge">{{ row.cantidad }}</span>
       </td>
     </ng-container>
 

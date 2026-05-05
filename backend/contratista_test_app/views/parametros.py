@@ -26,6 +26,7 @@ class ElementoSeguridadAPIView(BaseAPIView):
         if not holding_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         elementos_seguridad = ElementoSeguridad.objects.filter(holding_id=holding_id)
+        print(ElementoSeguridadSerializer(elementos_seguridad, many=True).data)
         return Response(ElementoSeguridadSerializer(elementos_seguridad, many=True).data)
 
     def post(self, request, format=None):
