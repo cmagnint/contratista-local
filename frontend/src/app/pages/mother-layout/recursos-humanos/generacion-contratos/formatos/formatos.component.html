@@ -513,19 +513,57 @@
 
     <div class="form-group">
       <label for="elemento-seguridad">Elemento:</label>
+
       <select
         id="elemento-seguridad"
         class="form-control"
         [(ngModel)]="elementoSeleccionadoTemp">
-        <option *ngFor="let elemento of elementosSeguridad" [value]="elemento">
-          {{ elemento }}
+
+        <option [ngValue]="null" disabled>
+          Seleccione un elemento...
+        </option>
+
+        <option
+          *ngFor="let elemento of elementosSeguridad"
+          [ngValue]="elemento">
+          {{ elemento.elemento }}
+          <ng-container *ngIf="elemento.cantidad">
+            - {{ elemento.cantidad }}
+          </ng-container>
         </option>
       </select>
     </div>
 
+    <div
+      class="elemento-preview"
+      *ngIf="elementoSeleccionadoTemp">
+
+      <p>
+        <strong>Elemento:</strong>
+        {{ elementoSeleccionadoTemp.elemento }}
+      </p>
+
+      <p>
+        <strong>Cantidad:</strong>
+        {{ elementoSeleccionadoTemp.cantidad || 'Sin cantidad' }}
+      </p>
+    </div>
+
     <div class="modal-actions">
-      <button class="action-btn reset-btn" (click)="cancelarElementoSeguridad()">Cancelar</button>
-      <button class="action-btn export-btn" (click)="confirmarElementoSeguridad()">Continuar</button>
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cancelarElementoSeguridad()">
+        Cancelar
+      </button>
+
+      <button
+        class="action-btn export-btn"
+        type="button"
+        [disabled]="!elementoSeleccionadoTemp"
+        (click)="confirmarElementoSeguridad()">
+        Continuar
+      </button>
     </div>
   </div>
 </div>

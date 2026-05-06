@@ -12,6 +12,7 @@ from .parametros import (
 )
 from .admin import Holding
 from .personal import PersonalTrabajadores
+
 class ContratoVariables(models.Model):
     TIPO_CHOICES = [
         ('CHILENO', 'Contrato Chileno'),
