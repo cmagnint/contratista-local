@@ -495,22 +495,19 @@ class SupervisorSerializer(serializers.ModelSerializer):
     usuario_rut = serializers.CharField(source='usuario.rut', read_only=True)
     trabajadores_count = serializers.SerializerMethodField()
     trabajadores_detail = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Supervisores
-        fields = ['id', 'holding', 'usuario', 'usuario_nombre', 'usuario_rut', 
-                 'trabajadores', 'trabajadores_count', 'trabajadores_detail',
-                 ]
-        read_only_fields = ['id']
+        fields = [
+            'id', 'holding', 'usuario', 'usuario_nombre', 'usuario_rut',
+            'trabajadores', 'trabajadores_count', 'trabajadores_detail',
+            'firma', 'huella',
+        ]
+        read_only_fields = ['id', 'firma', 'huella']  # el view los maneja
 
     def get_trabajadores_count(self, obj):
-        # Cuenta trabajadores directos
-        trabajadores_directos = obj.trabajadores.count()
-        
-        return {
-            'directos': trabajadores_directos,
-            'total': trabajadores_directos
-        }
+        directos = obj.trabajadores.count()
+        return {'directos': directos, 'total': directos}
 
     def get_trabajadores_detail(self, obj):
         return [{
@@ -520,6 +517,16 @@ class SupervisorSerializer(serializers.ModelSerializer):
             'tipo': 'directo'
         } for t in obj.trabajadores.all()]
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        request = self.context.get('request')
+        for field in ('firma', 'huella'):
+            file_obj = getattr(instance, field)
+            if file_obj:
+                rep[field] = request.build_absolute_uri(file_obj.url) if request else file_obj.url
+            else:
+                rep[field] = None
+        return rep
     
 class CamposClientesSerializer(serializers.ModelSerializer):
     nombre_cliente = serializers.SerializerMethodField()

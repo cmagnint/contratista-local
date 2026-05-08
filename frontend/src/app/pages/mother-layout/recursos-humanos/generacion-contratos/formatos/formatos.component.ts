@@ -126,6 +126,14 @@ export class FormatosComponent implements OnInit {
   readonly HUELLA_TRABAJADOR_PLACEHOLDER = 'assets/images/huella_trabajador_placeholder.png';
   readonly HUELLA_TRABAJADOR_WIDTH = 80;
   readonly HUELLA_TRABAJADOR_HEIGHT = 100;
+
+  // ⭐ NUEVO: PROPIEDADES PARA SUPERVISOR (PLACEHOLDER)
+  readonly FIRMA_SUPERVISOR_PLACEHOLDER = 'assets/images/firma_trabajador_placeholder.png';
+  readonly FIRMA_SUPERVISOR_WIDTH = 150;
+  readonly FIRMA_SUPERVISOR_HEIGHT = 50;
+  readonly HUELLA_SUPERVISOR_PLACEHOLDER = 'assets/images/huella_trabajador_placeholder.png';
+  readonly HUELLA_SUPERVISOR_WIDTH = 80;
+  readonly HUELLA_SUPERVISOR_HEIGHT = 100;
   
   // Control de redimensionamiento de imagen
   imagenFirmaEnEdicion: {
@@ -172,6 +180,9 @@ export class FormatosComponent implements OnInit {
     { nombre: 'huella', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'elemento_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'cantidad_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'nombre_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'firma_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'huella_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
   ];
   
   // Track variables placed on each page
@@ -457,6 +468,9 @@ export class FormatosComponent implements OnInit {
       'huella': '[Huella Digital]',
       'elemento_seguridad': '[Elemento de Seguridad]',
       'cantidad_seguridad': '[Cantidad del Elemento]',
+      'nombre_supervisor': 'Carlos Rodríguez Díaz',
+      'firma_supervisor': '[Firma Supervisor]',
+      'huella_supervisor': '[Huella Supervisor]',
 
     };
     
@@ -1156,7 +1170,8 @@ export class FormatosComponent implements OnInit {
           variable.ubicaciones[ubicacionIndex].posY = coords.posY;
           
           // ⭐ Guardar dimensiones para firma_empleador, firma Y huella
-          if (variable.nombre === 'firma_empleador' || variable.nombre === 'firma' || variable.nombre === 'huella') {
+          if (['firma_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'].includes(variable.nombre)) {
+
             const elementRect = this.elementoArrastrandose!.getBoundingClientRect();
             const pageRect = this.paginaActualArrastre!.getBoundingClientRect();
             
@@ -1616,7 +1631,7 @@ export class FormatosComponent implements OnInit {
    * ⭐ MODIFICADO: Mostrar variable en PDF (soporta firma_empleador, firma Y huella como imágenes)
    */
   mostrarVariableEnPdf(variable: VariablePosicionada, pageElement: HTMLElement): void {
-    
+  
     console.log(`🔄 Intentando renderizar variable "${variable.nombre}"...`);
     
     if (this.pdfNativeWidth === 0 || this.pdfNativeHeight === 0) {
@@ -1640,7 +1655,7 @@ export class FormatosComponent implements OnInit {
       variableElement.classList.add('edit-mode');
     }
     
-    // ⭐ CASO 1: firma_empleador es IMAGEN
+    // CASO 1: firma_empleador es IMAGEN REAL
     if (variable.nombre === 'firma_empleador') {
       if (!this.firmaEmpleadorDisponible || !this.firmaEmpleadorUrl) {
         console.warn('⚠️ firma_empleador no disponible');
@@ -1652,8 +1667,7 @@ export class FormatosComponent implements OnInit {
       const img = document.createElement('img');
       img.src = this.firmaEmpleadorUrl;
       
-      const mainVarIndex = variable.variableIndex;
-      const mainVariable = this.variables[mainVarIndex];
+      const mainVariable = this.variables[variable.variableIndex];
       const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
       
       const scaleX = pageRect.width / this.pdfNativeWidth;
@@ -1662,7 +1676,7 @@ export class FormatosComponent implements OnInit {
       let displayWidth = 150;
       let displayHeight = 50;
       
-      if (ubicacion && ubicacion.width && ubicacion.height) {
+      if (ubicacion?.width && ubicacion?.height) {
         displayWidth = ubicacion.width * scaleX;
         displayHeight = ubicacion.height * scaleY;
         console.log(`✅ Usando dimensiones guardadas firma_empleador: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
@@ -1673,29 +1687,22 @@ export class FormatosComponent implements OnInit {
       img.style.objectFit = 'contain';
       img.style.display = 'block';
       img.style.pointerEvents = 'none';
-      
       img.onerror = () => {
         console.error('❌ Error al cargar imagen firma_empleador');
-        img.alt = '[Error: No se pudo cargar la firma]';
         img.style.border = '2px solid red';
       };
-      
-      img.onload = () => {
-        console.log('✅ Imagen firma_empleador cargada');
-      };
-      
+      img.onload = () => console.log('✅ Imagen firma_empleador cargada');
       variableElement.appendChild(img);
       
-    } 
-    // ⭐ CASO 2: firma trabajador es IMAGEN PLACEHOLDER
+    }
+    // CASO 2: firma trabajador es IMAGEN PLACEHOLDER
     else if (variable.nombre === 'firma') {
       variableElement.classList.add('firma-trabajador-imagen');
       
       const img = document.createElement('img');
       img.src = this.FIRMA_TRABAJADOR_PLACEHOLDER;
       
-      const mainVarIndex = variable.variableIndex;
-      const mainVariable = this.variables[mainVarIndex];
+      const mainVariable = this.variables[variable.variableIndex];
       const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
       
       const scaleX = pageRect.width / this.pdfNativeWidth;
@@ -1704,7 +1711,7 @@ export class FormatosComponent implements OnInit {
       let displayWidth = this.FIRMA_TRABAJADOR_WIDTH;
       let displayHeight = this.FIRMA_TRABAJADOR_HEIGHT;
       
-      if (ubicacion && ubicacion.width && ubicacion.height) {
+      if (ubicacion?.width && ubicacion?.height) {
         displayWidth = ubicacion.width * scaleX;
         displayHeight = ubicacion.height * scaleY;
         console.log(`✅ Usando dimensiones guardadas firma: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
@@ -1715,29 +1722,22 @@ export class FormatosComponent implements OnInit {
       img.style.objectFit = 'contain';
       img.style.display = 'block';
       img.style.pointerEvents = 'none';
-      
       img.onerror = () => {
         console.error('❌ Error al cargar imagen placeholder firma');
-        img.alt = '[Error: No se pudo cargar placeholder]';
         img.style.border = '2px solid red';
       };
-      
-      img.onload = () => {
-        console.log('✅ Imagen placeholder firma cargada');
-      };
-      
+      img.onload = () => console.log('✅ Imagen placeholder firma cargada');
       variableElement.appendChild(img);
       
     }
-    // ⭐ NUEVO CASO 3: huella trabajador es IMAGEN PLACEHOLDER
+    // CASO 3: huella trabajador es IMAGEN PLACEHOLDER
     else if (variable.nombre === 'huella') {
       variableElement.classList.add('huella-trabajador-imagen');
       
       const img = document.createElement('img');
       img.src = this.HUELLA_TRABAJADOR_PLACEHOLDER;
       
-      const mainVarIndex = variable.variableIndex;
-      const mainVariable = this.variables[mainVarIndex];
+      const mainVariable = this.variables[variable.variableIndex];
       const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
       
       const scaleX = pageRect.width / this.pdfNativeWidth;
@@ -1746,7 +1746,7 @@ export class FormatosComponent implements OnInit {
       let displayWidth = this.HUELLA_TRABAJADOR_WIDTH;
       let displayHeight = this.HUELLA_TRABAJADOR_HEIGHT;
       
-      if (ubicacion && ubicacion.width && ubicacion.height) {
+      if (ubicacion?.width && ubicacion?.height) {
         displayWidth = ubicacion.width * scaleX;
         displayHeight = ubicacion.height * scaleY;
         console.log(`✅ Usando dimensiones guardadas huella: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
@@ -1757,20 +1757,86 @@ export class FormatosComponent implements OnInit {
       img.style.objectFit = 'contain';
       img.style.display = 'block';
       img.style.pointerEvents = 'none';
-      
       img.onerror = () => {
         console.error('❌ Error al cargar imagen placeholder huella');
-        img.alt = '[Error: No se pudo cargar placeholder]';
         img.style.border = '2px solid red';
       };
-      
-      img.onload = () => {
-        console.log('✅ Imagen placeholder huella cargada');
-      };
-      
+      img.onload = () => console.log('✅ Imagen placeholder huella cargada');
       variableElement.appendChild(img);
       
-    } else {
+    }
+    // CASO 4: firma supervisor es IMAGEN PLACEHOLDER
+    else if (variable.nombre === 'firma_supervisor') {
+      variableElement.classList.add('firma-supervisor-imagen');
+      
+      const img = document.createElement('img');
+      img.src = this.FIRMA_SUPERVISOR_PLACEHOLDER;
+      
+      const mainVariable = this.variables[variable.variableIndex];
+      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+      
+      const scaleX = pageRect.width / this.pdfNativeWidth;
+      const scaleY = pageRect.height / this.pdfNativeHeight;
+      
+      let displayWidth = this.FIRMA_SUPERVISOR_WIDTH;
+      let displayHeight = this.FIRMA_SUPERVISOR_HEIGHT;
+      
+      if (ubicacion?.width && ubicacion?.height) {
+        displayWidth = ubicacion.width * scaleX;
+        displayHeight = ubicacion.height * scaleY;
+        console.log(`✅ Usando dimensiones guardadas firma_supervisor: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
+      }
+      
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+      img.onerror = () => {
+        console.error('❌ Error al cargar imagen placeholder firma_supervisor');
+        img.style.border = '2px solid red';
+      };
+      img.onload = () => console.log('✅ Imagen placeholder firma_supervisor cargada');
+      variableElement.appendChild(img);
+      
+    }
+    // CASO 5: huella supervisor es IMAGEN PLACEHOLDER
+    else if (variable.nombre === 'huella_supervisor') {
+      variableElement.classList.add('huella-supervisor-imagen');
+      
+      const img = document.createElement('img');
+      img.src = this.HUELLA_SUPERVISOR_PLACEHOLDER;
+      
+      const mainVariable = this.variables[variable.variableIndex];
+      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+      
+      const scaleX = pageRect.width / this.pdfNativeWidth;
+      const scaleY = pageRect.height / this.pdfNativeHeight;
+      
+      let displayWidth = this.HUELLA_SUPERVISOR_WIDTH;
+      let displayHeight = this.HUELLA_SUPERVISOR_HEIGHT;
+      
+      if (ubicacion?.width && ubicacion?.height) {
+        displayWidth = ubicacion.width * scaleX;
+        displayHeight = ubicacion.height * scaleY;
+        console.log(`✅ Usando dimensiones guardadas huella_supervisor: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
+      }
+      
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+      img.onerror = () => {
+        console.error('❌ Error al cargar imagen placeholder huella_supervisor');
+        img.style.border = '2px solid red';
+      };
+      img.onload = () => console.log('✅ Imagen placeholder huella_supervisor cargada');
+      variableElement.appendChild(img);
+      
+    }
+    // CASO 6: texto genérico (elemento_seguridad, cantidad_seguridad, resto de variables)
+    else {
       const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(u => u.id === variable.elementId);
       const textoMostrar = (
         ['elemento_seguridad', 'cantidad_seguridad'].includes(variable.nombre) &&
@@ -1799,7 +1865,7 @@ export class FormatosComponent implements OnInit {
     const displayY = variable.posY * scaleY;
 
     const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(
-    u => u.id === variable.elementId
+      u => u.id === variable.elementId
     );
 
     if (ubicacion?.width) {
@@ -1810,7 +1876,6 @@ export class FormatosComponent implements OnInit {
       variableElement.style.height = `${ubicacion.height * scaleY}px`;
     }
 
-    // Luego continúa normal
     console.log(`📍 Variable "${variable.nombre}" - Posición:`, {
       nativas: { x: variable.posX, y: variable.posY },
       display: { x: displayX, y: displayY },
@@ -1825,27 +1890,13 @@ export class FormatosComponent implements OnInit {
     variableElement.style.left = `${displayX}px`;
     variableElement.style.top = `${displayY}px`;
     
-    console.log(`📍 Variable "${variable.nombre}" - Posición:`, {
-      nativas: { x: variable.posX, y: variable.posY },
-      display: { x: displayX, y: displayY },
-      escala: { scaleX, scaleY }
-    });
-    
-    if (isNaN(displayX) || isNaN(displayY) || !isFinite(displayX) || !isFinite(displayY)) {
-      console.error(`❌ ERROR: Coordenadas display inválidas`);
-      return;
-    }
-    
-    variableElement.style.left = `${displayX}px`;
-    variableElement.style.top = `${displayY}px`;
-    
-    // ⭐ ESTILOS BASE
+    // Estilos base
     variableElement.style.fontFamily = 'Arial, sans-serif';
     variableElement.style.fontSize = '12px';
     variableElement.style.fontWeight = 'normal';
     variableElement.style.padding = '3px 6px';
     
-    // ⭐ COLORES DIFERENTES PARA CADA TIPO
+    // Colores por tipo
     if (variable.nombre === 'firma_empleador') {
       variableElement.style.backgroundColor = 'rgba(40, 167, 69, 0.08)';
       variableElement.style.border = '2px dashed #28a745';
@@ -1855,6 +1906,9 @@ export class FormatosComponent implements OnInit {
     } else if (variable.nombre === 'huella') {
       variableElement.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
       variableElement.style.border = '2px dashed #3b82f6';
+    } else if (variable.nombre === 'firma_supervisor' || variable.nombre === 'huella_supervisor') {
+      variableElement.style.backgroundColor = 'rgba(99, 102, 241, 0.08)';
+      variableElement.style.border = '2px dashed #6366f1';
     } else {
       variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.08)';
       variableElement.style.border = '1px dashed #4a80f5';
@@ -1865,7 +1919,8 @@ export class FormatosComponent implements OnInit {
     variableElement.style.whiteSpace = 'nowrap';
     variableElement.style.maxWidth = 'none';
     
-    if (this.esCampocentrado(variable.nombre) && variable.nombre !== 'firma_empleador' && variable.nombre !== 'firma' && variable.nombre !== 'huella') {
+    const imagenesConTransform = ['firma_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
+    if (this.esCampocentrado(variable.nombre) && !imagenesConTransform.includes(variable.nombre)) {
       variableElement.style.textAlign = 'center';
       variableElement.style.transform = 'translateX(-50%)';
     } else {
@@ -1885,12 +1940,13 @@ export class FormatosComponent implements OnInit {
       this.handleVariableMouseDown(event, variable, variableElement, pageElement);
     });
     
-    // ⭐ Agregar handles de redimensionamiento SOLO para firma_empleador, firma Y huella
-    if (variable.nombre === 'firma_empleador' || variable.nombre === 'firma' || variable.nombre === 'huella') {
+    // Handles de redimensionamiento para todas las imágenes
+    const imagenesRedimensionables = ['firma_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
+    if (imagenesRedimensionables.includes(variable.nombre)) {
       this.agregarHandlesRedimension(variableElement, variable, pageElement);
     }
     
-    // ⭐ Botón de eliminar mejorado
+    // Botón eliminar
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '✕';

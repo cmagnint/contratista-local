@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
+#GEMMA_BOT_URL = os.getenv("GEMMA_BOT_URL") or "http://localhost:8001"
 ALLOWED_HOSTS = ['*']
 
 # Application definition

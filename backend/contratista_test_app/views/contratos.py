@@ -52,13 +52,11 @@ def slugify_nombre(nombre):
 # DOCUMENTO VARIABLES NATIVAS
 # ==============================================================================
 class DocumentoVariablesNativasAPIView(BaseAPIView):
-    
+
     def get(self, request, documento_id=None, *args, **kwargs):
         try:
             if documento_id:
-                # Obtener documento específico
                 documento = get_object_or_404(ContratoVariables, id=documento_id)
-                
                 return Response({
                     'id': documento.id,
                     'nombre': documento.nombre,
@@ -69,16 +67,11 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     'activo': documento.activo
                 })
             else:
-                # Otherwise, list all documents for the current user's holding
                 documentos = ContratoVariables.objects.filter(holding=request.user.holding)
-                
-                # Filtrar por tipo si se proporciona
                 tipo = request.GET.get('tipo')
                 if tipo:
                     documentos = documentos.filter(tipo=tipo)
-                
                 documentos_list = []
-                
                 for doc in documentos:
                     documentos_list.append({
                         'id': doc.id,
@@ -87,31 +80,21 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                         'fecha_creacion': doc.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S'),
                         'activo': doc.activo
                     })
-                
                 return Response(documentos_list)
-                
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     def post(self, request, *args, **kwargs):
         action = request.data.get('action', 'create')
-        
         if action == 'generar_prueba':
             return self._generar_pdf_prueba(request)
         else:
             return self._crear_documento(request)
-    
+
     def put(self, request, documento_id, *args, **kwargs):
         return self._actualizar_documento(request, documento_id)
-    
-    def delete(self, request, documento_id, *args, **kwargs):
-        """
-        Elimina un formato de contrato y también borra el PDF físico asociado.
 
-        - Valida que el formato pertenezca al holding del usuario.
-        - Borra el archivo PDF desde MEDIA_ROOT.
-        - Borra el registro ContratoVariables.
-        """
+    def delete(self, request, documento_id, *args, **kwargs):
         try:
             documento = get_object_or_404(ContratoVariables, id=documento_id)
 
@@ -122,19 +105,14 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 )
 
             nombre = documento.nombre
-
-            # Guardar referencia antes de eliminar el registro
             archivo_pdf = documento.archivo_pdf
             archivo_nombre = archivo_pdf.name if archivo_pdf else None
 
-            # Si existen parámetros asociados, se desasocian explícitamente.
-            # Aunque el modelo usa SET_NULL, esto deja el flujo más claro.
             Parametro.objects.filter(
                 formato=documento,
                 holding=request.user.holding
             ).update(formato=None)
 
-            # Borrar archivo físico del PDF
             archivo_eliminado = False
             if archivo_pdf and archivo_pdf.name:
                 try:
@@ -154,7 +132,6 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR
                     )
 
-            # Borrar registro de base de datos
             documento.delete()
 
             return Response({
@@ -172,14 +149,25 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 {"error": f"Error al eliminar el documento: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
+    def _obtener_supervisor(self, trabajador):
+        from ..models import SupervisorTrabajadorHistorial
+        historial = (
+            SupervisorTrabajadorHistorial.objects
+            .filter(trabajador=trabajador, fecha_fin__isnull=True)
+            .select_related('supervisor', 'supervisor__usuario', 'supervisor__usuario__persona')
+            .order_by('-fecha_inicio')
+            .first()
+        )
+        return historial.supervisor if historial else None
+
     def _normalizar_pdf_a_carta(self, pdf_file):
         import fitz
         import io
 
         TARGET_WIDTH  = 612.0
         TARGET_HEIGHT = 792.0
-        TOLERANCE     = 1.0  # puntos
+        TOLERANCE     = 1.0
 
         if hasattr(pdf_file, 'read'):
             pdf_file.seek(0)
@@ -188,7 +176,6 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             with open(pdf_file, "rb") as f:
                 pdf_bytes = f.read()
 
-        # ── FAST PATH: si todas las páginas ya son carta, devolver sin procesar ──
         doc_check = fitz.open(stream=pdf_bytes, filetype="pdf")
         todas_carta = all(
             abs(page.rect.width  - TARGET_WIDTH)  < TOLERANCE and
@@ -198,9 +185,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         doc_check.close()
 
         if todas_carta:
-            return io.BytesIO(pdf_bytes)  # cero procesamiento, cero memoria extra
+            return io.BytesIO(pdf_bytes)
 
-        # ── SLOW PATH: normalizar páginas que no son carta ────────────────────────
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         output_doc = fitz.open()
 
@@ -216,11 +202,11 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
 
             new_page = output_doc.new_page(width=TARGET_WIDTH, height=TARGET_HEIGHT)
 
-            scale        = min(TARGET_WIDTH / original_width, TARGET_HEIGHT / original_height)
-            scaled_width = original_width  * scale
-            scaled_height= original_height * scale
-            offset_x     = (TARGET_WIDTH  - scaled_width)  / 2
-            offset_y     = (TARGET_HEIGHT - scaled_height) / 2
+            scale         = min(TARGET_WIDTH / original_width, TARGET_HEIGHT / original_height)
+            scaled_width  = original_width  * scale
+            scaled_height = original_height * scale
+            offset_x      = (TARGET_WIDTH  - scaled_width)  / 2
+            offset_y      = (TARGET_HEIGHT - scaled_height) / 2
 
             dest_rect = fitz.Rect(offset_x, offset_y, offset_x + scaled_width, offset_y + scaled_height)
             new_page.show_pdf_page(dest_rect, temp_doc, 0, clip=temp_page.rect)
@@ -231,16 +217,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         output_doc.close()
 
         return io.BytesIO(output_bytes)
-    
+
     def _crear_documento(self, request):
-        """
-        Crear documento con variables posicionadas.
-        IMPORTANTE:
-        - Mantiene el PDF en su tamaño/formato original.
-        - No normaliza a carta 612x792.
-        - Esto permite que las coordenadas guardadas desde Angular calcen
-        con el mismo PDF al abrir/modificar/generar.
-        """
         try:
             from pypdf import PdfWriter, PdfReader
             from django.core.files.base import ContentFile
@@ -251,33 +229,21 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             tipo = request.data.get('tipo', 'CHILENO')
             requiere_merge = request.data.get('requiere_merge', 'false') == 'true'
 
-            # ==========================================================
-            # MANEJO DE PDF: SIMPLE O FUSIONADO, SIN NORMALIZAR
-            # ==========================================================
             if requiere_merge:
                 num_partes = int(request.data.get('num_partes', 1))
-                print(f"🔀 Fusionando {num_partes} PDFs manteniendo tamaño original...")
-
                 writer = PdfWriter()
 
                 for i in range(num_partes):
                     parte_file = request.FILES.get(f'pdf_parte_{i}')
-
                     if not parte_file:
-                        print(f"  ⚠️ No se encontró pdf_parte_{i}")
                         continue
-
                     if parte_file.size == 0:
                         return Response({
                             "error": f"La parte {i + 1} del PDF está vacía"
                         }, status=status.HTTP_400_BAD_REQUEST)
 
-                    print(f"  📄 Parte {i + 1}: {parte_file.size} bytes")
-
-                    # ✅ Mantener el PDF original, sin normalizar
                     parte_file.seek(0)
                     reader = PdfReader(parte_file)
-
                     for page in reader.pages:
                         writer.add_page(page)
 
@@ -290,72 +256,41 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 writer.write(merged_buffer)
                 merged_buffer.seek(0)
 
-                print(f"✅ PDF fusionado manteniendo tamaños originales: {len(merged_buffer.getvalue())} bytes")
-
                 nombre_archivo = f"{nombre.lower().replace(' ', '_')}.pdf"
                 pdf_file = ContentFile(merged_buffer.read(), name=nombre_archivo)
 
             else:
                 pdf_file_original = request.FILES.get('archivo_pdf')
-
                 if not pdf_file_original:
-                    return Response({
-                        "error": "El archivo PDF es obligatorio"
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
+                    return Response({"error": "El archivo PDF es obligatorio"}, status=status.HTTP_400_BAD_REQUEST)
                 if pdf_file_original.size == 0:
-                    return Response({
-                        "error": "El archivo PDF está vacío"
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"error": "El archivo PDF está vacío"}, status=status.HTTP_400_BAD_REQUEST)
 
-                # ✅ Mantener PDF original, sin normalizar a carta
                 pdf_file_original.seek(0)
                 nombre_archivo = pdf_file_original.name
                 pdf_file = ContentFile(pdf_file_original.read(), name=nombre_archivo)
 
-                print(f"📄 PDF original conservado: {nombre_archivo}, {pdf_file_original.size} bytes")
-
-            # ==========================================================
-            # PROCESAR VARIABLES
-            # ==========================================================
             variables_data = request.data.get('variables')
-
             if isinstance(variables_data, str):
                 try:
                     variables_json = json.loads(variables_data)
                 except json.JSONDecodeError:
-                    return Response({
-                        "error": "El formato de variables no es válido"
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"error": "El formato de variables no es válido"}, status=status.HTTP_400_BAD_REQUEST)
             else:
                 variables_json = variables_data or []
 
-            # Validar estructura de variables
             for variable in variables_json:
                 if 'nombre' not in variable:
-                    return Response({
-                        "error": "Todas las variables deben tener un nombre"
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
+                    return Response({"error": "Todas las variables deben tener un nombre"}, status=status.HTTP_400_BAD_REQUEST)
                 if 'ubicaciones' not in variable:
-                    return Response({
-                        "error": "Todas las variables deben tener ubicaciones"
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"error": "Todas las variables deben tener ubicaciones"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # ==========================================================
-            # CREAR DOCUMENTO
-            # ==========================================================
             documento = ContratoVariables.objects.create(
                 holding=request.user.holding,
                 nombre=nombre,
                 tipo=tipo,
                 archivo_pdf=pdf_file,
                 variables=variables_json
-            )
-
-            print(
-                f"✅ Documento guardado: ID {documento.id}, "
-                f"{len(variables_json)} variables, PDF original conservado"
             )
 
             return Response({
@@ -365,86 +300,63 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            print(f"❌ Error al guardar el documento: {str(e)}")
             import traceback
             traceback.print_exc()
+            return Response({"error": f"Error al guardar el documento: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response({
-                "error": f"Error al guardar el documento: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
     def _actualizar_documento(self, request, documento_id):
-        """Actualizar variables de un documento existente"""
         try:
             documento = get_object_or_404(ContratoVariables, id=documento_id)
-            
+
             if documento.holding != request.user.holding:
                 return Response(
-                    {"error": "No tienes permisos para modificar este documento"}, 
+                    {"error": "No tienes permisos para modificar este documento"},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             if 'variables' in request.data:
                 variables_data = request.data['variables']
-                
                 if isinstance(variables_data, str):
                     try:
                         variables_json = json.loads(variables_data)
                     except json.JSONDecodeError:
-                        return Response(
-                            {"error": "El formato de variables no es válido"}, 
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+                        return Response({"error": "El formato de variables no es válido"}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     variables_json = variables_data
-                
+
                 documento.variables = variables_json
                 documento.save()
-                
+
                 return Response({
                     "mensaje": "Variables actualizadas exitosamente",
                     "documento_id": documento.id,
                     "variables_count": len(variables_json)
                 })
             else:
-                return Response({
-                    "error": "No se proporcionaron variables para actualizar"
-                }, status=status.HTTP_400_BAD_REQUEST)
-                
+                return Response({"error": "No se proporcionaron variables para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     def _generar_pdf_prueba(self, request):
-        """Generar PDF con datos de prueba EN MEMORIA"""
         try:
-            documento_id = request.data.get('documento_id')
+            documento_id    = request.data.get('documento_id')
             datos_variables = request.data.get('datos_variables', {})
-            debug = request.data.get('debug', False)
-            
+            debug           = request.data.get('debug', False)
+
             if not documento_id:
-                return Response({
-                    "error": "Se requiere documento_id"
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
-            
-            # Generar PDF en memoria
-            pdf_buffer = self._generar_documento_coordenadas_nativas(
-                documento_id, 
-                datos_variables, 
-                debug=debug
-            )
-            
-            # Retornar PDF directamente como HttpResponse
+                return Response({"error": "Se requiere documento_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+            documento  = get_object_or_404(ContratoVariables, id=documento_id)
+            pdf_buffer = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=debug)
+
             response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = 'inline; filename="vista_previa.pdf"'
             return response
-            
+
         except Exception as e:
-            return Response({
-                "error": f"Error al generar PDF de prueba: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+            return Response({"error": f"Error al generar PDF de prueba: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
         import fitz
         import io
@@ -455,11 +367,11 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         def slugify_nombre(nombre):
             return re.sub(r'[^a-z0-9]', '_', nombre.lower().strip())
 
-        documento = ContratoVariables.objects.get(id=documento_id)
+        documento      = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
 
         BASE_FONT_SIZE = 9
-        OFFSET_X = -8
+        OFFSET_X       = -8
 
         campos_centrados = [
             'rut', 'dni', 'nic', 'estado_civil',
@@ -476,16 +388,15 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     variables_por_pagina[pagina] = []
                 variables_por_pagina[pagina].append({
                     'nombre': nombre_variable,
-                    'posX': ubicacion.get('posX', 0),
-                    'posY': ubicacion.get('posY', 0),
-                    'width': ubicacion.get('width'),
+                    'posX':   ubicacion.get('posX', 0),
+                    'posY':   ubicacion.get('posY', 0),
+                    'width':  ubicacion.get('width'),
                     'height': ubicacion.get('height'),
-                    'valor': ubicacion.get('valor'),
+                    'valor':  ubicacion.get('valor'),
                 })
 
         holding = documento.holding
 
-        # Cargar firmas y huellas de organización (firma_empleador, firma_gerente, huella_empleador, etc.)
         firmas_org = {
             f"{f.tipo}_{slugify_nombre(f.nombre)}": f.imagen.path
             for f in FirmaOrganizacion.objects.filter(holding=holding)
@@ -495,10 +406,11 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         trabajador = None
         if 'trabajador_id' in datos_variables:
             try:
-                from ..models import PersonalTrabajadores
                 trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
             except PersonalTrabajadores.DoesNotExist:
                 pass
+
+        supervisor = self._obtener_supervisor(trabajador) if trabajador else None
 
         doc = fitz.open(input_pdf_path)
 
@@ -511,54 +423,96 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
 
             for var_data in variables_por_pagina[ui_page_num]:
                 nombre_variable = var_data['nombre']
-                x_nativo = var_data['posX']
-                y_nativo = var_data['posY']
+                x_nativo        = var_data['posX']
+                y_nativo        = var_data['posY']
 
-                # Firmas y huellas de organización (dinámicas)
                 if nombre_variable in firmas_org:
-                    path = firmas_org[nombre_variable]
-                    w = var_data.get('width') or (100 if nombre_variable.startswith('firma') else 80)
-                    h = var_data.get('height') or (40 if nombre_variable.startswith('firma') else 100)
+                    path  = firmas_org[nombre_variable]
+                    w     = var_data.get('width')  or (100 if nombre_variable.startswith('firma') else 80)
+                    h     = var_data.get('height') or (40  if nombre_variable.startswith('firma') else 100)
                     x_img = x_nativo + OFFSET_X
-                    rect = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
+                    rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
                     page.insert_image(rect, filename=path, keep_proportion=True)
                     continue
 
-                # Firma del trabajador (placeholder o real)
                 elif nombre_variable == 'firma':
                     if trabajador and bool(getattr(trabajador, 'firma', None)):
                         firma_path = trabajador.firma.path
                     else:
                         firma_path = os.path.join(settings.MEDIA_ROOT, 'firma_trabajador_placeholder.png')
                     if os.path.exists(firma_path):
-                        w = var_data.get('width') or 100
-                        h = var_data.get('height') or 40
+                        w     = var_data.get('width')  or 100
+                        h     = var_data.get('height') or 40
                         x_img = x_nativo + OFFSET_X
-                        rect = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
+                        rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
                         page.insert_image(rect, filename=firma_path, keep_proportion=True)
                     continue
 
-                # Huella del trabajador (placeholder o real)
                 elif nombre_variable == 'huella':
                     if trabajador and bool(getattr(trabajador, 'huella_digital', None)):
                         huella_path = trabajador.huella_digital.path
                     else:
                         huella_path = os.path.join(settings.MEDIA_ROOT, 'huella_trabajador_placeholder.png')
                     if os.path.exists(huella_path):
-                        w = var_data.get('width') or 80
-                        h = var_data.get('height') or 100
+                        w     = var_data.get('width')  or 80
+                        h     = var_data.get('height') or 100
                         x_img = x_nativo + OFFSET_X
-                        rect = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
+                        rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
                         page.insert_image(rect, filename=huella_path, keep_proportion=True)
                     continue
-                
+
+                elif nombre_variable == 'nombre_supervisor':
+                    if supervisor and supervisor.usuario:
+                        persona = supervisor.usuario.persona
+                        if persona:
+                            valor = f"{persona.nombres or ''} {persona.apellidos or ''}".strip()
+                        else:
+                            valor = supervisor.usuario.rut
+                        if valor:
+                            x_text = x_nativo + OFFSET_X
+                            y_text = y_nativo + BASE_FONT_SIZE
+                            page.insert_text(
+                                fitz.Point(x_text, y_text),
+                                valor,
+                                fontsize=BASE_FONT_SIZE,
+                                fontname="helv",
+                                color=(0, 0, 0)
+                            )
+                    continue
+
+                elif nombre_variable == 'firma_supervisor':
+                    if supervisor and supervisor.firma:
+                        try:
+                            firma_path = supervisor.firma.path
+                            if os.path.exists(firma_path):
+                                w     = var_data.get('width')  or 150
+                                h     = var_data.get('height') or 50
+                                x_img = x_nativo + OFFSET_X
+                                rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
+                                page.insert_image(rect, filename=firma_path, keep_proportion=True)
+                        except Exception:
+                            logger.error('Error insertando firma_supervisor (prueba)', exc_info=True)
+                    continue
+
+                elif nombre_variable == 'huella_supervisor':
+                    if supervisor and supervisor.huella:
+                        try:
+                            huella_path = supervisor.huella.path
+                            if os.path.exists(huella_path):
+                                w     = var_data.get('width')  or 80
+                                h     = var_data.get('height') or 100
+                                x_img = x_nativo + OFFSET_X
+                                rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
+                                page.insert_image(rect, filename=huella_path, keep_proportion=True)
+                        except Exception:
+                            logger.error('Error insertando huella_supervisor (prueba)', exc_info=True)
+                    continue
+
                 elif nombre_variable in ['elemento_seguridad', 'cantidad_seguridad']:
                     valor = var_data.get('valor') or ''
-
                     if valor:
                         x_text = x_nativo + OFFSET_X
                         y_text = y_nativo + BASE_FONT_SIZE
-
                         page.insert_text(
                             fitz.Point(x_text, y_text),
                             str(valor),
@@ -566,20 +520,16 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                             fontname="helv",
                             color=(0, 0, 0)
                         )
-
                     continue
 
-                # Variables de texto
                 else:
                     valor = datos_variables.get(nombre_variable, '')
                     if valor:
                         x_text = x_nativo + OFFSET_X
                         y_text = y_nativo + BASE_FONT_SIZE
-
                         if nombre_variable in campos_centrados:
-                            tw = fitz.get_text_length(str(valor), fontname="helv", fontsize=BASE_FONT_SIZE)
+                            tw     = fitz.get_text_length(str(valor), fontname="helv", fontsize=BASE_FONT_SIZE)
                             x_text = x_text - tw / 2
-
                         page.insert_text(
                             fitz.Point(x_text, y_text),
                             str(valor),
@@ -593,6 +543,7 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         output_buffer.seek(0)
         doc.close()
         return output_buffer
+
 
 # ==============================================================================
 # GENERAR TXT BANCO
@@ -759,27 +710,26 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             if not trabajador_ids:
                 return Response({'error': 'Se requiere al menos un trabajador_id'}, status=status.HTTP_400_BAD_REQUEST)
 
-            from django.shortcuts import get_object_or_404
             documento = get_object_or_404(ContratoVariables, id=documento_id)
             if documento.holding != request.user.holding:
                 return Response({'error': 'No tienes permisos para usar este documento'}, status=status.HTTP_403_FORBIDDEN)
 
             urls_generadas = []
-            errores = []
+            errores        = []
 
             for trabajador_id in trabajador_ids:
                 try:
-                    trabajador = PersonalTrabajadores.objects.get(id=trabajador_id, holding=request.user.holding)
+                    trabajador      = PersonalTrabajadores.objects.get(id=trabajador_id, holding=request.user.holding)
                     datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
                     datos_variables['trabajador_id'] = trabajador.id
                     pdf_buffer = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=False)
-                    pdf_url = self._guardar_contrato_generado(pdf_buffer, trabajador, documento, request, marcar_como_generado)
+                    pdf_url    = self._guardar_contrato_generado(pdf_buffer, trabajador, documento, request, marcar_como_generado)
                     urls_generadas.append({
-                        'trabajador_id': trabajador.id,
-                        'trabajador_nombre': f'{trabajador.nombres} {trabajador.apellidos}',
-                        'url': pdf_url,
-                        'success': True,
-                        'marcado_como_generado': marcar_como_generado,
+                        'trabajador_id':          trabajador.id,
+                        'trabajador_nombre':      f'{trabajador.nombres} {trabajador.apellidos}',
+                        'url':                    pdf_url,
+                        'success':                True,
+                        'marcado_como_generado':  marcar_como_generado,
                     })
                 except PersonalTrabajadores.DoesNotExist:
                     errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
@@ -787,13 +737,12 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     logger.error(f'GenerarDocumentosMasivoAPIView POST: error en trabajador {trabajador_id}', exc_info=True)
                     errores.append({'trabajador_id': trabajador_id, 'error': str(e)})
 
-            logger.debug(f'GenerarDocumentosMasivoAPIView POST: {len(urls_generadas)} exitosos, {len(errores)} errores')
             return Response({
-                'mensaje': f'Se generaron {len(urls_generadas)} contratos exitosamente',
-                'contratos': urls_generadas,
-                'errores': errores,
-                'total_exitosos': len(urls_generadas),
-                'total_errores': len(errores),
+                'mensaje':                f'Se generaron {len(urls_generadas)} contratos exitosamente',
+                'contratos':              urls_generadas,
+                'errores':                errores,
+                'total_exitosos':         len(urls_generadas),
+                'total_errores':          len(errores),
                 'marcados_como_generados': marcar_como_generado,
             }, status=status.HTTP_200_OK)
 
@@ -801,19 +750,31 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             logger.error('GenerarDocumentosMasivoAPIView POST: error inesperado', exc_info=True)
             return Response({'error': f'Error al generar contratos: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def _obtener_supervisor(self, trabajador):
+        from ..models import SupervisorTrabajadorHistorial
+        historial = (
+            SupervisorTrabajadorHistorial.objects
+            .filter(trabajador=trabajador, fecha_fin__isnull=True)
+            .select_related('supervisor', 'supervisor__usuario', 'supervisor__usuario__persona')
+            .order_by('-fecha_inicio')
+            .first()
+        )
+        return historial.supervisor if historial else None
+
     def _guardar_contrato_generado(self, pdf_buffer, trabajador, documento, request, marcar_como_generado=False):
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        rut_limpio = (trabajador.rut or trabajador.dni or str(trabajador.id)).replace('.', '').replace('-', '')
+        timestamp   = datetime.now().strftime('%Y%m%d_%H%M%S')
+        rut_limpio  = (trabajador.rut or trabajador.dni or str(trabajador.id)).replace('.', '').replace('-', '')
         nombre_archivo = f'contrato_{documento.tipo}_{rut_limpio}_{timestamp}.pdf'
-        ruta_relativa = f'contratos_generados/{trabajador.holding.id}/{documento.tipo.lower()}/'
-        ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta_relativa)
+        ruta_relativa  = f'contratos_generados/{trabajador.holding.id}/{documento.tipo.lower()}/'
+        ruta_completa  = os.path.join(settings.MEDIA_ROOT, ruta_relativa)
         os.makedirs(ruta_completa, exist_ok=True)
         ruta_archivo = os.path.join(ruta_completa, nombre_archivo)
+
         with open(ruta_archivo, 'wb') as f:
             f.write(pdf_buffer.getvalue())
+
         url_relativa = f'{ruta_relativa}{nombre_archivo}'.replace('\\', '/')
         url_absoluta = request.build_absolute_uri(f'{settings.MEDIA_URL}{url_relativa}')
-        logger.debug(f'GenerarDocumentosMasivoAPIView _guardar_contrato_generado: {ruta_archivo}')
 
         if marcar_como_generado:
             try:
@@ -823,7 +784,6 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                 ).latest('fecha_inicio_contrato')
                 contrato.contrato_generado = True
                 contrato.save(update_fields=['contrato_generado'])
-                logger.debug(f'GenerarDocumentosMasivoAPIView _guardar_contrato_generado: contrato {contrato.id} marcado como generado')
             except ContratoTrabajador.DoesNotExist:
                 logger.error(f'GenerarDocumentosMasivoAPIView _guardar_contrato_generado: trabajador {trabajador.id} sin contrato registrado')
 
@@ -841,8 +801,8 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             rut = rut.replace('.', '').replace('-', '')
             if len(rut) < 2:
                 return ''
-            rut_num = rut[:-1]
-            dv = rut[-1]
+            rut_num       = rut[:-1]
+            dv            = rut[-1]
             rut_formateado = ''
             for i, digit in enumerate(reversed(rut_num)):
                 if i > 0 and i % 3 == 0:
@@ -873,48 +833,48 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                 logger.error(f'GenerarDocumentosMasivoAPIView _mapear_datos_trabajador: sociedad {sociedad_id} no encontrada')
 
         return {
-            'fecha_emision':          fecha_emision_formateada,
-            'fecha_ingreso':          formatear_fecha(trabajador.fecha_ingreso),
-            'fecha_inicio_contrato':  formatear_fecha(contrato_activo.fecha_inicio_contrato) if contrato_activo else '',
-            'fecha_termino':          formatear_fecha(contrato_activo.fecha_termino_contrato) if contrato_activo else '',
-            'nombre_completo':        f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
-            'rut':                    formatear_rut(trabajador.rut) if trabajador.rut else '',
-            'dni':                    trabajador.dni or '',
-            'nic':                    trabajador.nic or '',
-            'nacionalidad':           trabajador.nacionalidad or '',
-            'fecha_nacimiento':       formatear_fecha(trabajador.fecha_nacimiento),
-            'estado_civil':           trabajador.estado_civil or '',
-            'domicilio':              trabajador.direccion or '',
-            'telefono':               trabajador.telefono or '',
-            'correo':                 trabajador.correo or '',
-            'lugar_trabajo':          contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
-            'cargo':                  trabajador.cargo.nombre if trabajador.cargo else '',
-            'area':                   trabajador.area.nombre if trabajador.area else '',
-            'horario':                contrato_activo.horario.nombre if (contrato_activo and contrato_activo.horario) else '',
-            'sociedad':               sociedad_nombre,
-            'nombre_cliente':         contrato_activo.folio_comercial.cliente.nombre if (contrato_activo and contrato_activo.folio_comercial and contrato_activo.folio_comercial.cliente) else '',
-            'nombre_campo':           contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
-            'afp':                    trabajador.afp.nombre if trabajador.afp else '',
-            'salud':                  trabajador.salud.nombre if trabajador.salud else '',
-            'tipo_pago':              'Transferencia bancaria',
-            'banco':                  trabajador.banco.nombre if trabajador.banco else '',
-            'tipo_cuenta':            trabajador.tipo_cuenta_bancaria or '',
-            'numero_cuenta':          str(trabajador.numero_cuenta) if trabajador.numero_cuenta else '',
-            'elementos_proteccion':   '',
-            'contacto_emergencia_nombre':   '',
-            'contacto_emergencia_telefono': '',
-            'huella':                 '[HUELLA DIGITAL]',
+            'fecha_emision':                  fecha_emision_formateada,
+            'fecha_ingreso':                  formatear_fecha(trabajador.fecha_ingreso),
+            'fecha_inicio_contrato':          formatear_fecha(contrato_activo.fecha_inicio_contrato) if contrato_activo else '',
+            'fecha_termino':                  formatear_fecha(contrato_activo.fecha_termino_contrato) if contrato_activo else '',
+            'nombre_completo':                f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
+            'rut':                            formatear_rut(trabajador.rut) if trabajador.rut else '',
+            'dni':                            trabajador.dni or '',
+            'nic':                            trabajador.nic or '',
+            'nacionalidad':                   trabajador.nacionalidad or '',
+            'fecha_nacimiento':               formatear_fecha(trabajador.fecha_nacimiento),
+            'estado_civil':                   trabajador.estado_civil or '',
+            'domicilio':                      trabajador.direccion or '',
+            'telefono':                       trabajador.telefono or '',
+            'correo':                         trabajador.correo or '',
+            'lugar_trabajo':                  contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
+            'cargo':                          trabajador.cargo.nombre if trabajador.cargo else '',
+            'area':                           trabajador.area.nombre if trabajador.area else '',
+            'horario':                        contrato_activo.horario.nombre if (contrato_activo and contrato_activo.horario) else '',
+            'sociedad':                       sociedad_nombre,
+            'nombre_cliente':                 contrato_activo.folio_comercial.cliente.nombre if (contrato_activo and contrato_activo.folio_comercial and contrato_activo.folio_comercial.cliente) else '',
+            'nombre_campo':                   contrato_activo.fundo.nombre_campo if (contrato_activo and contrato_activo.fundo) else '',
+            'afp':                            trabajador.afp.nombre if trabajador.afp else '',
+            'salud':                          trabajador.salud.nombre if trabajador.salud else '',
+            'tipo_pago':                      'Transferencia bancaria',
+            'banco':                          trabajador.banco.nombre if trabajador.banco else '',
+            'tipo_cuenta':                    trabajador.tipo_cuenta_bancaria or '',
+            'numero_cuenta':                  str(trabajador.numero_cuenta) if trabajador.numero_cuenta else '',
+            'elementos_proteccion':           '',
+            'contacto_emergencia_nombre':     '',
+            'contacto_emergencia_telefono':   '',
+            'huella':                         '[HUELLA DIGITAL]',
         }
 
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
-        documento = ContratoVariables.objects.get(id=documento_id)
+        documento      = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
-        reader = PdfReader(open(input_pdf_path, 'rb'))
+        reader         = PdfReader(open(input_pdf_path, 'rb'))
 
         BASE_FONT_SIZE = 9
-        BASE_OFFSET_X = -8
-        BASE_OFFSET_Y = -15.2
-        FONT_BASELINE = BASE_FONT_SIZE * 0.3
+        BASE_OFFSET_X  = -8
+        BASE_OFFSET_Y  = -15.2
+        FONT_BASELINE  = BASE_FONT_SIZE * 0.3
         campos_centrados = [
             'rut', 'dni', 'nic', 'estado_civil',
             'fecha_nacimiento', 'fecha_emision',
@@ -937,8 +897,9 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     'valor':  ubicacion.get('valor'),
                 })
 
-        holding = documento.holding
+        holding                    = documento.holding
         firma_empleador_disponible = bool(holding.firma_empleador)
+
         trabajador = None
         if 'trabajador_id' in datos_variables:
             try:
@@ -946,27 +907,29 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             except PersonalTrabajadores.DoesNotExist:
                 logger.error(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: trabajador {datos_variables["trabajador_id"]} no encontrado')
 
+        supervisor = self._obtener_supervisor(trabajador) if trabajador else None
+
         final_writer = PdfWriter()
 
         for page_num in range(len(reader.pages)):
-            ui_page_num = page_num + 1
+            ui_page_num    = page_num + 1
             temp_doc_buffer = io.BytesIO()
             temp_doc_writer = PdfWriter()
-            original_page = reader.pages[page_num]
+            original_page   = reader.pages[page_num]
             temp_doc_writer.add_page(original_page)
             temp_doc_writer.write(temp_doc_buffer)
             temp_doc_buffer.seek(0)
             temp_doc_reader = PdfReader(temp_doc_buffer)
-            isolated_page = temp_doc_reader.pages[0]
-            page_width = float(isolated_page.mediabox.width)
-            page_height = float(isolated_page.mediabox.height)
+            isolated_page   = temp_doc_reader.pages[0]
+            page_width      = float(isolated_page.mediabox.width)
+            page_height     = float(isolated_page.mediabox.height)
 
             if ui_page_num not in variables_por_pagina:
                 final_writer.add_page(isolated_page)
                 continue
 
-            overlay_buffer = io.BytesIO()
-            can = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+            overlay_buffer     = io.BytesIO()
+            can                = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
             variables_escritas = 0
 
             for variable in variables_por_pagina[ui_page_num]:
@@ -981,10 +944,11 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 img_height = variable.get('height', 50)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height, preserveAspectRatio=True, mask='auto')
+                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height,
+                                              preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
-                        except Exception as e:
-                            logger.error(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: error insertando firma_empleador', exc_info=True)
+                        except Exception:
+                            logger.error('Error insertando firma_empleador', exc_info=True)
                     continue
 
                 elif nombre == 'firma':
@@ -996,10 +960,11 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 img_height = variable.get('height', 40)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(trabajador.firma.path, pdf_x, pdf_y, width=img_width, height=img_height, preserveAspectRatio=True, mask='auto')
+                                can.drawImage(trabajador.firma.path, pdf_x, pdf_y, width=img_width, height=img_height,
+                                              preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
-                            except Exception as e:
-                                logger.error(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: error insertando firma trabajador', exc_info=True)
+                            except Exception:
+                                logger.error('Error insertando firma trabajador', exc_info=True)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
                                 can.drawString(pdf_x, pdf_y, '[ERROR FIRMA]')
@@ -1018,10 +983,11 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 img_height = variable.get('height', 100)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(trabajador.huella_digital.path, pdf_x, pdf_y, width=img_width, height=img_height, preserveAspectRatio=True, mask='auto')
+                                can.drawImage(trabajador.huella_digital.path, pdf_x, pdf_y, width=img_width, height=img_height,
+                                              preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
-                            except Exception as e:
-                                logger.error(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: error insertando huella trabajador', exc_info=True)
+                            except Exception:
+                                logger.error('Error insertando huella trabajador', exc_info=True)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
                                 can.drawString(pdf_x, pdf_y, '[ERROR HUELLA]')
@@ -1031,16 +997,60 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                             can.drawString(pdf_x, pdf_y, '[HUELLA PENDIENTE]')
                     continue
 
+                elif nombre == 'nombre_supervisor':
+                    if supervisor and supervisor.usuario:
+                        persona = supervisor.usuario.persona
+                        if persona:
+                            valor = f"{persona.nombres or ''} {persona.apellidos or ''}".strip()
+                        else:
+                            valor = supervisor.usuario.rut
+                        if valor:
+                            pdf_x = variable['posX'] + BASE_OFFSET_X
+                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                            can.setFont('Helvetica', BASE_FONT_SIZE)
+                            can.drawString(pdf_x, pdf_y, valor)
+                            variables_escritas += 1
+                    continue
+
+                elif nombre == 'firma_supervisor':
+                    if supervisor and supervisor.firma:
+                        try:
+                            firma_path = supervisor.firma.path
+                            if os.path.exists(firma_path):
+                                img_width  = variable.get('width', 150)
+                                img_height = variable.get('height', 50)
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
+                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height,
+                                              preserveAspectRatio=True, mask='auto')
+                                variables_escritas += 1
+                        except Exception:
+                            logger.error('Error insertando firma_supervisor', exc_info=True)
+                    continue
+
+                elif nombre == 'huella_supervisor':
+                    if supervisor and supervisor.huella:
+                        try:
+                            huella_path = supervisor.huella.path
+                            if os.path.exists(huella_path):
+                                img_width  = variable.get('width', 80)
+                                img_height = variable.get('height', 100)
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
+                                can.drawImage(huella_path, pdf_x, pdf_y, width=img_width, height=img_height,
+                                              preserveAspectRatio=True, mask='auto')
+                                variables_escritas += 1
+                        except Exception:
+                            logger.error('Error insertando huella_supervisor', exc_info=True)
+                    continue
+
                 elif nombre in ['elemento_seguridad', 'cantidad_seguridad']:
                     valor = variable.get('valor') or ''
-
                     if valor:
                         pdf_x = variable['posX'] + BASE_OFFSET_X
                         pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-
                         can.setFont('Helvetica', BASE_FONT_SIZE)
                         can.drawString(pdf_x, pdf_y, str(valor))
-
                         variables_escritas += 1
 
                         if debug:
@@ -1050,7 +1060,6 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                             can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
                             can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
                             can.restoreState()
-
                     continue
 
                 if nombre not in datos_variables:
@@ -1092,17 +1101,16 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                 try:
                     overlay_reader = PdfReader(overlay_buffer)
                     isolated_page.merge_page(overlay_reader.pages[0])
-                except Exception as e:
-                    logger.error(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: error en merge página {ui_page_num}', exc_info=True)
+                except Exception:
+                    logger.error(f'Error en merge página {ui_page_num}', exc_info=True)
 
             final_writer.add_page(isolated_page)
 
         output_buffer = io.BytesIO()
         final_writer.write(output_buffer)
         output_buffer.seek(0)
-        logger.debug(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: PDF generado {len(output_buffer.getvalue())} bytes')
         return output_buffer
-
+    
 # ==============================================================================
 # LISTAR DOCUMENTOS
 # ==============================================================================
@@ -2071,22 +2079,17 @@ class TrabajadoresPorParametroAPIView(BaseAPIView):
         return Response(list(mapa.values()))
 
 
+
 # ==============================================================================
-# GENERAR DOCUMENTOS POR PARÁMETRO (modo nuevo)
+# GENERAR DOCUMENTOS POR PARÁMETRO
 # ==============================================================================
 class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
-    """
-    Igual que GenerarDocumentosMasivoAPIView pero:
-    - El PDF base viene de ContratoAsociadoTrabajador.archivo_pdf
-    - Las variables vienen de Parametro.formato.variables
-    - Valida que contrato_asociado.parametro == parametro enviado
-    """
 
     def post(self, request, *args, **kwargs):
-        parametro_id   = request.data.get('parametro_id')
-        trabajadores   = request.data.get('trabajadores', [])  # [{trabajador_id, contrato_asociado_id}]
-        fecha_emision  = request.data.get('fecha_emision')
-        sociedad_id    = request.data.get('sociedad_id')
+        parametro_id    = request.data.get('parametro_id')
+        trabajadores    = request.data.get('trabajadores', [])
+        fecha_emision   = request.data.get('fecha_emision')
+        sociedad_id     = request.data.get('sociedad_id')
         marcar_generado = request.data.get('marcar_como_generado', False)
 
         if not parametro_id:
@@ -2103,7 +2106,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
             return Response({'error': 'El parámetro no tiene formato asignado'}, status=status.HTTP_400_BAD_REQUEST)
 
         urls_generadas = []
-        errores = []
+        errores        = []
 
         for item in trabajadores:
             trabajador_id        = item.get('trabajador_id')
@@ -2117,7 +2120,6 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                     id=contrato_asociado_id, holding=request.user.holding
                 )
 
-                # Invariante spec §31
                 if contrato_asociado.parametro_id != int(parametro_id):
                     errores.append({
                         'trabajador_id': trabajador_id,
@@ -2128,12 +2130,11 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                 datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
                 datos_variables['trabajador_id'] = trabajador.id
 
-                # Generar usando el PDF del trabajador como base
                 pdf_buffer = self._generar_con_pdf_custom(
-                    pdf_path   = contrato_asociado.archivo_pdf.path,
-                    variables  = parametro.formato.variables,
-                    datos      = datos_variables,
-                    holding    = request.user.holding,
+                    pdf_path  = contrato_asociado.archivo_pdf.path,
+                    variables = parametro.formato.variables,
+                    datos     = datos_variables,
+                    holding   = request.user.holding,
                 )
 
                 pdf_url = self._guardar_contrato_generado(
@@ -2164,10 +2165,6 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
         }, status=status.HTTP_200_OK)
 
     def _generar_con_pdf_custom(self, pdf_path, variables, datos, holding):
-        """
-        Igual que _generar_documento_coordenadas_nativas pero recibe
-        pdf_path y variables directamente en vez de documento_id.
-        """
         reader = PdfReader(open(pdf_path, 'rb'))
 
         BASE_FONT_SIZE = 9
@@ -2197,6 +2194,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                 })
 
         firma_empleador_disponible = bool(holding.firma_empleador)
+
         trabajador = None
         if 'trabajador_id' in datos:
             try:
@@ -2204,12 +2202,14 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
             except PersonalTrabajadores.DoesNotExist:
                 pass
 
+        supervisor = self._obtener_supervisor(trabajador) if trabajador else None
+
         final_writer = PdfWriter()
 
         for page_num in range(len(reader.pages)):
-            ui_page_num = page_num + 1
-            temp_buffer = io.BytesIO()
-            temp_writer = PdfWriter()
+            ui_page_num  = page_num + 1
+            temp_buffer  = io.BytesIO()
+            temp_writer  = PdfWriter()
             temp_writer.add_page(reader.pages[page_num])
             temp_writer.write(temp_buffer)
             temp_buffer.seek(0)
@@ -2222,8 +2222,8 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                 final_writer.add_page(isolated_page)
                 continue
 
-            overlay_buffer = io.BytesIO()
-            can = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+            overlay_buffer     = io.BytesIO()
+            can                = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
             variables_escritas = 0
 
             for variable in variables_por_pagina[ui_page_num]:
@@ -2272,7 +2272,54 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                         except Exception:
                             pass
                     continue
-                
+
+                elif nombre == 'nombre_supervisor':
+                    if supervisor and supervisor.usuario:
+                        persona = supervisor.usuario.persona
+                        if persona:
+                            valor = f"{persona.nombres or ''} {persona.apellidos or ''}".strip()
+                        else:
+                            valor = supervisor.usuario.rut
+                        if valor:
+                            pdf_x = variable['posX'] + BASE_OFFSET_X
+                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                            can.setFont('Helvetica', BASE_FONT_SIZE)
+                            can.drawString(pdf_x, pdf_y, valor)
+                            variables_escritas += 1
+                    continue
+
+                elif nombre == 'firma_supervisor':
+                    if supervisor and supervisor.firma:
+                        try:
+                            firma_path = supervisor.firma.path
+                            if os.path.exists(firma_path):
+                                img_w = variable.get('width', 150)
+                                img_h = variable.get('height', 50)
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
+                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_w, height=img_h,
+                                              preserveAspectRatio=True, mask='auto')
+                                variables_escritas += 1
+                        except Exception:
+                            logger.error('Error insertando firma_supervisor', exc_info=True)
+                    continue
+
+                elif nombre == 'huella_supervisor':
+                    if supervisor and supervisor.huella:
+                        try:
+                            huella_path = supervisor.huella.path
+                            if os.path.exists(huella_path):
+                                img_w = variable.get('width', 80)
+                                img_h = variable.get('height', 100)
+                                pdf_x = variable['posX'] + BASE_OFFSET_X
+                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
+                                can.drawImage(huella_path, pdf_x, pdf_y, width=img_w, height=img_h,
+                                              preserveAspectRatio=True, mask='auto')
+                                variables_escritas += 1
+                        except Exception:
+                            logger.error('Error insertando huella_supervisor', exc_info=True)
+                    continue
+
                 elif nombre == 'elemento_seguridad':
                     valor = variable.get('valor') or ''
                     if valor:
@@ -2282,13 +2329,13 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                         can.drawString(pdf_x, pdf_y, str(valor))
                         variables_escritas += 1
                     continue
-    
+
                 if nombre not in datos or not datos[nombre]:
                     continue
 
-                valor  = str(datos[nombre])
-                pdf_x  = variable['posX'] + BASE_OFFSET_X
-                pdf_y  = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                valor = str(datos[nombre])
+                pdf_x = variable['posX'] + BASE_OFFSET_X
+                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
 
                 can.setFont('Helvetica', BASE_FONT_SIZE)
                 if nombre in campos_centrados:
@@ -2314,4 +2361,3 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
         final_writer.write(output_buffer)
         output_buffer.seek(0)
         return output_buffer
-

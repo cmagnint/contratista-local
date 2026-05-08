@@ -1,0 +1,249 @@
+<div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
+
+  <!-- Botones principales -->
+  <button class="custom-button" (click)="abrirCrear()">
+    CREAR SUPERVISOR
+  </button>
+
+  <button
+    class="custom-button-modificar"
+    [disabled]="!supervisorSeleccionado"
+    (click)="supervisorSeleccionado && abrirEditar(supervisorSeleccionado)">
+    MODIFICAR SUPERVISOR
+  </button>
+
+  <!-- ============================================ -->
+  <!-- MODAL CREAR / MODIFICAR SUPERVISOR           -->
+  <!-- ============================================ -->
+  <div class="modal" *ngIf="showModal" (click)="cerrarModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+
+      <h2>{{ editMode ? 'MODIFICAR SUPERVISOR' : 'CREAR SUPERVISOR' }}</h2>
+
+      <!-- Sección usuario -->
+      <div class="modal-section">
+        <h3>Información del Supervisor</h3>
+
+        <div class="input-container">
+          <label>Usuario:</label>
+          <select class="input-usuario select-usuario" [(ngModel)]="form.usuario" [disabled]="editMode">
+            <option [value]="0" disabled>Seleccionar usuario...</option>
+            <option *ngFor="let u of usuarios" [value]="u.id">
+              {{ u.nombre }} — {{ u.rut }}
+            </option>
+          </select>
+          <small class="hint-text" *ngIf="editMode">El usuario no puede modificarse.</small>
+        </div>
+      </div>
+
+      <!-- Sección imágenes -->
+      <div class="modal-section">
+        <h3>Imágenes del Supervisor</h3>
+
+        <!-- Imágenes existentes (solo edición) -->
+        <div
+          class="existing-images-section"
+          *ngIf="editMode && (form.firmaExistente || form.huellaExistente)">
+          <h4>Imágenes Actuales:</h4>
+          <div class="existing-images-grid">
+
+            <div class="existing-image-item" *ngIf="form.firmaExistente && !form.firmaPreview">
+              <div class="image-type-label">Firma</div>
+              <div class="existing-image-container"
+                   (click)="abrirImagenModal(form.firmaExistente!, 'Firma')">
+                <img [src]="form.firmaExistente" alt="Firma actual" class="existing-image-thumb">
+                <div class="image-overlay">
+                  <button class="view-image-btn">👁️</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="existing-image-item" *ngIf="form.huellaExistente && !form.huellaPreview">
+              <div class="image-type-label">Huella</div>
+              <div class="existing-image-container"
+                   (click)="abrirImagenModal(form.huellaExistente!, 'Huella')">
+                <img [src]="form.huellaExistente" alt="Huella actual" class="existing-image-thumb">
+                <div class="image-overlay">
+                  <button class="view-image-btn">👁️</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Upload -->
+        <div class="files-grid files-grid-2col">
+
+          <!-- Firma -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">✍️ {{ editMode ? 'Cambiar Firma' : 'Firma' }}</span>
+              <input
+                type="file"
+                accept="image/*"
+                (change)="onFirmaSelected($event)"
+                class="file-input-hidden">
+              <span class="file-upload-button">
+                {{ firmaActiva() ? 'Cambiar' : 'Seleccionar' }}
+              </span>
+            </label>
+            <div class="file-preview" *ngIf="firmaActiva()">
+              <img [src]="firmaActiva()!" alt="Firma" class="image-preview">
+              <button class="remove-file-btn" (click)="quitarFirma()">✕</button>
+            </div>
+          </div>
+
+          <!-- Huella -->
+          <div class="file-upload-container">
+            <label class="file-upload-label">
+              <span class="file-label-text">👆 {{ editMode ? 'Cambiar Huella' : 'Huella' }}</span>
+              <input
+                type="file"
+                accept="image/*"
+                (change)="onHuellaSelected($event)"
+                class="file-input-hidden">
+              <span class="file-upload-button">
+                {{ huellaActiva() ? 'Cambiar' : 'Seleccionar' }}
+              </span>
+            </label>
+            <div class="file-preview" *ngIf="huellaActiva()">
+              <img [src]="huellaActiva()!" alt="Huella" class="image-preview">
+              <button class="remove-file-btn" (click)="quitarHuella()">✕</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="alert-error-inline" *ngIf="error">{{ error }}</div>
+
+      <div class="button-container">
+        <button class="button-bottom" (click)="guardar()" [disabled]="submitting">
+          {{ submitting ? 'Guardando...' : (editMode ? 'Modificar Supervisor' : 'Crear Supervisor') }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL VER IMAGEN                             -->
+  <!-- ============================================ -->
+  <div class="modal" *ngIf="showImageModal" (click)="cerrarImagenModal()">
+    <div class="modal-content-image" (click)="$event.stopPropagation()">
+      <div class="image-view-header">
+        <h3>{{ imagenModalTipo }}</h3>
+        <button class="close-button-image" (click)="cerrarImagenModal()">✕</button>
+      </div>
+      <div class="image-view-container">
+        <img [src]="imagenModalUrl" [alt]="imagenModalTipo" class="image-view-full">
+      </div>
+      <div class="image-view-footer">
+        <button class="button-bottom" (click)="cerrarImagenModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- TABLA SUPERVISORES                           -->
+  <!-- ============================================ -->
+  <table class="tabla-sv mat-elevation-z8" (click)="$event.stopPropagation()">
+    <thead>
+      <tr>
+        <th class="mat-header">Nombre</th>
+        <th class="mat-header">RUT</th>
+        <th class="mat-header">Trabajadores</th>
+        <th class="mat-header">Firma</th>
+        <th class="mat-header">Huella</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngIf="loading">
+        <td colspan="5" class="mat-cell td-center td-empty">Cargando supervisores...</td>
+      </tr>
+      <tr *ngIf="!loading && supervisores.length === 0">
+        <td colspan="5" class="mat-cell td-center td-empty">No hay supervisores registrados.</td>
+      </tr>
+      <tr
+        *ngFor="let sup of supervisores"
+        [class.selected]="isSelected(sup)"
+        (click)="seleccionarFila(sup, $event)">
+
+        <td class="mat-cell">{{ sup.usuario_nombre || '—' }}</td>
+
+        <td class="mat-cell">
+          <span class="rut-formatted">{{ sup.usuario_rut }}</span>
+        </td>
+
+        <td class="mat-cell td-center">
+          <span class="trabajadores-badge">{{ sup.trabajadores_count.total ?? 0 }}</span>
+        </td>
+
+        <!-- Firma -->
+        <td class="mat-cell images-cell">
+          <div class="images-buttons-container" *ngIf="sup.firma; else sinFirmaT">
+            <button
+              class="image-btn has-image"
+              (click)="abrirImagenModal(sup.firma!, 'Firma'); $event.stopPropagation()"
+              title="Ver Firma">
+              <span class="image-btn-icon">✍️</span>
+            </button>
+          </div>
+          <ng-template #sinFirmaT>
+            <span class="no-content">—</span>
+          </ng-template>
+        </td>
+
+        <!-- Huella -->
+        <td class="mat-cell images-cell">
+          <div class="images-buttons-container" *ngIf="sup.huella; else sinHuellaT">
+            <button
+              class="image-btn has-image"
+              (click)="abrirImagenModal(sup.huella!, 'Huella'); $event.stopPropagation()"
+              title="Ver Huella">
+              <span class="image-btn-icon">👆</span>
+            </button>
+          </div>
+          <ng-template #sinHuellaT>
+            <span class="no-content">—</span>
+          </ng-template>
+        </td>
+
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL ÉXITO                                  -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="showSuccessModal" (click)="showSuccessModal = false">
+  <div class="modal-content-message success" (click)="$event.stopPropagation()">
+    <div class="icon-container success">
+      <div class="icon-circle success">✓</div>
+    </div>
+    <h2 class="modal-title success">¡Éxito!</h2>
+    <p class="modal-message">La operación se completó exitosamente.</p>
+    <div class="button-container">
+      <button class="button-bottom" (click)="showSuccessModal = false">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL ERROR                                  -->
+<!-- ============================================ -->
+<div class="modal" *ngIf="showErrorModal" (click)="showErrorModal = false">
+  <div class="modal-content-message error" (click)="$event.stopPropagation()">
+    <div class="icon-container error">
+      <div class="icon-circle error">✕</div>
+    </div>
+    <h2 class="modal-title error">Error</h2>
+    <p class="modal-message">{{ error || 'Ocurrió un error al procesar la solicitud.' }}</p>
+    <div class="button-container">
+      <button class="button-bottom error" (click)="showErrorModal = false">Cerrar</button>
+    </div>
+  </div>
+</div>

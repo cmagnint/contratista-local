@@ -797,33 +797,78 @@ class SupervisorAPIView(BaseAPIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
-        serializer = SupervisorSerializer(data=request.data)
+        data = request.data.dict() if hasattr(request.data, 'dict') else dict(request.data)
+        data.pop('firma', None)
+        data.pop('huella', None)
+
+        serializer = SupervisorSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             supervisor = serializer.save()
-            trabajadores_ids = request.data.get('trabajadores', [])
+
+            if request.FILES.get('firma'):
+                supervisor.firma = request.FILES['firma']
+            if request.FILES.get('huella'):
+                supervisor.huella = request.FILES['huella']
+            supervisor.save()
+
+            trabajadores_ids = request.data.getlist('trabajadores') or request.data.get('trabajadores', [])
+            if isinstance(trabajadores_ids, str):
+                import json
+                trabajadores_ids = json.loads(trabajadores_ids)
             if trabajadores_ids:
-                supervisor.trabajadores.set(PersonalTrabajadores.objects.filter(id__in=trabajadores_ids))
+                supervisor.trabajadores.set(
+                    PersonalTrabajadores.objects.filter(id__in=trabajadores_ids)
+                )
             logger.debug(f'SupervisorAPIView POST: supervisor {supervisor.id} creado')
-            return Response({'id': supervisor.id, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+            return Response(
+                SupervisorSerializer(supervisor, context={'request': request}).data,
+                status=status.HTTP_201_CREATED
+            )
 
         logger.error(f'SupervisorAPIView POST: datos inválidos: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     def put(self, request):
         supervisor_id = request.data.get('id')
         try:
             supervisor = Supervisores.objects.get(id=supervisor_id)
         except Supervisores.DoesNotExist:
-            logger.error(f'SupervisorAPIView PUT: supervisor {supervisor_id} no encontrado')
             return Response({'message': 'Supervisor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = SupervisorSerializer(supervisor, data=request.data)
+        # Limpiar imágenes si se solicita
+        if request.data.get('firma_clear') == '1':
+            if supervisor.firma:
+                supervisor.firma.delete(save=False)
+            supervisor.firma = None
+
+        if request.data.get('huella_clear') == '1':
+            if supervisor.huella:
+                supervisor.huella.delete(save=False)
+            supervisor.huella = None
+
+        # Nuevos archivos
+        if request.FILES.get('firma'):
+            supervisor.firma = request.FILES['firma']
+        if request.FILES.get('huella'):
+            supervisor.huella = request.FILES['huella']
+
+        supervisor.save()
+
+        # Resto de campos via serializer (sin firma/huella)
+        data = request.data.dict() if hasattr(request.data, 'dict') else dict(request.data)
+        data.pop('firma', None)
+        data.pop('huella', None)
+
+        serializer = SupervisorSerializer(supervisor, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             supervisor = serializer.save()
-            trabajadores_ids = request.data.get('trabajadores')
-            if trabajadores_ids is not None:
-                supervisor.trabajadores.set(PersonalTrabajadores.objects.filter(id__in=trabajadores_ids))
-            return Response(serializer.data)
+            trabajadores_ids = request.data.getlist('trabajadores')
+            if trabajadores_ids:
+                supervisor.trabajadores.set(
+                    PersonalTrabajadores.objects.filter(id__in=trabajadores_ids)
+                )
+            return Response(SupervisorSerializer(supervisor, context={'request': request}).data)
 
         logger.error(f'SupervisorAPIView PUT: datos inválidos para supervisor {supervisor_id}: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

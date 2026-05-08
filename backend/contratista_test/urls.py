@@ -25,6 +25,7 @@ urlpatterns = [
     path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
     path('accounts/', include('django.contrib.auth.urls')),
     path('schema/', include('django_spaghetti.urls')),
+    #path("api/chatbot/", include("bot.urls")),
 
 ]
 

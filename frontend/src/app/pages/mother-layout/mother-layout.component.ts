@@ -468,6 +468,13 @@ seleccionarSociedad(sociedad: { id: number; nombre: string }): void {
     this.leftSidenav.close();
   }
 
+  navigateToSupervisores() {
+    this.router.navigate(['/fs/superv']);
+    this.leftSidenav.close();
+  }
+
+  
+
   navigateToHorario() {
     this.router.navigate(['/fs/r-h-horarios']);
     this.leftSidenav.close();

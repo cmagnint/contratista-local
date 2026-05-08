@@ -225,6 +225,11 @@
               <mat-icon>security</mat-icon>
               <span class="icon-label">Elementos Seguridad</span>
             </li>
+
+            <li *ngIf="puedeAccederSubmodulo('RECURSOS HUMANOS', 'HORARIOS')" (click)="navigateToSupervisores()">
+              <mat-icon>engineering</mat-icon>
+              <span class="icon-label">Supervisores</span>
+            </li>
           
           </ul>
 
