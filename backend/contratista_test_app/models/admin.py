@@ -10,6 +10,12 @@ class Holding(models.Model):
         blank=True,
         help_text="Firma del empleador para contratos"
     )
+    timbre_empleador = models.ImageField(
+        upload_to='holding/timbre_empleador/', 
+        null=True, 
+        blank=True,
+        help_text="Timbre del empleador para contratos"
+    )
     
     class Meta:
         db_table = 'holding'
