@@ -1,0 +1,54 @@
+               relname                | filas | tamano 
+--------------------------------------+-------+--------
+ registro_asistencia                  |   874 | 344 kB
+ registro_mano_obra_persona           |   567 | 264 kB
+ supervisor_trabajador_historial      |   207 | 136 kB
+ personal                             |   161 | 320 kB
+ registro_pagos_efectivo_producciones |   153 | 72 kB
+ registro_casa_trabajador             |   153 | 120 kB
+ contratos_trabajadores               |   141 | 288 kB
+ contrato_horario                     |   140 | 160 kB
+ supervisores_trabajadores            |   136 | 72 kB
+ trabajador_transporte_historial      |   130 | 136 kB
+ registro_pagos_transferencia         |    65 | 88 kB
+ registro_pagos_efectivo              |    48 | 72 kB
+ auth_permission                      |    36 | 192 kB
+ django_migrations                    |    22 | 72 kB
+ usuarios                             |    14 | 144 kB
+ perfiles_submodulos_web              |     9 | 104 kB
+ django_content_type                  |     9 | 80 kB
+ folio_comercial_vehiculos            |     7 | 72 kB
+ supervisores                         |     7 | 88 kB
+ folio_comercial_transportistas       |     6 | 72 kB
+ fc_labor_pago                        |     6 | 72 kB
+ documentos_chofer                    |     5 | 48 kB
+ labores                              |     5 | 64 kB
+ usuarios_empresas_asignadas          |     5 | 72 kB
+ elemento_seguridad                   |     4 | 64 kB
+ documentos_variables                 |     4 | 176 kB
+ folio_comercial_horarios             |     4 | 72 kB
+ folio_comercial_fundos               |     4 | 72 kB
+ folio_comercial                      |     4 | 56 kB
+ folios_transportes                   |     3 | 72 kB
+ campos_clientes                      |     3 | 64 kB
+ perfiles_modulos_web                 |     2 | 72 kB
+ casas                                |     2 | 48 kB
+ vehiculos_transporte                 |     2 | 64 kB
+ clientes                             |     2 | 80 kB
+ django_celery_beat_periodictask      |     2 | 128 kB
+ tramos_transportista                 |     2 | 48 kB
+ choferes                             |     2 | 112 kB
+ submodulos_web                       |     1 | 72 kB
+ empresas_transporte                  |     1 | 64 kB
+ contratos_asociados_trabajador       |     1 | 88 kB
+ developer                            |     1 | 32 kB
+ horarios                             |     1 | 56 kB
+ unidad_control                       |     1 | 40 kB
+ parametros_contrato                  |     1 | 56 kB
+ asociacion_codigo_qr                 |     0 | 24 kB
+ historial_cambios_pago               |     0 | 48 kB
+ cuenta_origen                        |     0 | 56 kB
+ salud                                |     0 | 56 kB
+ oauth2_provider_idtoken              |     0 | 40 kB
+(50 rows)
+
