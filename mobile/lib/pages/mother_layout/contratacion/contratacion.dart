@@ -1359,6 +1359,8 @@ class ContratacionScreenState extends State<ContratacionScreen> {
           'casa': widget.initialData['casa'] ?? '',
           'area': widget.initialData['area'] ?? '',
           'cargo': widget.initialData['cargo'] ?? '',
+          'charla_supervisor_id':
+              widget.initialData['charla_supervisor_id'] ?? '',
           'rut': _tipoDocumento == 'Cédula Chilena'
               ? _controllers['RUN']!.text
                     .replaceAll('.', '')

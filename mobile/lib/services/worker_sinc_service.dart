@@ -151,6 +151,7 @@ class WorkerSyncService {
         'estado',
         'area',
         'cargo',
+        'charla_supervisor_id',
       };
 
       for (var entry in enrollment.entries) {

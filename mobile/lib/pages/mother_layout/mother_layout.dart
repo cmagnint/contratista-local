@@ -1,4 +1,4 @@
-//contratista-local
+//mother_layout.dart
 import 'package:contratista/pages/mother_layout/contratacion/contratacion.dart';
 import 'package:contratista/pages/mother_layout/contratacion/huella_firma.dart';
 import 'package:contratista/pages/mother_layout/contratacion/pending_enrollments_screen.dart';

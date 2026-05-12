@@ -2,10 +2,9 @@
 
 <div class="admin-usuarios-container" (click)="deseleccionarFila($event)">
 
-  <!-- ── STICKY: filtros + botones (igual que personal) ─────────────────── -->
+  <!-- ── STICKY: filtros + botones ──────────────────────────────────────── -->
   <div class="botones-fijos-maestro">
 
-    <!-- ── FILTROS ──────────────────────────────────────────────────────── -->
     <div class="filtros-section-modern">
       <div class="filtros-header" (click)="filtrosVisible = !filtrosVisible" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
         <h3 class="filtros-title" style="margin:0;">FILTRAR CONTRATOS</h3>
@@ -41,11 +40,9 @@
             </mat-option>
           </mat-select>
         </mat-form-field>
-
       </div>
     </div>
 
-    <!-- ── BOTONES DE ACCIÓN ─────────────────────────────────────────────── -->
     <div class="botones-accion-container">
       <button mat-raised-button color="primary" class="custom-button-agregar"
         (click)="abrirModalCrearContrato()">
@@ -59,7 +56,6 @@
         <span class="button-text">CONTRATO RETROACTIVO</span>
       </button>
 
-      <!-- Badge + botones contextuales cuando hay selección -->
       <ng-container *ngIf="selectedRows.length > 0">
         <div class="seleccion-badge">
           <span class="seleccion-count">{{ selectedRows.length }}</span>
@@ -79,7 +75,6 @@
         </button>
       </ng-container>
 
-      <!-- Botón eliminar deshabilitado cuando no hay selección -->
       <button mat-raised-button color="primary" class="custom-button-cancelar"
         *ngIf="selectedRows.length === 0"
         [disabled]="true">
@@ -94,7 +89,7 @@
       </button>
     </div>
 
-  </div><!-- fin botones-fijos-maestro -->
+  </div>
 
   <!-- ── TABLA ──────────────────────────────────────────────────────────── -->
   <table mat-table [dataSource]="contratosFiltrados" class="mat-elevation-z8"
@@ -381,6 +376,18 @@
         <mat-hint>Auto-llenado desde el folio (opcional)</mat-hint>
       </mat-form-field>
 
+      <!-- ── CAMPO CHARLA SUPERVISOR ──────────────────────────────────────── -->
+      <mat-form-field appearance="outline" class="form-field charla-field" style="grid-column: 1 / -1;">
+        <mat-label>🎤 Supervisor que realizó la charla *</mat-label>
+        <mat-select [(ngModel)]="nuevoContrato.charla_supervisor_id">
+          <mat-option [value]="''">-- Seleccione supervisor --</mat-option>
+          <mat-option *ngFor="let sup of supervisores" [value]="sup.id">
+            {{sup.nombre}} - {{sup.rut}}
+          </mat-option>
+        </mat-select>
+        <mat-hint style="color: #E64A19; font-weight: 600;">Obligatorio: indique quién dictó la charla de inducción</mat-hint>
+      </mat-form-field>
+
     </div>
 
     <div class="button-container">
@@ -504,6 +511,19 @@
         </mat-select>
       </mat-form-field>
 
+      <!-- ── CAMPO CHARLA SUPERVISOR RETROACTIVO ─────────────────────────── -->
+      <mat-form-field appearance="outline" class="form-field charla-field" style="grid-column: 1 / -1;"
+        *ngIf="nuevoContratoRetroactivo.trabajador_id">
+        <mat-label>🎤 Supervisor que realizó la charla *</mat-label>
+        <mat-select [(ngModel)]="nuevoContratoRetroactivo.charla_supervisor_id">
+          <mat-option [value]="''">-- Seleccione supervisor --</mat-option>
+          <mat-option *ngFor="let sup of supervisores" [value]="sup.id.toString()">
+            {{ sup.nombre }} - {{ sup.rut }}
+          </mat-option>
+        </mat-select>
+        <mat-hint style="color: #E64A19; font-weight: 600;">Obligatorio: indique quién dictó la charla de inducción</mat-hint>
+      </mat-form-field>
+
     </div>
 
     <div class="button-container">
@@ -513,7 +533,8 @@
           !nuevoContratoRetroactivo.folio_id ||
           !nuevoContratoRetroactivo.fundo_id ||
           !nuevoContratoRetroactivo.labor_id ||
-          !nuevoContratoRetroactivo.horario_id"
+          !nuevoContratoRetroactivo.horario_id ||
+          !nuevoContratoRetroactivo.charla_supervisor_id"
         (click)="crearContratoRetroactivo()">
         {{ isCreatingRetroactivo ? 'Creando...' : 'Crear Contrato Retroactivo' }}
       </button>
@@ -583,7 +604,6 @@
       Esta acción no se puede deshacer.
     </p>
 
-    <!-- Expandible detalle trabajadores -->
     <div class="detalle-expandible">
       <button class="btn-expandir" (click)="mostrarDetalleTrabajadores = !mostrarDetalleTrabajadores">
         {{ mostrarDetalleTrabajadores ? '▲ Ocultar' : '▼ Ver' }} trabajadores seleccionados

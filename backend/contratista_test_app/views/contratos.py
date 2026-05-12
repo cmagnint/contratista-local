@@ -38,6 +38,7 @@ from ..models import (
     Horarios,
     ContratoAsociadoTrabajador,
     Parametro,
+    RegistroCharlaSupervisor,
 )
 from ..serializers import (
     ContratoTrabajadorSerializer,
@@ -205,6 +206,25 @@ def obtener_timbre_empleador_path(holding):
 def slugify_nombre(nombre):
     return re.sub(r'[^a-z0-9]', '_', nombre.lower().strip())
 
+def obtener_persona_supervisor_charla(contrato_id):
+    """
+    Busca el RegistroCharlaSupervisor del contrato,
+    navega hasta el PersonalTrabajadores del supervisor
+    y lo retorna. Retorna None si no existe registro.
+    """
+    if not contrato_id:
+        return None
+    try:
+        charla = RegistroCharlaSupervisor.objects.select_related(
+            'supervisor__usuario__persona'
+        ).get(contrato_id=contrato_id)
+        if (charla.supervisor and
+                charla.supervisor.usuario and
+                charla.supervisor.usuario.persona):
+            return charla.supervisor.usuario.persona
+    except RegistroCharlaSupervisor.DoesNotExist:
+        pass
+    return None
 # ==============================================================================
 # DOCUMENTO VARIABLES NATIVAS
 # ==============================================================================
@@ -582,11 +602,7 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         import fitz
         import io
         import os
-        import re
         from django.conf import settings
-
-        def slugify_nombre(nombre):
-            return re.sub(r'[^a-z0-9]', '_', nombre.lower().strip())
 
         documento      = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
@@ -633,7 +649,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             except PersonalTrabajadores.DoesNotExist:
                 pass
 
-        supervisor = self._obtener_supervisor(trabajador) if trabajador else None
+        # ── Supervisor de charla via RegistroCharlaSupervisor ──────────────────
+        persona_supervisor = obtener_persona_supervisor_charla(datos_variables.get('contrato_id'))
 
         doc = fitz.open(input_pdf_path)
 
@@ -708,13 +725,10 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                         page.insert_image(rect, filename=huella_path, keep_proportion=True)
                     continue
 
+                # ── Variables del supervisor de charla ─────────────────────────
                 elif nombre_variable == 'nombre_supervisor':
-                    if supervisor and supervisor.usuario:
-                        persona = supervisor.usuario.persona
-                        if persona:
-                            valor = f"{persona.nombres or ''} {persona.apellidos or ''}".strip()
-                        else:
-                            valor = supervisor.usuario.rut
+                    if persona_supervisor:
+                        valor = f"{persona_supervisor.nombres or ''} {persona_supervisor.apellidos or ''}".strip()
                         if valor:
                             x_text = x_nativo + OFFSET_X
                             y_text = y_nativo + BASE_FONT_SIZE
@@ -728,9 +742,9 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     continue
 
                 elif nombre_variable == 'firma_supervisor':
-                    if supervisor and supervisor.firma:
+                    if persona_supervisor and persona_supervisor.firma:
                         try:
-                            firma_path = supervisor.firma.path
+                            firma_path = persona_supervisor.firma.path
                             if os.path.exists(firma_path):
                                 w     = var_data.get('width')  or 150
                                 h     = var_data.get('height') or 50
@@ -742,9 +756,9 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     continue
 
                 elif nombre_variable == 'huella_supervisor':
-                    if supervisor and supervisor.huella:
+                    if persona_supervisor and persona_supervisor.huella_digital:
                         try:
-                            huella_path = supervisor.huella.path
+                            huella_path = persona_supervisor.huella_digital.path
                             if os.path.exists(huella_path):
                                 w     = var_data.get('width')  or 80
                                 h     = var_data.get('height') or 100
@@ -790,7 +804,6 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         output_buffer.seek(0)
         doc.close()
         return output_buffer
-
 
 # ==============================================================================
 # GENERAR TXT BANCO
@@ -969,14 +982,24 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     trabajador      = PersonalTrabajadores.objects.get(id=trabajador_id, holding=request.user.holding)
                     datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
                     datos_variables['trabajador_id'] = trabajador.id
+
+                    # ── Buscar el contrato activo para resolver el supervisor de charla ──
+                    contrato_activo = trabajador.contratos.filter(
+                        fecha_inicio_contrato__lte=date.today()
+                    ).filter(
+                        Q(fecha_termino_contrato__gte=date.today()) | Q(fecha_termino_contrato__isnull=True)
+                    ).order_by('-fecha_inicio_contrato').first()
+                    if contrato_activo:
+                        datos_variables['contrato_id'] = contrato_activo.id
+
                     pdf_buffer = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=False)
                     pdf_url    = self._guardar_contrato_generado(pdf_buffer, trabajador, documento, request, marcar_como_generado)
                     urls_generadas.append({
-                        'trabajador_id':          trabajador.id,
-                        'trabajador_nombre':      f'{trabajador.nombres} {trabajador.apellidos}',
-                        'url':                    pdf_url,
-                        'success':                True,
-                        'marcado_como_generado':  marcar_como_generado,
+                        'trabajador_id':         trabajador.id,
+                        'trabajador_nombre':     f'{trabajador.nombres} {trabajador.apellidos}',
+                        'url':                   pdf_url,
+                        'success':               True,
+                        'marcado_como_generado': marcar_como_generado,
                     })
                 except PersonalTrabajadores.DoesNotExist:
                     errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
@@ -985,11 +1008,11 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     errores.append({'trabajador_id': trabajador_id, 'error': str(e)})
 
             return Response({
-                'mensaje':                f'Se generaron {len(urls_generadas)} contratos exitosamente',
-                'contratos':              urls_generadas,
-                'errores':                errores,
-                'total_exitosos':         len(urls_generadas),
-                'total_errores':          len(errores),
+                'mensaje':                 f'Se generaron {len(urls_generadas)} contratos exitosamente',
+                'contratos':               urls_generadas,
+                'errores':                 errores,
+                'total_exitosos':          len(urls_generadas),
+                'total_errores':           len(errores),
                 'marcados_como_generados': marcar_como_generado,
             }, status=status.HTTP_200_OK)
 
@@ -1154,14 +1177,18 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             try:
                 trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
             except PersonalTrabajadores.DoesNotExist:
-                logger.error(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: trabajador {datos_variables["trabajador_id"]} no encontrado')
+                logger.error(
+                    f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: '
+                    f'trabajador {datos_variables["trabajador_id"]} no encontrado'
+                )
 
-        supervisor = self._obtener_supervisor(trabajador) if trabajador else None
+        # ── Supervisor de charla: PersonalTrabajadores del supervisor que dictó la charla ──
+        persona_supervisor = obtener_persona_supervisor_charla(datos_variables.get('contrato_id'))
 
         final_writer = PdfWriter()
 
         for page_num in range(len(reader.pages)):
-            ui_page_num    = page_num + 1
+            ui_page_num     = page_num + 1
             temp_doc_buffer = io.BytesIO()
             temp_doc_writer = PdfWriter()
             original_page   = reader.pages[page_num]
@@ -1205,7 +1232,7 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
                                 can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                         except Exception:
                             logger.error('Error insertando firma_empleador', exc_info=True)
@@ -1219,7 +1246,7 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                         pdf_x = variable['posX'] + BASE_OFFSET_X
                         pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
                         can.drawImage(timbre_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                      preserveAspectRatio=True, mask='auto')
+                                    preserveAspectRatio=True, mask='auto')
                         variables_escritas += 1
                     except ValueError:
                         raise
@@ -1238,7 +1265,7 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
                                 can.drawImage(trabajador.firma.path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                             except Exception:
                                 logger.error('Error insertando firma trabajador', exc_info=True)
@@ -1253,7 +1280,9 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
 
                 elif nombre == 'huella':
                     if trabajador:
-                        huella_trabajador_disponible = bool(trabajador.huella_digital and os.path.exists(trabajador.huella_digital.path))
+                        huella_trabajador_disponible = bool(
+                            trabajador.huella_digital and os.path.exists(trabajador.huella_digital.path)
+                        )
                         if huella_trabajador_disponible:
                             try:
                                 img_width  = variable.get('width', 80)
@@ -1261,7 +1290,7 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
                                 can.drawImage(trabajador.huella_digital.path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                             except Exception:
                                 logger.error('Error insertando huella trabajador', exc_info=True)
@@ -1274,13 +1303,10 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                             can.drawString(pdf_x, pdf_y, '[HUELLA PENDIENTE]')
                     continue
 
+                # ── Variables del supervisor de charla ─────────────────────────
                 elif nombre == 'nombre_supervisor':
-                    if supervisor and supervisor.usuario:
-                        persona = supervisor.usuario.persona
-                        if persona:
-                            valor = f"{persona.nombres or ''} {persona.apellidos or ''}".strip()
-                        else:
-                            valor = supervisor.usuario.rut
+                    if persona_supervisor:
+                        valor = f"{persona_supervisor.nombres or ''} {persona_supervisor.apellidos or ''}".strip()
                         if valor:
                             pdf_x = variable['posX'] + BASE_OFFSET_X
                             pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
@@ -1290,32 +1316,32 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     continue
 
                 elif nombre == 'firma_supervisor':
-                    if supervisor and supervisor.firma:
+                    if persona_supervisor and persona_supervisor.firma:
                         try:
-                            firma_path = supervisor.firma.path
+                            firma_path = persona_supervisor.firma.path
                             if os.path.exists(firma_path):
                                 img_width  = variable.get('width', 150)
                                 img_height = variable.get('height', 50)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
                                 can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                         except Exception:
                             logger.error('Error insertando firma_supervisor', exc_info=True)
                     continue
 
                 elif nombre == 'huella_supervisor':
-                    if supervisor and supervisor.huella:
+                    if persona_supervisor and persona_supervisor.huella_digital:
                         try:
-                            huella_path = supervisor.huella.path
+                            huella_path = persona_supervisor.huella_digital.path
                             if os.path.exists(huella_path):
                                 img_width  = variable.get('width', 80)
                                 img_height = variable.get('height', 100)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
                                 can.drawImage(huella_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                         except Exception:
                             logger.error('Error insertando huella_supervisor', exc_info=True)
@@ -1372,7 +1398,10 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
 
             can.save()
             overlay_buffer.seek(0)
-            logger.debug(f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: página {ui_page_num} — {variables_escritas} variables')
+            logger.debug(
+                f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: '
+                f'página {ui_page_num} — {variables_escritas} variables'
+            )
 
             if variables_escritas > 0:
                 try:
@@ -1806,6 +1835,7 @@ class CrearContratoWebAPIView(BaseAPIView):
                     fecha_termino_historial = datetime.strptime(request.data['fecha_termino_contrato'], '%Y-%m-%d').date()
 
                 contrato = ContratoTrabajador.objects.create(**contrato_data)
+
                 try:
                     horario = Horarios.objects.get(id=request.data['horario'])
                     from ..models import ContratoHorarioSnapshot
@@ -1816,7 +1846,6 @@ class CrearContratoWebAPIView(BaseAPIView):
                         fin = getattr(horario, f'{dia}_fin', None)
                         colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
                         if inicio and fin:
-                            from datetime import datetime
                             mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
                             horas_por_dia[str(i)] = round((mins - colacion) / 60, 2)
                         else:
@@ -1831,6 +1860,7 @@ class CrearContratoWebAPIView(BaseAPIView):
                     )
                 except Exception as e:
                     logger.error(f'Error creando snapshot horario: {e}')
+
                 logger.debug(f'CrearContratoWebAPIView POST: contrato {contrato.id} creado para trabajador {trabajador.id}')
 
                 casa_id = request.data.get('casa_id')
@@ -1902,6 +1932,27 @@ class CrearContratoWebAPIView(BaseAPIView):
                     )
                     transporte_asignado = True
 
+                # ── Registro charla supervisor ─────────────────────────────────
+                charla_supervisor_id = request.data.get('charla_supervisor_id')
+                if charla_supervisor_id:
+                    try:
+                        charla_supervisor = Supervisores.objects.get(
+                            id=charla_supervisor_id, holding_id=request.data['holding']
+                        )
+                        RegistroCharlaSupervisor.objects.create(
+                            holding_id=request.data['holding'],
+                            sociedad=trabajador.sociedad,
+                            supervisor=charla_supervisor,
+                            trabajador=trabajador,
+                            contrato=contrato,
+                        )
+                        logger.debug(f'CrearContratoWebAPIView POST: RegistroCharlaSupervisor creado para contrato {contrato.id}')
+                    except Supervisores.DoesNotExist:
+                        logger.warning(
+                            f'CrearContratoWebAPIView POST: supervisor charla '
+                            f'{charla_supervisor_id} no encontrado, charla no registrada'
+                        )
+
                 return Response({
                     'message':       'Contrato creado exitosamente',
                     'contrato_id':   contrato.id,
@@ -1919,6 +1970,9 @@ class CrearContratoWebAPIView(BaseAPIView):
             logger.error('CrearContratoWebAPIView POST: error inesperado', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# ==============================================================================
+# FIRMA ORGANIZACION
+# ==============================================================================
 class FirmaOrganizacionAPIView(BaseAPIView):
 
     def get(self, request, *args, **kwargs):
@@ -1989,7 +2043,6 @@ class FirmaOrganizacionAPIView(BaseAPIView):
 # ==============================================================================
 # CONTRATO RETROACTIVO
 # ==============================================================================
-
 class ContratoRetroactivoAPIView(BaseAPIView):
     
     def get(self, request):
@@ -2211,7 +2264,6 @@ class ParametroAPIView(BaseAPIView):
         parametro.delete()
         return Response({'mensaje': f"Parámetro '{nombre}' eliminado"})
 
-
 # ==============================================================================
 # CONTRATO ASOCIADO TRABAJADOR
 # ==============================================================================
@@ -2355,8 +2407,6 @@ class TrabajadoresPorParametroAPIView(BaseAPIView):
 
         return Response(list(mapa.values()))
 
-
-
 # ==============================================================================
 # GENERAR DOCUMENTOS POR PARÁMETRO
 # ==============================================================================
@@ -2481,7 +2531,8 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
             except PersonalTrabajadores.DoesNotExist:
                 pass
 
-        supervisor = self._obtener_supervisor(trabajador) if trabajador else None
+        # ── Supervisor de charla via RegistroCharlaSupervisor ──
+        persona_supervisor = obtener_persona_supervisor_charla(datos.get('contrato_id'))
 
         final_writer = PdfWriter()
 
@@ -2529,7 +2580,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
                                 can.drawImage(firma_path, pdf_x, pdf_y, width=img_w, height=img_h,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                         except Exception:
                             pass
@@ -2543,7 +2594,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                         pdf_x = variable['posX'] + BASE_OFFSET_X
                         pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
                         can.drawImage(timbre_path, pdf_x, pdf_y, width=img_w, height=img_h,
-                                      preserveAspectRatio=True, mask='auto')
+                                    preserveAspectRatio=True, mask='auto')
                         variables_escritas += 1
                     except ValueError:
                         raise
@@ -2560,7 +2611,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                         pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
                         try:
                             can.drawImage(trabajador.firma.path, pdf_x, pdf_y, width=img_w, height=img_h,
-                                          preserveAspectRatio=True, mask='auto')
+                                        preserveAspectRatio=True, mask='auto')
                             variables_escritas += 1
                         except Exception:
                             pass
@@ -2574,19 +2625,16 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                         pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
                         try:
                             can.drawImage(trabajador.huella_digital.path, pdf_x, pdf_y, width=img_w, height=img_h,
-                                          preserveAspectRatio=True, mask='auto')
+                                        preserveAspectRatio=True, mask='auto')
                             variables_escritas += 1
                         except Exception:
                             pass
                     continue
 
+                # ── Variables del supervisor de charla ─────────────────────────
                 elif nombre == 'nombre_supervisor':
-                    if supervisor and supervisor.usuario:
-                        persona = supervisor.usuario.persona
-                        if persona:
-                            valor = f"{persona.nombres or ''} {persona.apellidos or ''}".strip()
-                        else:
-                            valor = supervisor.usuario.rut
+                    if persona_supervisor:
+                        valor = f"{persona_supervisor.nombres or ''} {persona_supervisor.apellidos or ''}".strip()
                         if valor:
                             pdf_x = variable['posX'] + BASE_OFFSET_X
                             pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
@@ -2596,32 +2644,32 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                     continue
 
                 elif nombre == 'firma_supervisor':
-                    if supervisor and supervisor.firma:
+                    if persona_supervisor and persona_supervisor.firma:
                         try:
-                            firma_path = supervisor.firma.path
+                            firma_path = persona_supervisor.firma.path
                             if os.path.exists(firma_path):
                                 img_w = variable.get('width', 150)
                                 img_h = variable.get('height', 50)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
                                 can.drawImage(firma_path, pdf_x, pdf_y, width=img_w, height=img_h,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                         except Exception:
                             logger.error('Error insertando firma_supervisor', exc_info=True)
                     continue
 
                 elif nombre == 'huella_supervisor':
-                    if supervisor and supervisor.huella:
+                    if persona_supervisor and persona_supervisor.huella_digital:
                         try:
-                            huella_path = supervisor.huella.path
+                            huella_path = persona_supervisor.huella_digital.path
                             if os.path.exists(huella_path):
                                 img_w = variable.get('width', 80)
                                 img_h = variable.get('height', 100)
                                 pdf_x = variable['posX'] + BASE_OFFSET_X
                                 pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
                                 can.drawImage(huella_path, pdf_x, pdf_y, width=img_w, height=img_h,
-                                              preserveAspectRatio=True, mask='auto')
+                                            preserveAspectRatio=True, mask='auto')
                                 variables_escritas += 1
                         except Exception:
                             logger.error('Error insertando huella_supervisor', exc_info=True)

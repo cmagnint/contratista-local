@@ -29,6 +29,8 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
   String? _selectedVehiculo;
   String? _selectedCasa;
   String? _selectedSupervisor;
+  String?
+  _selectedSupervisorCharla; // ← NUEVO: supervisor que realizó la charla
   String? _selectedHorario;
   String? _selectedArea;
   String? _selectedCargo;
@@ -362,6 +364,8 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
 
         if (_supervisores.length == 1) {
           _selectedSupervisor = _supervisores[0]['id'].toString();
+          // Si solo hay un supervisor, también pre-seleccionar para charla
+          _selectedSupervisorCharla = _supervisores[0]['id'].toString();
         }
       });
     } else {
@@ -399,6 +403,17 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
       return;
     }
 
+    if (_selectedSupervisorCharla == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Por favor, seleccione el supervisor que realizó la charla',
+          ),
+        ),
+      );
+      return;
+    }
+
     if (_selectedFolio != null &&
         _selectedFundo != null &&
         _selectedLabor != null &&
@@ -413,6 +428,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
       loggerGlobal.d('Sociedad seleccionada: $_selectedSociedad');
       loggerGlobal.d('Área seleccionada: $_selectedArea');
       loggerGlobal.d('Cargo seleccionado: $_selectedCargo');
+      loggerGlobal.d('Supervisor charla: $_selectedSupervisorCharla');
 
       widget.onContinue({
         'sociedad': _selectedSociedad,
@@ -426,6 +442,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
         'horario': _selectedHorario,
         'area': _selectedArea,
         'cargo': _selectedCargo,
+        'charla_supervisor_id': _selectedSupervisorCharla, // ← NUEVO
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -446,6 +463,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Sociedad ──────────────────────────────────────────────────
               const Text(
                 'Sociedad *',
                 style: TextStyle(
@@ -497,6 +515,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                     ),
               const SizedBox(height: 30),
 
+              // ── Área ──────────────────────────────────────────────────────
               const Text(
                 'Área *',
                 style: TextStyle(
@@ -529,6 +548,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Cargo ─────────────────────────────────────────────────────
               const Text(
                 'Cargo *',
                 style: TextStyle(
@@ -571,6 +591,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Folio Comercial ───────────────────────────────────────────
               const Text(
                 'Folio Comercial *',
                 style: TextStyle(
@@ -601,6 +622,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Fundo ─────────────────────────────────────────────────────
               const Text(
                 'Fundo *',
                 style: TextStyle(
@@ -628,6 +650,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Labor ─────────────────────────────────────────────────────
               const Text(
                 'Labor *',
                 style: TextStyle(
@@ -655,6 +678,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Horario ───────────────────────────────────────────────────
               const Text(
                 'Horario *',
                 style: TextStyle(
@@ -684,6 +708,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Empresa de Transporte ─────────────────────────────────────
               const Text(
                 'Empresa de Transporte *',
                 style: TextStyle(
@@ -712,6 +737,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Vehículo ──────────────────────────────────────────────────
               const Text(
                 'Vehículo *',
                 style: TextStyle(
@@ -728,7 +754,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
                 items: _vehiculos.map((vehiculo) {
                   return DropdownMenuItem<String>(
                     value: vehiculo['id'].toString(),
-                    child: _vehiculoItem(vehiculo), // ← aquí
+                    child: _vehiculoItem(vehiculo),
                   );
                 }).toList(),
                 onChanged: (String? newValue) {
@@ -739,6 +765,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Casa ──────────────────────────────────────────────────────
               const Text(
                 'Casa *',
                 style: TextStyle(
@@ -766,6 +793,7 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Supervisor ────────────────────────────────────────────────
               const Text(
                 'Supervisor *',
                 style: TextStyle(
@@ -795,6 +823,63 @@ class PreContratacionScreenState extends State<PreContratacionScreen> {
               ),
               const SizedBox(height: 30),
 
+              // ── Supervisor que realizó la charla ──────────────────────────
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(20, 255, 152, 0),
+                  border: Border.all(
+                    color: const Color.fromARGB(255, 255, 152, 0),
+                    width: 1.5,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.record_voice_over,
+                          color: Color.fromARGB(255, 230, 81, 0),
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Supervisor que realizó la charla *',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color.fromARGB(255, 230, 81, 0),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<String>(
+                      value: _selectedSupervisorCharla,
+                      hint: const Text('Seleccione quién dio la charla'),
+                      isExpanded: true,
+                      items: _supervisores.map((supervisor) {
+                        return DropdownMenuItem<String>(
+                          value: supervisor['id'].toString(),
+                          child: Text(
+                            '${supervisor['usuario_nombre']} - ${supervisor['usuario_rut']}',
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedSupervisorCharla = newValue;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // ── Continuar ─────────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.only(bottom: 85.0),
                 child: ElevatedButton(

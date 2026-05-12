@@ -9,3 +9,4 @@ from .produccion import *
 from .rrhh import *
 from .sii import *
 from .transporte import *
+from .registros import *

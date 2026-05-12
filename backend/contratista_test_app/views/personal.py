@@ -28,6 +28,7 @@ from ..models import (
     SupervisorTrabajadorHistorial,
     TrabajadorTransporteHistorial,
     RegistroManoObraPersona,
+    RegistroCharlaSupervisor,
 )
 from ..serializers import (
     APKLinkSerializer,
@@ -38,7 +39,6 @@ from ..serializers import (
     PersonalForUserSerializer,
     PersonalTrabajadoresMobileSerializer,
     PersonalTrabajadoresSerializer,
-    ProduccionTrabajadorReporteSerializer,
     SupervisorSerializer,
     TrabajadoresCosechaQRSerializer,
     UserSerializer,
@@ -474,6 +474,7 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
         # Contrato y asistencia
         folio_id = data.get('folio')
         horario_id = data.get('horario')
+        contrato = None  # ← se usará más abajo para el registro de charla
         if folio_id:
             try:
                 folio = FolioComercial.objects.get(id=folio_id)
@@ -490,7 +491,7 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                         transportista_id=data.get('transportista'),
                         vehiculo_id=data.get('vehiculo'),
                         fecha_inicio=folio.fecha_inicio_contrato,
-                        fecha_fin=folio.fecha_termino_contrato,  # puede ser null
+                        fecha_fin=folio.fecha_termino_contrato,
                     )
 
                 contrato = ContratoTrabajador.objects.create(
@@ -505,6 +506,7 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                     fecha_termino_contrato=folio.fecha_termino_contrato,
                 )
                 logger.debug(f'PersonalTrabajadoresMobileAPIView POST: contrato {contrato.id} creado')
+
                 if horario:
                     from ..models import ContratoHorarioSnapshot
                     dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
@@ -527,6 +529,7 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                             'datos': {'nombre': horario.nombre, 'horas_por_dia': horas_por_dia}
                         }
                     )
+
                 fecha_asistencia = personal.fecha_ingreso if personal.fecha_ingreso else timezone.now().date()
                 horas_dia = self.calcular_horas_dia(horario, fecha_asistencia) if horario else 9.0
 
@@ -541,6 +544,26 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                         'modificado_por': request.user
                     }
                 )
+
+                # ── Registro charla supervisor ─────────────────────────────────
+                charla_supervisor_id = data.get('charla_supervisor_id')
+                if charla_supervisor_id:
+                    try:
+                        charla_supervisor = Supervisores.objects.get(id=charla_supervisor_id)
+                        RegistroCharlaSupervisor.objects.create(
+                            holding_id=data.get('holding'),
+                            sociedad=personal.sociedad,
+                            supervisor=charla_supervisor,
+                            trabajador=personal,
+                            contrato=contrato,
+                        )
+                        logger.debug(f'RegistroCharlaSupervisor creado para contrato {contrato.id}')
+                    except Supervisores.DoesNotExist:
+                        logger.warning(
+                            f'PersonalTrabajadoresMobileAPIView POST: supervisor charla '
+                            f'{charla_supervisor_id} no encontrado, charla no registrada'
+                        )
+
             except FolioComercial.DoesNotExist:
                 logger.error(f'PersonalTrabajadoresMobileAPIView POST: folio {folio_id} no encontrado')
             except Exception as e:

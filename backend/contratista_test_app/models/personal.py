@@ -60,8 +60,6 @@ class Supervisores(models.Model):
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     usuario = models.ForeignKey('Usuarios', on_delete=models.CASCADE, null=True)
     trabajadores = models.ManyToManyField(PersonalTrabajadores, related_name='supervisor_directo', blank=True)
-    firma = models.ImageField(upload_to='supervisores/firmas/', null=True, blank=True)
-    huella = models.ImageField(upload_to='supervisores/huellas/', null=True, blank=True)
     class Meta:
         db_table = 'supervisores'
 

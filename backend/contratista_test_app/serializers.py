@@ -501,9 +501,8 @@ class SupervisorSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'holding', 'usuario', 'usuario_nombre', 'usuario_rut',
             'trabajadores', 'trabajadores_count', 'trabajadores_detail',
-            'firma', 'huella',
         ]
-        read_only_fields = ['id', 'firma', 'huella']  # el view los maneja
+        read_only_fields = ['id']  
 
     def get_trabajadores_count(self, obj):
         directos = obj.trabajadores.count()
@@ -517,16 +516,7 @@ class SupervisorSerializer(serializers.ModelSerializer):
             'tipo': 'directo'
         } for t in obj.trabajadores.all()]
 
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        request = self.context.get('request')
-        for field in ('firma', 'huella'):
-            file_obj = getattr(instance, field)
-            if file_obj:
-                rep[field] = request.build_absolute_uri(file_obj.url) if request else file_obj.url
-            else:
-                rep[field] = None
-        return rep
+    
     
 class CamposClientesSerializer(serializers.ModelSerializer):
     nombre_cliente = serializers.SerializerMethodField()

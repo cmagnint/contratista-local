@@ -132,23 +132,25 @@ export class MaestroTrabajadoresComponent implements OnInit {
     jefe_cuadrilla_id: '',
     transportista_id: '',
     vehiculo_id: '',
-    chofer_id: ''
+    chofer_id: '',
+    charla_supervisor_id: ''  // ← NUEVO
   };
 
   // ── Contrato Retroactivo ──────────────────────────────────────────────────
   public nuevoContratoRetroactivo = {
-    fecha_consulta:  '',
-    historial_id:    '',
-    trabajador_id:   '',
-    supervisor_id:   '',
-    sociedad_id:     '',
-    folio_id:        '',
-    fundo_id:        '',
-    labor_id:        '',
-    horario_id:      '',
-    documento_id:    '',
-    fecha_inicio:    '',
-    fecha_termino:   '',
+    fecha_consulta:       '',
+    historial_id:         '',
+    trabajador_id:        '',
+    supervisor_id:        '',
+    sociedad_id:          '',
+    folio_id:             '',
+    fundo_id:             '',
+    labor_id:             '',
+    horario_id:           '',
+    documento_id:         '',
+    fecha_inicio:         '',
+    fecha_termino:        '',
+    charla_supervisor_id: ''  // ← NUEVO
   };
   public historialesDisponibles: any[] = [];
   public historialesFiltrados:   any[] = [];
@@ -384,8 +386,8 @@ export class MaestroTrabajadoresComponent implements OnInit {
     if (!this.nuevoContrato.sociedad_id || !this.nuevoContrato.folio_id ||
         !this.nuevoContrato.fundo_id    || !this.nuevoContrato.labor_id  ||
         !this.nuevoContrato.horario_id  || !this.nuevoContrato.trabajador_id ||
-        !this.nuevoContrato.fecha_inicio) {
-      this.errorMessage = 'Complete todos los campos obligatorios';
+        !this.nuevoContrato.fecha_inicio || !this.nuevoContrato.charla_supervisor_id) {
+      this.errorMessage = 'Complete todos los campos obligatorios, incluyendo el supervisor que realizó la charla';
       this.openModal('errorModal');
       return;
     }
@@ -402,7 +404,8 @@ export class MaestroTrabajadoresComponent implements OnInit {
       folio_comercial:        this.nuevoContrato.folio_id,
       horario:                this.nuevoContrato.horario_id,
       fundo:                  this.nuevoContrato.fundo_id,
-      casa:                   this.nuevoContrato.casa_id || null
+      casa:                   this.nuevoContrato.casa_id || null,
+      charla_supervisor_id:   this.nuevoContrato.charla_supervisor_id  // ← NUEVO
     };
 
     if (this.nuevoContrato.supervisor_id)     body.supervisor_id     = this.nuevoContrato.supervisor_id;
@@ -432,7 +435,8 @@ export class MaestroTrabajadoresComponent implements OnInit {
       sociedad_id: '', folio_id: '', fundo_id: '', labor_id: '',
       casa_id: '', horario_id: '', trabajador_id: '', documento_id: '',
       fecha_inicio: '', fecha_termino: '', supervisor_id: '',
-      jefe_cuadrilla_id: '', transportista_id: '', vehiculo_id: '', chofer_id: ''
+      jefe_cuadrilla_id: '', transportista_id: '', vehiculo_id: '',
+      chofer_id: '', charla_supervisor_id: ''  // ← NUEVO
     };
     this.fundos                  = [];
     this.labores                 = [];
@@ -587,8 +591,9 @@ export class MaestroTrabajadoresComponent implements OnInit {
     const r = this.nuevoContratoRetroactivo;
 
     if (!r.trabajador_id || !r.fecha_inicio || !r.sociedad_id ||
-        !r.folio_id || !r.fundo_id || !r.labor_id || !r.horario_id) {
-      this.errorMessage = 'Complete todos los campos obligatorios';
+        !r.folio_id || !r.fundo_id || !r.labor_id || !r.horario_id ||
+        !r.charla_supervisor_id) {
+      this.errorMessage = 'Complete todos los campos obligatorios, incluyendo el supervisor que realizó la charla';
       this.openModal('errorModal');
       return;
     }
@@ -603,6 +608,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
       folio_comercial:       r.folio_id,
       horario:               r.horario_id,
       fundo:                 r.fundo_id,
+      charla_supervisor_id:  r.charla_supervisor_id  // ← NUEVO
     };
 
     if (r.fecha_termino) body.fecha_termino_contrato = r.fecha_termino;
@@ -631,6 +637,7 @@ export class MaestroTrabajadoresComponent implements OnInit {
       supervisor_id: '', sociedad_id: '', folio_id: '', fundo_id: '',
       labor_id: '', horario_id: '', documento_id: '',
       fecha_inicio: '', fecha_termino: '',
+      charla_supervisor_id: ''  // ← NUEVO
     };
     this.historialesDisponibles = [];
     this.historialesFiltrados   = [];
