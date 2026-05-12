@@ -45,6 +45,163 @@ from ..serializers import (
 )
 
 logger = logging.getLogger('contratista_test_app')
+TIMBRE_EMPLEADOR_REQUIRED_MESSAGE = (
+    'No se puede guardar el formato porque la variable timbre_empleador está posicionada '
+    'y el holding no tiene timbre cargado.'
+)
+TIMBRE_EMPLEADOR_GENERACION_MESSAGE = (
+    'No se puede generar el contrato porque la variable timbre_empleador está posicionada '
+    'y el holding no tiene timbre cargado.'
+)
+TEXTOS_LIBRES_CONTAINER = 'textos_libres'
+TEXTO_LIBRE_RENDER_NAME = 'texto_libre'
+TEXTO_LIBRE_VACIO_MESSAGE = 'No se puede guardar el formato porque existe un texto libre vacío.'
+TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE = (
+    'No se puede guardar el formato porque existe un texto libre con posición inválida.'
+)
+
+
+def variable_tiene_ubicaciones(variables, nombre_variable):
+    if not isinstance(variables, list):
+        return False
+    for variable in variables:
+        if not isinstance(variable, dict):
+            continue
+        if variable.get('nombre') != nombre_variable:
+            continue
+        ubicaciones = variable.get('ubicaciones') or []
+        if isinstance(ubicaciones, list) and len(ubicaciones) > 0:
+            return True
+    return False
+
+
+def validar_timbre_empleador_para_formato(variables, holding):
+    if variable_tiene_ubicaciones(variables, 'timbre_empleador') and not holding.timbre_empleador:
+        return TIMBRE_EMPLEADOR_REQUIRED_MESSAGE
+    return None
+
+
+def _es_numero(valor):
+    return isinstance(valor, (int, float)) and not isinstance(valor, bool)
+
+
+def validar_textos_libres_para_formato(variables):
+    if not isinstance(variables, list):
+        return 'El formato de variables no es válido'
+
+    for variable in variables:
+        if not isinstance(variable, dict):
+            return 'El formato de variables no es válido'
+
+        if variable.get('nombre') != TEXTOS_LIBRES_CONTAINER:
+            continue
+
+        textos_libres = variable.get(TEXTOS_LIBRES_CONTAINER, [])
+        if textos_libres is None:
+            textos_libres = []
+        if not isinstance(textos_libres, list):
+            return TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE
+
+        ids = set()
+        for texto_libre in textos_libres:
+            if not isinstance(texto_libre, dict):
+                return TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE
+
+            texto = texto_libre.get('texto')
+            if not isinstance(texto, str) or not texto.strip():
+                return TEXTO_LIBRE_VACIO_MESSAGE
+            if len(texto.strip()) > 200:
+                return 'No se puede guardar el formato porque existe un texto libre demasiado largo.'
+
+            texto_id = texto_libre.get('id')
+            if not isinstance(texto_id, str) or not texto_id.strip() or texto_id in ids:
+                return TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE
+            ids.add(texto_id)
+
+            pagina = texto_libre.get('pagina')
+            pos_x = texto_libre.get('posX')
+            pos_y = texto_libre.get('posY')
+            if not _es_numero(pagina) or pagina < 1 or not _es_numero(pos_x) or not _es_numero(pos_y):
+                return TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE
+
+            for dimension in ['width', 'height']:
+                if dimension in texto_libre and texto_libre[dimension] is not None:
+                    if not _es_numero(texto_libre[dimension]) or texto_libre[dimension] <= 0:
+                        return TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE
+
+            font_size = texto_libre.get('fontSize')
+            if font_size is not None and (not _es_numero(font_size) or font_size <= 0):
+                return TEXTO_LIBRE_POSICION_INVALIDA_MESSAGE
+
+    return None
+
+
+def validar_variables_formato(variables, holding):
+    if not isinstance(variables, list):
+        return 'El formato de variables no es válido'
+
+    for variable in variables:
+        if not isinstance(variable, dict):
+            return 'El formato de variables no es válido'
+        if 'nombre' not in variable:
+            return 'Todas las variables deben tener un nombre'
+        if variable.get('nombre') != TEXTOS_LIBRES_CONTAINER:
+            if 'ubicaciones' not in variable:
+                return 'Todas las variables deben tener ubicaciones'
+
+    error_textos_libres = validar_textos_libres_para_formato(variables)
+    if error_textos_libres:
+        return error_textos_libres
+
+    return validar_timbre_empleador_para_formato(variables, holding)
+
+
+def agregar_textos_libres_por_pagina(variables_por_pagina, variables):
+    if not isinstance(variables, list):
+        return
+
+    for variable in variables:
+        if not isinstance(variable, dict) or variable.get('nombre') != TEXTOS_LIBRES_CONTAINER:
+            continue
+
+        textos_libres = variable.get(TEXTOS_LIBRES_CONTAINER) or []
+        if not isinstance(textos_libres, list):
+            continue
+
+        for texto_libre in textos_libres:
+            if not isinstance(texto_libre, dict):
+                continue
+
+            texto = texto_libre.get('texto')
+            pagina = texto_libre.get('pagina')
+            pos_x = texto_libre.get('posX')
+            pos_y = texto_libre.get('posY')
+
+            if not isinstance(texto, str) or not texto.strip():
+                continue
+            if not _es_numero(pagina) or pagina < 1 or not _es_numero(pos_x) or not _es_numero(pos_y):
+                continue
+
+            variables_por_pagina.setdefault(pagina, []).append({
+                'nombre': TEXTO_LIBRE_RENDER_NAME,
+                'posX': pos_x,
+                'posY': pos_y,
+                'width': texto_libre.get('width'),
+                'height': texto_libre.get('height'),
+                'valor': texto.strip(),
+                'fontSize': texto_libre.get('fontSize'),
+            })
+
+
+def obtener_timbre_empleador_path(holding):
+    if not holding.timbre_empleador:
+        raise ValueError(TIMBRE_EMPLEADOR_GENERACION_MESSAGE)
+    timbre_path = holding.timbre_empleador.path
+    if not os.path.exists(timbre_path):
+        raise ValueError('No se puede generar el contrato porque el archivo timbre_empleador no existe.')
+    return timbre_path
+
+
 def slugify_nombre(nombre):
     return re.sub(r'[^a-z0-9]', '_', nombre.lower().strip())
 
@@ -57,6 +214,11 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         try:
             if documento_id:
                 documento = get_object_or_404(ContratoVariables, id=documento_id)
+                if documento.holding != request.user.holding:
+                    return Response(
+                        {"error": "No tienes permisos para ver este documento"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
                 return Response({
                     'id': documento.id,
                     'nombre': documento.nombre,
@@ -92,6 +254,9 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             return self._crear_documento(request)
 
     def put(self, request, documento_id, *args, **kwargs):
+        return self._actualizar_documento(request, documento_id)
+
+    def patch(self, request, documento_id, *args, **kwargs):
         return self._actualizar_documento(request, documento_id)
 
     def delete(self, request, documento_id, *args, **kwargs):
@@ -279,11 +444,9 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             else:
                 variables_json = variables_data or []
 
-            for variable in variables_json:
-                if 'nombre' not in variable:
-                    return Response({"error": "Todas las variables deben tener un nombre"}, status=status.HTTP_400_BAD_REQUEST)
-                if 'ubicaciones' not in variable:
-                    return Response({"error": "Todas las variables deben tener ubicaciones"}, status=status.HTTP_400_BAD_REQUEST)
+            error_variables = validar_variables_formato(variables_json, request.user.holding)
+            if error_variables:
+                return Response({"error": error_variables}, status=status.HTTP_400_BAD_REQUEST)
 
             documento = ContratoVariables.objects.create(
                 holding=request.user.holding,
@@ -305,6 +468,7 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             return Response({"error": f"Error al guardar el documento: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _actualizar_documento(self, request, documento_id):
+        """Actualizar nombre, tipo y/o variables de un documento existente"""
         try:
             documento = get_object_or_404(ContratoVariables, id=documento_id)
 
@@ -314,30 +478,82 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
+            actualizado = False
+
+            # Actualizar nombre
+            if 'nombre' in request.data:
+                nuevo_nombre = str(request.data.get('nombre') or '').strip()
+
+                if not nuevo_nombre:
+                    return Response(
+                        {"error": "El nombre del formato no puede estar vacío"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                documento.nombre = nuevo_nombre
+                actualizado = True
+
+            # Actualizar tipo, opcional
+            if 'tipo' in request.data:
+                nuevo_tipo = str(request.data.get('tipo') or '').strip().upper()
+
+                tipos_validos = [choice[0] for choice in ContratoVariables.TIPO_CHOICES]
+                if nuevo_tipo not in tipos_validos:
+                    return Response(
+                        {"error": "Tipo de contrato no válido"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                documento.tipo = nuevo_tipo
+                actualizado = True
+
+            # Actualizar variables
             if 'variables' in request.data:
                 variables_data = request.data['variables']
+
                 if isinstance(variables_data, str):
                     try:
                         variables_json = json.loads(variables_data)
                     except json.JSONDecodeError:
-                        return Response({"error": "El formato de variables no es válido"}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response(
+                            {"error": "El formato de variables no es válido"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
                 else:
                     variables_json = variables_data
 
-                documento.variables = variables_json
-                documento.save()
+                if not isinstance(variables_json, list):
+                    return Response(
+                        {"error": "Las variables deben enviarse como lista"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-                return Response({
-                    "mensaje": "Variables actualizadas exitosamente",
-                    "documento_id": documento.id,
-                    "variables_count": len(variables_json)
-                })
-            else:
-                return Response({"error": "No se proporcionaron variables para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+                documento.variables = variables_json
+                actualizado = True
+
+            if not actualizado:
+                return Response(
+                    {"error": "Debe enviar al menos nombre, tipo o variables para actualizar"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            documento.save()
+
+            return Response({
+                "mensaje": "Documento actualizado exitosamente",
+                "documento_id": documento.id,
+                "nombre": documento.nombre,
+                "tipo": documento.tipo,
+                "variables_count": len(documento.variables or [])
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
+            logger.error(
+                f"DocumentoVariablesNativasAPIView _actualizar_documento: error en documento {documento_id}",
+                exc_info=True
+            )
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+    
     def _generar_pdf_prueba(self, request):
         try:
             documento_id    = request.data.get('documento_id')
@@ -348,6 +564,11 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 return Response({"error": "Se requiere documento_id"}, status=status.HTTP_400_BAD_REQUEST)
 
             documento  = get_object_or_404(ContratoVariables, id=documento_id)
+            if documento.holding != request.user.holding:
+                return Response(
+                    {"error": "No tienes permisos para generar este documento"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             pdf_buffer = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=debug)
 
             response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
@@ -395,6 +616,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     'valor':  ubicacion.get('valor'),
                 })
 
+        agregar_textos_libres_por_pagina(variables_por_pagina, documento.variables)
+
         holding = documento.holding
 
         firmas_org = {
@@ -425,6 +648,30 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 nombre_variable = var_data['nombre']
                 x_nativo        = var_data['posX']
                 y_nativo        = var_data['posY']
+
+                if nombre_variable == TEXTO_LIBRE_RENDER_NAME:
+                    valor = var_data.get('valor') or ''
+                    if valor:
+                        font_size = var_data.get('fontSize') or BASE_FONT_SIZE
+                        x_text = x_nativo + OFFSET_X
+                        y_text = y_nativo + font_size
+                        page.insert_text(
+                            fitz.Point(x_text, y_text),
+                            str(valor),
+                            fontsize=font_size,
+                            fontname="helv",
+                            color=(0, 0, 0)
+                        )
+                    continue
+
+                if nombre_variable == 'timbre_empleador':
+                    path = obtener_timbre_empleador_path(holding)
+                    w = var_data.get('width') or 150
+                    h = var_data.get('height') or 50
+                    x_img = x_nativo + OFFSET_X
+                    rect = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
+                    page.insert_image(rect, filename=path, keep_proportion=True)
+                    continue
 
                 if nombre_variable in firmas_org:
                     path  = firmas_org[nombre_variable]
@@ -897,6 +1144,8 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     'valor':  ubicacion.get('valor'),
                 })
 
+        agregar_textos_libres_por_pagina(variables_por_pagina, documento.variables)
+
         holding                    = documento.holding
         firma_empleador_disponible = bool(holding.firma_empleador)
 
@@ -935,6 +1184,17 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             for variable in variables_por_pagina[ui_page_num]:
                 nombre = variable['nombre']
 
+                if nombre == TEXTO_LIBRE_RENDER_NAME:
+                    valor = variable.get('valor') or ''
+                    if valor:
+                        font_size = variable.get('fontSize') or BASE_FONT_SIZE
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + (font_size * 0.3)
+                        can.setFont('Helvetica', font_size)
+                        can.drawString(pdf_x, pdf_y, str(valor))
+                        variables_escritas += 1
+                    continue
+
                 if nombre == 'firma_empleador':
                     if firma_empleador_disponible:
                         try:
@@ -949,6 +1209,23 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                                 variables_escritas += 1
                         except Exception:
                             logger.error('Error insertando firma_empleador', exc_info=True)
+                    continue
+
+                if nombre == 'timbre_empleador':
+                    try:
+                        timbre_path = obtener_timbre_empleador_path(holding)
+                        img_width  = variable.get('width', 150)
+                        img_height = variable.get('height', 50)
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
+                        can.drawImage(timbre_path, pdf_x, pdf_y, width=img_width, height=img_height,
+                                      preserveAspectRatio=True, mask='auto')
+                        variables_escritas += 1
+                    except ValueError:
+                        raise
+                    except Exception:
+                        logger.error('Error insertando timbre_empleador', exc_info=True)
+                        raise ValueError('No se puede generar el contrato porque timbre_empleador no pudo insertarse.')
                     continue
 
                 elif nombre == 'firma':
@@ -2193,6 +2470,8 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                     'valor':  ubicacion.get('valor'),
                 })
 
+        agregar_textos_libres_por_pagina(variables_por_pagina, variables)
+
         firma_empleador_disponible = bool(holding.firma_empleador)
 
         trabajador = None
@@ -2229,6 +2508,17 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
             for variable in variables_por_pagina[ui_page_num]:
                 nombre = variable['nombre']
 
+                if nombre == TEXTO_LIBRE_RENDER_NAME:
+                    valor = variable.get('valor') or ''
+                    if valor:
+                        font_size = variable.get('fontSize') or BASE_FONT_SIZE
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + (font_size * 0.3)
+                        can.setFont('Helvetica', font_size)
+                        can.drawString(pdf_x, pdf_y, str(valor))
+                        variables_escritas += 1
+                    continue
+
                 if nombre == 'firma_empleador':
                     if firma_empleador_disponible:
                         try:
@@ -2243,6 +2533,23 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                                 variables_escritas += 1
                         except Exception:
                             pass
+                    continue
+
+                if nombre == 'timbre_empleador':
+                    try:
+                        timbre_path = obtener_timbre_empleador_path(holding)
+                        img_w = variable.get('width', 150)
+                        img_h = variable.get('height', 50)
+                        pdf_x = variable['posX'] + BASE_OFFSET_X
+                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_h
+                        can.drawImage(timbre_path, pdf_x, pdf_y, width=img_w, height=img_h,
+                                      preserveAspectRatio=True, mask='auto')
+                        variables_escritas += 1
+                    except ValueError:
+                        raise
+                    except Exception:
+                        logger.error('Error insertando timbre_empleador', exc_info=True)
+                        raise ValueError('No se puede generar el contrato porque timbre_empleador no pudo insertarse.')
                     continue
 
                 elif nombre == 'firma':

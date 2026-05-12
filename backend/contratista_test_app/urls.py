@@ -57,6 +57,7 @@ from .views import (
     CarnetOCRAPIView,
     PDFToImageAPIView,
     FirmaEmpleadorAPIView,
+    HoldingTimbreEmpleadorView,
     FirmaHuellaAPIView,
 )
 
@@ -253,6 +254,7 @@ urlpatterns = [
     path('api_ocr_carnet/', CarnetOCRAPIView.as_view(), name='ocr_carnet'),
     path('api_convert_pdf_to_image/', PDFToImageAPIView.as_view(), name='convert_pdf'),
     path('api_firma_empleador/', FirmaEmpleadorAPIView.as_view(), name='api_firma_empleador'),
+    path('api/holding/<int:holding_id>/timbre-empleador/', HoldingTimbreEmpleadorView.as_view(), name='holding_timbre_empleador'),
     path('api_firma_huella/', FirmaHuellaAPIView.as_view(), name='api_firma_huella'),
     path('api_firma_huella/<int:trabajador_id>/', FirmaHuellaAPIView.as_view(), name='api_firma_huella_patch'),
 

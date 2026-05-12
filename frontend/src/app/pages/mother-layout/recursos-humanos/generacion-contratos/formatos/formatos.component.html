@@ -32,10 +32,13 @@
             type="text"
             class="form-control documento-search"
             [(ngModel)]="filtroDocumentoBuscado"
-            placeholder="Buscar por nombre, tipo o fecha..."
-          >
+            (ngModelChange)="onFiltroDocumentoChange()"
+            placeholder="Buscar por nombre, tipo o fecha...">
 
-          <select class="form-control documento-filter" [(ngModel)]="filtroDocumentoTipo">
+          <select
+            class="form-control documento-filter"
+            [(ngModel)]="filtroDocumentoTipo"
+            (ngModelChange)="onFiltroDocumentoChange()">
             <option value="">Todas las nacionalidades</option>
             <option value="CHILENO">Chileno</option>
             <option value="EXTRANJERO">Extranjero</option>
@@ -45,7 +48,7 @@
             type="date"
             class="form-control documento-filter"
             [(ngModel)]="filtroDocumentoFecha"
-          >
+            (ngModelChange)="onFiltroDocumentoChange()">
 
           <button
             class="action-btn reset-btn limpiar-filtros-btn"
@@ -57,17 +60,17 @@
 
         <div class="documentos-summary" *ngIf="documentosCargados.length > 0">
           <span>
-            {{ documentosFiltrados().length }} de {{ documentosCargados.length }} formatos
+            {{ documentosFiltradosCache.length }} de {{ documentosCargados.length }} formatos
           </span>
         </div>
 
         <div
-          *ngIf="documentosCargados.length > 0 && documentosFiltrados().length > 0"
+          *ngIf="documentosCargados.length > 0 && documentosFiltradosCache.length > 0"
           class="documentos-list">
 
           <div
             class="documento-grupo"
-            *ngFor="let grupo of documentosAgrupadosPorTipo()">
+            *ngFor="let grupo of documentosAgrupadosCache; trackBy: trackByGrupoTipo">
 
             <h4 class="documento-grupo-titulo">
               {{ grupo.tipo === 'CHILENO' ? 'Chilenos' : grupo.tipo === 'EXTRANJERO' ? 'Extranjeros' : grupo.tipo }}
@@ -75,15 +78,56 @@
             </h4>
 
             <div
-              *ngFor="let doc of grupo.documentos"
+              *ngFor="let doc of grupo.documentos; trackBy: trackByDocumentoId"
               class="documento-item"
               [class.selected]="documentoSeleccionado?.id === doc.id"
-              (click)="seleccionarDocumentoExistente(doc)">
+              (click)="onDocumentoItemClick(doc)">
 
               <div class="documento-info">
-                <span class="documento-nombre" [title]="doc.nombre">
-                  {{ doc.nombre }}
-                </span>
+
+                <ng-container *ngIf="documentoEditandoNombreId === doc.id; else nombreStatic">
+                  <div
+                    class="documento-nombre-edit"
+                    (click)="$event.stopPropagation()"
+                    (mousedown)="$event.stopPropagation()">
+
+                    <input
+                      [id]="'documento-nombre-input-' + doc.id"
+                      type="text"
+                      class="form-control documento-nombre-input"
+                      [(ngModel)]="nombreDocumentoEditado"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                      (keyup.enter)="guardarNombreDocumento(doc, $event)"
+                      (keyup.escape)="cancelarEdicionNombreDocumento($event)"
+                      maxlength="255"
+                      placeholder="Nombre del formato">
+
+                    <div class="documento-nombre-edit-actions">
+                      <button
+                        type="button"
+                        class="doc-edit-save-btn"
+                        title="Guardar nombre"
+                        (click)="guardarNombreDocumento(doc, $event)">
+                        ✓
+                      </button>
+
+                      <button
+                        type="button"
+                        class="doc-edit-cancel-btn"
+                        title="Cancelar"
+                        (click)="cancelarEdicionNombreDocumento($event)">
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <ng-template #nombreStatic>
+                  <span class="documento-nombre" [title]="doc.nombre">
+                    {{ doc.nombre }}
+                  </span>
+                </ng-template>
 
                 <div class="documento-meta-row">
                   <span class="tipo-badge" [ngClass]="doc.tipo?.toLowerCase()">
@@ -96,19 +140,29 @@
                 </div>
               </div>
 
-              <button
-                type="button"
-                class="documento-delete-btn"
-                title="Eliminar formato"
-                (click)="eliminarFormatoDocumento(doc, $event)">
-                ✕
-              </button>
+              <div class="documento-item-actions">
+                <button
+                  type="button"
+                  class="documento-edit-btn"
+                  title="Renombrar formato"
+                  (click)="iniciarEdicionNombreDocumento(doc, $event)">
+                  ✎
+                </button>
+
+                <button
+                  type="button"
+                  class="documento-delete-btn"
+                  title="Eliminar formato"
+                  (click)="eliminarFormatoDocumento(doc, $event)">
+                  ✕
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         <div
-          *ngIf="documentosCargados.length > 0 && documentosFiltrados().length === 0"
+          *ngIf="documentosCargados.length > 0 && documentosFiltradosCache.length === 0"
           class="no-documentos">
           <p>No hay formatos que coincidan con los filtros seleccionados.</p>
         </div>
@@ -126,12 +180,14 @@
 
           <button
             class="action-btn modify-direct-btn"
+            type="button"
             (click)="modificarDocumentoSeleccionado()">
             Modificar formato seleccionado
           </button>
 
           <button
             class="action-btn preview-btn"
+            type="button"
             (click)="generarPDFPrueba()">
             Generar PDF de Prueba
           </button>
@@ -149,7 +205,10 @@
 
         <div *ngIf="!firmaEmpleadorDisponible" class="firma-no-disponible">
           <p>⚠️ No hay firma configurada</p>
-          <button class="action-btn upload-firma-btn" (click)="abrirModalFirmaEmpleador()">
+          <button
+            class="action-btn upload-firma-btn"
+            type="button"
+            (click)="abrirModalFirmaEmpleador()">
             Subir Firma Empleador
           </button>
         </div>
@@ -159,12 +218,54 @@
           <img [src]="firmaEmpleadorUrl" alt="Firma Empleador" class="firma-preview">
 
           <div class="firma-actions">
-            <button class="action-btn cambiar-firma-btn" (click)="abrirModalFirmaEmpleador()">
+            <button
+              class="action-btn cambiar-firma-btn"
+              type="button"
+              (click)="abrirModalFirmaEmpleador()">
               Cambiar Firma
             </button>
 
-            <button class="action-btn eliminar-firma-btn" (click)="eliminarFirmaEmpleador()">
+            <button
+              class="action-btn eliminar-firma-btn"
+              type="button"
+              (click)="eliminarFirmaEmpleador()">
               Eliminar Firma
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timbre del Empleador -->
+      <div class="firma-empleador-section">
+        <h4>Timbre del Empleador</h4>
+
+        <div *ngIf="!timbreEmpleadorDisponible" class="firma-no-disponible">
+          <p>No hay timbre configurado</p>
+          <button
+            class="action-btn upload-firma-btn"
+            type="button"
+            (click)="abrirModalTimbreEmpleador()">
+            Subir Timbre Empleador
+          </button>
+        </div>
+
+        <div *ngIf="timbreEmpleadorDisponible" class="firma-disponible">
+          <p>Timbre configurado</p>
+          <img [src]="timbreEmpleadorUrl" alt="Timbre Empleador" class="firma-preview">
+
+          <div class="firma-actions">
+            <button
+              class="action-btn cambiar-firma-btn"
+              type="button"
+              (click)="abrirModalTimbreEmpleador()">
+              Cambiar Timbre
+            </button>
+
+            <button
+              class="action-btn eliminar-firma-btn"
+              type="button"
+              (click)="eliminarTimbreEmpleador()">
+              Eliminar Timbre
             </button>
           </div>
         </div>
@@ -231,6 +332,7 @@
       <!-- Firma/Huella del Supervisor -->
       <div class="huella-trabajador-section">
         <h4>👤 Firma y Huella del Supervisor</h4>
+
         <div class="info-card-huella">
           <div class="info-icon">ℹ️</div>
           <div class="info-content">
@@ -261,7 +363,10 @@
       <div class="variables-list">
         <div class="variable-item" *ngFor="let variable of variablesFiltradas">
           <div class="variable-header">
-            <label>{{ variable.nombre | titlecase }}</label>
+            <label>
+              {{ variable.nombre === 'timbre_empleador' ? 'Timbre Empleador' : (variable.nombre | titlecase) }}
+            </label>
+
             <span class="variable-status" [class.placed]="variable.colocada">
               {{ variable.colocada ? 'Colocada' : 'No colocada' }}
             </span>
@@ -269,17 +374,29 @@
 
           <div class="variable-preview">
             <span class="preview-label">Aparecerá como:</span>
+
             <span class="preview-value" [class.centered]="esCampocentrado(variable.nombre)">
-              {{ obtenerValorEjemplo(variable.nombre) }}
+              {{
+                variable.nombre === 'texto_libre' && variable.ubicaciones.length > 0
+                  ? variable.ubicaciones[0].valor || 'Texto libre'
+                  : obtenerValorEjemplo(variable.nombre)
+              }}
             </span>
           </div>
 
           <div class="variable-input-group">
             <button
               class="place-btn"
+              type="button"
               (click)="seleccionarVariable(variable)"
               [disabled]="modoColocacion || !variableEstaDisponible(variable)">
-              {{ variable.nombre === 'firma_empleador' && !firmaEmpleadorDisponible ? 'Subir firma primero' : 'Colocar' }}
+              {{
+                variable.nombre === 'firma_empleador' && !firmaEmpleadorDisponible
+                  ? 'Subir firma primero'
+                  : variable.nombre === 'timbre_empleador' && !timbreEmpleadorDisponible
+                    ? 'Subir timbre primero'
+                    : 'Colocar'
+              }}
             </button>
           </div>
 
@@ -294,15 +411,24 @@
       </div>
 
       <div class="panel-actions">
-        <button class="action-btn reset-btn" (click)="resetearVariables()">
+        <button
+          class="action-btn reset-btn"
+          type="button"
+          (click)="resetearVariables()">
           Resetear Variables
         </button>
 
-        <button class="action-btn export-btn" (click)="exportarPosiciones()">
+        <button
+          class="action-btn export-btn"
+          type="button"
+          (click)="exportarPosiciones()">
           Exportar Posiciones
         </button>
 
-        <button class="action-btn save-btn" (click)="guardarFormato()">
+        <button
+          class="action-btn save-btn"
+          type="button"
+          (click)="guardarFormato()">
           Guardar Formato
         </button>
 
@@ -312,17 +438,26 @@
           <button
             *ngIf="haycambiosPendientes"
             class="action-btn sync-btn"
+            type="button"
             (click)="guardarPosicionesModificadas()">
             Guardar Posiciones Modificadas
           </button>
 
-          <button class="action-btn preview-btn" (click)="generarPDFPrueba()">
+          <button
+            class="action-btn preview-btn"
+            type="button"
+            (click)="generarPDFPrueba()">
             Generar PDF de Prueba
           </button>
 
           <div *ngIf="pdfPreviewUrl" class="pdf-preview-link">
             <a [href]="pdfPreviewUrl" target="_blank">Ver PDF Generado</a>
-            <button class="download-btn" (click)="descargarPDF()">Descargar</button>
+            <button
+              class="download-btn"
+              type="button"
+              (click)="descargarPDF()">
+              Descargar
+            </button>
           </div>
         </div>
       </div>
@@ -353,13 +488,17 @@
           class="file-input"
           style="display: none;">
 
-        <button class="file-input-label" (click)="fileInput.click()">
+        <button
+          class="file-input-label"
+          type="button"
+          (click)="fileInput.click()">
           <span class="btn-text">Seleccionar PDF</span>
         </button>
 
         <button
           *ngIf="pdfSrc"
           class="anexo-btn"
+          type="button"
           (click)="anexoInput.click()"
           [disabled]="!pdfSrc">
           <span class="btn-text">Anexar PDF</span>
@@ -371,8 +510,14 @@
       </div>
 
       <div *ngIf="modoColocacion" class="placement-mode-indicator">
-        <p>Haz clic en el PDF para colocar: <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong></p>
-        <p class="preview-text">Valor de ejemplo: <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em></p>
+        <p>
+          Haz clic en el PDF para colocar:
+          <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong>
+        </p>
+        <p class="preview-text">
+          Valor de ejemplo:
+          <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em>
+        </p>
       </div>
 
       <div *ngIf="pdfNativeWidth > 0" class="pdf-info">
@@ -421,6 +566,7 @@
       <div class="documento-info-card">
         <div class="documento-header">
           <h3>{{ documentoSeleccionado?.nombre }}</h3>
+
           <span class="tipo-badge" [ngClass]="documentoSeleccionado?.tipo?.toLowerCase()">
             {{ documentoSeleccionado?.tipo }}
           </span>
@@ -457,8 +603,19 @@
     </div>
 
     <div class="modal-actions">
-      <button class="action-btn reset-btn" (click)="cerrarModal()">Cancelar</button>
-      <button class="action-btn export-btn" (click)="confirmarGuardado()">Guardar</button>
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cerrarModal()">
+        Cancelar
+      </button>
+
+      <button
+        class="action-btn export-btn"
+        type="button"
+        (click)="confirmarGuardado()">
+        Guardar
+      </button>
     </div>
   </div>
 </div>
@@ -484,8 +641,19 @@
     </div>
 
     <div class="modal-actions">
-      <button class="action-btn reset-btn" (click)="cerrarModalTipoContrato()">Cancelar</button>
-      <button class="action-btn export-btn" (click)="confirmarTipoContrato()">Continuar</button>
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cerrarModalTipoContrato()">
+        Cancelar
+      </button>
+
+      <button
+        class="action-btn export-btn"
+        type="button"
+        (click)="confirmarTipoContrato()">
+        Continuar
+      </button>
     </div>
   </div>
 </div>
@@ -501,7 +669,10 @@
 
     <div class="variables-test-data">
       <div *ngFor="let variable of variablesConDatos" class="form-group">
-        <label [for]="'var-' + variable.nombre">{{ variable.nombre | titlecase }}:</label>
+        <label [for]="'var-' + variable.nombre">
+          {{ variable.nombre | titlecase }}:
+        </label>
+
         <input
           [type]="variable.tipo === 'fecha' ? 'date' : 'text'"
           [id]="'var-' + variable.nombre"
@@ -512,8 +683,19 @@
     </div>
 
     <div class="modal-actions">
-      <button class="action-btn reset-btn" (click)="cerrarModalDatosPrueba()">Cancelar</button>
-      <button class="action-btn preview-btn" (click)="confirmarGenerarPDF()">Generar PDF</button>
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cerrarModalDatosPrueba()">
+        Cancelar
+      </button>
+
+      <button
+        class="action-btn preview-btn"
+        type="button"
+        (click)="confirmarGenerarPDF()">
+        Generar PDF
+      </button>
     </div>
   </div>
 </div>
@@ -608,8 +790,89 @@
     </div>
 
     <div class="modal-actions">
-      <button class="action-btn reset-btn" (click)="cerrarModalFirmaEmpleador()">
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cerrarModalFirmaEmpleador()">
         Cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para subir timbre empleador -->
+<div class="modal-overlay" *ngIf="mostrarModalTimbreEmpleador">
+  <div class="modal-content">
+    <h3>Subir Timbre del Empleador</h3>
+
+    <p class="modal-description">
+      Seleccione una imagen con el timbre del empleador. Este timbre se usará en los contratos generados.
+    </p>
+
+    <div class="form-group">
+      <label for="timbre-empleador-input">Seleccionar imagen:</label>
+      <input
+        type="file"
+        id="timbre-empleador-input"
+        accept="image/jpeg,image/jpg,image/png,image/gif"
+        (change)="onTimbreEmpleadorSelected($event)"
+        class="form-control">
+
+      <small class="field-hint">
+        Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 5MB
+      </small>
+    </div>
+
+    <div class="modal-actions">
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cerrarModalTimbreEmpleador()">
+        Cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para texto libre -->
+<div class="modal-overlay" *ngIf="mostrarModalTextoLibre">
+  <div class="modal-content">
+    <h3>Texto Libre</h3>
+
+    <p class="modal-description">
+      Escriba el texto que aparecerá fijo en el documento para todos los contratos generados con este formato.
+    </p>
+
+    <div class="form-group">
+      <label for="texto-libre-input">Contenido:</label>
+      <input
+        type="text"
+        id="texto-libre-input"
+        class="form-control"
+        [(ngModel)]="textoLibreTemp"
+        placeholder="Ej: ESTIMADO, X, NO APLICA"
+        maxlength="200"
+        (keyup.enter)="confirmarTextoLibre()">
+
+      <small class="field-hint">
+        Máximo 200 caracteres. Este texto aparecerá igual en todos los contratos.
+      </small>
+    </div>
+
+    <div class="modal-actions">
+      <button
+        class="action-btn reset-btn"
+        type="button"
+        (click)="cancelarTextoLibre()">
+        Cancelar
+      </button>
+
+      <button
+        class="action-btn export-btn"
+        type="button"
+        [disabled]="!textoLibreTemp.trim()"
+        (click)="confirmarTextoLibre()">
+        Continuar
       </button>
     </div>
   </div>
@@ -627,6 +890,7 @@
       <div class="documento-info-card documento-info-card-mini">
         <div class="documento-header">
           <h3>{{ documentoSeleccionado?.nombre }}</h3>
+
           <span class="tipo-badge" [ngClass]="documentoSeleccionado?.tipo?.toLowerCase()">
             {{ documentoSeleccionado?.tipo }}
           </span>
@@ -666,7 +930,10 @@
     <div class="variables-list">
       <div class="variable-item" *ngFor="let variable of variablesFiltradas">
         <div class="variable-header">
-          <label>{{ variable.nombre | titlecase }}</label>
+          <label>
+            {{ variable.nombre === 'timbre_empleador' ? 'Timbre Empleador' : (variable.nombre | titlecase) }}
+          </label>
+
           <span class="variable-status" [class.placed]="variable.colocada">
             {{ variable.colocada ? 'Colocada' : 'No colocada' }}
           </span>
@@ -674,17 +941,29 @@
 
         <div class="variable-preview">
           <span class="preview-label">Aparecerá como:</span>
+
           <span class="preview-value" [class.centered]="esCampocentrado(variable.nombre)">
-            {{ obtenerValorEjemplo(variable.nombre) }}
+            {{
+              variable.nombre === 'texto_libre' && variable.ubicaciones.length > 0
+                ? variable.ubicaciones[0].valor || 'Texto libre'
+                : obtenerValorEjemplo(variable.nombre)
+            }}
           </span>
         </div>
 
         <div class="variable-input-group">
           <button
             class="place-btn"
+            type="button"
             (click)="seleccionarVariable(variable)"
             [disabled]="modoColocacion || !variableEstaDisponible(variable)">
-            {{ variable.nombre === 'firma_empleador' && !firmaEmpleadorDisponible ? 'Subir firma primero' : 'Colocar' }}
+            {{
+              variable.nombre === 'firma_empleador' && !firmaEmpleadorDisponible
+                ? 'Subir firma primero'
+                : variable.nombre === 'timbre_empleador' && !timbreEmpleadorDisponible
+                  ? 'Subir timbre primero'
+                  : 'Colocar'
+            }}
           </button>
         </div>
 
@@ -701,20 +980,30 @@
     <div class="panel-actions">
       <button
         class="action-btn sync-btn"
+        type="button"
         *ngIf="haycambiosPendientes"
         (click)="guardarPosicionesModificadas()">
         Guardar Posiciones Modificadas
       </button>
 
-      <button class="action-btn save-btn" (click)="guardarCambiosDocumento()">
+      <button
+        class="action-btn save-btn"
+        type="button"
+        (click)="guardarCambiosDocumento()">
         Guardar y Cerrar
       </button>
 
-      <button class="action-btn cancel-btn" (click)="cerrarModificacion()">
+      <button
+        class="action-btn cancel-btn"
+        type="button"
+        (click)="cerrarModificacion()">
         {{ haycambiosPendientes ? 'Cancelar (se perderán cambios)' : 'Cancelar' }}
       </button>
 
-      <button class="action-btn preview-btn" (click)="generarPDFPrueba()">
+      <button
+        class="action-btn preview-btn"
+        type="button"
+        (click)="generarPDFPrueba()">
         Vista Previa PDF
       </button>
     </div>
@@ -726,8 +1015,14 @@
       <h2>Modificar Variables del Documento</h2>
 
       <div *ngIf="modoColocacion" class="placement-mode-indicator">
-        <p>Haz clic en el PDF para colocar: <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong></p>
-        <p class="preview-text">Aparecerá como: <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em></p>
+        <p>
+          Haz clic en el PDF para colocar:
+          <strong>{{ variableSeleccionada?.nombre | titlecase }}</strong>
+        </p>
+        <p class="preview-text">
+          Aparecerá como:
+          <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em>
+        </p>
       </div>
 
       <div class="document-info">

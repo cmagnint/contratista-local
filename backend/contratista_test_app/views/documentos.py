@@ -3,7 +3,10 @@ import os
 import base64
 import logging
 import re
+from django.core.files.images import get_image_dimensions
+from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from pdf2image import convert_from_bytes
 from google.cloud import vision_v1
@@ -212,6 +215,91 @@ class FirmaEmpleadorAPIView(PublicAPIView):
         except Exception as e:
             logger.error(f'FirmaEmpleadorAPIView DELETE: error inesperado', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ==============================================================================
+# TIMBRE EMPLEADOR
+# ==============================================================================
+
+class HoldingTimbreEmpleadorView(BaseAPIView):
+    parser_classes = [MultiPartParser, FormParser]
+    allowed_image_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+
+    def _get_holding(self, request, holding_id):
+        holding = get_object_or_404(Holding, id=holding_id)
+        if getattr(request.user, 'holding_id', None) != holding.id:
+            return None, Response({'error': 'No tienes permisos para este holding'}, status=status.HTTP_403_FORBIDDEN)
+        return holding, None
+
+    def _timbre_url_response(self, request, holding):
+        return {
+            'timbre_empleador': request.build_absolute_uri(holding.timbre_empleador.url)
+        }
+
+    def _get_image_file(self, request):
+        imagen = request.FILES.get('imagen')
+        if not imagen:
+            return None, Response({'error': 'No se proporcionó archivo de imagen'}, status=status.HTTP_400_BAD_REQUEST)
+        if imagen.content_type not in self.allowed_image_types:
+            return None, Response({'error': 'Formato de imagen no válido. Use JPG, PNG o GIF'}, status=status.HTTP_400_BAD_REQUEST)
+        if imagen.size > 5 * 1024 * 1024:
+            return None, Response({'error': 'La imagen es demasiado grande. Máximo 5MB'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            width, height = get_image_dimensions(imagen)
+            imagen.seek(0)
+            if not width or not height:
+                return None, Response({'error': 'Archivo de imagen inválido'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return None, Response({'error': 'Archivo de imagen inválido'}, status=status.HTTP_400_BAD_REQUEST)
+        return imagen, None
+
+    def get(self, request, holding_id, *args, **kwargs):
+        holding, error = self._get_holding(request, holding_id)
+        if error:
+            return error
+        if not holding.timbre_empleador:
+            return Response({'error': 'No hay timbre del empleador configurado'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(self._timbre_url_response(request, holding))
+
+    def post(self, request, holding_id, *args, **kwargs):
+        holding, error = self._get_holding(request, holding_id)
+        if error:
+            return error
+        if holding.timbre_empleador:
+            return Response({'error': 'El holding ya tiene timbre del empleador'}, status=status.HTTP_409_CONFLICT)
+
+        imagen, error = self._get_image_file(request)
+        if error:
+            return error
+
+        holding.timbre_empleador = imagen
+        holding.save(update_fields=['timbre_empleador'])
+        return Response(self._timbre_url_response(request, holding), status=status.HTTP_201_CREATED)
+
+    def put(self, request, holding_id, *args, **kwargs):
+        holding, error = self._get_holding(request, holding_id)
+        if error:
+            return error
+        if not holding.timbre_empleador:
+            return Response({'error': 'No hay timbre del empleador para reemplazar'}, status=status.HTTP_404_NOT_FOUND)
+
+        imagen, error = self._get_image_file(request)
+        if error:
+            return error
+
+        holding.timbre_empleador.delete(save=False)
+        holding.timbre_empleador = imagen
+        holding.save(update_fields=['timbre_empleador'])
+        return Response(self._timbre_url_response(request, holding))
+
+    def delete(self, request, holding_id, *args, **kwargs):
+        holding, error = self._get_holding(request, holding_id)
+        if error:
+            return error
+        if not holding.timbre_empleador:
+            return Response({'error': 'No hay timbre del empleador para eliminar'}, status=status.HTTP_404_NOT_FOUND)
+
+        holding.timbre_empleador.delete(save=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 # ==============================================================================
 # FIRMA HUELLA

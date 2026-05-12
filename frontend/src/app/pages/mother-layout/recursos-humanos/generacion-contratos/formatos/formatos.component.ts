@@ -16,6 +16,7 @@ interface Ubicacion {
   width?: number;
   height?: number;
   valor?: string;
+  fontSize?: number;
 }
 
 interface VariableDocumento {
@@ -111,11 +112,26 @@ export class FormatosComponent implements OnInit {
   filtroDocumentoBuscado: string = '';
   filtroDocumentoTipo: string = '';
   filtroDocumentoFecha: string = '';
+  documentoEditandoNombreId: number | null = null;
+  nombreDocumentoEditado: string = '';
+  documentosFiltradosCache: any[] = [];
+  documentosAgrupadosCache: { tipo: string; documentos: any[] }[] = [];
+
+  readonly TEXTO_LIBRE_VARIABLE = 'texto_libre';
+  readonly TEXTOS_LIBRES_CONTAINER = 'textos_libres';
+  mostrarModalTextoLibre: boolean = false;
+  textoLibreTemp: string = '';
+  textoLibrePendiente: string = '';
 
   // ⭐ PROPIEDADES PARA FIRMA EMPLEADOR
   firmaEmpleadorDisponible: boolean = false;
   firmaEmpleadorUrl: string | null = null;
   mostrarModalFirmaEmpleador: boolean = false;
+
+  // Propiedades para timbre empleador
+  timbreEmpleadorDisponible: boolean = false;
+  timbreEmpleadorUrl: string | null = null;
+  mostrarModalTimbreEmpleador: boolean = false;
   
   // ⭐ PROPIEDADES PARA FIRMA TRABAJADOR (PLACEHOLDER)
   readonly FIRMA_TRABAJADOR_PLACEHOLDER = 'assets/images/firma_trabajador_placeholder.png';
@@ -176,10 +192,12 @@ export class FormatosComponent implements OnInit {
     { nombre: 'contacto_emergencia_nombre', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'contacto_emergencia_telefono', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma_empleador', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'timbre_empleador', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'huella', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'elemento_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'cantidad_seguridad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'texto_libre', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'nombre_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'firma_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'huella_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
@@ -233,9 +251,88 @@ export class FormatosComponent implements OnInit {
     
     if (this.holding) {
       this.cargarFirmaEmpleador();
+      this.cargarTimbreEmpleador();
       this.cargarElementosSeguridad();
     }
   }
+
+  onFiltroDocumentoChange(): void {
+  this.recalcularDocumentosExistentes();
+}
+
+recalcularDocumentosExistentes(): void {
+  this.documentosFiltradosCache = this.filtrarDocumentos(this.documentosCargados);
+  this.documentosAgrupadosCache = this.agruparDocumentosPorTipo(this.documentosFiltradosCache);
+}
+
+private filtrarDocumentos(documentos: any[]): any[] {
+  const busqueda = this.normalizarTexto(this.filtroDocumentoBuscado);
+  const tipo = this.normalizarTexto(this.filtroDocumentoTipo);
+  const fecha = this.filtroDocumentoFecha;
+
+  return (documentos || []).filter((doc: any) => {
+    const nombreDoc = this.normalizarTexto(doc.nombre);
+    const tipoDoc = this.normalizarTexto(doc.tipo);
+    const fechaDoc = doc.fecha_creacion ? new Date(doc.fecha_creacion) : null;
+
+    const coincideNombre =
+      !busqueda ||
+      nombreDoc.includes(busqueda) ||
+      tipoDoc.includes(busqueda) ||
+      (doc.fecha_creacion || '').toString().includes(busqueda);
+
+    const coincideTipo =
+      !tipo ||
+      tipoDoc === tipo;
+
+    const coincideFecha =
+      !fecha ||
+      (
+        fechaDoc &&
+        fechaDoc.toISOString().slice(0, 10) === fecha
+      );
+
+    return coincideNombre && coincideTipo && coincideFecha;
+  });
+}
+
+private agruparDocumentosPorTipo(documentos: any[]): { tipo: string; documentos: any[] }[] {
+  const ordenTipos = ['CHILENO', 'EXTRANJERO'];
+  const grupos: { [key: string]: any[] } = {};
+
+  documentos.forEach((doc: any) => {
+    const tipo = (doc.tipo || 'SIN TIPO').toUpperCase();
+    if (!grupos[tipo]) grupos[tipo] = [];
+    grupos[tipo].push(doc);
+  });
+
+  return Object.keys(grupos)
+    .sort((a, b) => {
+      const ia = ordenTipos.indexOf(a);
+      const ib = ordenTipos.indexOf(b);
+
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    })
+    .map(tipo => ({
+      tipo,
+      documentos: [...grupos[tipo]].sort((a, b) => {
+        const fa = a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0;
+        const fb = b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0;
+        return fb - fa;
+      })
+    }));
+}
+
+trackByGrupoTipo(index: number, grupo: { tipo: string; documentos: any[] }): string {
+  return grupo.tipo;
+}
+
+trackByDocumentoId(index: number, documento: any): number {
+  return documento.id;
+}
 
    private getHoldingIdFromJWT(): string {
     try {
@@ -264,7 +361,7 @@ export class FormatosComponent implements OnInit {
       console.warn('⚠️ No se puede cargar firma: holding no disponible');
       return;
     }
-    
+
     this.apiService.get(`api_firma_empleador/?holding_id=${this.holding}`)
       .subscribe({
         next: (response: any) => {
@@ -279,6 +376,28 @@ export class FormatosComponent implements OnInit {
         error: (error) => {
           console.error('Error al cargar firma empleador:', error);
           this.firmaEmpleadorDisponible = false;
+        }
+      });
+  }
+
+  cargarTimbreEmpleador(): void {
+    if (!this.holding) {
+      console.warn('No se puede cargar timbre: holding no disponible');
+      return;
+    }
+
+    this.apiService.get(`api/holding/${this.holding}/timbre-empleador/`)
+      .subscribe({
+        next: (response: any) => {
+          this.timbreEmpleadorDisponible = true;
+          this.timbreEmpleadorUrl = response.timbre_empleador || null;
+        },
+        error: (error) => {
+          if (error.status !== 404) {
+            console.error('Error al cargar timbre empleador:', error);
+          }
+          this.timbreEmpleadorDisponible = false;
+          this.timbreEmpleadorUrl = null;
         }
       });
   }
@@ -330,6 +449,14 @@ export class FormatosComponent implements OnInit {
   cerrarModalFirmaEmpleador(): void {
     this.mostrarModalFirmaEmpleador = false;
   }
+
+  abrirModalTimbreEmpleador(): void {
+    this.mostrarModalTimbreEmpleador = true;
+  }
+
+  cerrarModalTimbreEmpleador(): void {
+    this.mostrarModalTimbreEmpleador = false;
+  }
   
   /**
    * Subir firma del empleador
@@ -346,7 +473,7 @@ export class FormatosComponent implements OnInit {
         alert('Formato no válido. Use JPG, PNG o GIF');
         return;
       }
-      
+
       // Validar tamaño (5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('La imagen es demasiado grande. Máximo 5MB');
@@ -375,7 +502,48 @@ export class FormatosComponent implements OnInit {
             alert(`Error: ${error.error?.error || 'No se pudo subir la firma'}`);
             this.isLoading = false;
           }
-        });
+      });
+    }
+  }
+
+  onTimbreEmpleadorSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Formato no válido. Use JPG, PNG o GIF');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. Máximo 5MB');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('imagen', file);
+
+      this.isLoading = true;
+      const request$ = this.timbreEmpleadorDisponible
+        ? this.apiService.putFormData(`api/holding/${this.holding}/timbre-empleador/`, formData)
+        : this.apiService.postFormData(`api/holding/${this.holding}/timbre-empleador/`, formData);
+
+      request$.subscribe({
+        next: (response: any) => {
+          this.timbreEmpleadorDisponible = true;
+          this.timbreEmpleadorUrl = response.timbre_empleador;
+          this.isLoading = false;
+          this.cerrarModalTimbreEmpleador();
+          alert('Timbre del empleador actualizado exitosamente');
+        },
+        error: (error) => {
+          console.error('Error al subir timbre:', error);
+          alert(`Error: ${error.error?.error || 'No se pudo subir el timbre'}`);
+          this.isLoading = false;
+        }
+      });
     }
   }
 
@@ -415,6 +583,29 @@ export class FormatosComponent implements OnInit {
           alert('No se pudo eliminar la firma');
           this.isLoading = false;
         }
+	      });
+	  }
+
+  eliminarTimbreEmpleador(): void {
+    if (!confirm('¿Está seguro de eliminar el timbre del empleador?')) {
+      return;
+    }
+
+    this.isLoading = true;
+
+    this.apiService.delete(`api/holding/${this.holding}/timbre-empleador/`, {})
+      .subscribe({
+        next: () => {
+          this.timbreEmpleadorDisponible = false;
+          this.timbreEmpleadorUrl = null;
+          this.isLoading = false;
+          alert('Timbre del empleador eliminado');
+        },
+        error: (error) => {
+          console.error('Error al eliminar timbre:', error);
+          alert('No se pudo eliminar el timbre');
+          this.isLoading = false;
+        }
       });
   }
   
@@ -424,6 +615,9 @@ export class FormatosComponent implements OnInit {
   variableEstaDisponible(variable: VariableDocumento): boolean {
     if (variable.nombre === 'firma_empleador') {
       return this.firmaEmpleadorDisponible;
+    }
+    if (variable.nombre === 'timbre_empleador') {
+      return this.timbreEmpleadorDisponible;
     }
     // ⭐ FIRMA Y HUELLA TRABAJADOR: siempre disponibles (son placeholders)
     return true;
@@ -464,6 +658,7 @@ export class FormatosComponent implements OnInit {
       'contacto_emergencia_nombre': 'María González',
       'contacto_emergencia_telefono': '+56 9 8765 4321',
       'firma_empleador': '[Firma Empleador]',
+      'timbre_empleador': '[Timbre Empleador]',
       'firma': '[Firma Trabajador]',
       'huella': '[Huella Digital]',
       'elemento_seguridad': '[Elemento de Seguridad]',
@@ -471,6 +666,8 @@ export class FormatosComponent implements OnInit {
       'nombre_supervisor': 'Carlos Rodríguez Díaz',
       'firma_supervisor': '[Firma Supervisor]',
       'huella_supervisor': '[Huella Supervisor]',
+      'texto_libre': '[Texto Libre]',
+
 
     };
     
@@ -527,15 +724,16 @@ export class FormatosComponent implements OnInit {
     this.modoDocumentoExistente = true;
     this.isLoading = true;
     this.documentosCargados = [];
+    this.documentosFiltradosCache = [];
+    this.documentosAgrupadosCache = [];
     this.documentoSeleccionado = null;
     this.modoModificacion = false;
-    
+
     this.apiService.get('api_documento_nativo/')
       .subscribe({
         next: (response: any) => {
-          if (Array.isArray(response)) {
-            this.documentosCargados = response;
-          }
+          this.documentosCargados = Array.isArray(response) ? response : [];
+          this.recalcularDocumentosExistentes();
           this.isLoading = false;
         },
         error: (error) => {
@@ -802,6 +1000,11 @@ export class FormatosComponent implements OnInit {
     this.resetearVariables();
 
     variablesDocumento.forEach(varDoc => {
+      if (varDoc?.nombre === this.TEXTOS_LIBRES_CONTAINER) {
+        this.cargarTextosLibresDesdeDocumento(varDoc);
+        return;
+      }
+
       const varIndex = this.variables.findIndex(v => v.nombre === varDoc.nombre);
 
       if (varIndex < 0) return;
@@ -842,6 +1045,82 @@ export class FormatosComponent implements OnInit {
         });
       });
     });
+  }
+
+  cargarTextosLibresDesdeDocumento(varDoc: any): void {
+    const varIndex = this.variables.findIndex(v => v.nombre === this.TEXTO_LIBRE_VARIABLE);
+    if (varIndex < 0) return;
+
+    const textosLibres = Array.isArray(varDoc?.textos_libres) ? varDoc.textos_libres : [];
+    const ubicaciones = textosLibres
+      .filter((textoLibre: any) => textoLibre && typeof textoLibre === 'object')
+      .map((textoLibre: any) => ({
+        id: textoLibre.id || `texto_libre_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        pagina: Number(textoLibre.pagina || 1),
+        posX: Number(textoLibre.posX ?? textoLibre.x ?? 0),
+        posY: Number(textoLibre.posY ?? textoLibre.y ?? 0),
+        pageWidth: Number(textoLibre.pageWidth || this.pdfNativeWidth || 0),
+        pageHeight: Number(textoLibre.pageHeight || this.pdfNativeHeight || 0),
+        width: textoLibre.width !== undefined ? Number(textoLibre.width) : undefined,
+        height: textoLibre.height !== undefined ? Number(textoLibre.height) : undefined,
+        valor: textoLibre.texto || '',
+        fontSize: textoLibre.fontSize !== undefined ? Number(textoLibre.fontSize) : 10
+      }));
+
+    this.variables[varIndex].colocada = ubicaciones.length > 0;
+    this.variables[varIndex].ubicaciones = ubicaciones;
+
+    if (ubicaciones.length > 0) {
+      const ultima = ubicaciones[ubicaciones.length - 1];
+      this.variables[varIndex].posX = ultima.posX;
+      this.variables[varIndex].posY = ultima.posY;
+      this.variables[varIndex].pagina = ultima.pagina;
+    }
+
+    ubicaciones.forEach((ubicacion: Ubicacion) => {
+      if (!this.variablesPorPagina.has(ubicacion.pagina)) {
+        this.variablesPorPagina.set(ubicacion.pagina, []);
+      }
+
+      this.variablesPorPagina.get(ubicacion.pagina)?.push({
+        nombre: this.TEXTO_LIBRE_VARIABLE,
+        posX: ubicacion.posX,
+        posY: ubicacion.posY,
+        elementId: ubicacion.id,
+        variableIndex: varIndex
+      });
+    });
+  }
+
+  private _serializarVariablesParaBackend(): any[] {
+    const textoLibreVar = this.variables.find(
+      v => v.nombre === this.TEXTO_LIBRE_VARIABLE && v.ubicaciones.length > 0
+    );
+
+    const variablesNormales: any[] = this.variables
+      .filter(v => v.ubicaciones.length > 0 && v.nombre !== this.TEXTO_LIBRE_VARIABLE)
+      .map(v => ({ nombre: v.nombre, ubicaciones: v.ubicaciones }));
+
+    if (textoLibreVar && textoLibreVar.ubicaciones.length > 0) {
+      const textosLibres = textoLibreVar.ubicaciones.map(u => ({
+        id: u.id,
+        texto: u.valor || '',
+        pagina: u.pagina,
+        posX: u.posX,
+        posY: u.posY,
+        pageWidth: u.pageWidth,
+        pageHeight: u.pageHeight,
+        width: u.width ?? undefined,
+        height: u.height ?? undefined,
+        fontSize: u.fontSize ?? undefined,
+      }));
+      variablesNormales.push({
+        nombre: this.TEXTOS_LIBRES_CONTAINER,
+        textos_libres: textosLibres
+      });
+    }
+
+    return variablesNormales;
   }
 
   private normalizarUrlPdf(pdfUrl: string): string {
@@ -1007,6 +1286,81 @@ export class FormatosComponent implements OnInit {
     });
 }
 
+  iniciarEdicionNombreDocumento(documento: any, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.documentoEditandoNombreId = documento?.id || null;
+    this.nombreDocumentoEditado = documento?.nombre || '';
+
+    setTimeout(() => {
+      const input = document.getElementById(`documento-nombre-input-${documento.id}`) as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+    }, 0);
+  }
+
+  cancelarEdicionNombreDocumento(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.documentoEditandoNombreId = null;
+    this.nombreDocumentoEditado = '';
+  }
+
+  guardarNombreDocumento(documento: any, event: Event): void {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const nuevoNombre = this.nombreDocumentoEditado.trim();
+
+  if (!nuevoNombre) {
+    alert('El nombre del formato no puede estar vacío.');
+    return;
+  }
+
+  if (nuevoNombre === documento.nombre) {
+    this.documentoEditandoNombreId = null;
+    this.nombreDocumentoEditado = '';
+    return;
+  }
+
+  this.isLoading = true;
+
+  this.apiService.patch(`api_documento_nativo/${documento.id}/`, { nombre: nuevoNombre })
+    .subscribe({
+      next: (response: any) => {
+        const nombreActualizado = response?.nombre || nuevoNombre;
+
+        documento.nombre = nombreActualizado;
+
+        const docEnLista = this.documentosCargados.find((doc: any) => doc.id === documento.id);
+        if (docEnLista) {
+          docEnLista.nombre = nombreActualizado;
+        }
+
+        if (this.documentoSeleccionado?.id === documento.id) {
+          this.documentoSeleccionado.nombre = nombreActualizado;
+        }
+
+        this.documentoEditandoNombreId = null;
+        this.nombreDocumentoEditado = '';
+        this.recalcularDocumentosExistentes();
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error al actualizar nombre del formato:', error);
+        this.isLoading = false;
+        alert(error?.error?.error || 'No se pudo actualizar el nombre del formato.');
+      }
+    });
+}
+
+
+  onDocumentoItemClick(doc: any): void {
+    if (this.documentoEditandoNombreId !== null) return;
+    this.seleccionarDocumentoExistente(doc);
+  }
   /**
    * Obtener el número de variables colocadas en el documento
    */
@@ -1055,6 +1409,11 @@ export class FormatosComponent implements OnInit {
   }
 
   seleccionarVariable(variable: VariableDocumento): void {
+    if (variable.nombre === 'timbre_empleador' && !this.timbreEmpleadorDisponible) {
+      alert('Debes subir el timbre del empleador antes de colocarlo en el formato.');
+      return;
+    }
+
     if (variable.nombre === 'cantidad_seguridad') {
       alert('La cantidad se posiciona automáticamente después de posicionar un elemento de seguridad.');
       return;
@@ -1072,7 +1431,48 @@ export class FormatosComponent implements OnInit {
       return;
     }
 
+    if (variable.nombre === this.TEXTO_LIBRE_VARIABLE) {
+      this.textoLibreTemp = '';
+      this.mostrarModalTextoLibre = true;
+      return;
+    }
+
     this.iniciarColocacionVariable(variable);
+  }
+
+  cancelarTextoLibre(): void {
+    this.mostrarModalTextoLibre = false;
+    this.textoLibreTemp = '';
+    this.textoLibrePendiente = '';
+    this.variableSeleccionada = null;
+    this.modoColocacion = false;
+
+    const pdfContainer = document.getElementById('pdf-container');
+    if (pdfContainer) {
+      pdfContainer.style.cursor = 'default';
+    }
+  }
+
+  confirmarTextoLibre(): void {
+    const texto = this.textoLibreTemp.trim();
+    if (!texto) {
+      alert('No se puede guardar el formato porque existe un texto libre vacío.');
+      return;
+    }
+    if (texto.length > 200) {
+      alert('El texto libre no puede superar los 200 caracteres.');
+      return;
+    }
+
+    const variableTextoLibre = this.variables.find(v => v.nombre === this.TEXTO_LIBRE_VARIABLE);
+    if (!variableTextoLibre) {
+      alert('No existe la variable texto_libre');
+      return;
+    }
+
+    this.textoLibrePendiente = texto;
+    this.mostrarModalTextoLibre = false;
+    this.iniciarColocacionVariable(variableTextoLibre);
   }
 
   /**
@@ -1170,7 +1570,7 @@ export class FormatosComponent implements OnInit {
           variable.ubicaciones[ubicacionIndex].posY = coords.posY;
           
           // ⭐ Guardar dimensiones para firma_empleador, firma Y huella
-          if (['firma_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'].includes(variable.nombre)) {
+          if (['firma_empleador', 'timbre_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'].includes(variable.nombre)) {
 
             const elementRect = this.elementoArrastrandose!.getBoundingClientRect();
             const pageRect = this.paginaActualArrastre!.getBoundingClientRect();
@@ -1520,6 +1920,17 @@ export class FormatosComponent implements OnInit {
   handlePdfClick(event: MouseEvent): void {
     if (!this.variableSeleccionada || !this.modoColocacion) return;
 
+    if (this.variableSeleccionada.nombre === 'timbre_empleador' && !this.timbreEmpleadorDisponible) {
+      alert('Debes subir el timbre del empleador antes de colocarlo en el formato.');
+      this.modoColocacion = false;
+      this.variableSeleccionada = null;
+      const pdfContainer = document.getElementById('pdf-container');
+      if (pdfContainer) {
+        pdfContainer.style.cursor = 'default';
+      }
+      return;
+    }
+
     const clickedPage = this.findClickedPage(event);
     if (!clickedPage) return;
 
@@ -1559,6 +1970,8 @@ export class FormatosComponent implements OnInit {
       ...(
         ['elemento_seguridad', 'cantidad_seguridad'].includes(variableActual.nombre)
           ? { valor: valorEspecial }
+          : variableActual.nombre === this.TEXTO_LIBRE_VARIABLE
+            ? { valor: this.textoLibrePendiente }
           : {}
       )
     });
@@ -1615,6 +2028,10 @@ export class FormatosComponent implements OnInit {
     if (variableActual.nombre === 'cantidad_seguridad') {
       this.elementoSeguridadPendiente = null;
       this.elementoSeleccionadoTemp = null;
+    }
+
+    if (variableActual.nombre === this.TEXTO_LIBRE_VARIABLE) {
+      this.textoLibrePendiente = '';
     }
 
     this.modoColocacion = false;
@@ -1694,6 +2111,42 @@ export class FormatosComponent implements OnInit {
       img.onload = () => console.log('✅ Imagen firma_empleador cargada');
       variableElement.appendChild(img);
       
+    }
+    else if (variable.nombre === 'timbre_empleador') {
+      if (!this.timbreEmpleadorDisponible || !this.timbreEmpleadorUrl) {
+        console.warn('timbre_empleador no disponible');
+        return;
+      }
+
+      variableElement.classList.add('firma-empleador-imagen');
+
+      const img = document.createElement('img');
+      img.src = this.timbreEmpleadorUrl;
+
+      const mainVariable = this.variables[variable.variableIndex];
+      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+
+      const scaleX = pageRect.width / this.pdfNativeWidth;
+      const scaleY = pageRect.height / this.pdfNativeHeight;
+
+      let displayWidth = 150;
+      let displayHeight = 50;
+
+      if (ubicacion?.width && ubicacion?.height) {
+        displayWidth = ubicacion.width * scaleX;
+        displayHeight = ubicacion.height * scaleY;
+      }
+
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+      img.onerror = () => {
+        console.error('Error al cargar imagen timbre_empleador');
+        img.style.border = '2px solid red';
+      };
+      variableElement.appendChild(img);
     }
     // CASO 2: firma trabajador es IMAGEN PLACEHOLDER
     else if (variable.nombre === 'firma') {
@@ -1839,7 +2292,7 @@ export class FormatosComponent implements OnInit {
     else {
       const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(u => u.id === variable.elementId);
       const textoMostrar = (
-        ['elemento_seguridad', 'cantidad_seguridad'].includes(variable.nombre) &&
+        ['elemento_seguridad', 'cantidad_seguridad', 'texto_libre'].includes(variable.nombre) &&
         ubicacion?.valor
       )
         ? ubicacion.valor
@@ -1897,7 +2350,7 @@ export class FormatosComponent implements OnInit {
     variableElement.style.padding = '3px 6px';
     
     // Colores por tipo
-    if (variable.nombre === 'firma_empleador') {
+    if (variable.nombre === 'firma_empleador' || variable.nombre === 'timbre_empleador') {
       variableElement.style.backgroundColor = 'rgba(40, 167, 69, 0.08)';
       variableElement.style.border = '2px dashed #28a745';
     } else if (variable.nombre === 'firma') {
@@ -1919,7 +2372,7 @@ export class FormatosComponent implements OnInit {
     variableElement.style.whiteSpace = 'nowrap';
     variableElement.style.maxWidth = 'none';
     
-    const imagenesConTransform = ['firma_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
+    const imagenesConTransform = ['firma_empleador', 'timbre_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
     if (this.esCampocentrado(variable.nombre) && !imagenesConTransform.includes(variable.nombre)) {
       variableElement.style.textAlign = 'center';
       variableElement.style.transform = 'translateX(-50%)';
@@ -1941,7 +2394,7 @@ export class FormatosComponent implements OnInit {
     });
     
     // Handles de redimensionamiento para todas las imágenes
-    const imagenesRedimensionables = ['firma_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
+    const imagenesRedimensionables = ['firma_empleador', 'timbre_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
     if (imagenesRedimensionables.includes(variable.nombre)) {
       this.agregarHandlesRedimension(variableElement, variable, pageElement);
     }
@@ -2142,6 +2595,7 @@ export class FormatosComponent implements OnInit {
     this.filtroDocumentoBuscado = '';
     this.filtroDocumentoTipo = '';
     this.filtroDocumentoFecha = '';
+    this.recalcularDocumentosExistentes();
   }
   
   /**
@@ -2407,29 +2861,37 @@ export class FormatosComponent implements OnInit {
       this.errorMessage = 'No hay un documento seleccionado para modificar';
       return;
     }
-    
-    if (this.variablesPorPagina.size === 0) {
-      this.errorMessage = 'El documento no tiene variables para modificar';
-      return;
-    }
-    
-    console.log('📝 Iniciando modificación de documento:', this.documentoSeleccionado.nombre);
-    console.log('Variables cargadas en memoria:', this.variablesPorPagina.size, 'páginas');
-    
-    const pdfUrl = this.documentoSeleccionado.archivo_pdf_url;
-    
+
     this.modoDocumentoExistente = false;
     this.modoModificacion = true;
-    
-    const pdfContainer = document.getElementById('pdf-container');
-    if (pdfContainer) {
-      pdfContainer.innerHTML = '';
-    }
-    
+    this.isLoading = true;
+
     setTimeout(() => {
-      console.log('🔄 Cargando PDF para modificación...');
-      this.cargarPDFDesdeURL(pdfUrl);
-    }, 100);
+      const pdfContainer = document.getElementById('pdf-container');
+      if (pdfContainer) {
+        pdfContainer.innerHTML = '';
+      }
+
+      if (this.pdfSrc) {
+        this.renderPdf()
+          .then(() => {
+            this.actualizarInterfazModoModificacion();
+          })
+          .catch(err => {
+            console.error('Error al renderizar PDF en modo modificación:', err);
+            this.isLoading = false;
+            this.errorMessage = 'No se pudo cargar el PDF para modificación.';
+          });
+      } else {
+        const pdfUrl = this.documentoSeleccionado?.archivo_pdf_url;
+        if (pdfUrl) {
+          this.cargarPDFDesdeURL(pdfUrl);
+        } else {
+          this.isLoading = false;
+          this.errorMessage = 'No se encontró la URL del PDF.';
+        }
+      }
+    }, 150);
   }
 
   guardarCambiosDocumento(): void {
@@ -2438,10 +2900,7 @@ export class FormatosComponent implements OnInit {
       return;
     }
     
-    const variables = this.variables.filter(v => v.ubicaciones.length > 0).map(variable => ({
-      nombre: variable.nombre,
-      ubicaciones: variable.ubicaciones
-    }));
+    const variables = this._serializarVariablesParaBackend();
     
     const datosActualizados = {
       variables: variables
@@ -2530,10 +2989,7 @@ export class FormatosComponent implements OnInit {
       return;
     }
     
-    const variables = this.variables.filter(v => v.ubicaciones.length > 0).map(variable => ({
-      nombre: variable.nombre,
-      ubicaciones: variable.ubicaciones
-    }));
+    const variables = this._serializarVariablesParaBackend();
     
     const formData = new FormData();
 
@@ -2725,10 +3181,7 @@ export class FormatosComponent implements OnInit {
       return;
     }
     
-    const variables = this.variables.filter(v => v.ubicaciones.length > 0).map(variable => ({
-      nombre: variable.nombre,
-      ubicaciones: variable.ubicaciones
-    }));
+    const variables = this._serializarVariablesParaBackend();
     
     this.isLoading = true;
     
