@@ -19,7 +19,6 @@ class RegistroCharlaSupervisor(models.Model):
     holding = models.ForeignKey(Holding, on_delete=models.CASCADE)
     sociedad = models.ForeignKey(Sociedad, on_delete=models.SET_NULL, null=True, blank=True)
     supervisor = models.ForeignKey(Supervisores, on_delete=models.SET_NULL, null=True, blank=True)
-    trabajador = models.ForeignKey(PersonalTrabajadores, on_delete=models.CASCADE)
     contrato = models.ForeignKey(ContratoTrabajador, on_delete=models.CASCADE)
 
     class Meta:

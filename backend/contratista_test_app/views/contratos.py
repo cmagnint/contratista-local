@@ -1943,7 +1943,6 @@ class CrearContratoWebAPIView(BaseAPIView):
                             holding_id=request.data['holding'],
                             sociedad=trabajador.sociedad,
                             supervisor=charla_supervisor,
-                            trabajador=trabajador,
                             contrato=contrato,
                         )
                         logger.debug(f'CrearContratoWebAPIView POST: RegistroCharlaSupervisor creado para contrato {contrato.id}')
@@ -2073,11 +2072,11 @@ class ContratoRetroactivoAPIView(BaseAPIView):
 
             if not tiene_contrato:
                 resultados.append({
-                    'trabajador_id':     t.id,
-                    'trabajador_nombre': f"{t.nombres} {t.apellidos or ''}".strip(),
-                    'trabajador_rut':    t.rut or '',
-                    'fecha_inicio_sugerida': fecha,
-                    'fecha_fin_periodo': None,
+                    'trabajador_id':          t.id,
+                    'trabajador_nombre':      f"{t.nombres} {t.apellidos or ''}".strip(),
+                    'trabajador_rut':         t.rut or '',
+                    'fecha_inicio_sugerida':  fecha,
+                    'fecha_fin_periodo':      None,
                 })
 
         return Response(resultados)
@@ -2092,7 +2091,7 @@ class ContratoRetroactivoAPIView(BaseAPIView):
         supervisor_id    = request.data.get('supervisor_id')
 
         campos_requeridos = ['holding', 'trabajador', 'fecha_inicio_contrato',
-                            'labor', 'folio_comercial', 'horario', 'fundo']
+                             'labor', 'folio_comercial', 'horario', 'fundo']
         faltantes = [c for c in campos_requeridos if not request.data.get(c)]
         if faltantes:
             return Response({'error': f'Faltan campos: {faltantes}'}, status=400)
@@ -2145,15 +2144,16 @@ class ContratoRetroactivoAPIView(BaseAPIView):
 
         contrato = ContratoTrabajador.objects.create(**contrato_data)
 
+        trabajador_obj = None
         try:
             horario = Horarios.objects.get(id=request.data['horario'])
-            from ..models import ContratoHorarioSnapshot, PersonalTrabajadores
-            trabajador_obj = PersonalTrabajadores.objects.get(id=trabajador_id)
-            dias = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+            from ..models import ContratoHorarioSnapshot, PersonalTrabajadores as PT
+            trabajador_obj = PT.objects.get(id=trabajador_id)
+            dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
             horas_por_dia = {}
             for i, dia in enumerate(dias):
-                inicio = getattr(horario, f'{dia}_inicio', None)
-                fin = getattr(horario, f'{dia}_fin', None)
+                inicio   = getattr(horario, f'{dia}_inicio', None)
+                fin      = getattr(horario, f'{dia}_fin', None)
                 colacion = getattr(horario, f'{dia}_minutos_colacion', 0) or 0
                 if inicio and fin:
                     mins = (datetime.combine(datetime.today(), fin) - datetime.combine(datetime.today(), inicio)).seconds // 60
@@ -2175,8 +2175,6 @@ class ContratoRetroactivoAPIView(BaseAPIView):
             try:
                 supervisor = Supervisores.objects.get(id=supervisor_id, holding_id=holding_id)
 
-                # Solo crear si NO existe ya un historial de cualquier supervisor
-                # que cubra exactamente este período del contrato retroactivo
                 solapado = SupervisorTrabajadorHistorial.objects.filter(
                     trabajador_id=trabajador_id,
                     fecha_inicio__lte=fecha_inicio,
@@ -2192,12 +2190,33 @@ class ContratoRetroactivoAPIView(BaseAPIView):
                         fecha_inicio=fecha_inicio,
                         fecha_fin=fecha_termino,
                     )
-
             except Supervisores.DoesNotExist:
                 return Response({'error': 'Supervisor no encontrado'}, status=404)
 
-        return Response({'id': contrato.id, 'mensaje': 'Contrato retroactivo creado'}, status=201)
+        # ── Registro charla supervisor ─────────────────────────────────────
+        charla_supervisor_id = request.data.get('charla_supervisor_id')
+        if charla_supervisor_id:
+            try:
+                charla_supervisor = Supervisores.objects.get(
+                    id=charla_supervisor_id, holding_id=holding_id
+                )
+                RegistroCharlaSupervisor.objects.create(
+                    holding_id=holding_id,
+                    sociedad=trabajador_obj.sociedad if trabajador_obj else None,
+                    supervisor=charla_supervisor,
+                    contrato=contrato,
+                )
+                logger.debug(
+                    f'ContratoRetroactivoAPIView POST: RegistroCharlaSupervisor '
+                    f'creado para contrato {contrato.id}'
+                )
+            except Supervisores.DoesNotExist:
+                logger.warning(
+                    f'ContratoRetroactivoAPIView POST: supervisor charla '
+                    f'{charla_supervisor_id} no encontrado, charla no registrada'
+                )
 
+        return Response({'id': contrato.id, 'mensaje': 'Contrato retroactivo creado'}, status=201)
 # ==============================================================================
 # PARAMETRO
 # ==============================================================================

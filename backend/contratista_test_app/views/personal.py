@@ -554,7 +554,6 @@ class PersonalTrabajadoresMobileAPIView(BaseAPIView):
                             holding_id=data.get('holding'),
                             sociedad=personal.sociedad,
                             supervisor=charla_supervisor,
-                            trabajador=personal,
                             contrato=contrato,
                         )
                         logger.debug(f'RegistroCharlaSupervisor creado para contrato {contrato.id}')
