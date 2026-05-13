@@ -61,14 +61,49 @@ export class GenerarContratosComponent implements OnInit {
   documentos: any[]   = [];
   documentoSeleccionado: number | null = null;
   filtroContrato  = 'sin_contrato';
-  filtroVigencia  = 'activo';          // NUEVO: 'activo' | 'vencido'
+  filtroVigencia  = 'activo';
   tipoFormato     = '';
   selection       = new SelectionModel<any>(true, []);
   selectedRows: any[] = [];
 
+  // ─── Filtros de columna ───────────────────────────
+  filtros: { [key: string]: string } = {
+    nombres:       '',
+    apellidos:     '',
+    rut:           '',
+    nic:           '',
+    nacionalidad:  '',
+    cargo:         '',
+    fecha_ingreso: '',
+  };
+
+  readonly filterableColumns = new Set([
+    'nombres', 'apellidos', 'rut', 'nic', 'nacionalidad', 'cargo', 'fecha_ingreso'
+  ]);
+
   displayedColumns: string[] = [
-    'select', 'id', 'nombres', 'apellidos', 'rut', 'estado_contrato', 'cargo', 'fecha_ingreso'
+    'select', 'id', 'nombres', 'apellidos', 'rut', 'nic', 'nacionalidad', 'estado_contrato', 'cargo', 'fecha_ingreso'
   ];
+
+  get filterColumns(): string[] {
+    return this.displayedColumns.map(c => c + '_filter');
+  }
+
+  get filteredTrabajadores(): any[] {
+    return this.trabajadores.filter(t =>
+      (!this.filtros['nombres']       || (t.nombres       || '').toLowerCase().includes(this.filtros['nombres'].toLowerCase()))       &&
+      (!this.filtros['apellidos']     || (t.apellidos     || '').toLowerCase().includes(this.filtros['apellidos'].toLowerCase()))     &&
+      (!this.filtros['rut']           || (t.rut           || '').toLowerCase().includes(this.filtros['rut'].toLowerCase()))           &&
+      (!this.filtros['nic']           || String(t.nic     ?? '').toLowerCase().includes(this.filtros['nic'].toLowerCase()))           &&
+      (!this.filtros['nacionalidad']  || (t.nacionalidad  || '').toLowerCase().includes(this.filtros['nacionalidad'].toLowerCase()))  &&
+      (!this.filtros['cargo']         || (t.cargo?.nombre || '').toLowerCase().includes(this.filtros['cargo'].toLowerCase()))         &&
+      (!this.filtros['fecha_ingreso'] || (t.fecha_ingreso || '').includes(this.filtros['fecha_ingreso']))
+    );
+  }
+
+  get hasActiveFilters(): boolean {
+    return Object.values(this.filtros).some(v => v !== '');
+  }
 
   // ─── Modo parámetro ───────────────────────────────
   parametros: any[]          = [];
@@ -84,7 +119,7 @@ export class GenerarContratosComponent implements OnInit {
   // ─── Lifecycle ────────────────────────────────────
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    this.holding     = localStorage.getItem('holding_id') || '';
+    this.holding      = localStorage.getItem('holding_id') || '';
     this.fechaEmision = new Date().toISOString().split('T')[0];
     this.cargarSociedades();
 
@@ -127,9 +162,11 @@ export class GenerarContratosComponent implements OnInit {
     this.documentos            = [];
     this.documentoSeleccionado = null;
     this.tipoFormato           = '';
-    this.filtroVigencia        = 'activo';   // NUEVO
+    this.filtroVigencia        = 'activo';
     this.selection.clear();
     this.selectedRows          = [];
+    // filtros de columna
+    Object.keys(this.filtros).forEach(k => (this.filtros[k] = ''));
     // parámetro
     this.parametros            = [];
     this.parametroSeleccionado = null;
@@ -141,6 +178,10 @@ export class GenerarContratosComponent implements OnInit {
     this.mostrarContratos      = false;
   }
 
+  clearFiltros(): void {
+    Object.keys(this.filtros).forEach(k => (this.filtros[k] = ''));
+  }
+
   // ─── Modo CLÁSICO ─────────────────────────────────
   cargarTrabajadores(): void {
     if (!this.sociedad) return;
@@ -148,11 +189,12 @@ export class GenerarContratosComponent implements OnInit {
       `holding=${this.holding}`,
       `sociedad_id=${this.sociedad}`,
       `filtro_contrato=${this.filtroContrato}`,
-      `estado_vigencia=${this.filtroVigencia}`,   // NUEVO
+      `estado_vigencia=${this.filtroVigencia}`,
     ].join('&');
     this.apiService.get(`api_personal_filtrado/?${params}`).subscribe({
       next: (res) => {
         this.trabajadores = res;
+        Object.keys(this.filtros).forEach(k => (this.filtros[k] = ''));
         this.selection.clear();
       },
       error: () => this.mostrarError('Error al cargar trabajadores'),
@@ -168,7 +210,6 @@ export class GenerarContratosComponent implements OnInit {
     this.cargarTrabajadores();
   }
 
-  // NUEVO
   cambiarFiltroVigencia(vigencia: string): void {
     this.filtroVigencia        = vigencia;
     this.tipoFormato           = '';
@@ -187,7 +228,7 @@ export class GenerarContratosComponent implements OnInit {
     if (!this.tipoFormato) { this.documentos = []; return; }
     this.apiService.get(`api_listar-documentos/?tipo=${this.tipoFormato}&holding=${this.holding}`).subscribe({
       next: (res) => {
-        this.documentos           = res;
+        this.documentos            = res;
         this.documentoSeleccionado = null;
       },
       error: () => this.mostrarError('Error al cargar documentos'),
@@ -195,21 +236,22 @@ export class GenerarContratosComponent implements OnInit {
   }
 
   isAllSelected(): boolean {
-    return this.selection.selected.length === this.trabajadores.length;
+    const filtered = this.filteredTrabajadores;
+    return filtered.length > 0 && this.selection.selected.length === filtered.length;
   }
 
   toggleAllRows(): void {
     if (this.isAllSelected()) {
       this.selection.clear();
     } else {
-      this.trabajadores.forEach(r => this.selection.select(r));
+      this.filteredTrabajadores.forEach(r => this.selection.select(r));
     }
   }
 
   generarContratosClasico(): void {
-    if (!this.selectedRows.length)    { this.mostrarError('Selecciona al menos un trabajador'); return; }
-    if (!this.documentoSeleccionado)  { this.mostrarError('Selecciona un tipo de documento');   return; }
-    if (!this.fechaEmision)           { this.mostrarError('Selecciona una fecha de emisión');   return; }
+    if (!this.selectedRows.length)   { this.mostrarError('Selecciona al menos un trabajador'); return; }
+    if (!this.documentoSeleccionado) { this.mostrarError('Selecciona un tipo de documento');   return; }
+    if (!this.fechaEmision)          { this.mostrarError('Selecciona una fecha de emisión');   return; }
 
     const conContrato = this.selectedRows.filter(t => t.tiene_contrato);
     if (conContrato.length > 0 && this.filtroContrato !== 'con_contrato') {
@@ -355,10 +397,10 @@ export class GenerarContratosComponent implements OnInit {
   }
 
   // ─── Modales ──────────────────────────────────────
-  openModal(key: string): void  { this.modals[key] = true;  }
+  openModal(key: string): void  { this.modals[key] = true; }
   closeModal(key: string): void {
     this.modals[key] = false;
-    if (key === 'errorModal')                this.errorMessage   = '';
+    if (key === 'errorModal')                 this.errorMessage   = '';
     if (key === 'confirmacionRegenerarModal') this.confirmMessage = '';
   }
 

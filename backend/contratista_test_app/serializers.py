@@ -2393,7 +2393,7 @@ class PersonalConAsignacionesSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PersonalTrabajadores
-        fields = ['id', 'nombres', 'apellidos', 'nombre_completo', 'rut', 
+        fields = ['id', 'nombres', 'apellidos', 'nombre_completo', 'rut','nic', 
                   'nacionalidad', 'cargo', 'fecha_ingreso', 'descuentos', 'tiene_contrato']
     
     def get_nombre_completo(self, obj):

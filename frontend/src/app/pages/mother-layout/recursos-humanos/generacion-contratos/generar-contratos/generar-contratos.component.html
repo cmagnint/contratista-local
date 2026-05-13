@@ -52,7 +52,7 @@
   <!-- ╚══════════════════════════════════════════╝ -->
   <ng-container *ngIf="modoGeneracion === 'CLASICO'">
 
-    <!-- ── Filtro vigencia (NUEVO) ── -->
+    <!-- ── Filtro vigencia ── -->
     <div class="filtros-section-modern">
       <h3 class="filtros-title">ESTADO DEL CONTRATO LABORAL</h3>
       <div class="filtros-buttons-container">
@@ -140,9 +140,21 @@
       <span class="button-text">GENERAR CONTRATOS ({{ selectedRows.length }})</span>
     </button>
 
-    <!-- Tabla clásica -->
-    <table mat-table [dataSource]="trabajadores" class="mat-elevation-z8" *ngIf="trabajadores.length > 0">
+    <!-- Barra de estado de filtros activos -->
+    <div class="filtros-activos-bar" *ngIf="hasActiveFilters">
+      <span class="filtros-activos-label">
+        <mat-icon>filter_list</mat-icon>
+        Mostrando {{ filteredTrabajadores.length }} de {{ trabajadores.length }} trabajadores
+      </span>
+      <button class="btn-limpiar-filtros" (click)="clearFiltros()">
+        <mat-icon>clear</mat-icon> Limpiar filtros
+      </button>
+    </div>
 
+    <!-- Tabla clásica -->
+    <table mat-table [dataSource]="filteredTrabajadores" class="mat-elevation-z8" *ngIf="trabajadores.length > 0">
+
+      <!-- ── Columnas de datos ── -->
       <ng-container matColumnDef="select">
         <th mat-header-cell *matHeaderCellDef class="mat-header">
           <mat-checkbox (change)="$event ? toggleAllRows() : null"
@@ -178,6 +190,16 @@
         <td mat-cell *matCellDef="let t" class="mat-cell"><span class="rut-badge">{{ t.rut }}</span></td>
       </ng-container>
 
+      <ng-container matColumnDef="nic">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">NIC</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell"><span class="rut-badge">{{ t.nic }}</span></td>
+      </ng-container>
+
+      <ng-container matColumnDef="nacionalidad">
+        <th mat-header-cell *matHeaderCellDef class="mat-header">Nacionalidad</th>
+        <td mat-cell *matCellDef="let t" class="mat-cell">{{ t.nacionalidad }}</td>
+      </ng-container>
+
       <ng-container matColumnDef="estado_contrato">
         <th mat-header-cell *matHeaderCellDef class="mat-header">Estado</th>
         <td mat-cell *matCellDef="let t" class="mat-cell">
@@ -197,7 +219,20 @@
         <td mat-cell *matCellDef="let t" class="mat-cell"><span class="fecha-badge">{{ t.fecha_ingreso || 'N/A' }}</span></td>
       </ng-container>
 
+      <!-- ── Columnas de filtro (segunda fila de header) ── -->
+      <ng-container *ngFor="let col of displayedColumns" [matColumnDef]="col + '_filter'">
+        <th mat-header-cell *matHeaderCellDef class="col-filter-header">
+          <input
+            *ngIf="filterableColumns.has(col)"
+            class="col-filter-input"
+            [(ngModel)]="filtros[col]"
+            [placeholder]="col === 'fecha_ingreso' ? 'YYYY-MM-DD' : 'Buscar…'"
+            (click)="$event.stopPropagation()">
+        </th>
+      </ng-container>
+
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-header-row *matHeaderRowDef="filterColumns" class="filter-row"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns;"
         [class.selected]="selection.isSelected(row)"
         (click)="selection.toggle(row)">
@@ -207,6 +242,11 @@
     <div class="no-data-message" *ngIf="sociedad && trabajadores.length === 0">
       <mat-icon>info</mat-icon>
       <p>No se encontraron trabajadores con los filtros seleccionados</p>
+    </div>
+
+    <div class="no-data-message" *ngIf="trabajadores.length > 0 && filteredTrabajadores.length === 0">
+      <mat-icon>search_off</mat-icon>
+      <p>Ningún trabajador coincide con los filtros de columna</p>
     </div>
 
   </ng-container>

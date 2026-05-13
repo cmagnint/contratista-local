@@ -72,7 +72,7 @@
   box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
 }
 
-/* ── Filtros vigencia (NUEVO) ── */
+/* ── Filtros vigencia ── */
 .filtro-button-modern.vigencia-activo.active {
   background: linear-gradient(135deg, #00897B, #00695C) !important;
   color: white !important;
@@ -85,6 +85,97 @@
   color: white !important;
   border-color: #E53935 !important;
   box-shadow: 0 4px 8px rgba(229, 57, 53, 0.3);
+}
+
+/* ============================================ */
+/* 🎯 FILTROS ACTIVOS BAR */
+/* ============================================ */
+
+.filtros-activos-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin: -10px 0 10px 0;
+  font-size: 13px;
+  color: #5d4037;
+}
+
+.filtros-activos-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.filtros-activos-label mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #f57c00;
+}
+
+.btn-limpiar-filtros {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: #f57c00;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-limpiar-filtros:hover { background: #e65100; }
+
+.btn-limpiar-filtros mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* ============================================ */
+/* 🎯 FILA DE FILTROS DE COLUMNA */
+/* ============================================ */
+
+.filter-row th {
+  padding: 4px 8px !important;
+  background: #f0f7f4;
+  border-bottom: 2px solid #c8e6d8;
+}
+
+.col-filter-header {
+  padding: 4px 8px !important;
+}
+
+.col-filter-input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #c8e6d8;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #2c3e50;
+  background: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.col-filter-input:focus {
+  border-color: #14b35c;
+  box-shadow: 0 0 0 2px rgba(20, 179, 92, 0.15);
+}
+
+.col-filter-input::placeholder {
+  color: #aab7b0;
+  font-style: italic;
 }
 
 /* ============================================ */
@@ -228,14 +319,25 @@
   .filtros-section-modern {
     padding: 15px;
   }
-  
+
   .filtros-buttons-container {
     flex-direction: column;
   }
-  
+
   .filtro-button-modern {
     width: 100%;
     justify-content: center;
+  }
+
+  .filtros-activos-bar {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .col-filter-input {
+    font-size: 11px;
+    padding: 4px 6px;
   }
 }
 
@@ -416,11 +518,11 @@
   .contratos-generados-panel {
     padding: 15px;
   }
-  
+
   .panel-title {
     font-size: 16px;
   }
-  
+
   .download-all-btn {
     width: 100%;
     justify-content: center;
