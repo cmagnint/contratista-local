@@ -72,6 +72,7 @@ from .models import (
     FolioComercialLabor,
     RegistroCasaTrabajador,
     ElementoSeguridad,
+    RegistroCharlaSupervisor,
 )
 
 class LoginSerializer(serializers.Serializer):
@@ -3551,3 +3552,53 @@ class ElementoSeguridadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class RegistroCharlaSupervisorSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rut = serializers.CharField(source='usuario.rut', read_only=True)
+    supervisor_nombre = serializers.SerializerMethodField(read_only=True)
+    supervisor_rut = serializers.CharField(source='supervisor.usuario.rut', read_only=True)
+    contrato_id = serializers.IntegerField(source='contrato.id', read_only=True)
+    trabajador_id = serializers.IntegerField(source='contrato.trabajador.id', read_only=True)
+    trabajador_nombre = serializers.SerializerMethodField(read_only=True)
+    trabajador_rut = serializers.CharField(source='contrato.trabajador.rut', read_only=True)
+    fecha_inicio_contrato = serializers.DateField(source='contrato.fecha_inicio_contrato', read_only=True)
+    fecha_termino_contrato = serializers.DateField(source='contrato.fecha_termino_contrato', read_only=True)
+
+    class Meta:
+        model = RegistroCharlaSupervisor
+        fields = [
+            'id',
+            'holding',
+            'sociedad',
+            'supervisor',
+            'supervisor_nombre',
+            'supervisor_rut',
+            'contrato',
+            'contrato_id',
+            'trabajador_id',
+            'trabajador_nombre',
+            'trabajador_rut',
+            'fecha_inicio_contrato',
+            'fecha_termino_contrato',
+        ]
+        read_only_fields = ['id']
+
+    def get_supervisor_nombre(self, obj):
+        if not obj.supervisor_id or not obj.supervisor.usuario_id:
+            return None
+        persona = getattr(obj.supervisor.usuario, 'persona', None)
+        if persona:
+            return f'{persona.nombres} {persona.apellidos or ""}'.strip()
+        return obj.supervisor.usuario.rut
+
+    def get_trabajador_nombre(self, obj):
+        trabajador = obj.contrato.trabajador if obj.contrato_id else None
+        if not trabajador:
+            return None
+        return f'{trabajador.nombres} {trabajador.apellidos or ""}'.strip()
+    
+    def get_usuario_nombre(self, obj):
+        if not obj.usuario or not obj.usuario.persona:
+            return None
+        persona = obj.usuario.persona
+        return f"{persona.nombres} {persona.apellidos or ''}".strip()

@@ -12,6 +12,13 @@
     MODIFICAR SUPERVISOR
   </button>
 
+  <button
+    class="custom-button-charla"
+    type="button"
+    (click)="abrirAsignarCharla(); $event.stopPropagation()">
+    ASIGNAR CHARLA
+  </button>
+
   <!-- ============================================ -->
   <!-- MODAL CREAR / MODIFICAR SUPERVISOR           -->
   <!-- ============================================ -->
@@ -122,6 +129,224 @@
         <button class="button-bottom" (click)="guardar()" [disabled]="submitting">
           {{ submitting ? 'Guardando...' : (editMode ? 'Modificar Supervisor' : 'Crear Supervisor') }}
         </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL ASIGNAR CHARLA                         -->
+  <!-- ============================================ -->
+  <div class="modal modal-charla" *ngIf="showCharlaModal" (click)="cerrarCharlaModal()">
+    <div class="modal-content-charla" (click)="$event.stopPropagation()">
+
+      <div class="charla-modal-header">
+        <div>
+          <h2>ASIGNAR CHARLA A CONTRATOS</h2>
+          <p>Selecciona un rango de fechas, revisa contratos con/sin charla y asigna uno o varios contratos a un supervisor.</p>
+        </div>
+        <button class="close-button-image" type="button" (click)="cerrarCharlaModal()">✕</button>
+      </div>
+
+      <div class="charla-filtros-panel">
+        <div class="charla-filter-item">
+          <label>Fecha inicio</label>
+          <input type="date" [(ngModel)]="filtrosCharla.fechaInicio">
+        </div>
+
+        <div class="charla-filter-item">
+          <label>Fecha fin</label>
+          <input type="date" [(ngModel)]="filtrosCharla.fechaFin">
+        </div>
+
+        <div class="charla-filter-item charla-filter-wide">
+          <label>Trabajador</label>
+          <input
+            type="text"
+            [(ngModel)]="filtrosCharla.trabajador"
+            placeholder="Nombre, apellido o RUT..."
+            (keyup.enter)="cargarCharlas()">
+        </div>
+
+        <div class="charla-filter-item">
+          <label>Supervisor</label>
+          <select [(ngModel)]="filtrosCharla.supervisor">
+            <option value="">Todos</option>
+            <option value="sin">Sin charla asignada</option>
+            <option *ngFor="let sup of supervisores" [value]="sup.id">
+              {{ supervisorNombre(sup) }}
+            </option>
+          </select>
+        </div>
+
+        <div class="charla-filter-actions">
+          <button class="btn-charla-primary" type="button" (click)="cargarCharlas()" [disabled]="loadingCharlas">
+            {{ loadingCharlas ? 'Buscando...' : 'Buscar' }}
+          </button>
+          <button class="btn-charla-secondary" type="button" (click)="limpiarFiltrosCharlas()" [disabled]="loadingCharlas">
+            Limpiar
+          </button>
+        </div>
+      </div>
+
+      <div class="charla-resumen-grid">
+        <div class="charla-resumen-card total">
+          <span class="resumen-number">{{ resumenCharlas.total_contratos }}</span>
+          <span class="resumen-label">Contratos</span>
+        </div>
+        <div class="charla-resumen-card ok">
+          <span class="resumen-number">{{ resumenCharlas.con_charla }}</span>
+          <span class="resumen-label">Con charla</span>
+        </div>
+        <div class="charla-resumen-card warning">
+          <span class="resumen-number">{{ resumenCharlas.sin_charla }}</span>
+          <span class="resumen-label">Sin charla</span>
+        </div>
+        <div class="charla-resumen-card selected-count">
+          <span class="resumen-number">{{ cantidadSeleccionados() }}</span>
+          <span class="resumen-label">Seleccionados</span>
+        </div>
+      </div>
+
+      <div class="charla-asignacion-panel">
+        <div class="charla-asignacion-select">
+          <label>Supervisor que realizó la charla</label>
+          <select [(ngModel)]="supervisorAsignacion">
+            <option [value]="0" disabled>Seleccionar supervisor...</option>
+            <option *ngFor="let sup of supervisores" [value]="sup.id">
+              {{ supervisorNombre(sup) }}
+            </option>
+          </select>
+        </div>
+
+        <div class="charla-asignacion-actions">
+          <button
+            class="btn-charla-assign"
+            type="button"
+            (click)="asignarCharlas()"
+            [disabled]="savingCharlas || cantidadSeleccionados() === 0 || !supervisorAsignacion">
+            {{ savingCharlas ? 'Asignando...' : 'Asignar seleccionados' }}
+          </button>
+
+          <button
+            class="btn-charla-remove"
+            type="button"
+            (click)="quitarCharlasSeleccionadas()"
+            [disabled]="savingCharlas || cantidadSeleccionados() === 0">
+            Quitar charla
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros locales (solo client-side, sobre el árbol ya cargado) -->
+      <div class="charla-filtros-locales" *ngIf="!loadingCharlas && charlaGrupos.length > 0">
+        <div class="charla-filter-local-item">
+          <label>Filtrar supervisor (nombre o RUT)</label>
+          <input
+            type="text"
+            [(ngModel)]="filtroSupervisorLocal"
+            placeholder="Buscar entre los supervisores cargados...">
+        </div>
+        <div class="charla-filter-local-item">
+          <label>Filtrar trabajador (nombre o RUT)</label>
+          <input
+            type="text"
+            [(ngModel)]="filtroTrabajadorLocal"
+            placeholder="Buscar entre los trabajadores cargados...">
+        </div>
+      </div>
+
+      <div class="alert-error-inline charla-alert" *ngIf="charlaError">{{ charlaError }}</div>
+      <div class="alert-success-inline charla-alert" *ngIf="charlaSuccess">{{ charlaSuccess }}</div>
+
+      <div class="charla-loading" *ngIf="loadingCharlas">
+        Cargando contratos y registros de charla...
+      </div>
+
+      <div class="charla-empty" *ngIf="!loadingCharlas && charlaGrupos.length === 0">
+        No hay contratos para el rango de fechas seleccionado.
+      </div>
+
+      <div
+        class="charla-empty"
+        *ngIf="!loadingCharlas && charlaGrupos.length > 0 && gruposFiltrados.length === 0">
+        No hay resultados para los filtros aplicados.
+      </div>
+
+      <div class="charla-tree" *ngIf="!loadingCharlas && gruposFiltrados.length > 0">
+        <div
+          class="charla-supervisor-group"
+          *ngFor="let grupo of gruposFiltrados"
+          [class.sin-charla]="grupo.supervisor_id === null">
+
+          <div class="charla-supervisor-header">
+            <input
+              type="checkbox"
+              [checked]="todosContratosGrupoSeleccionados(grupo)"
+              [indeterminate]="algunosContratosGrupoSeleccionados(grupo)"
+              (change)="toggleGrupoSeleccion(grupo, $event)">
+
+            <button class="charla-expand-btn" type="button" (click)="toggleGrupo(grupo)">
+              {{ grupoExpandido(grupo) ? '▼' : '▶' }}
+            </button>
+
+            <div class="charla-supervisor-title">
+              <strong>{{ grupo.supervisor_nombre }}</strong>
+              <span>{{ grupo.total_trabajadores }} trabajador(es) · {{ grupo.total_contratos }} contrato(s)</span>
+            </div>
+          </div>
+
+          <div class="charla-trabajadores-list" *ngIf="grupoExpandido(grupo)">
+            <div class="charla-trabajador-item" *ngFor="let trabajador of grupo.trabajadores">
+
+              <div class="charla-trabajador-header">
+                <input
+                  type="checkbox"
+                  [checked]="todosContratosTrabajadorSeleccionados(trabajador)"
+                  [indeterminate]="algunosContratosTrabajadorSeleccionados(trabajador)"
+                  (change)="toggleTrabajadorSeleccion(trabajador, $event)">
+
+                <button class="charla-expand-btn small" type="button" (click)="toggleTrabajador(grupo, trabajador)">
+                  {{ trabajadorExpandido(grupo, trabajador) ? '▼' : '▶' }}
+                </button>
+
+                <div class="charla-trabajador-title">
+                  <strong>{{ trabajador.trabajador_nombre }}</strong>
+                  <span>{{ trabajador.trabajador_rut || 'Sin RUT' }} · {{ trabajador.contratos.length }} contrato(s)</span>
+                </div>
+              </div>
+
+              <div class="charla-contratos-list" *ngIf="trabajadorExpandido(grupo, trabajador)">
+                <div class="charla-contrato-row" *ngFor="let contrato of trabajador.contratos">
+                  <div class="charla-contrato-check">
+                    <input
+                      type="checkbox"
+                      [checked]="isContratoSeleccionado(contrato.id)"
+                      (change)="toggleContratoSeleccion(contrato.id, $event)">
+                  </div>
+
+                  <div class="charla-contrato-main">
+                    <div class="charla-contrato-title">
+                      Contrato #{{ contrato.id }}
+                      <span class="estado-pill">{{ contrato.estado_contrato || '—' }}</span>
+                      <span class="charla-pill asignada" *ngIf="contrato.registro_charla_id">Con charla</span>
+                      <span class="charla-pill sin" *ngIf="!contrato.registro_charla_id">Sin charla</span>
+                    </div>
+
+                    <div class="charla-contrato-meta">
+                      <span>Inicio: {{ formatearFecha(contrato.fecha_inicio_contrato) }}</span>
+                      <span>Término: {{ formatearFecha(contrato.fecha_termino_contrato) }}</span>
+                      <span>Documento: {{ contrato.nombre_documento || 'Sin documento' }}</span>
+                      <span>Cliente: {{ contrato.nombre_cliente || 'Sin cliente' }}</span>
+                      <span>Fundo: {{ contrato.nombre_fundo || 'Sin fundo' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>

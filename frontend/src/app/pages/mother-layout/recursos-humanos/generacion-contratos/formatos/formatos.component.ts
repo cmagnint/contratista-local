@@ -1,5 +1,5 @@
 //formatos.component.ts
-import { Component, Inject, NgZone, OnInit, PLATFORM_ID, ViewChild } from '@angular/core';
+import { Component, Inject, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContratistaApiService } from '../../../../../services/contratista-api.service';
@@ -53,6 +53,17 @@ interface ElementoSeguridadOption {
   cantidad: string | null;
 }
 
+interface PdfParteInfo {
+  indice: number;
+  tipo: 'ORIGINAL' | 'ANEXO';
+  etiqueta: string;
+  nombreArchivo: string;
+  paginas: number;
+  paginaInicio: number;
+  paginaFin: number;
+  color: string;
+}
+
 @Component({
   selector: 'app-formatos',
   standalone: true,
@@ -63,13 +74,41 @@ interface ElementoSeguridadOption {
   templateUrl: './formatos.component.html',
   styleUrl: './formatos.component.css'
 })
-export class FormatosComponent implements OnInit {
+export class FormatosComponent implements OnInit, OnDestroy {
   pdfSrc: string | ArrayBuffer | null = null;
   isLoading = false;
   isBrowser: boolean;
   errorMessage: string | null = null;
   public holding: string = '';
   private readonly PDF_DISPLAY_MULTIPLIER = 1.4;
+  private readonly PDF_TEXT_FONT_SIZE_PT = 9;
+  private readonly PDF_TEXT_ASCENT_RATIO = 0.74;
+  private readonly IMAGE_VARIABLES = [
+    'firma_empleador',
+    'timbre_empleador',
+    'firma',
+    'huella',
+    'firma_supervisor',
+    'huella_supervisor'
+  ];
+
+  panelVariablesContraido = false;
+  vistaFinalPDF = false;
+  mostrarDebugCoordenadas = false;
+  zoomPDF = 1;
+  mostrarControlesCargaPDF = true;
+
+  variableSeleccionadaParaPropiedades: {
+    nombre: string;
+    pagina: number;
+    posX: number;
+    posY: number;
+    width?: number;
+    height?: number;
+    fontSize?: number;
+    elementId: string;
+    variableIndex: number;
+  } | null = null;
 
   // Store the original File object
   originalPdfFile: File | null = null;
@@ -80,7 +119,25 @@ export class FormatosComponent implements OnInit {
   totalPages: number = 0;
   pdfPages: any[] = [];
   totalPagesAcumuladas: number[] = []; // Páginas acumuladas por cada PDF
-  
+
+
+  // Identificación visual y administración de PDF original/anexos
+  pdfPartesInfo: PdfParteInfo[] = [];
+  seccionPDFActiva: PdfParteInfo | null = null;
+  paginaPDFActiva: number = 1;
+  private pdfScrollObserver: IntersectionObserver | null = null;
+  private readonly PDF_ORIGINAL_COLOR = '#00E5FF';
+  private readonly PDF_ANEXO_COLORS = [
+    '#39FF14',
+    '#FFEA00',
+    '#FF4FD8',
+    '#00FFC6',
+    '#FF7A00',
+    '#B967FF',
+    '#00B7FF',
+    '#FF3864'
+  ];
+
   // Modal properties
   mostrarModal = false;
   nombreFormato = '';
@@ -102,7 +159,7 @@ export class FormatosComponent implements OnInit {
   // Propiedades para dimensiones nativas del PDF
   pdfNativeWidth: number = 0;
   pdfNativeHeight: number = 0;
-  
+
   // Propiedades Elemento Seguridad
   elementosSeguridad: ElementoSeguridadOption[] = [];
   mostrarModalElementoSeguridad: boolean = false;
@@ -116,6 +173,7 @@ export class FormatosComponent implements OnInit {
   nombreDocumentoEditado: string = '';
   documentosFiltradosCache: any[] = [];
   documentosAgrupadosCache: { tipo: string; documentos: any[] }[] = [];
+  documentosEliminandoIds = new Set<number>();
 
   readonly TEXTO_LIBRE_VARIABLE = 'texto_libre';
   readonly TEXTOS_LIBRES_CONTAINER = 'textos_libres';
@@ -132,12 +190,12 @@ export class FormatosComponent implements OnInit {
   timbreEmpleadorDisponible: boolean = false;
   timbreEmpleadorUrl: string | null = null;
   mostrarModalTimbreEmpleador: boolean = false;
-  
+
   // ⭐ PROPIEDADES PARA FIRMA TRABAJADOR (PLACEHOLDER)
   readonly FIRMA_TRABAJADOR_PLACEHOLDER = 'assets/images/firma_trabajador_placeholder.png';
   readonly FIRMA_TRABAJADOR_WIDTH = 150;
   readonly FIRMA_TRABAJADOR_HEIGHT = 50;
-  
+
   // ⭐ NUEVO: PROPIEDADES PARA HUELLA TRABAJADOR (PLACEHOLDER)
   readonly HUELLA_TRABAJADOR_PLACEHOLDER = 'assets/images/huella_trabajador_placeholder.png';
   readonly HUELLA_TRABAJADOR_WIDTH = 80;
@@ -150,7 +208,7 @@ export class FormatosComponent implements OnInit {
   readonly HUELLA_SUPERVISOR_PLACEHOLDER = 'assets/images/huella_trabajador_placeholder.png';
   readonly HUELLA_SUPERVISOR_WIDTH = 80;
   readonly HUELLA_SUPERVISOR_HEIGHT = 100;
-  
+
   // Control de redimensionamiento de imagen
   imagenFirmaEnEdicion: {
     element: HTMLElement;
@@ -159,7 +217,7 @@ export class FormatosComponent implements OnInit {
     minWidth: number;
     minHeight: number;
   } | null = null;
-  
+
   // Variables de documento con array de ubicaciones
   variables: VariableDocumento[] = [
     { nombre: 'fecha_emision', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
@@ -171,8 +229,8 @@ export class FormatosComponent implements OnInit {
     { nombre: 'dni', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'nic', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'sociedad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'nombre_cliente', valor:'', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
-    { nombre: 'nombre_campo', valor:'', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'nombre_cliente', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
+    { nombre: 'nombre_campo', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'nacionalidad', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'fecha_nacimiento', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'estado_civil', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
@@ -202,16 +260,16 @@ export class FormatosComponent implements OnInit {
     { nombre: 'firma_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
     { nombre: 'huella_supervisor', valor: '', posX: 0, posY: 0, pagina: 1, colocada: false, ubicaciones: [] },
   ];
-  
+
   // Track variables placed on each page
   variablesPorPagina: Map<number, VariablePosicionada[]> = new Map();
-  
+
   // Variable seleccionada actualmente
   variableSeleccionada: VariableDocumento | null = null;
-  
+
   // Estado para modo de posicionamiento
   modoColocacion: boolean = false;
-  
+
   // Variables para el arrastre
   variableArrastrandose: VariablePosicionada | null = null;
   elementoArrastrandose: HTMLElement | null = null;
@@ -219,16 +277,16 @@ export class FormatosComponent implements OnInit {
   offsetY: number = 0;
   paginaActualArrastre: HTMLElement | null = null;
   paginaNumeroArrastre: number = 0;
-  
+
   // Guardar referencia al documento PDF para reutilizarlo
   private pdfDocument: any = null;
-  
+
   // Nueva propiedad para el modo de modificación
   modoModificacion: boolean = false;
-  
+
   // Control de cambios pendientes
   haycambiosPendientes: boolean = false;
-  
+
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
     private ngZone: NgZone,
@@ -242,13 +300,13 @@ export class FormatosComponent implements OnInit {
     if (this.isBrowser) {
       document.addEventListener('mousemove', this.handleMouseMove.bind(this));
       document.addEventListener('mouseup', this.handleMouseUp.bind(this));
-      
+
       this.holding = this.getHoldingIdFromJWT();
     }
-    
+
     this.documentoSeleccionado = null;
     this.modoModificacion = false;
-    
+
     if (this.holding) {
       this.cargarFirmaEmpleador();
       this.cargarTimbreEmpleador();
@@ -256,92 +314,100 @@ export class FormatosComponent implements OnInit {
     }
   }
 
+
+  ngOnDestroy(): void {
+    if (this.pdfScrollObserver) {
+      this.pdfScrollObserver.disconnect();
+      this.pdfScrollObserver = null;
+    }
+  }
+
   onFiltroDocumentoChange(): void {
-  this.recalcularDocumentosExistentes();
-}
+    this.recalcularDocumentosExistentes();
+  }
 
-recalcularDocumentosExistentes(): void {
-  this.documentosFiltradosCache = this.filtrarDocumentos(this.documentosCargados);
-  this.documentosAgrupadosCache = this.agruparDocumentosPorTipo(this.documentosFiltradosCache);
-}
+  recalcularDocumentosExistentes(): void {
+    this.documentosFiltradosCache = this.filtrarDocumentos(this.documentosCargados);
+    this.documentosAgrupadosCache = this.agruparDocumentosPorTipo(this.documentosFiltradosCache);
+  }
 
-private filtrarDocumentos(documentos: any[]): any[] {
-  const busqueda = this.normalizarTexto(this.filtroDocumentoBuscado);
-  const tipo = this.normalizarTexto(this.filtroDocumentoTipo);
-  const fecha = this.filtroDocumentoFecha;
+  private filtrarDocumentos(documentos: any[]): any[] {
+    const busqueda = this.normalizarTexto(this.filtroDocumentoBuscado);
+    const tipo = this.normalizarTexto(this.filtroDocumentoTipo);
+    const fecha = this.filtroDocumentoFecha;
 
-  return (documentos || []).filter((doc: any) => {
-    const nombreDoc = this.normalizarTexto(doc.nombre);
-    const tipoDoc = this.normalizarTexto(doc.tipo);
-    const fechaDoc = doc.fecha_creacion ? new Date(doc.fecha_creacion) : null;
+    return (documentos || []).filter((doc: any) => {
+      const nombreDoc = this.normalizarTexto(doc.nombre);
+      const tipoDoc = this.normalizarTexto(doc.tipo);
+      const fechaDoc = doc.fecha_creacion ? new Date(doc.fecha_creacion) : null;
 
-    const coincideNombre =
-      !busqueda ||
-      nombreDoc.includes(busqueda) ||
-      tipoDoc.includes(busqueda) ||
-      (doc.fecha_creacion || '').toString().includes(busqueda);
+      const coincideNombre =
+        !busqueda ||
+        nombreDoc.includes(busqueda) ||
+        tipoDoc.includes(busqueda) ||
+        (doc.fecha_creacion || '').toString().includes(busqueda);
 
-    const coincideTipo =
-      !tipo ||
-      tipoDoc === tipo;
+      const coincideTipo =
+        !tipo ||
+        tipoDoc === tipo;
 
-    const coincideFecha =
-      !fecha ||
-      (
-        fechaDoc &&
-        fechaDoc.toISOString().slice(0, 10) === fecha
-      );
+      const coincideFecha =
+        !fecha ||
+        (
+          fechaDoc &&
+          fechaDoc.toISOString().slice(0, 10) === fecha
+        );
 
-    return coincideNombre && coincideTipo && coincideFecha;
-  });
-}
+      return coincideNombre && coincideTipo && coincideFecha;
+    });
+  }
 
-private agruparDocumentosPorTipo(documentos: any[]): { tipo: string; documentos: any[] }[] {
-  const ordenTipos = ['CHILENO', 'EXTRANJERO'];
-  const grupos: { [key: string]: any[] } = {};
+  private agruparDocumentosPorTipo(documentos: any[]): { tipo: string; documentos: any[] }[] {
+    const ordenTipos = ['CHILENO', 'EXTRANJERO'];
+    const grupos: { [key: string]: any[] } = {};
 
-  documentos.forEach((doc: any) => {
-    const tipo = (doc.tipo || 'SIN TIPO').toUpperCase();
-    if (!grupos[tipo]) grupos[tipo] = [];
-    grupos[tipo].push(doc);
-  });
+    documentos.forEach((doc: any) => {
+      const tipo = (doc.tipo || 'SIN TIPO').toUpperCase();
+      if (!grupos[tipo]) grupos[tipo] = [];
+      grupos[tipo].push(doc);
+    });
 
-  return Object.keys(grupos)
-    .sort((a, b) => {
-      const ia = ordenTipos.indexOf(a);
-      const ib = ordenTipos.indexOf(b);
+    return Object.keys(grupos)
+      .sort((a, b) => {
+        const ia = ordenTipos.indexOf(a);
+        const ib = ordenTipos.indexOf(b);
 
-      if (ia !== -1 && ib !== -1) return ia - ib;
-      if (ia !== -1) return -1;
-      if (ib !== -1) return 1;
-      return a.localeCompare(b);
-    })
-    .map(tipo => ({
-      tipo,
-      documentos: [...grupos[tipo]].sort((a, b) => {
-        const fa = a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0;
-        const fb = b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0;
-        return fb - fa;
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
       })
-    }));
-}
+      .map(tipo => ({
+        tipo,
+        documentos: [...grupos[tipo]].sort((a, b) => {
+          const fa = a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0;
+          const fb = b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0;
+          return fb - fa;
+        })
+      }));
+  }
 
-trackByGrupoTipo(index: number, grupo: { tipo: string; documentos: any[] }): string {
-  return grupo.tipo;
-}
+  trackByGrupoTipo(index: number, grupo: { tipo: string; documentos: any[] }): string {
+    return grupo.tipo;
+  }
 
-trackByDocumentoId(index: number, documento: any): number {
-  return documento.id;
-}
+  trackByDocumentoId(index: number, documento: any): number {
+    return documento.id;
+  }
 
-   private getHoldingIdFromJWT(): string {
+  private getHoldingIdFromJWT(): string {
     try {
       const userInfo = this.jwtService.getUserInfo();
       const holdingId = userInfo?.holding_id;
-      
+
       console.log('🔍 Holding ID del JWT:', holdingId);
-      
-      if (holdingId && holdingId !== null ) {
+
+      if (holdingId && holdingId !== null) {
         return holdingId.toString();
       } else {
         console.warn('⚠️ Holding ID no encontrado en JWT o es null');
@@ -367,7 +433,7 @@ trackByDocumentoId(index: number, documento: any): number {
         next: (response: any) => {
           this.firmaEmpleadorDisponible = response.firma_disponible;
           this.firmaEmpleadorUrl = response.firma_url || null;
-          
+
           console.log('✅ Estado firma empleador:', {
             disponible: this.firmaEmpleadorDisponible,
             url: this.firmaEmpleadorUrl
@@ -435,14 +501,14 @@ trackByDocumentoId(index: number, documento: any): number {
 
     this.iniciarColocacionVariable(variableElemento);
   }
-  
+
   /**
    * Abrir modal para subir firma
    */
   abrirModalFirmaEmpleador(): void {
     this.mostrarModalFirmaEmpleador = true;
   }
-  
+
   /**
    * Cerrar modal
    */
@@ -457,16 +523,16 @@ trackByDocumentoId(index: number, documento: any): number {
   cerrarModalTimbreEmpleador(): void {
     this.mostrarModalTimbreEmpleador = false;
   }
-  
+
   /**
    * Subir firma del empleador
    */
   onFirmaEmpleadorSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    
+
     if (input.files && input.files[0]) {
       const file = input.files[0];
-      
+
       // Validar tipo
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
@@ -479,14 +545,14 @@ trackByDocumentoId(index: number, documento: any): number {
         alert('La imagen es demasiado grande. Máximo 5MB');
         return;
       }
-      
+
       // Subir al backend
       const formData = new FormData();
       formData.append('firma_empleador', file);
       formData.append('holding_id', this.holding);
-      
+
       this.isLoading = true;
-      
+
       this.apiService.postFormData('api_firma_empleador/', formData)
         .subscribe({
           next: (response: any) => {
@@ -502,7 +568,7 @@ trackByDocumentoId(index: number, documento: any): number {
             alert(`Error: ${error.error?.error || 'No se pudo subir la firma'}`);
             this.isLoading = false;
           }
-      });
+        });
     }
   }
 
@@ -558,7 +624,7 @@ trackByDocumentoId(index: number, documento: any): number {
       pdfContainer.addEventListener('click', this.handlePdfClick.bind(this), { once: true });
     }
   }
-  
+
   /**
    * Eliminar firma del empleador
    */
@@ -566,9 +632,9 @@ trackByDocumentoId(index: number, documento: any): number {
     if (!confirm('¿Está seguro de eliminar la firma del empleador?')) {
       return;
     }
-    
+
     this.isLoading = true;
-    
+
     this.apiService.delete(`api_firma_empleador/?holding_id=${this.holding}`, {})
       .subscribe({
         next: (response: any) => {
@@ -583,8 +649,8 @@ trackByDocumentoId(index: number, documento: any): number {
           alert('No se pudo eliminar la firma');
           this.isLoading = false;
         }
-	      });
-	  }
+      });
+  }
 
   eliminarTimbreEmpleador(): void {
     if (!confirm('¿Está seguro de eliminar el timbre del empleador?')) {
@@ -608,7 +674,7 @@ trackByDocumentoId(index: number, documento: any): number {
         }
       });
   }
-  
+
   /**
    * Verificar si variable está disponible
    */
@@ -627,7 +693,7 @@ trackByDocumentoId(index: number, documento: any): number {
    * Obtener valor de ejemplo realista para cada variable
    */
   obtenerValorEjemplo(nombreVariable: string): string {
-    const ejemplos: {[key: string]: string} = {
+    const ejemplos: { [key: string]: string } = {
       'fecha_emision': '05/11/2025',
       'fecha_ingreso': '15/03/2024',
       'fecha_inicio_contrato': '15/03/2024',
@@ -670,7 +736,7 @@ trackByDocumentoId(index: number, documento: any): number {
 
 
     };
-    
+
     return ejemplos[nombreVariable] || nombreVariable;
   }
 
@@ -691,24 +757,24 @@ trackByDocumentoId(index: number, documento: any): number {
         if (!(window as any).pdfjsLib) {
           await this.loadPdfJsScript();
         }
-        
+
         const pdfjsLib = (window as any).pdfjsLib;
         const workerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-        
+
         const bufferCopy = pdfArrayBuffer.slice(0);
-        
+
         const loadingTask = pdfjsLib.getDocument({ data: bufferCopy });
         const pdf = await loadingTask.promise;
-        
+
         const firstPage = await pdf.getPage(1);
         const nativeViewport = firstPage.getViewport({ scale: 1.0 });
-        
+
         this.pdfNativeWidth = nativeViewport.width;
         this.pdfNativeHeight = nativeViewport.height;
-        
+
         console.log(`✅ Dimensiones nativas inicializadas: ${this.pdfNativeWidth} x ${this.pdfNativeHeight}`);
-        
+
         resolve();
       } catch (error) {
         console.error('Error al inicializar dimensiones del PDF:', error);
@@ -744,44 +810,295 @@ trackByDocumentoId(index: number, documento: any): number {
       });
   }
 
+
+  private obtenerEtiquetaPartePDF(indice: number): string {
+    return indice === 0 ? 'O' : `A${indice}`;
+  }
+
+  private obtenerColorPartePDF(indice: number): string {
+    if (indice === 0) return this.PDF_ORIGINAL_COLOR;
+    return this.PDF_ANEXO_COLORS[(indice - 1) % this.PDF_ANEXO_COLORS.length];
+  }
+
+  private recalcularTotalPagesAcumuladas(): void {
+    let acumulado = 0;
+    this.totalPagesAcumuladas = [];
+
+    this.pdfDocuments.forEach(doc => {
+      acumulado += Number(doc?.numPages || 0);
+      this.totalPagesAcumuladas.push(acumulado);
+    });
+
+    this.totalPages = acumulado;
+  }
+
+  private recalcularPdfPartesInfo(): void {
+    let paginaInicio = 1;
+
+    this.pdfPartesInfo = this.pdfDocuments.map((doc: any, index: number) => {
+      const paginas = Number(doc?.numPages || 0);
+      const paginaFin = paginas > 0 ? paginaInicio + paginas - 1 : paginaInicio;
+      const etiqueta = this.obtenerEtiquetaPartePDF(index);
+      const tipo = index === 0 ? 'ORIGINAL' : 'ANEXO';
+      const nombreArchivo =
+        this.pdfFiles[index]?.name ||
+        (index === 0 ? this.originalPdfFile?.name : '') ||
+        (index === 0 ? this.documentoSeleccionado?.nombre : '') ||
+        `${tipo === 'ORIGINAL' ? 'PDF original' : 'Anexo'} ${etiqueta}`;
+
+      const parte: PdfParteInfo = {
+        indice: index,
+        tipo,
+        etiqueta,
+        nombreArchivo,
+        paginas,
+        paginaInicio,
+        paginaFin,
+        color: this.obtenerColorPartePDF(index)
+      };
+
+      paginaInicio = paginaFin + 1;
+      return parte;
+    });
+
+    if (!this.seccionPDFActiva && this.pdfPartesInfo.length > 0) {
+      this.seccionPDFActiva = this.pdfPartesInfo[0];
+      this.paginaPDFActiva = this.pdfPartesInfo[0].paginaInicio;
+    } else if (this.seccionPDFActiva) {
+      const parteActualizada = this.pdfPartesInfo.find(p => p.indice === this.seccionPDFActiva?.indice);
+      this.seccionPDFActiva = parteActualizada || this.pdfPartesInfo[0] || null;
+      this.paginaPDFActiva = this.seccionPDFActiva?.paginaInicio || 1;
+    }
+  }
+
+  get totalAnexosPDF(): number {
+    return Math.max(0, this.pdfPartesInfo.length - 1);
+  }
+
+  getPdfParteDePagina(pageNum: number): PdfParteInfo | null {
+    return this.pdfPartesInfo.find(parte => pageNum >= parte.paginaInicio && pageNum <= parte.paginaFin) || null;
+  }
+
+  scrollAPdfParte(parte: PdfParteInfo): void {
+    if (!this.isBrowser || !parte) return;
+
+    const pageElement = document.querySelector(`[data-page="${parte.paginaInicio}"]`) as HTMLElement | null;
+    pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+    this.actualizarSeccionActivaDesdePagina(parte.paginaInicio);
+  }
+
+  private actualizarSeccionActivaDesdePagina(pageNum: number): void {
+    const parte = this.getPdfParteDePagina(pageNum);
+    if (!parte) return;
+
+    this.paginaPDFActiva = pageNum;
+    this.seccionPDFActiva = parte;
+
+    document.querySelectorAll('.pdf-page-container.active-pdf-section')
+      .forEach(el => el.classList.remove('active-pdf-section'));
+
+    const pageElement = document.querySelector(`[data-page-global="${pageNum}"]`) as HTMLElement | null;
+    pageElement?.classList.add('active-pdf-section');
+  }
+
+  private observarSeccionPDFActiva(): void {
+    if (!this.isBrowser) return;
+
+    if (this.pdfScrollObserver) {
+      this.pdfScrollObserver.disconnect();
+      this.pdfScrollObserver = null;
+    }
+
+    const pageElements = Array.from(document.querySelectorAll('.pdf-page-container[data-page-global]')) as HTMLElement[];
+    if (pageElements.length === 0) return;
+
+    const root = document.querySelector('.pdf-viewer-wrapper') as HTMLElement | null;
+
+    this.pdfScrollObserver = new IntersectionObserver((entries) => {
+      const visibles = entries
+        .filter(entry => entry.isIntersecting)
+        .sort((a, b) => {
+          const aTop = Math.abs(a.boundingClientRect.top - (root?.getBoundingClientRect().top || 0));
+          const bTop = Math.abs(b.boundingClientRect.top - (root?.getBoundingClientRect().top || 0));
+          return aTop - bTop;
+        });
+
+      const visible = visibles[0];
+      if (!visible) return;
+
+      const pageNum = Number((visible.target as HTMLElement).getAttribute('data-page-global') || 0);
+      if (!pageNum) return;
+
+      this.ngZone.run(() => this.actualizarSeccionActivaDesdePagina(pageNum));
+    }, {
+      root,
+      threshold: [0.12, 0.25, 0.5, 0.75],
+      rootMargin: '-12% 0px -55% 0px'
+    });
+
+    pageElements.forEach(page => this.pdfScrollObserver?.observe(page));
+    this.actualizarSeccionActivaDesdePagina(this.paginaPDFActiva || 1);
+  }
+
+  private construirHeaderPaginaPDF(
+    pageHeader: HTMLElement,
+    parteInfo: PdfParteInfo | null,
+    pageNumGlobal: number,
+    pageNumDentroParte: number
+  ): void {
+    pageHeader.textContent = '';
+
+    const badge = document.createElement('span');
+    badge.className = 'pdf-section-badge';
+    badge.textContent = parteInfo?.etiqueta || 'O';
+
+    const title = document.createElement('span');
+    title.className = 'pdf-page-title';
+    title.textContent = `PÁGINA ${pageNumGlobal}`;
+
+    const section = document.createElement('span');
+    section.className = 'pdf-page-section-name';
+    section.textContent = parteInfo
+      ? `${parteInfo.tipo === 'ORIGINAL' ? 'Original' : 'Anexo'} · ${pageNumDentroParte}/${parteInfo.paginas}`
+      : 'Original';
+
+    pageHeader.appendChild(badge);
+    pageHeader.appendChild(title);
+    pageHeader.appendChild(section);
+  }
+
+  private eliminarYReordenarVariablesPorAnexo(paginaInicio: number, paginaFin: number, paginasEliminadas: number): void {
+    const nuevasVariablesPorPagina: Map<number, VariablePosicionada[]> = new Map();
+
+    this.variables.forEach(variable => {
+      const ubicacionesActualizadas = variable.ubicaciones
+        .filter(ubicacion => ubicacion.pagina < paginaInicio || ubicacion.pagina > paginaFin)
+        .map(ubicacion => ({
+          ...ubicacion,
+          pagina: ubicacion.pagina > paginaFin ? ubicacion.pagina - paginasEliminadas : ubicacion.pagina
+        }));
+
+      variable.ubicaciones = ubicacionesActualizadas;
+      variable.colocada = ubicacionesActualizadas.length > 0;
+
+      if (ubicacionesActualizadas.length > 0) {
+        const ultima = ubicacionesActualizadas[ubicacionesActualizadas.length - 1];
+        variable.pagina = ultima.pagina;
+        variable.posX = ultima.posX;
+        variable.posY = ultima.posY;
+      } else {
+        variable.pagina = 1;
+        variable.posX = 0;
+        variable.posY = 0;
+      }
+    });
+
+    this.variablesPorPagina.forEach((variables, pagina) => {
+      if (pagina >= paginaInicio && pagina <= paginaFin) return;
+
+      const nuevaPagina = pagina > paginaFin ? pagina - paginasEliminadas : pagina;
+      const variablesActualizadas = variables.map(variable => ({ ...variable }));
+      nuevasVariablesPorPagina.set(nuevaPagina, [
+        ...(nuevasVariablesPorPagina.get(nuevaPagina) || []),
+        ...variablesActualizadas
+      ]);
+    });
+
+    this.variablesPorPagina = nuevasVariablesPorPagina;
+
+    if (this.variableSeleccionadaParaPropiedades) {
+      const paginaSeleccionada = this.variableSeleccionadaParaPropiedades.pagina;
+
+      if (paginaSeleccionada >= paginaInicio && paginaSeleccionada <= paginaFin) {
+        this.variableSeleccionadaParaPropiedades = null;
+      } else if (paginaSeleccionada > paginaFin) {
+        this.variableSeleccionadaParaPropiedades = {
+          ...this.variableSeleccionadaParaPropiedades,
+          pagina: paginaSeleccionada - paginasEliminadas
+        };
+      }
+    }
+  }
+
+  async eliminarAnexoPDF(parte: PdfParteInfo, event?: Event): Promise<void> {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!parte || parte.tipo !== 'ANEXO' || parte.indice <= 0) {
+      alert('Solo se pueden eliminar anexos. El PDF original no se puede eliminar desde esta acción.');
+      return;
+    }
+
+    const confirmar = confirm(
+      `¿Eliminar el anexo ${parte.etiqueta}?\n\n` +
+      `${parte.nombreArchivo}\n` +
+      `Páginas ${parte.paginaInicio} a ${parte.paginaFin}.\n\n` +
+      `También se quitarán las variables colocadas dentro de esas páginas.`
+    );
+
+    if (!confirmar) return;
+
+    this.isLoading = true;
+
+    try {
+      const paginasEliminadas = parte.paginaFin - parte.paginaInicio + 1;
+
+      this.pdfBuffers.splice(parte.indice, 1);
+      this.pdfFiles.splice(parte.indice, 1);
+      this.pdfDocuments.splice(parte.indice, 1);
+
+      this.eliminarYReordenarVariablesPorAnexo(parte.paginaInicio, parte.paginaFin, paginasEliminadas);
+      this.recalcularTotalPagesAcumuladas();
+      this.seccionPDFActiva = null;
+      this.recalcularPdfPartesInfo();
+
+      await this.renderizarTodasLasPaginas();
+
+      this.haycambiosPendientes = true;
+    } catch (error) {
+      console.error('Error al eliminar anexo:', error);
+      this.errorMessage = 'No se pudo eliminar el anexo del PDF.';
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   async anexarPDFDirecto(): Promise<void> {
     if (!this.isBrowser) return;
 
     this.ngZone.runOutsideAngular(async () => {
       try {
-        const pdfjsLib = (window as any)['pdfjs-dist/build/pdf'];
-        
+        const pdfjsLib = (window as any)['pdfjs-dist/build/pdf'] || (window as any).pdfjsLib;
+
         if (!pdfjsLib) {
           console.error('PDF.js no está disponible');
-          this.errorMessage = 'Error al cargar la librería PDF.js';
-          this.isLoading = false;
+          this.ngZone.run(() => {
+            this.errorMessage = 'Error al cargar la librería PDF.js';
+            this.isLoading = false;
+          });
           return;
         }
 
         const ultimoBuffer = this.pdfBuffers[this.pdfBuffers.length - 1];
-        const loadingTask = pdfjsLib.getDocument({ data: ultimoBuffer });
+        const loadingTask = pdfjsLib.getDocument({ data: ultimoBuffer.slice(0) });
         const pdfDoc = await loadingTask.promise;
-        
+
         console.log(`✅ PDF anexado cargado - ${pdfDoc.numPages} páginas`);
-        
+
         this.pdfDocuments.push(pdfDoc);
-        
-        let acumulado = 0;
-        this.totalPagesAcumuladas = [];
-        this.pdfDocuments.forEach(doc => {
-          acumulado += doc.numPages;
-          this.totalPagesAcumuladas.push(acumulado);
-        });
-        
-        this.totalPages = acumulado;
-        
+        this.recalcularTotalPagesAcumuladas();
+        this.recalcularPdfPartesInfo();
+
         await this.renderizarTodasLasPaginas();
-        
+
         this.ngZone.run(() => {
           this.isLoading = false;
+          this.haycambiosPendientes = true;
           console.log('✅ PDF anexado renderizado correctamente');
         });
-        
+
       } catch (error) {
         console.error('Error al anexar PDF:', error);
         this.ngZone.run(() => {
@@ -804,6 +1121,9 @@ trackByDocumentoId(index: number, documento: any): number {
     pagesContainer.innerHTML = '';
     this.pdfPages = [];
 
+    this.recalcularTotalPagesAcumuladas();
+    this.recalcularPdfPartesInfo();
+
     const containerWidth = pagesContainer.clientWidth || 800;
     const pixelRatio = window.devicePixelRatio || 1;
 
@@ -812,6 +1132,7 @@ trackByDocumentoId(index: number, documento: any): number {
     for (let docIndex = 0; docIndex < this.pdfDocuments.length; docIndex++) {
       const pdfDoc = this.pdfDocuments[docIndex];
       const paginasAnteriores = docIndex > 0 ? this.totalPagesAcumuladas[docIndex - 1] : 0;
+      const parteInfo = this.pdfPartesInfo[docIndex] || null;
 
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
         try {
@@ -824,7 +1145,7 @@ trackByDocumentoId(index: number, documento: any): number {
           const nativeHeight = nativeViewport.height;
 
           const baseScale = (containerWidth * 0.9) / nativeWidth;
-          const visualScale = baseScale * this.PDF_DISPLAY_MULTIPLIER;
+          const visualScale = baseScale * this.PDF_DISPLAY_MULTIPLIER * this.zoomPDF;
 
           const renderViewport = page.getViewport({
             scale: visualScale * pixelRatio
@@ -834,15 +1155,25 @@ trackByDocumentoId(index: number, documento: any): number {
           const displayHeight = nativeHeight * visualScale;
 
           const pageDiv = document.createElement('div');
-          pageDiv.className = 'pdf-page-container';
+          pageDiv.className = `pdf-page-container ${docIndex === 0 ? 'pdf-original-page' : 'pdf-anexo-page'}`;
+          pageDiv.setAttribute('data-page-global', pageNumGlobal.toString());
+          pageDiv.setAttribute('data-pdf-part-index', docIndex.toString());
+          pageDiv.setAttribute('data-pdf-section', parteInfo?.etiqueta || 'O');
+          pageDiv.style.setProperty('--pdf-part-color', parteInfo?.color || this.PDF_ORIGINAL_COLOR);
+
+          const pageMarker = document.createElement('div');
+          pageMarker.className = 'pdf-page-section-marker';
+          pageMarker.textContent = parteInfo?.etiqueta || 'O';
 
           const pageHeader = document.createElement('div');
           pageHeader.className = 'pdf-page-header';
-          pageHeader.textContent = `PÁGINA ${pageNumGlobal}`;
+          this.construirHeaderPaginaPDF(pageHeader, parteInfo, pageNumGlobal, pageNum);
 
           const pageContentDiv = document.createElement('div');
           pageContentDiv.className = 'pdf-page';
           pageContentDiv.setAttribute('data-page', pageNumGlobal.toString());
+          pageContentDiv.setAttribute('data-pdf-section', parteInfo?.etiqueta || 'O');
+          pageContentDiv.setAttribute('data-pdf-part-index', docIndex.toString());
 
           // ✅ Datos por página. No dependemos de this.pdfNativeWidth global.
           pageContentDiv.setAttribute('data-native-width', nativeWidth.toString());
@@ -876,9 +1207,10 @@ trackByDocumentoId(index: number, documento: any): number {
 
           const pageFooter = document.createElement('div');
           pageFooter.className = 'pdf-page-footer';
-          pageFooter.textContent = 'Haga clic para posicionar variables | Arrastre para mover';
+          pageFooter.textContent = `${parteInfo?.etiqueta || 'O'} · ${parteInfo?.tipo === 'ANEXO' ? 'Anexo' : 'Original'} · Haga clic para posicionar variables | Arrastre para mover`;
 
           pageContentDiv.appendChild(canvas);
+          pageDiv.appendChild(pageMarker);
           pageDiv.appendChild(pageHeader);
           pageDiv.appendChild(pageContentDiv);
           pageDiv.appendChild(pageFooter);
@@ -891,10 +1223,13 @@ trackByDocumentoId(index: number, documento: any): number {
             nativeHeight,
             canvas,
             viewport: renderViewport,
-            container: pageContentDiv
+            container: pageContentDiv,
+            pdfPartIndex: docIndex,
+            pdfPartLabel: parteInfo?.etiqueta || 'O'
           });
 
           console.log(`✅ Página ${pageNumGlobal} renderizada`, {
+            parte: parteInfo?.etiqueta || 'O',
             nativeWidth,
             nativeHeight,
             displayWidth,
@@ -918,6 +1253,8 @@ trackByDocumentoId(index: number, documento: any): number {
     this.ngZone.run(() => {
       setTimeout(() => {
         this.redibujarTodasLasVariables();
+        this.actualizarEstadoVisualPDF();
+        this.observarSeccionPDFActiva();
         console.log(`✅ ${this.pdfPages.length} páginas totales renderizadas`);
       }, 150);
     });
@@ -928,23 +1265,23 @@ trackByDocumentoId(index: number, documento: any): number {
    */
   redibujarTodasLasVariables(): void {
     console.log('🔄 Redibujando todas las variables...');
-    
+
     this.variablesPorPagina.forEach((variables, pageNum) => {
       const pageElement = document.querySelector(`[data-page="${pageNum}"]`) as HTMLElement;
-      
+
       if (pageElement) {
         pageElement.querySelectorAll('.pdf-variable').forEach(el => el.remove());
-        
+
         variables.forEach(variable => {
           this.mostrarVariableEnPdf(variable, pageElement);
         });
-        
+
         console.log(`✅ Página ${pageNum} redibujada con ${variables.length} variables`);
       } else {
         console.warn(`⚠️ No se encontró el elemento de página ${pageNum}`);
       }
     });
-    
+
     console.log('✅ Todas las variables redibujadas');
   }
 
@@ -953,22 +1290,22 @@ trackByDocumentoId(index: number, documento: any): number {
    */
   seleccionarDocumentoExistente(documento: any): void {
     console.log('📂 Seleccionando documento:', documento.nombre);
-    
+
     this.documentoSeleccionado = documento;
     this.documentoGuardadoId = documento.id;
-    
+
     this.isLoading = true;
     this.apiService.get(`api_documento_nativo/${documento.id}/`)
       .subscribe({
         next: (response: any) => {
           console.log('📦 Respuesta del backend:', response);
-          
+
           this.documentoSeleccionado = response;
-          
+
           if (response.variables && Array.isArray(response.variables)) {
             console.log(`📋 Cargando ${response.variables.length} variables desde el backend...`);
             this.cargarVariablesDesdeDocumento(response.variables);
-            
+
             console.log('🗂️ Variables en memoria después de cargar:', {
               totalVariablesColocadas: this.variables.filter(v => v.colocada).length,
               variablesPorPagina: Array.from(this.variablesPorPagina.entries()).map(([pagina, vars]) => ({
@@ -978,9 +1315,9 @@ trackByDocumentoId(index: number, documento: any): number {
               }))
             });
           }
-          
+
           this.cargarPDFDesdeURL(response.archivo_pdf_url);
-          
+
           this.isLoading = false;
         },
         error: (error) => {
@@ -1011,14 +1348,14 @@ trackByDocumentoId(index: number, documento: any): number {
 
       const ubicaciones = Array.isArray(varDoc.ubicaciones)
         ? varDoc.ubicaciones.map((u: any) => ({
-            id: u.id || `var-${varDoc.nombre}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            pagina: Number(u.pagina || 1),
-            posX: Number(u.posX || 0),
-            posY: Number(u.posY || 0),
-            width: u.width !== undefined ? Number(u.width) : undefined,
-            height: u.height !== undefined ? Number(u.height) : undefined,
-            valor: u.valor
-          }))
+          id: u.id || `var-${varDoc.nombre}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          pagina: Number(u.pagina || 1),
+          posX: Number(u.posX || 0),
+          posY: Number(u.posY || 0),
+          width: u.width !== undefined ? Number(u.width) : undefined,
+          height: u.height !== undefined ? Number(u.height) : undefined,
+          valor: u.valor
+        }))
         : [];
 
       this.variables[varIndex].colocada = ubicaciones.length > 0;
@@ -1188,11 +1525,11 @@ trackByDocumentoId(index: number, documento: any): number {
     }
 
     pdfUrl = this.normalizarUrlPdf(pdfUrl);
-    
+
     console.log('PDF URL:', pdfUrl);
-    
+
     this.isLoading = true;
-    
+
     fetch(pdfUrl)
       .then(response => {
         if (!response.ok) {
@@ -1203,11 +1540,11 @@ trackByDocumentoId(index: number, documento: any): number {
       .then(async arrayBuffer => {
         const bufferParaDimensiones = arrayBuffer.slice(0);
         const bufferParaRender = arrayBuffer.slice(0);
-        
+
         this.pdfSrc = bufferParaRender;
-        
+
         await this.inicializarDimensionesPDF(bufferParaDimensiones);
-        
+
         if (!this.modoDocumentoExistente || this.modoModificacion) {
           this.renderPdf().then(() => {
             if (this.modoModificacion) {
@@ -1228,63 +1565,73 @@ trackByDocumentoId(index: number, documento: any): number {
   }
 
   eliminarFormatoDocumento(documento: any, event?: MouseEvent): void {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
 
-  if (!documento?.id) {
-    alert('No se pudo identificar el formato a eliminar.');
-    return;
-  }
+    if (!documento?.id) {
+      alert('No se pudo identificar el formato a eliminar.');
+      return;
+    }
 
-  const confirmar = confirm(
-    `¿Está seguro de eliminar el formato "${documento.nombre}"?\n\n` +
-    `También se eliminará el PDF asociado.\n\n` +
-    `Esta acción no se puede deshacer.`
-  );
+    const documentoId = Number(documento.id);
 
-  if (!confirmar) return;
+    if (this.documentosEliminandoIds.has(documentoId)) {
+      return;
+    }
 
-  this.isLoading = true;
+    const confirmar = confirm(
+      `¿Está seguro de eliminar el formato "${documento.nombre}"?\n\n` +
+      `También se eliminará el PDF asociado.\n\n` +
+      `Esta acción no se puede deshacer.`
+    );
 
-  this.apiService.delete(`api_documento_nativo/${documento.id}/`, {})
-    .subscribe({
-      next: (response: any) => {
-        console.log('Formato eliminado:', response);
+    if (!confirmar) return;
 
-        this.documentosCargados = this.documentosCargados.filter(
-          (doc: any) => doc.id !== documento.id
-        );
+    this.documentosEliminandoIds.add(documentoId);
+    this.isLoading = true;
 
-        if (this.documentoSeleccionado?.id === documento.id) {
-          this.documentoSeleccionado = null;
-          this.documentoGuardadoId = null;
-          this.pdfSrc = null;
-          this.pdfPreviewUrl = null;
-          this.resetearVariables();
+    this.apiService.delete(`api_documento_nativo/${documentoId}/`, {})
+      .subscribe({
+        next: (response: any) => {
+          console.log('Formato eliminado:', response);
 
-          const pdfContainer = document.getElementById('pdf-container');
-          if (pdfContainer) {
-            pdfContainer.innerHTML = '';
+          this.limpiarFormatoEliminadoDeInterfaz(documentoId);
+
+          this.documentosEliminandoIds.delete(documentoId);
+          this.isLoading = false;
+
+          alert(response?.mensaje || 'Formato eliminado exitosamente.');
+        },
+        error: (error) => {
+          console.error('Error al eliminar formato:', error);
+
+          /*
+            Si el backend responde 404/410, significa que el formato ya no existe.
+            Para la interfaz eso debe tratarse como eliminado, no como error visual.
+          */
+          if (error?.status === 404 || error?.status === 410) {
+            this.limpiarFormatoEliminadoDeInterfaz(documentoId);
+
+            this.documentosEliminandoIds.delete(documentoId);
+            this.isLoading = false;
+
+            alert('El formato ya no existía en el servidor. Se quitó de la lista.');
+            return;
           }
+
+          this.documentosEliminandoIds.delete(documentoId);
+          this.isLoading = false;
+
+          alert(
+            error?.error?.error ||
+            error?.error?.detalle ||
+            'No se pudo eliminar el formato.'
+          );
         }
-
-        this.isLoading = false;
-        alert(response?.mensaje || 'Formato eliminado exitosamente.');
-      },
-      error: (error) => {
-        console.error('Error al eliminar formato:', error);
-        this.isLoading = false;
-
-        alert(
-          error?.error?.error ||
-          error?.error?.detalle ||
-          'No se pudo eliminar el formato.'
-        );
-      }
-    });
-}
+      });
+  }
 
   iniciarEdicionNombreDocumento(documento: any, event: Event): void {
     event.preventDefault();
@@ -1309,52 +1656,52 @@ trackByDocumentoId(index: number, documento: any): number {
   }
 
   guardarNombreDocumento(documento: any, event: Event): void {
-  event.preventDefault();
-  event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
 
-  const nuevoNombre = this.nombreDocumentoEditado.trim();
+    const nuevoNombre = this.nombreDocumentoEditado.trim();
 
-  if (!nuevoNombre) {
-    alert('El nombre del formato no puede estar vacío.');
-    return;
-  }
+    if (!nuevoNombre) {
+      alert('El nombre del formato no puede estar vacío.');
+      return;
+    }
 
-  if (nuevoNombre === documento.nombre) {
-    this.documentoEditandoNombreId = null;
-    this.nombreDocumentoEditado = '';
-    return;
-  }
+    if (nuevoNombre === documento.nombre) {
+      this.documentoEditandoNombreId = null;
+      this.nombreDocumentoEditado = '';
+      return;
+    }
 
-  this.isLoading = true;
+    this.isLoading = true;
 
-  this.apiService.patch(`api_documento_nativo/${documento.id}/`, { nombre: nuevoNombre })
-    .subscribe({
-      next: (response: any) => {
-        const nombreActualizado = response?.nombre || nuevoNombre;
+    this.apiService.patch(`api_documento_nativo/${documento.id}/`, { nombre: nuevoNombre })
+      .subscribe({
+        next: (response: any) => {
+          const nombreActualizado = response?.nombre || nuevoNombre;
 
-        documento.nombre = nombreActualizado;
+          documento.nombre = nombreActualizado;
 
-        const docEnLista = this.documentosCargados.find((doc: any) => doc.id === documento.id);
-        if (docEnLista) {
-          docEnLista.nombre = nombreActualizado;
+          const docEnLista = this.documentosCargados.find((doc: any) => doc.id === documento.id);
+          if (docEnLista) {
+            docEnLista.nombre = nombreActualizado;
+          }
+
+          if (this.documentoSeleccionado?.id === documento.id) {
+            this.documentoSeleccionado.nombre = nombreActualizado;
+          }
+
+          this.documentoEditandoNombreId = null;
+          this.nombreDocumentoEditado = '';
+          this.recalcularDocumentosExistentes();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Error al actualizar nombre del formato:', error);
+          this.isLoading = false;
+          alert(error?.error?.error || 'No se pudo actualizar el nombre del formato.');
         }
-
-        if (this.documentoSeleccionado?.id === documento.id) {
-          this.documentoSeleccionado.nombre = nombreActualizado;
-        }
-
-        this.documentoEditandoNombreId = null;
-        this.nombreDocumentoEditado = '';
-        this.recalcularDocumentosExistentes();
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('Error al actualizar nombre del formato:', error);
-        this.isLoading = false;
-        alert(error?.error?.error || 'No se pudo actualizar el nombre del formato.');
-      }
-    });
-}
+      });
+  }
 
 
   onDocumentoItemClick(doc: any): void {
@@ -1370,39 +1717,59 @@ trackByDocumentoId(index: number, documento: any): number {
 
   onFileSelected(event: Event, esAnexo: boolean = false): void {
     if (!this.isBrowser) return;
-    
+
     const input = event.target as HTMLInputElement;
-    
+
     if (input.files && input.files[0]) {
       const file = input.files[0];
       console.log('File selected:', file.name, 'size:', file.size, 'bytes', 'Es anexo:', esAnexo);
-      
+
+      if (file.type !== 'application/pdf') {
+        alert('Solo se permiten archivos PDF.');
+        input.value = '';
+        return;
+      }
+
+      if (esAnexo && !this.pdfSrc) {
+        alert('Primero debes seleccionar el PDF original.');
+        input.value = '';
+        return;
+      }
+
       this.isLoading = true;
       this.errorMessage = null;
-      
+
       const reader = new FileReader();
       reader.onload = () => {
         const originalBuffer = reader.result as ArrayBuffer;
-        
+
         if (!esAnexo) {
           this.originalPdfFile = file;
           this.pdfSrc = originalBuffer.slice(0);
           this.pdfBuffers = [originalBuffer.slice(0)];
           this.pdfFiles = [file];
           this.pdfDocuments = [];
+          this.pdfPartesInfo = [];
+          this.seccionPDFActiva = null;
+          this.paginaPDFActiva = 1;
           this.totalPagesAcumuladas = [];
-          
+          this.totalPages = 0;
+          this.pdfPages = [];
+
           this.mostrarModalTipoContrato = true;
         } else {
           this.pdfBuffers.push(originalBuffer.slice(0));
           this.pdfFiles.push(file);
           this.anexarPDFDirecto();
         }
+
+        input.value = '';
       };
       reader.onerror = (error) => {
         console.error('Error al leer el archivo:', error);
         this.isLoading = false;
         this.errorMessage = 'Error al leer el archivo PDF.';
+        input.value = '';
       };
       reader.readAsArrayBuffer(file);
     }
@@ -1476,28 +1843,167 @@ trackByDocumentoId(index: number, documento: any): number {
   }
 
   /**
-   * Calcular coordenadas nativas del PDF (sin escalado)
+   * Calcular coordenadas nativas de la página clickeada.
+   *
+   * Convención única del editor:
+   * - posX y posY representan la esquina superior izquierda visual del texto/imagen.
+   * - El backend convierte esa misma posición a punto de escritura sin aplicar offsets mágicos.
+   * - Las dimensiones se toman desde la página real, no desde una variable global del PDF.
    */
-  calcularCoordenadasNativas(pageElement: HTMLElement, clientX: number, clientY: number): {posX: number, posY: number} {
+  calcularCoordenadasNativas(pageElement: HTMLElement, clientX: number, clientY: number): { posX: number, posY: number } {
     const pageRect = pageElement.getBoundingClientRect();
-    
-    const pixelX = clientX - pageRect.left;
-    const pixelY = clientY - pageRect.top;
-    
-    const scaleX = this.pdfNativeWidth / pageRect.width;
-    const scaleY = this.pdfNativeHeight / pageRect.height;
-    
+    const { nativeWidth, nativeHeight } = this.obtenerDimensionesNativasPagina(pageElement);
+
+    const pixelX = Math.max(0, Math.min(clientX - pageRect.left, pageRect.width));
+    const pixelY = Math.max(0, Math.min(clientY - pageRect.top, pageRect.height));
+
+    const scaleX = nativeWidth / pageRect.width;
+    const scaleY = nativeHeight / pageRect.height;
+
     const nativeX = pixelX * scaleX;
     const nativeY = pixelY * scaleY;
-    
-    console.log(`Coordenadas nativas: (${nativeX}, ${nativeY}) desde píxeles (${pixelX}, ${pixelY})`);
-    
+
+    console.log('📍 Coordenadas nativas por página:', {
+      pagina: pageElement.getAttribute('data-page'),
+      pixel: { x: pixelX, y: pixelY },
+      nativas: { x: nativeX, y: nativeY },
+      escala: { scaleX, scaleY },
+      dimensiones: { nativeWidth, nativeHeight }
+    });
+
     return {
       posX: nativeX,
       posY: nativeY
     };
   }
-  
+
+  obtenerDimensionesNativasPagina(pageElement: HTMLElement): { nativeWidth: number; nativeHeight: number } {
+    const nativeWidth = Number(pageElement.getAttribute('data-native-width')) || this.pdfNativeWidth || pageElement.offsetWidth;
+    const nativeHeight = Number(pageElement.getAttribute('data-native-height')) || this.pdfNativeHeight || pageElement.offsetHeight;
+    return { nativeWidth, nativeHeight };
+  }
+
+  obtenerEscalaPagina(pageElement: HTMLElement): { scaleX: number; scaleY: number } {
+    const visualScale = Number(pageElement.getAttribute('data-visual-scale'));
+
+    if (visualScale && isFinite(visualScale) && visualScale > 0) {
+      return {
+        scaleX: visualScale,
+        scaleY: visualScale
+      };
+    }
+
+    const { nativeWidth, nativeHeight } = this.obtenerDimensionesNativasPagina(pageElement);
+    const pageRect = pageElement.getBoundingClientRect();
+
+    return {
+      scaleX: pageRect.width / nativeWidth,
+      scaleY: pageRect.height / nativeHeight
+    };
+  }
+
+  private convertirPtAPx(fontSizePt: number, pageElement: HTMLElement): number {
+    const { scaleY } = this.obtenerEscalaPagina(pageElement);
+    return fontSizePt * scaleY;
+  }
+
+  private obtenerTopTextoDesdeBaselinePx(baselineYPx: number, fontSizePx: number): number {
+    return baselineYPx - (fontSizePx * this.PDF_TEXT_ASCENT_RATIO);
+  }
+
+  private obtenerBaselineNativoDesdeTopPx(topPx: number, fontSizePt: number, pageElement: HTMLElement): number {
+    const { scaleY } = this.obtenerEscalaPagina(pageElement);
+    const topNativo = topPx / scaleY;
+    return topNativo + (fontSizePt * this.PDF_TEXT_ASCENT_RATIO);
+  }
+
+  private esVariableTexto(nombre: string): boolean {
+    return !this.esVariableImagen(nombre);
+  }
+
+  private actualizarEstadoVisualPDF(): void {
+    const container = document.getElementById('pdf-container');
+    if (!container) return;
+
+    container.classList.toggle('vista-final-pdf', this.vistaFinalPDF);
+    container.classList.toggle('debug-coordenadas-activo', this.mostrarDebugCoordenadas);
+  }
+
+  togglePanelVariables(): void {
+    this.panelVariablesContraido = !this.panelVariablesContraido;
+  }
+
+  toggleControlesCargaPDF(): void {
+    this.mostrarControlesCargaPDF = !this.mostrarControlesCargaPDF;
+  }
+
+  toggleVistaFinalPDF(): void {
+    this.vistaFinalPDF = !this.vistaFinalPDF;
+    this.actualizarEstadoVisualPDF();
+  }
+
+  toggleDebugCoordenadas(): void {
+    this.mostrarDebugCoordenadas = !this.mostrarDebugCoordenadas;
+    this.actualizarEstadoVisualPDF();
+    this.redibujarTodasLasVariables();
+  }
+
+  async setZoomPDF(zoom: number): Promise<void> {
+    this.zoomPDF = zoom;
+    if (!this.pdfSrc || this.isLoading) return;
+    this.isLoading = true;
+    try {
+      if (this.pdfDocuments.length > 1) {
+        await this.renderizarTodasLasPaginas();
+      } else {
+        await this.renderPdf();
+      }
+      this.actualizarEstadoVisualPDF();
+    } catch (error) {
+      console.error('Error al aplicar zoom:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  private seleccionarVariableParaPropiedades(variable: VariablePosicionada): void {
+    const pageNumber = this.obtenerPaginaVariable(variable.elementId);
+    const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(u => u.id === variable.elementId);
+
+    this.variableSeleccionadaParaPropiedades = {
+      nombre: variable.nombre,
+      pagina: pageNumber,
+      posX: ubicacion?.posX ?? variable.posX,
+      posY: ubicacion?.posY ?? variable.posY,
+      width: ubicacion?.width,
+      height: ubicacion?.height,
+      fontSize: ubicacion?.fontSize ?? this.PDF_TEXT_FONT_SIZE_PT,
+      elementId: variable.elementId,
+      variableIndex: variable.variableIndex,
+    };
+  }
+
+  private obtenerPaginaVariable(elementId: string): number {
+    let pagina = 0;
+    this.variablesPorPagina.forEach((variables, pageNum) => {
+      if (variables.some(v => v.elementId === elementId)) pagina = pageNum;
+    });
+    return pagina;
+  }
+
+  eliminarVariableSeleccionada(): void {
+    if (!this.variableSeleccionadaParaPropiedades) return;
+    this.eliminarVariable(
+      this.variableSeleccionadaParaPropiedades.elementId,
+      this.variableSeleccionadaParaPropiedades.variableIndex
+    );
+    this.variableSeleccionadaParaPropiedades = null;
+  }
+
+  private esVariableImagen(nombre: string): boolean {
+    return this.IMAGE_VARIABLES.includes(nombre);
+  }
+
   findClickedPage(event: MouseEvent): HTMLElement | null {
     const elements = document.elementsFromPoint(event.clientX, event.clientY);
     for (const element of elements) {
@@ -1507,105 +2013,123 @@ trackByDocumentoId(index: number, documento: any): number {
     }
     return null;
   }
-  
+
   handleVariableMouseDown(event: MouseEvent, variable: VariablePosicionada, element: HTMLElement, pageElement: HTMLElement): void {
     event.preventDefault();
     event.stopPropagation();
-    
+
     const pageNumber = parseInt(pageElement.getAttribute('data-page') || '0');
     if (pageNumber <= 0) return;
-    
+
     this.variableArrastrandose = variable;
     this.elementoArrastrandose = element;
     this.paginaActualArrastre = pageElement;
     this.paginaNumeroArrastre = pageNumber;
-    
+
     const rect = element.getBoundingClientRect();
     this.offsetX = event.clientX - rect.left;
     this.offsetY = event.clientY - rect.top;
-    
+
     element.classList.add('dragging');
     document.body.style.cursor = 'move';
   }
-  
+
   handleMouseMove(event: MouseEvent): void {
     if (!this.variableArrastrandose || !this.elementoArrastrandose || !this.paginaActualArrastre) return;
-    
+
     const pageRect = this.paginaActualArrastre.getBoundingClientRect();
-    
+
     let newX = event.clientX - pageRect.left - this.offsetX;
     let newY = event.clientY - pageRect.top - this.offsetY;
-    
+
     newX = Math.max(0, Math.min(newX, pageRect.width - this.elementoArrastrandose.offsetWidth));
     newY = Math.max(0, Math.min(newY, pageRect.height - this.elementoArrastrandose.offsetHeight));
-    
+
     this.elementoArrastrandose.style.left = `${newX}px`;
     this.elementoArrastrandose.style.top = `${newY}px`;
   }
-  
+
   handleMouseUp(event: MouseEvent): void {
-    if (!this.variableArrastrandose || !this.elementoArrastrandose || !this.paginaActualArrastre) return;
-    
-    const finalX = parseInt(this.elementoArrastrandose.style.left);
-    const finalY = parseInt(this.elementoArrastrandose.style.top);
-    
-    const coords = this.calcularCoordenadasNativas(this.paginaActualArrastre, 
-      finalX + this.paginaActualArrastre.getBoundingClientRect().left, 
-      finalY + this.paginaActualArrastre.getBoundingClientRect().top);
-    
+    if (!this.variableArrastrandose || !this.elementoArrastrandose || !this.paginaActualArrastre) {
+      return;
+    }
+
+    const finalX = parseFloat(this.elementoArrastrandose.style.left || '0');
+    const finalTop = parseFloat(this.elementoArrastrandose.style.top || '0');
+
     const variablesList = this.variablesPorPagina.get(this.paginaNumeroArrastre) || [];
-    const variableIndex = variablesList.findIndex(v => v.elementId === this.variableArrastrandose?.elementId);
-    
+    const variableIndex = variablesList.findIndex(
+      v => v.elementId === this.variableArrastrandose?.elementId
+    );
+
     if (variableIndex !== -1) {
-      variablesList[variableIndex].posX = coords.posX;
-      variablesList[variableIndex].posY = coords.posY;
-      
-      const mainVarIndex = variablesList[variableIndex].variableIndex;
+      const itemPagina = variablesList[variableIndex];
+      const mainVarIndex = itemPagina.variableIndex;
+
       if (mainVarIndex >= 0 && mainVarIndex < this.variables.length) {
         const variable = this.variables[mainVarIndex];
-        
-        const ubicacionIndex = variable.ubicaciones.findIndex(u => u.id === this.variableArrastrandose?.elementId);
-        if (ubicacionIndex !== -1) {
-          variable.ubicaciones[ubicacionIndex].posX = coords.posX;
-          variable.ubicaciones[ubicacionIndex].posY = coords.posY;
-          
-          // ⭐ Guardar dimensiones para firma_empleador, firma Y huella
-          if (['firma_empleador', 'timbre_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'].includes(variable.nombre)) {
 
-            const elementRect = this.elementoArrastrandose!.getBoundingClientRect();
-            const pageRect = this.paginaActualArrastre!.getBoundingClientRect();
-            
-            const scaleX = this.pdfNativeWidth / pageRect.width;
-            const scaleY = this.pdfNativeHeight / pageRect.height;
-            
-            const nativeWidth = elementRect.width * scaleX;
-            const nativeHeight = elementRect.height * scaleY;
-            
+        const ubicacionIndex = variable.ubicaciones.findIndex(
+          u => u.id === this.variableArrastrandose?.elementId
+        );
+
+        if (ubicacionIndex !== -1) {
+          const { scaleX, scaleY } = this.obtenerEscalaPagina(this.paginaActualArrastre);
+
+          const nativeX = finalX / scaleX;
+
+          let nativeY: number;
+
+          if (this.esVariableImagen(variable.nombre)) {
+            nativeY = finalTop / scaleY;
+          } else {
+            const fontSizePt =
+              variable.ubicaciones[ubicacionIndex].fontSize ||
+              this.PDF_TEXT_FONT_SIZE_PT;
+
+            nativeY = this.obtenerBaselineNativoDesdeTopPx(
+              finalTop,
+              fontSizePt,
+              this.paginaActualArrastre
+            );
+          }
+
+          itemPagina.posX = nativeX;
+          itemPagina.posY = nativeY;
+
+          variable.ubicaciones[ubicacionIndex].posX = nativeX;
+          variable.ubicaciones[ubicacionIndex].posY = nativeY;
+
+          if (this.esVariableImagen(variable.nombre)) {
+            const elementRect = this.elementoArrastrandose.getBoundingClientRect();
+
+            const nativeWidth = elementRect.width / scaleX;
+            const nativeHeight = elementRect.height / scaleY;
+
             variable.ubicaciones[ubicacionIndex].width = nativeWidth;
             variable.ubicaciones[ubicacionIndex].height = nativeHeight;
-            
-            console.log(`✅ Dimensiones guardadas al arrastrar ${variable.nombre}: ${nativeWidth}x${nativeHeight}`);
           }
-        }
-        
-        if (variable.ubicaciones.length > 0 && ubicacionIndex === variable.ubicaciones.length - 1) {
-          variable.posX = coords.posX;
-          variable.posY = coords.posY;
+
+          if (variable.ubicaciones.length > 0 && ubicacionIndex === variable.ubicaciones.length - 1) {
+            variable.posX = nativeX;
+            variable.posY = nativeY;
+          }
+
+          this.haycambiosPendientes = true;
+          this.seleccionarVariableParaPropiedades(itemPagina);
         }
       }
-      
-      this.haycambiosPendientes = true;
     }
-    
+
     this.elementoArrastrandose.classList.remove('dragging');
     document.body.style.cursor = 'auto';
-    
+
     this.variableArrastrandose = null;
     this.elementoArrastrandose = null;
     this.paginaActualArrastre = null;
     this.paginaNumeroArrastre = 0;
   }
-  
+
   resetearVariables(): void {
     this.variables.forEach(variable => {
       variable.posX = 0;
@@ -1614,16 +2138,17 @@ trackByDocumentoId(index: number, documento: any): number {
       variable.colocada = false;
       variable.ubicaciones = [];
     });
-    
+
     this.variablesPorPagina.clear();
-    
+    this.variableSeleccionadaParaPropiedades = null;
+
     document.querySelectorAll('.pdf-variable').forEach(el => el.remove());
     document.querySelectorAll('.debug-info').forEach(el => el.remove());
   }
-  
+
   exportarPosiciones(): void {
     const posiciones: { variable: string; posicion: { x: number; y: number; pagina: number; }; }[] = [];
-    
+
     this.variables.forEach(variable => {
       variable.ubicaciones.forEach(ubicacion => {
         posiciones.push({
@@ -1636,14 +2161,14 @@ trackByDocumentoId(index: number, documento: any): number {
         });
       });
     });
-    
+
     console.log('Posiciones de variables (coordenadas nativas):', JSON.stringify(posiciones, null, 2));
     this.descargarJSON(posiciones, 'posiciones_variables_nativas.json');
   }
-  
+
   descargarJSON(data: any, filename: string): void {
     if (!this.isBrowser) return;
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1665,17 +2190,17 @@ trackByDocumentoId(index: number, documento: any): number {
       this.ngZone.runOutsideAngular(async () => {
         try {
           console.log('Iniciando renderizado de PDF...');
-          
+
           if (!(window as any).pdfjsLib) {
             console.log('Cargando PDF.js desde CDN...');
             await this.loadPdfJsScript();
           }
-          
+
           const pdfjsLib = (window as any).pdfjsLib;
           if (!pdfjsLib) {
             throw new Error('No se pudo cargar PDF.js');
           }
-          
+
           const workerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
           pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -1683,7 +2208,7 @@ trackByDocumentoId(index: number, documento: any): number {
           if (!container) {
             throw new Error('No se encontró el contenedor #pdf-container');
           }
-          
+
           container.innerHTML = '';
 
           if (this.pdfSrc === null) {
@@ -1691,21 +2216,23 @@ trackByDocumentoId(index: number, documento: any): number {
           }
 
           console.log('Cargando documento PDF...');
-          
+
           const bufferForRender = (this.pdfSrc as ArrayBuffer).slice(0);
-          
+
           const loadingTask = pdfjsLib.getDocument({
             data: bufferForRender,
             cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/cmaps/',
             cMapPacked: true
           });
-          
+
           const pdf = await loadingTask.promise;
           this.pdfDocument = pdf;
           this.pdfDocuments = [pdf];
           this.totalPagesAcumuladas = [pdf.numPages];
           this.totalPages = pdf.numPages;
-          
+          this.seccionPDFActiva = null;
+          this.recalcularPdfPartesInfo();
+
           const firstPage = await pdf.getPage(1);
           const nativeViewport = firstPage.getViewport({ scale: 1.0 });
           this.pdfNativeWidth = nativeViewport.width;
@@ -1726,7 +2253,7 @@ trackByDocumentoId(index: number, documento: any): number {
           });
         } catch (error) {
           console.error('Error al renderizar el PDF:', error);
-          
+
           this.ngZone.run(() => {
             this.isLoading = false;
             this.errorMessage = `Error al renderizar el PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`;
@@ -1736,140 +2263,164 @@ trackByDocumentoId(index: number, documento: any): number {
       });
     });
   }
-  
+
   private createPdfControls(container: HTMLElement, numPages: number): void {
     const controlsContainer = document.createElement('div');
     controlsContainer.className = 'pdf-controls';
-    
+
     const prevButton = document.createElement('button');
     prevButton.textContent = 'Anterior';
     prevButton.className = 'pdf-control-btn prev-btn';
     prevButton.disabled = true;
-    
+
     const pageInfo = document.createElement('span');
     pageInfo.className = 'page-info';
     pageInfo.textContent = `Página 1-3 de ${numPages}`;
-    
+
     const nextButton = document.createElement('button');
     nextButton.textContent = 'Siguiente';
     nextButton.className = 'pdf-control-btn next-btn';
     nextButton.disabled = numPages <= 3;
-    
+
     controlsContainer.appendChild(prevButton);
     controlsContainer.appendChild(pageInfo);
     controlsContainer.appendChild(nextButton);
-    
+
     const pagesContainer = document.createElement('div');
     pagesContainer.id = 'pdf-pages';
     pagesContainer.className = 'pdf-pages';
-    
+
     container.appendChild(controlsContainer);
     container.appendChild(pagesContainer);
-    
+
     let currentPage = 1;
     const pagesToShow = 3;
-    
+
     prevButton.addEventListener('click', () => {
       const newStartPage = Math.max(1, currentPage - pagesToShow);
       const newEndPage = Math.min(newStartPage + pagesToShow - 1, numPages);
-      
+
       this.renderPdfPages(newStartPage, newEndPage);
-      
+
       currentPage = newStartPage;
       pageInfo.textContent = `Página ${newStartPage}-${newEndPage} de ${numPages}`;
       prevButton.disabled = newStartPage === 1;
       nextButton.disabled = newEndPage === numPages;
     });
-    
+
     nextButton.addEventListener('click', () => {
       const newStartPage = Math.min(currentPage + pagesToShow, numPages);
       const newEndPage = Math.min(newStartPage + pagesToShow - 1, numPages);
-      
+
       this.renderPdfPages(newStartPage, newEndPage);
-      
+
       currentPage = newStartPage;
       pageInfo.textContent = `Página ${newStartPage}-${newEndPage} de ${numPages}`;
       prevButton.disabled = newStartPage === 1;
       nextButton.disabled = newEndPage === numPages;
     });
-    
+
     this.currentPage = currentPage;
     this.pageInfo = pageInfo;
     this.prevButton = prevButton;
     this.nextButton = nextButton;
   }
-  
+
   private currentPage: number = 1;
   private pageInfo: HTMLElement | null = null;
   private prevButton: HTMLButtonElement | null = null;
   private nextButton: HTMLButtonElement | null = null;
-  
+
   private async renderPdfPages(startPage: number, endPage: number): Promise<void> {
     if (!this.pdfDocument) return;
-    
+
     const pdfDoc = this.pdfDocument;
     const numPages = pdfDoc.numPages;
-    
+
     startPage = Math.max(1, Math.min(startPage, numPages));
     endPage = Math.min(Math.max(startPage, endPage), numPages);
-    
+
     const pagesContainer = document.getElementById('pdf-pages');
     if (!pagesContainer) return;
-    
+
     pagesContainer.innerHTML = '';
-    
+
     const containerWidth = pagesContainer.clientWidth || 800;
     const pixelRatio = window.devicePixelRatio || 1;
-    
+
     console.log(`📄 Renderizando páginas ${startPage}-${endPage}...`);
     console.log(`📐 Dimensiones nativas disponibles: ${this.pdfNativeWidth} x ${this.pdfNativeHeight}`);
-    
+
     for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+      const parteInfo = this.getPdfParteDePagina(pageNum) || this.pdfPartesInfo[0] || null;
+
       const pageDiv = document.createElement('div');
-      pageDiv.className = 'pdf-page-container';
-      
+      pageDiv.className = `pdf-page-container ${parteInfo?.tipo === 'ANEXO' ? 'pdf-anexo-page' : 'pdf-original-page'}`;
+      pageDiv.setAttribute('data-page-global', pageNum.toString());
+      pageDiv.setAttribute('data-pdf-section', parteInfo?.etiqueta || 'O');
+      pageDiv.style.setProperty('--pdf-part-color', parteInfo?.color || this.PDF_ORIGINAL_COLOR);
+
+      const pageMarker = document.createElement('div');
+      pageMarker.className = 'pdf-page-section-marker';
+      pageMarker.textContent = parteInfo?.etiqueta || 'O';
+
       const pageHeader = document.createElement('div');
       pageHeader.className = 'pdf-page-header';
-      pageHeader.textContent = `PÁGINA ${pageNum}`;
+      this.construirHeaderPaginaPDF(pageHeader, parteInfo, pageNum, pageNum);
+      pageDiv.appendChild(pageMarker);
       pageDiv.appendChild(pageHeader);
-      
+
       const pageContentDiv = document.createElement('div');
       pageContentDiv.className = 'pdf-page';
       pageContentDiv.setAttribute('data-page', pageNum.toString());
-      
+
       const page = await pdfDoc.getPage(pageNum);
-      
+
       const viewport = page.getViewport({ scale: 1.0 });
-      const scale = (containerWidth * 0.9) / viewport.width;
-      const scaledViewport = page.getViewport({ scale: scale * 1.4 * pixelRatio });
-      
-      pageContentDiv.style.width = `${viewport.width / pixelRatio}px`;
-      pageContentDiv.style.height = `${viewport.height / pixelRatio}px`;
-      
+      const nativeWidth = viewport.width;
+      const nativeHeight = viewport.height;
+      const baseScale = (containerWidth * 0.9) / nativeWidth;
+      const visualScale = baseScale * this.PDF_DISPLAY_MULTIPLIER * this.zoomPDF;
+      const scaledViewport = page.getViewport({ scale: visualScale * pixelRatio });
+      const displayWidth = nativeWidth * visualScale;
+      const displayHeight = nativeHeight * visualScale;
+
+      pageContentDiv.setAttribute('data-native-width', nativeWidth.toString());
+      pageContentDiv.setAttribute('data-native-height', nativeHeight.toString());
+      pageContentDiv.setAttribute('data-visual-scale', visualScale.toString());
+      pageContentDiv.style.width = `${displayWidth}px`;
+      pageContentDiv.style.height = `${displayHeight}px`;
+
       const canvas = document.createElement('canvas');
       canvas.className = 'pdf-canvas';
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
-      canvas.style.width = `${scaledViewport.width / pixelRatio}px`;
-      canvas.style.height = `${scaledViewport.height / pixelRatio}px`;
-      
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+
       const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
       if (!context) continue;
-      
+
       pageContentDiv.appendChild(canvas);
       pageDiv.appendChild(pageContentDiv);
+
+      const pageFooter = document.createElement('div');
+      pageFooter.className = 'pdf-page-footer';
+      pageFooter.textContent = `${parteInfo?.etiqueta || 'O'} · ${parteInfo?.tipo === 'ANEXO' ? 'Anexo' : 'Original'} · Haga clic para posicionar variables | Arrastre para mover`;
+      pageDiv.appendChild(pageFooter);
+
       pagesContainer.appendChild(pageDiv);
-      
+
       await page.render({
         canvasContext: context,
         viewport: scaledViewport,
         renderInteractiveForms: true
       }).promise;
-      
+
       console.log(`✅ Canvas de página ${pageNum} renderizado`);
-      
+
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       const pageRect = pageContentDiv.getBoundingClientRect();
       console.log(`📏 Dimensiones de página ${pageNum} en DOM:`, {
         width: pageRect.width,
@@ -1877,11 +2428,11 @@ trackByDocumentoId(index: number, documento: any): number {
         left: pageRect.left,
         top: pageRect.top
       });
-      
+
       this.ngZone.run(() => {
         const variables = this.variablesPorPagina.get(pageNum) || [];
         console.log(`🔍 Página ${pageNum} tiene ${variables.length} variables para renderizar`);
-        
+
         if (variables.length > 0) {
           console.log(`📋 Variables en página ${pageNum}:`, variables.map(v => ({
             nombre: v.nombre,
@@ -1889,26 +2440,27 @@ trackByDocumentoId(index: number, documento: any): number {
             posY: v.posY
           })));
         }
-        
+
         variables.forEach(variable => {
           this.mostrarVariableEnPdf(variable, pageContentDiv);
         });
       });
     }
-    
+
+    this.observarSeccionPDFActiva();
     console.log(`✅ Todas las páginas (${startPage}-${endPage}) renderizadas completamente`);
   }
-  
+
   private loadPdfJsScript(): Promise<void> {
     return new Promise((resolve, reject) => {
       const pdfJsVersion = '3.4.120';
       const scriptSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfJsVersion}/pdf.min.js`;
-      
+
       if (document.querySelector(`script[src="${scriptSrc}"]`)) {
         resolve();
         return;
       }
-      
+
       const script = document.createElement('script');
       script.src = scriptSrc;
       script.onload = () => resolve();
@@ -1972,7 +2524,7 @@ trackByDocumentoId(index: number, documento: any): number {
           ? { valor: valorEspecial }
           : variableActual.nombre === this.TEXTO_LIBRE_VARIABLE
             ? { valor: this.textoLibrePendiente }
-          : {}
+            : {}
       )
     });
 
@@ -1989,6 +2541,7 @@ trackByDocumentoId(index: number, documento: any): number {
     };
 
     this.variablesPorPagina.get(pageNumber)?.push(variablePosicionada);
+    this.seleccionarVariableParaPropiedades(variablePosicionada);
     this.mostrarVariableEnPdf(variablePosicionada, clickedPage);
 
     if (this.modoModificacion) {
@@ -2044,391 +2597,212 @@ trackByDocumentoId(index: number, documento: any): number {
     this.variableSeleccionada = null;
   }
 
-  /**
-   * ⭐ MODIFICADO: Mostrar variable en PDF (soporta firma_empleador, firma Y huella como imágenes)
-   */
   mostrarVariableEnPdf(variable: VariablePosicionada, pageElement: HTMLElement): void {
-  
-    console.log(`🔄 Intentando renderizar variable "${variable.nombre}"...`);
-    
     if (this.pdfNativeWidth === 0 || this.pdfNativeHeight === 0) {
-      console.error('❌ ERROR: Dimensiones nativas no inicializadas');
+      console.error('ERROR: Dimensiones nativas no inicializadas');
       return;
     }
-    
+
     const pageRect = pageElement.getBoundingClientRect();
+
     if (pageRect.width === 0 || pageRect.height === 0) {
-      console.error(`❌ ERROR: pageElement no tiene dimensiones válidas`);
-      setTimeout(() => {
-        console.log(`🔁 Reintentando renderizar "${variable.nombre}"...`);
-        this.mostrarVariableEnPdf(variable, pageElement);
-      }, 100);
+      setTimeout(() => this.mostrarVariableEnPdf(variable, pageElement), 100);
       return;
     }
-    
+
+    const { scaleX, scaleY } = this.obtenerEscalaPagina(pageElement);
+    const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(
+      u => u.id === variable.elementId
+    );
+
     const variableElement = document.createElement('div');
+    variableElement.id = variable.elementId;
     variableElement.className = 'pdf-variable';
+    variableElement.setAttribute('data-variable', variable.nombre);
+    variableElement.setAttribute('data-variable-index', variable.variableIndex.toString());
+
     if (this.modoModificacion) {
       variableElement.classList.add('edit-mode');
     }
-    
-    // CASO 1: firma_empleador es IMAGEN REAL
+
+    if (this.variableSeleccionadaParaPropiedades?.elementId === variable.elementId) {
+      variableElement.classList.add('selected');
+    }
+
+    const displayX = variable.posX * scaleX;
+    const baselineYPx = variable.posY * scaleY;
+
+    if (
+      isNaN(displayX) ||
+      isNaN(baselineYPx) ||
+      !isFinite(displayX) ||
+      !isFinite(baselineYPx)
+    ) {
+      console.error('ERROR: Coordenadas display inválidas', {
+        variable,
+        displayX,
+        baselineYPx
+      });
+      return;
+    }
+
+    variableElement.style.position = 'absolute';
+    variableElement.style.left = `${displayX}px`;
+    variableElement.style.zIndex = '100';
+    variableElement.style.whiteSpace = 'nowrap';
+    variableElement.style.maxWidth = 'none';
+    variableElement.style.cursor = 'move';
+    variableElement.style.pointerEvents = 'all';
+
+    const renderImage = (
+      src: string,
+      fallbackWidth: number,
+      fallbackHeight: number,
+      className: string
+    ): void => {
+      variableElement.classList.add(className, 'pdf-variable-image');
+
+      const img = document.createElement('img');
+      img.src = src;
+
+      const nativeImgWidth = ubicacion?.width || fallbackWidth;
+      const nativeImgHeight = ubicacion?.height || fallbackHeight;
+
+      const displayWidth = nativeImgWidth * scaleX;
+      const displayHeight = nativeImgHeight * scaleY;
+
+      variableElement.style.top = `${variable.posY * scaleY}px`;
+      variableElement.style.width = `${displayWidth}px`;
+      variableElement.style.height = `${displayHeight}px`;
+
+      img.style.width = `${displayWidth}px`;
+      img.style.height = `${displayHeight}px`;
+      img.style.objectFit = 'contain';
+      img.style.display = 'block';
+      img.style.pointerEvents = 'none';
+
+      img.onerror = () => {
+        console.error(`Error al cargar imagen ${variable.nombre}`);
+        img.style.border = '2px solid red';
+      };
+
+      variableElement.appendChild(img);
+    };
+
     if (variable.nombre === 'firma_empleador') {
-      if (!this.firmaEmpleadorDisponible || !this.firmaEmpleadorUrl) {
-        console.warn('⚠️ firma_empleador no disponible');
-        return;
-      }
-      
-      variableElement.classList.add('firma-empleador-imagen');
-      
-      const img = document.createElement('img');
-      img.src = this.firmaEmpleadorUrl;
-      
-      const mainVariable = this.variables[variable.variableIndex];
-      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
-      
-      const scaleX = pageRect.width / this.pdfNativeWidth;
-      const scaleY = pageRect.height / this.pdfNativeHeight;
-      
-      let displayWidth = 150;
-      let displayHeight = 50;
-      
-      if (ubicacion?.width && ubicacion?.height) {
-        displayWidth = ubicacion.width * scaleX;
-        displayHeight = ubicacion.height * scaleY;
-        console.log(`✅ Usando dimensiones guardadas firma_empleador: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
-      }
-      
-      img.style.width = `${displayWidth}px`;
-      img.style.height = `${displayHeight}px`;
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.pointerEvents = 'none';
-      img.onerror = () => {
-        console.error('❌ Error al cargar imagen firma_empleador');
-        img.style.border = '2px solid red';
-      };
-      img.onload = () => console.log('✅ Imagen firma_empleador cargada');
-      variableElement.appendChild(img);
-      
-    }
-    else if (variable.nombre === 'timbre_empleador') {
-      if (!this.timbreEmpleadorDisponible || !this.timbreEmpleadorUrl) {
-        console.warn('timbre_empleador no disponible');
-        return;
-      }
+      if (!this.firmaEmpleadorDisponible || !this.firmaEmpleadorUrl) return;
+      renderImage(this.firmaEmpleadorUrl, 150, 50, 'firma-empleador-imagen');
 
-      variableElement.classList.add('firma-empleador-imagen');
+    } else if (variable.nombre === 'timbre_empleador') {
+      if (!this.timbreEmpleadorDisponible || !this.timbreEmpleadorUrl) return;
+      renderImage(this.timbreEmpleadorUrl, 150, 50, 'firma-empleador-imagen');
 
-      const img = document.createElement('img');
-      img.src = this.timbreEmpleadorUrl;
+    } else if (variable.nombre === 'firma') {
+      renderImage(
+        this.FIRMA_TRABAJADOR_PLACEHOLDER,
+        this.FIRMA_TRABAJADOR_WIDTH,
+        this.FIRMA_TRABAJADOR_HEIGHT,
+        'firma-trabajador-imagen'
+      );
 
-      const mainVariable = this.variables[variable.variableIndex];
-      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
+    } else if (variable.nombre === 'huella') {
+      renderImage(
+        this.HUELLA_TRABAJADOR_PLACEHOLDER,
+        this.HUELLA_TRABAJADOR_WIDTH,
+        this.HUELLA_TRABAJADOR_HEIGHT,
+        'huella-trabajador-imagen'
+      );
 
-      const scaleX = pageRect.width / this.pdfNativeWidth;
-      const scaleY = pageRect.height / this.pdfNativeHeight;
+    } else if (variable.nombre === 'firma_supervisor') {
+      renderImage(
+        this.FIRMA_SUPERVISOR_PLACEHOLDER,
+        this.FIRMA_SUPERVISOR_WIDTH,
+        this.FIRMA_SUPERVISOR_HEIGHT,
+        'firma-supervisor-imagen'
+      );
 
-      let displayWidth = 150;
-      let displayHeight = 50;
+    } else if (variable.nombre === 'huella_supervisor') {
+      renderImage(
+        this.HUELLA_SUPERVISOR_PLACEHOLDER,
+        this.HUELLA_SUPERVISOR_WIDTH,
+        this.HUELLA_SUPERVISOR_HEIGHT,
+        'huella-supervisor-imagen'
+      );
 
-      if (ubicacion?.width && ubicacion?.height) {
-        displayWidth = ubicacion.width * scaleX;
-        displayHeight = ubicacion.height * scaleY;
-      }
-
-      img.style.width = `${displayWidth}px`;
-      img.style.height = `${displayHeight}px`;
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.pointerEvents = 'none';
-      img.onerror = () => {
-        console.error('Error al cargar imagen timbre_empleador');
-        img.style.border = '2px solid red';
-      };
-      variableElement.appendChild(img);
-    }
-    // CASO 2: firma trabajador es IMAGEN PLACEHOLDER
-    else if (variable.nombre === 'firma') {
-      variableElement.classList.add('firma-trabajador-imagen');
-      
-      const img = document.createElement('img');
-      img.src = this.FIRMA_TRABAJADOR_PLACEHOLDER;
-      
-      const mainVariable = this.variables[variable.variableIndex];
-      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
-      
-      const scaleX = pageRect.width / this.pdfNativeWidth;
-      const scaleY = pageRect.height / this.pdfNativeHeight;
-      
-      let displayWidth = this.FIRMA_TRABAJADOR_WIDTH;
-      let displayHeight = this.FIRMA_TRABAJADOR_HEIGHT;
-      
-      if (ubicacion?.width && ubicacion?.height) {
-        displayWidth = ubicacion.width * scaleX;
-        displayHeight = ubicacion.height * scaleY;
-        console.log(`✅ Usando dimensiones guardadas firma: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
-      }
-      
-      img.style.width = `${displayWidth}px`;
-      img.style.height = `${displayHeight}px`;
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.pointerEvents = 'none';
-      img.onerror = () => {
-        console.error('❌ Error al cargar imagen placeholder firma');
-        img.style.border = '2px solid red';
-      };
-      img.onload = () => console.log('✅ Imagen placeholder firma cargada');
-      variableElement.appendChild(img);
-      
-    }
-    // CASO 3: huella trabajador es IMAGEN PLACEHOLDER
-    else if (variable.nombre === 'huella') {
-      variableElement.classList.add('huella-trabajador-imagen');
-      
-      const img = document.createElement('img');
-      img.src = this.HUELLA_TRABAJADOR_PLACEHOLDER;
-      
-      const mainVariable = this.variables[variable.variableIndex];
-      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
-      
-      const scaleX = pageRect.width / this.pdfNativeWidth;
-      const scaleY = pageRect.height / this.pdfNativeHeight;
-      
-      let displayWidth = this.HUELLA_TRABAJADOR_WIDTH;
-      let displayHeight = this.HUELLA_TRABAJADOR_HEIGHT;
-      
-      if (ubicacion?.width && ubicacion?.height) {
-        displayWidth = ubicacion.width * scaleX;
-        displayHeight = ubicacion.height * scaleY;
-        console.log(`✅ Usando dimensiones guardadas huella: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
-      }
-      
-      img.style.width = `${displayWidth}px`;
-      img.style.height = `${displayHeight}px`;
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.pointerEvents = 'none';
-      img.onerror = () => {
-        console.error('❌ Error al cargar imagen placeholder huella');
-        img.style.border = '2px solid red';
-      };
-      img.onload = () => console.log('✅ Imagen placeholder huella cargada');
-      variableElement.appendChild(img);
-      
-    }
-    // CASO 4: firma supervisor es IMAGEN PLACEHOLDER
-    else if (variable.nombre === 'firma_supervisor') {
-      variableElement.classList.add('firma-supervisor-imagen');
-      
-      const img = document.createElement('img');
-      img.src = this.FIRMA_SUPERVISOR_PLACEHOLDER;
-      
-      const mainVariable = this.variables[variable.variableIndex];
-      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
-      
-      const scaleX = pageRect.width / this.pdfNativeWidth;
-      const scaleY = pageRect.height / this.pdfNativeHeight;
-      
-      let displayWidth = this.FIRMA_SUPERVISOR_WIDTH;
-      let displayHeight = this.FIRMA_SUPERVISOR_HEIGHT;
-      
-      if (ubicacion?.width && ubicacion?.height) {
-        displayWidth = ubicacion.width * scaleX;
-        displayHeight = ubicacion.height * scaleY;
-        console.log(`✅ Usando dimensiones guardadas firma_supervisor: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
-      }
-      
-      img.style.width = `${displayWidth}px`;
-      img.style.height = `${displayHeight}px`;
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.pointerEvents = 'none';
-      img.onerror = () => {
-        console.error('❌ Error al cargar imagen placeholder firma_supervisor');
-        img.style.border = '2px solid red';
-      };
-      img.onload = () => console.log('✅ Imagen placeholder firma_supervisor cargada');
-      variableElement.appendChild(img);
-      
-    }
-    // CASO 5: huella supervisor es IMAGEN PLACEHOLDER
-    else if (variable.nombre === 'huella_supervisor') {
-      variableElement.classList.add('huella-supervisor-imagen');
-      
-      const img = document.createElement('img');
-      img.src = this.HUELLA_SUPERVISOR_PLACEHOLDER;
-      
-      const mainVariable = this.variables[variable.variableIndex];
-      const ubicacion = mainVariable.ubicaciones.find(u => u.id === variable.elementId);
-      
-      const scaleX = pageRect.width / this.pdfNativeWidth;
-      const scaleY = pageRect.height / this.pdfNativeHeight;
-      
-      let displayWidth = this.HUELLA_SUPERVISOR_WIDTH;
-      let displayHeight = this.HUELLA_SUPERVISOR_HEIGHT;
-      
-      if (ubicacion?.width && ubicacion?.height) {
-        displayWidth = ubicacion.width * scaleX;
-        displayHeight = ubicacion.height * scaleY;
-        console.log(`✅ Usando dimensiones guardadas huella_supervisor: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}px`);
-      }
-      
-      img.style.width = `${displayWidth}px`;
-      img.style.height = `${displayHeight}px`;
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.pointerEvents = 'none';
-      img.onerror = () => {
-        console.error('❌ Error al cargar imagen placeholder huella_supervisor');
-        img.style.border = '2px solid red';
-      };
-      img.onload = () => console.log('✅ Imagen placeholder huella_supervisor cargada');
-      variableElement.appendChild(img);
-      
-    }
-    // CASO 6: texto genérico (elemento_seguridad, cantidad_seguridad, resto de variables)
-    else {
-      const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(u => u.id === variable.elementId);
+    } else {
       const textoMostrar = (
         ['elemento_seguridad', 'cantidad_seguridad', 'texto_libre'].includes(variable.nombre) &&
         ubicacion?.valor
       )
         ? ubicacion.valor
         : this.obtenerValorEjemplo(variable.nombre);
+
+      const fontSizePt = ubicacion?.fontSize || this.PDF_TEXT_FONT_SIZE_PT;
+      const displayFontSize = this.convertirPtAPx(fontSizePt, pageElement);
+
+      const displayTop = this.obtenerTopTextoDesdeBaselinePx(
+        baselineYPx,
+        displayFontSize
+      );
+
+      variableElement.style.top = `${displayTop}px`;
+      variableElement.style.height = `${displayFontSize}px`;
+
       const textSpan = document.createElement('span');
       textSpan.textContent = textoMostrar;
       textSpan.style.pointerEvents = 'none';
+      textSpan.style.display = 'block';
+      textSpan.style.height = `${displayFontSize}px`;
+      textSpan.style.lineHeight = `${displayFontSize}px`;
+      textSpan.style.margin = '0';
+      textSpan.style.padding = '0';
+
       variableElement.appendChild(textSpan);
-    }
-    
-    variableElement.id = variable.elementId;
-    variableElement.setAttribute('data-variable', variable.nombre);
-    variableElement.setAttribute('data-variable-index', variable.variableIndex.toString());
-    variableElement.style.position = 'absolute';
-    
-    const nativeWidth = Number(pageElement.getAttribute('data-native-width')) || this.pdfNativeWidth;
-    const nativeHeight = Number(pageElement.getAttribute('data-native-height')) || this.pdfNativeHeight;
 
-    const scaleX = pageElement.offsetWidth / nativeWidth;
-    const scaleY = pageElement.offsetHeight / nativeHeight;
+      variableElement.style.setProperty('font-family', 'Helvetica, Arial, sans-serif', 'important');
+      variableElement.style.setProperty('font-size', `${displayFontSize}px`, 'important');
+      variableElement.style.setProperty('line-height', `${displayFontSize}px`, 'important');
+      variableElement.style.setProperty('font-weight', '400', 'important');
+      variableElement.style.setProperty('padding', '0', 'important');
+      variableElement.style.setProperty('color', '#000000', 'important');
 
-    const displayX = variable.posX * scaleX;
-    const displayY = variable.posY * scaleY;
-
-    const ubicacion = this.variables[variable.variableIndex]?.ubicaciones.find(
-      u => u.id === variable.elementId
-    );
-
-    if (ubicacion?.width) {
-      variableElement.style.width = `${ubicacion.width * scaleX}px`;
+      variableElement.classList.add('pdf-variable-text');
     }
 
-    if (ubicacion?.height) {
-      variableElement.style.height = `${ubicacion.height * scaleY}px`;
-    }
-
-    console.log(`📍 Variable "${variable.nombre}" - Posición:`, {
-      nativas: { x: variable.posX, y: variable.posY },
-      display: { x: displayX, y: displayY },
-      escala: { scaleX, scaleY }
-    });
-
-    if (isNaN(displayX) || isNaN(displayY) || !isFinite(displayX) || !isFinite(displayY)) {
-      console.error(`❌ ERROR: Coordenadas display inválidas`);
-      return;
-    }
-
-    variableElement.style.left = `${displayX}px`;
-    variableElement.style.top = `${displayY}px`;
-    
-    // Estilos base
-    variableElement.style.fontFamily = 'Arial, sans-serif';
-    variableElement.style.fontSize = '12px';
-    variableElement.style.fontWeight = 'normal';
-    variableElement.style.padding = '3px 6px';
-    
-    // Colores por tipo
-    if (variable.nombre === 'firma_empleador' || variable.nombre === 'timbre_empleador') {
-      variableElement.style.backgroundColor = 'rgba(40, 167, 69, 0.08)';
-      variableElement.style.border = '2px dashed #28a745';
-    } else if (variable.nombre === 'firma') {
-      variableElement.style.backgroundColor = 'rgba(255, 152, 0, 0.08)';
-      variableElement.style.border = '2px dashed #ff9800';
-    } else if (variable.nombre === 'huella') {
-      variableElement.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
-      variableElement.style.border = '2px dashed #3b82f6';
-    } else if (variable.nombre === 'firma_supervisor' || variable.nombre === 'huella_supervisor') {
-      variableElement.style.backgroundColor = 'rgba(99, 102, 241, 0.08)';
-      variableElement.style.border = '2px dashed #6366f1';
-    } else {
-      variableElement.style.backgroundColor = 'rgba(74, 128, 245, 0.08)';
-      variableElement.style.border = '1px dashed #4a80f5';
-    }
-    
-    variableElement.style.borderRadius = '3px';
-    variableElement.style.zIndex = '100';
-    variableElement.style.whiteSpace = 'nowrap';
-    variableElement.style.maxWidth = 'none';
-    
-    const imagenesConTransform = ['firma_empleador', 'timbre_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
-    if (this.esCampocentrado(variable.nombre) && !imagenesConTransform.includes(variable.nombre)) {
+    if (this.esCampocentrado(variable.nombre) && !this.esVariableImagen(variable.nombre)) {
       variableElement.style.textAlign = 'center';
       variableElement.style.transform = 'translateX(-50%)';
+      variableElement.classList.add('pdf-variable-centered');
     } else {
       variableElement.style.textAlign = 'left';
       variableElement.style.transform = 'none';
     }
-    
-    variableElement.style.pointerEvents = 'all';
-    variableElement.style.cursor = 'move';
-    
+
     pageElement.style.position = 'relative';
     pageElement.appendChild(variableElement);
-    
-    console.log(`✅ Variable "${variable.nombre}" renderizada exitosamente`);
-    
+
     variableElement.addEventListener('mousedown', (event) => {
+      this.seleccionarVariableParaPropiedades(variable);
+      this.redibujarEstadoSeleccionado();
       this.handleVariableMouseDown(event, variable, variableElement, pageElement);
     });
-    
-    // Handles de redimensionamiento para todas las imágenes
-    const imagenesRedimensionables = ['firma_empleador', 'timbre_empleador', 'firma', 'huella', 'firma_supervisor', 'huella_supervisor'];
-    if (imagenesRedimensionables.includes(variable.nombre)) {
+
+    variableElement.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.seleccionarVariableParaPropiedades(variable);
+      this.redibujarEstadoSeleccionado();
+    });
+
+    if (this.esVariableImagen(variable.nombre)) {
       this.agregarHandlesRedimension(variableElement, variable, pageElement);
     }
-    
-    // Botón eliminar
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '✕';
     deleteBtn.title = 'Eliminar variable';
     deleteBtn.type = 'button';
 
-    deleteBtn.style.cssText = `
-      position: absolute !important;
-      top: -28px !important;
-      right: -10px !important;
-      width: 24px !important;
-      height: 24px !important;
-      background: #ef4444 !important;
-      color: #ffffff !important;
-      border: 2px solid #ffffff !important;
-      border-radius: 999px !important;
-      cursor: pointer !important;
-      font-size: 13px !important;
-      font-weight: 700 !important;
-      line-height: 1 !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      z-index: 999 !important;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25) !important;
-      opacity: 1 !important;
-      padding: 0 !important;
-    `;
-    
     deleteBtn.addEventListener('mousedown', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -2437,15 +2811,31 @@ trackByDocumentoId(index: number, documento: any): number {
     deleteBtn.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      console.log(`🗑️ Eliminando variable "${variable.nombre}".`);
       this.eliminarVariable(variable.elementId, variable.variableIndex);
     });
 
     variableElement.appendChild(deleteBtn);
+
+    if (this.mostrarDebugCoordenadas) {
+      const debug = document.createElement('div');
+      debug.className = 'debug-info';
+      debug.setAttribute('data-for', variable.elementId);
+      debug.textContent = `P${this.obtenerPaginaVariable(variable.elementId) || pageElement.getAttribute('data-page')} X:${variable.posX.toFixed(1)} Y:${variable.posY.toFixed(1)}`;
+      variableElement.appendChild(debug);
+    }
+
+    this.actualizarEstadoVisualPDF();
   }
-  
- 
- 
+
+  private redibujarEstadoSeleccionado(): void {
+    document.querySelectorAll('.pdf-variable.selected').forEach(el => el.classList.remove('selected'));
+    if (this.variableSeleccionadaParaPropiedades?.elementId) {
+      document.getElementById(this.variableSeleccionadaParaPropiedades.elementId)?.classList.add('selected');
+    }
+  }
+
+
+
   /**
    * Agregar handles de redimensionamiento
    */
@@ -2454,7 +2844,7 @@ trackByDocumentoId(index: number, documento: any): number {
       'top-left', 'top-right', 'bottom-left', 'bottom-right',
       'top', 'right', 'bottom', 'left'
     ];
-    
+
     positions.forEach(pos => {
       const handle = document.createElement('div');
       handle.className = `resize-handle resize-handle-${pos}`;
@@ -2467,23 +2857,23 @@ trackByDocumentoId(index: number, documento: any): number {
         cursor: ${this.getCursorForHandle(pos)};
         z-index: 102;
       `;
-      
+
       this.posicionarHandle(handle, pos);
-      
+
       handle.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         this.iniciarRedimension(e, element, variable, pageElement, pos);
       });
-      
+
       element.appendChild(handle);
     });
   }
-  
+
   /**
    * Posicionar handles
    */
   posicionarHandle(handle: HTMLElement, position: string): void {
-    switch(position) {
+    switch (position) {
       case 'top-left':
         handle.style.top = '-4px';
         handle.style.left = '-4px';
@@ -2597,12 +2987,12 @@ trackByDocumentoId(index: number, documento: any): number {
     this.filtroDocumentoFecha = '';
     this.recalcularDocumentosExistentes();
   }
-  
+
   /**
    * Obtener cursor apropiado
    */
   getCursorForHandle(position: string): string {
-    const cursors: {[key: string]: string} = {
+    const cursors: { [key: string]: string } = {
       'top-left': 'nwse-resize',
       'top-right': 'nesw-resize',
       'bottom-left': 'nesw-resize',
@@ -2614,26 +3004,26 @@ trackByDocumentoId(index: number, documento: any): number {
     };
     return cursors[position] || 'default';
   }
-  
+
   /**
    * Iniciar redimensionamiento
    */
   iniciarRedimension(
-    event: MouseEvent, 
-    element: HTMLElement, 
+    event: MouseEvent,
+    element: HTMLElement,
     variable: VariablePosicionada,
     pageElement: HTMLElement,
     handlePosition: string
   ): void {
     event.preventDefault();
-    
+
     const startX = event.clientX;
     const startY = event.clientY;
     const startWidth = element.offsetWidth;
     const startHeight = element.offsetHeight;
     const startLeft = element.offsetLeft;
     const startTop = element.offsetTop;
-    
+
     this.imagenFirmaEnEdicion = {
       element: element,
       originalWidth: startWidth,
@@ -2641,17 +3031,17 @@ trackByDocumentoId(index: number, documento: any): number {
       minWidth: 50,
       minHeight: 20
     };
-    
+
     const onMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
-      
+
       let newWidth = startWidth;
       let newHeight = startHeight;
       let newLeft = startLeft;
       let newTop = startTop;
-      
-      switch(handlePosition) {
+
+      switch (handlePosition) {
         case 'bottom-right':
           newWidth = Math.max(this.imagenFirmaEnEdicion!.minWidth, startWidth + deltaX);
           newHeight = Math.max(this.imagenFirmaEnEdicion!.minHeight, startHeight + deltaY);
@@ -2687,29 +3077,29 @@ trackByDocumentoId(index: number, documento: any): number {
           newTop = startTop + (startHeight - newHeight);
           break;
       }
-      
+
       element.style.width = `${newWidth}px`;
       element.style.height = `${newHeight}px`;
       element.style.left = `${newLeft}px`;
       element.style.top = `${newTop}px`;
-      
+
       const img = element.querySelector('img') as HTMLImageElement;
       if (img) {
         img.style.width = `${newWidth}px`;
         img.style.height = `${newHeight}px`;
       }
     };
-    
+
     const onMouseUp = () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
-      
+
       const nativeWidth = Number(pageElement.getAttribute('data-native-width')) || this.pdfNativeWidth;
       const nativeHeight = Number(pageElement.getAttribute('data-native-height')) || this.pdfNativeHeight;
 
       const scaleX = nativeWidth / pageElement.offsetWidth;
       const scaleY = nativeHeight / pageElement.offsetHeight;
-      
+
       const finalWidth = element.offsetWidth;
       const finalHeight = element.offsetHeight;
       const finalLeft = element.offsetLeft;
@@ -2717,43 +3107,44 @@ trackByDocumentoId(index: number, documento: any): number {
 
       const nativeX = finalLeft * scaleX;
       const nativeY = finalTop * scaleY;
-      
+
       const pageNumber = parseInt(pageElement.getAttribute('data-page') || '0');
       const variablesList = this.variablesPorPagina.get(pageNumber) || [];
       const varIndex = variablesList.findIndex(v => v.elementId === variable.elementId);
-      
+
       if (varIndex !== -1) {
         variablesList[varIndex].posX = nativeX;
         variablesList[varIndex].posY = nativeY;
-        
+
         const mainVarIndex = variablesList[varIndex].variableIndex;
         if (mainVarIndex >= 0 && mainVarIndex < this.variables.length) {
           const mainVariable = this.variables[mainVarIndex];
-          
+
           const ubicacionIndex = mainVariable.ubicaciones.findIndex(u => u.id === variable.elementId);
           if (ubicacionIndex !== -1) {
             mainVariable.ubicaciones[ubicacionIndex].posX = nativeX;
             mainVariable.ubicaciones[ubicacionIndex].posY = nativeY;
-            mainVariable.ubicaciones[ubicacionIndex].width = nativeWidth;
-            mainVariable.ubicaciones[ubicacionIndex].height = nativeHeight;
+            mainVariable.ubicaciones[ubicacionIndex].width = finalWidth * scaleX;
+            mainVariable.ubicaciones[ubicacionIndex].height = finalHeight * scaleY;
           }
         }
-        
+
         this.haycambiosPendientes = true;
+        this.seleccionarVariableParaPropiedades(variablesList[varIndex]);
       }
-      
-      console.log(`✅ ${variable.nombre} redimensionada: ${nativeWidth}x${nativeHeight} en (${nativeX}, ${nativeY})`);
-      
+
+      console.log(`✅ ${variable.nombre} redimensionada en (${nativeX}, ${nativeY})`);
+
       this.imagenFirmaEnEdicion = null;
     };
-    
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   }
 
   actualizarInterfazModoModificacion(): void {
     console.log('Actualizando interfaz en modo modificación...');
-    
+
     this.currentRetry = 0;
     this.intentarActualizarVariables();
   }
@@ -2765,10 +3156,10 @@ trackByDocumentoId(index: number, documento: any): number {
     setTimeout(() => {
       const variables = document.querySelectorAll('.pdf-variable');
       console.log(`Encontradas ${variables.length} variables para actualizar (intento ${this.currentRetry + 1}/${this.maxRetries})`);
-      
+
       if (variables.length === 0) {
         this.currentRetry++;
-        
+
         if (this.currentRetry < this.maxRetries) {
           console.warn('No se encontraron variables en el PDF, intentando de nuevo...');
           this.intentarActualizarVariables();
@@ -2777,38 +3168,38 @@ trackByDocumentoId(index: number, documento: any): number {
         }
         return;
       }
-      
+
       variables.forEach(el => {
         el.classList.add('edit-mode');
-        
+
         if (!el.querySelector('.delete-btn')) {
           const deleteBtn = document.createElement('div');
           deleteBtn.className = 'delete-btn';
           deleteBtn.innerHTML = '×';
           deleteBtn.title = 'Eliminar variable';
-          
+
           const variableId = el.id;
           const variableIndex = el.getAttribute('data-variable-index');
-          
+
           deleteBtn.addEventListener('click', (event) => {
             event.stopPropagation();
             if (variableIndex !== null) {
               this.eliminarVariable(variableId, parseInt(variableIndex));
             }
           });
-          
+
           el.appendChild(deleteBtn);
         }
       });
-      
+
       console.log('Interfaz de modo modificación actualizada correctamente');
     }, 500 + (this.currentRetry * 300));
   }
 
   eliminarVariable(elementId: string, variableIndex: number): void {
     let paginaEncontrada = -1;
-    let variableEncontrada = null;
-    
+    let variableEncontrada: VariablePosicionada | null = null;
+
     this.variablesPorPagina.forEach((variables, pagina) => {
       const index = variables.findIndex(v => v.elementId === elementId);
       if (index !== -1) {
@@ -2816,18 +3207,18 @@ trackByDocumentoId(index: number, documento: any): number {
         variableEncontrada = variables[index];
       }
     });
-    
+
     if (paginaEncontrada !== -1 && variableEncontrada) {
       const variableElement = document.getElementById(elementId);
       if (variableElement) {
         variableElement.remove();
-        
+
         const debugInfo = document.querySelector(`.debug-info[data-for="${elementId}"]`);
         if (debugInfo) {
           debugInfo.remove();
         }
       }
-      
+
       const variablesList = this.variablesPorPagina.get(paginaEncontrada);
       if (variablesList) {
         const indexInPage = variablesList.findIndex(v => v.elementId === elementId);
@@ -2835,20 +3226,23 @@ trackByDocumentoId(index: number, documento: any): number {
           variablesList.splice(indexInPage, 1);
         }
       }
-      
+
       if (variableIndex >= 0 && variableIndex < this.variables.length) {
         const variable = this.variables[variableIndex];
-        
+
         const ubicacionIndex = variable.ubicaciones.findIndex(u => u.id === elementId);
         if (ubicacionIndex !== -1) {
           variable.ubicaciones.splice(ubicacionIndex, 1);
         }
-        
+
         if (variable.ubicaciones.length === 0) {
           variable.colocada = false;
         }
       }
-      
+
+      if (this.variableSeleccionadaParaPropiedades?.elementId === elementId) {
+        this.variableSeleccionadaParaPropiedades = null;
+      }
       this.haycambiosPendientes = true;
     }
   }
@@ -2899,21 +3293,21 @@ trackByDocumentoId(index: number, documento: any): number {
       alert('No se puede identificar el documento a modificar');
       return;
     }
-    
+
     const variables = this._serializarVariablesParaBackend();
-    
+
     const datosActualizados = {
       variables: variables
     };
-    
+
     this.isLoading = true;
-    
+
     this.apiService.put(`api_documento_nativo/${this.documentoGuardadoId}/`, datosActualizados)
       .subscribe({
         next: (response: any) => {
           console.log('Documento actualizado exitosamente', response);
           this.isLoading = false;
-          
+
           this.modoModificacion = false;
           this.modoDocumentoExistente = true;
           this.haycambiosPendientes = false;
@@ -2935,11 +3329,11 @@ trackByDocumentoId(index: number, documento: any): number {
         return;
       }
     }
-    
+
     this.modoModificacion = false;
     this.modoDocumentoExistente = true;
     this.haycambiosPendientes = false;
-    
+
     if (this.documentoSeleccionado) {
       this.seleccionarDocumentoExistente(this.documentoSeleccionado);
     }
@@ -2962,13 +3356,13 @@ trackByDocumentoId(index: number, documento: any): number {
       alert('Por favor, seleccione un archivo PDF primero');
       return;
     }
-    
+
     const hayVariablesColocadas = this.variables.some(v => v.ubicaciones.length > 0);
     if (!hayVariablesColocadas) {
       alert('Debe colocar al menos una variable en el documento');
       return;
     }
-    
+
     this.mostrarModal = true;
   }
 
@@ -2983,24 +3377,24 @@ trackByDocumentoId(index: number, documento: any): number {
       alert('El nombre del formato es obligatorio');
       return;
     }
-    
+
     if (!this.originalPdfFile) {
       alert('No se encontró el archivo PDF original');
       return;
     }
-    
+
     const variables = this._serializarVariablesParaBackend();
-    
+
     const formData = new FormData();
 
     if (this.pdfFiles.length > 1) {
       console.log(`📎 Enviando ${this.pdfFiles.length} PDFs para fusionar...`);
-      
+
       this.pdfFiles.forEach((file, index) => {
         formData.append(`pdf_parte_${index}`, file);
         console.log(`  - Parte ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)} KB`);
       });
-      
+
       formData.append('num_partes', this.pdfFiles.length.toString());
       formData.append('requiere_merge', 'true');
     } else {
@@ -3014,7 +3408,7 @@ trackByDocumentoId(index: number, documento: any): number {
     formData.append('nombre', this.nombreFormato);
     formData.append('tipo', this.tipoContrato);
     formData.append('variables', JSON.stringify(variables));
-    
+
     this.isLoading = true;
     this.apiService.postFormData('api_documento_nativo/', formData)
       .subscribe({
@@ -3042,19 +3436,19 @@ trackByDocumentoId(index: number, documento: any): number {
 
     this.variablesConDatos = [];
     const variablesColocadas = this.variables.filter(v => v.colocada);
-    
+
     variablesColocadas.forEach(variable => {
       let tipo = 'normal';
       let valorPredeterminado = this.obtenerValorEjemplo(variable.nombre);
-      
-      if (variable.nombre.includes('fecha') || 
-          variable.nombre.includes('f_inicio') || 
-          variable.nombre.includes('f_nacmnto') || 
-          variable.nombre.includes('f_ingreso') || 
-          variable.nombre.includes('f_termino')) {
+
+      if (variable.nombre.includes('fecha') ||
+        variable.nombre.includes('f_inicio') ||
+        variable.nombre.includes('f_nacmnto') ||
+        variable.nombre.includes('f_ingreso') ||
+        variable.nombre.includes('f_termino')) {
         tipo = 'fecha';
       }
-      
+
       this.variablesConDatos.push({
         nombre: variable.nombre,
         tipo: tipo,
@@ -3062,7 +3456,7 @@ trackByDocumentoId(index: number, documento: any): number {
         valorPrueba: valorPredeterminado
       });
     });
-    
+
     if (this.variablesConDatos.length > 0) {
       this.mostrarModalDatosPrueba = true;
     } else {
@@ -3105,8 +3499,16 @@ trackByDocumentoId(index: number, documento: any): number {
     this.mostrarModalTipoContrato = false;
     this.pdfSrc = null;
     this.originalPdfFile = null;
+    this.pdfBuffers = [];
+    this.pdfFiles = [];
+    this.pdfDocuments = [];
+    this.pdfPartesInfo = [];
+    this.seccionPDFActiva = null;
+    this.paginaPDFActiva = 1;
+    this.totalPagesAcumuladas = [];
+    this.totalPages = 0;
   }
-  
+
   cerrarModalDatosPrueba(): void {
     this.mostrarModalDatosPrueba = false;
   }
@@ -3123,21 +3525,21 @@ trackByDocumentoId(index: number, documento: any): number {
       pdfContainer.style.cursor = 'default';
     }
   }
-  
+
   confirmarGenerarPDF(): void {
     if (!this.documentoGuardadoId) {
       alert('No se encontró el ID del documento');
       return;
     }
-    
-    const datosVariables: {[key: string]: string} = {};
-    
+
+    const datosVariables: { [key: string]: string } = {};
+
     this.variablesConDatos.forEach(variable => {
       datosVariables[variable.nombre] = variable.valorPrueba || variable.valorPredeterminado;
     });
-    
+
     this.isLoading = true;
-    
+
     this.apiService.postBlob('api_documento_nativo/', {
       action: 'generar_prueba',
       documento_id: this.documentoGuardadoId,
@@ -3145,15 +3547,15 @@ trackByDocumentoId(index: number, documento: any): number {
     }).subscribe({
       next: (blob: Blob) => {
         console.log('PDF generado con éxito');
-        
+
         const blobUrl = URL.createObjectURL(blob);
         this.pdfPreviewUrl = blobUrl;
-        
+
         window.open(blobUrl, '_blank');
-        
+
         this.isLoading = false;
         this.mostrarModalDatosPrueba = false;
-        
+
         setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       },
       error: (error) => {
@@ -3163,10 +3565,64 @@ trackByDocumentoId(index: number, documento: any): number {
       }
     });
   }
-  
+
+  private limpiarFormatoEliminadoDeInterfaz(documentoId: number): void {
+    const id = Number(documentoId);
+
+    this.documentosCargados = (this.documentosCargados || []).filter(
+      (doc: any) => Number(doc.id) !== id
+    );
+
+    this.documentosFiltradosCache = (this.documentosFiltradosCache || []).filter(
+      (doc: any) => Number(doc.id) !== id
+    );
+
+    this.documentosAgrupadosCache = (this.documentosAgrupadosCache || [])
+      .map((grupo: any) => ({
+        ...grupo,
+        documentos: (grupo.documentos || []).filter(
+          (doc: any) => Number(doc.id) !== id
+        )
+      }))
+      .filter((grupo: any) => grupo.documentos.length > 0);
+
+    this.recalcularDocumentosExistentes();
+
+    if (this.documentoSeleccionado?.id && Number(this.documentoSeleccionado.id) === id) {
+      this.documentoSeleccionado = null;
+      this.documentoGuardadoId = null;
+      this.pdfSrc = null;
+      this.pdfPreviewUrl = null;
+      this.pdfPages = [];
+      this.pdfDocuments = [];
+      this.pdfBuffers = [];
+      this.pdfFiles = [];
+      this.pdfPartesInfo = [];
+      this.seccionPDFActiva = null;
+      this.paginaPDFActiva = 1;
+      this.totalPages = 0;
+      this.pdfNativeWidth = 0;
+      this.pdfNativeHeight = 0;
+      this.variableSeleccionadaParaPropiedades = null;
+      this.haycambiosPendientes = false;
+
+      this.resetearVariables();
+
+      const pdfContainer = document.getElementById('pdf-container');
+      if (pdfContainer) {
+        pdfContainer.innerHTML = '';
+      }
+    }
+
+    if (this.documentoEditandoNombreId && Number(this.documentoEditandoNombreId) === id) {
+      this.documentoEditandoNombreId = null;
+      this.nombreDocumentoEditado = '';
+    }
+  }
+
   descargarPDF(): void {
     if (!this.pdfPreviewUrl) return;
-    
+
     const a = document.createElement('a');
     a.href = this.pdfPreviewUrl;
     a.download = `documento_${this.documentoGuardadoId}_${Date.now()}.pdf`;
@@ -3180,11 +3636,11 @@ trackByDocumentoId(index: number, documento: any): number {
       alert('No se puede identificar el documento');
       return;
     }
-    
+
     const variables = this._serializarVariablesParaBackend();
-    
+
     this.isLoading = true;
-    
+
     this.apiService.put(`api_documento_nativo/${this.documentoGuardadoId}/`, {
       variables: variables
     }).subscribe({

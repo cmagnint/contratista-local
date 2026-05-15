@@ -1,8 +1,11 @@
 <!-- formatos.component.html -->
-<div class="main-container" *ngIf="!modoModificacion">
+<div class="main-container formato-shell" [class.panel-collapsed]="panelVariablesContraido" *ngIf="!modoModificacion">
 
   <!-- Panel de variables a la izquierda -->
-  <div class="variables-panel">
+  <div class="variables-panel" [class.collapsed]="panelVariablesContraido">
+    <button class="panel-collapse-btn" type="button" (click)="togglePanelVariables()" [title]="panelVariablesContraido ? 'Mostrar panel' : 'Ocultar panel'">
+      {{ panelVariablesContraido ? '›' : '‹' }}
+    </button>
 
     <!-- Sección para trabajar con documentos existentes -->
     <div class="documento-actions">
@@ -153,8 +156,9 @@
                   type="button"
                   class="documento-delete-btn"
                   title="Eliminar formato"
+                  [disabled]="documentosEliminandoIds.has(doc.id)"
                   (click)="eliminarFormatoDocumento(doc, $event)">
-                  ✕
+                  {{ documentosEliminandoIds.has(doc.id) ? '…' : '✕' }}
                 </button>
               </div>
             </div>
@@ -465,11 +469,22 @@
   </div>
 
   <!-- PDF Viewer a la derecha - CREACIÓN -->
-  <div class="pdf-container" *ngIf="!modoDocumentoExistente">
-    <div class="file-upload-section">
-      <h2>Visualizador de PDF</h2>
+  <div class="pdf-container pdf-workspace" *ngIf="!modoDocumentoExistente">
+    <div class="file-upload-section" [class.upload-controls-hidden]="!mostrarControlesCargaPDF">
+      <div class="file-upload-topbar">
+        <button
+          class="upload-toggle-btn"
+          type="button"
+          (click)="toggleControlesCargaPDF()">
+          {{ mostrarControlesCargaPDF ? 'Ocultar carga de PDF' : 'Mostrar carga de PDF' }}
+        </button>
 
-      <div class="file-input-wrapper">
+        <span *ngIf="pdfSrc && !mostrarControlesCargaPDF" class="file-selected-text compact">
+          {{ pdfPartesInfo.length > 1 ? totalAnexosPDF + ' anexos agregados' : 'PDF original seleccionado' }}
+        </span>
+      </div>
+
+      <div class="file-input-wrapper" *ngIf="mostrarControlesCargaPDF">
         <input
           type="file"
           #fileInput
@@ -505,8 +520,55 @@
         </button>
 
         <span *ngIf="pdfSrc" class="file-selected-text">
-          {{ pdfDocuments.length > 1 ? pdfDocuments.length + ' documentos anexados' : 'Archivo PDF seleccionado' }}
+          {{ pdfPartesInfo.length > 1 ? totalAnexosPDF + ' anexos agregados' : 'PDF original seleccionado' }}
         </span>
+      </div>
+
+      <div *ngIf="pdfPartesInfo.length > 0" class="pdf-partes-panel">
+        <div
+          class="pdf-current-section"
+          *ngIf="seccionPDFActiva as actual"
+          [style.--pdf-part-color]="actual.color">
+          <span class="current-section-dot"></span>
+          <div>
+            <strong>Estás en {{ actual.etiqueta }}</strong>
+            <span>
+              {{ actual.tipo === 'ORIGINAL' ? 'PDF original' : 'Anexo' }} ·
+              página {{ paginaPDFActiva }} de {{ totalPages }}
+            </span>
+          </div>
+        </div>
+
+        <div class="pdf-partes-list">
+          <div
+            *ngFor="let parte of pdfPartesInfo"
+            class="pdf-parte-card"
+            [class.original]="parte.tipo === 'ORIGINAL'"
+            [class.anexo]="parte.tipo === 'ANEXO'"
+            [class.active]="seccionPDFActiva?.indice === parte.indice"
+            [style.--pdf-part-color]="parte.color"
+            (click)="scrollAPdfParte(parte)">
+
+            <div class="pdf-parte-badge">{{ parte.etiqueta }}</div>
+
+            <div class="pdf-parte-info">
+              <strong>{{ parte.tipo === 'ORIGINAL' ? 'PDF original' : 'Anexo ' + parte.etiqueta }}</strong>
+              <span class="pdf-parte-name" [title]="parte.nombreArchivo">{{ parte.nombreArchivo }}</span>
+              <span class="pdf-parte-pages">
+                {{ parte.paginas }} pág. · {{ parte.paginaInicio }}-{{ parte.paginaFin }}
+              </span>
+            </div>
+
+            <button
+              *ngIf="parte.tipo === 'ANEXO'"
+              type="button"
+              class="pdf-parte-delete-btn"
+              title="Eliminar anexo"
+              (click)="eliminarAnexoPDF(parte, $event)">
+              Eliminar
+            </button>
+          </div>
+        </div>
       </div>
 
       <div *ngIf="modoColocacion" class="placement-mode-indicator">
@@ -519,16 +581,73 @@
           <em>{{ obtenerValorEjemplo(variableSeleccionada?.nombre || '') }}</em>
         </p>
       </div>
+    </div>
 
-      <div *ngIf="pdfNativeWidth > 0" class="pdf-info">
-        <p>
-          <strong>Dimensiones nativas del PDF:</strong>
-          {{ pdfNativeWidth | number:'1.0-0' }} x {{ pdfNativeHeight | number:'1.0-0' }} puntos
-        </p>
-        <p>
-          <em>Las coordenadas se guardan en unidades nativas del PDF para máxima precisión. Los valores mostrados son ejemplos realistas.</em>
-        </p>
+
+    <div class="pdf-toolbar" *ngIf="pdfSrc || modoModificacion">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" type="button" (click)="togglePanelVariables()">
+          {{ panelVariablesContraido ? 'Mostrar variables' : 'Ocultar variables' }}
+        </button>
+        <button class="toolbar-btn" type="button" [class.active]="!vistaFinalPDF" (click)="vistaFinalPDF ? toggleVistaFinalPDF() : null">
+          Edición
+        </button>
+        <button class="toolbar-btn" type="button" [class.active]="vistaFinalPDF" (click)="toggleVistaFinalPDF()">
+          Vista final
+        </button>
+        <button class="toolbar-btn" type="button" [class.active]="mostrarDebugCoordenadas" (click)="toggleDebugCoordenadas()">
+          Coordenadas
+        </button>
       </div>
+
+      <div class="toolbar-part-tabs" *ngIf="pdfPartesInfo.length > 0">
+        <span class="toolbar-label">PDF</span>
+        <button
+          *ngFor="let parte of pdfPartesInfo"
+          type="button"
+          class="pdf-part-tab"
+          [class.active]="seccionPDFActiva?.indice === parte.indice"
+          [style.--pdf-part-color]="parte.color"
+          [title]="(parte.tipo === 'ORIGINAL' ? 'PDF original: ' : 'Anexo ' + parte.etiqueta + ': ') + parte.nombreArchivo"
+          (click)="scrollAPdfParte(parte)">
+          {{ parte.etiqueta }}
+        </button>
+      </div>
+
+      <div class="toolbar-group zoom-group">
+        <span class="toolbar-label">Zoom</span>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 0.85" (click)="setZoomPDF(0.85)">85%</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1" (click)="setZoomPDF(1)">Base</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1.15" (click)="setZoomPDF(1.15)">115%</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1.25" (click)="setZoomPDF(1.25)">125%</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1.4" (click)="setZoomPDF(1.4)">140%</button>
+      </div>
+
+      <div class="toolbar-status">
+        <span>{{ totalPages || 0 }} páginas</span>
+        <span>{{ getNumeroVariables() }} variables</span>
+        <span *ngIf="pdfPartesInfo.length > 0" class="status-pdf-section" [style.--pdf-part-color]="seccionPDFActiva?.color">
+          {{ seccionPDFActiva?.etiqueta || 'O' }} · {{ seccionPDFActiva?.tipo === 'ANEXO' ? 'Anexo' : 'Original' }}
+        </span>
+        <span *ngIf="totalAnexosPDF > 0">{{ totalAnexosPDF }} anexos</span>
+        <span *ngIf="haycambiosPendientes" class="status-warning">Cambios sin guardar</span>
+      </div>
+    </div>
+
+    <div class="selected-variable-panel" *ngIf="variableSeleccionadaParaPropiedades as seleccion">
+      <div>
+        <strong>{{ formatearNombreVariable(seleccion.nombre) }}</strong>
+        <span>Página {{ seleccion.pagina }}</span>
+      </div>
+      <div class="selected-variable-grid">
+        <span>X: {{ seleccion.posX | number:'1.1-1' }}</span>
+        <span>Y: {{ seleccion.posY | number:'1.1-1' }}</span>
+        <span *ngIf="seleccion.width">Ancho: {{ seleccion.width | number:'1.1-1' }}</span>
+        <span *ngIf="seleccion.height">Alto: {{ seleccion.height | number:'1.1-1' }}</span>
+        <span>Fuente: {{ seleccion.fontSize || 9 }} pt</span>
+        <span>Alineación: {{ esCampocentrado(seleccion.nombre) ? 'Centro' : 'Izquierda' }}</span>
+      </div>
+      <button class="selected-delete-btn" type="button" (click)="eliminarVariableSeleccionada()">Eliminar</button>
     </div>
 
     <div class="pdf-viewer-wrapper" *ngIf="isBrowser">
@@ -545,7 +664,9 @@
       <div
         id="pdf-container"
         class="pdf-viewer"
-        [style.display]="(pdfSrc && !isLoading && !errorMessage) ? 'block' : 'none'">
+        [class.vista-final-pdf]="vistaFinalPDF"
+        [class.debug-coordenadas-activo]="mostrarDebugCoordenadas"
+        [class.pdf-hidden]="!pdfSrc || !!errorMessage">
       </div>
 
       <div *ngIf="!pdfSrc && !isLoading && !errorMessage" class="no-pdf-selected">
@@ -879,10 +1000,13 @@
 </div>
 
 <!-- MODO MODIFICACIÓN -->
-<div class="main-container" *ngIf="modoModificacion && documentoSeleccionado">
+<div class="main-container formato-shell" [class.panel-collapsed]="panelVariablesContraido" *ngIf="modoModificacion && documentoSeleccionado">
 
   <!-- Panel izquierdo igual al de creación -->
-  <div class="variables-panel">
+  <div class="variables-panel" [class.collapsed]="panelVariablesContraido">
+    <button class="panel-collapse-btn" type="button" (click)="togglePanelVariables()" [title]="panelVariablesContraido ? 'Mostrar panel' : 'Ocultar panel'">
+      {{ panelVariablesContraido ? '›' : '‹' }}
+    </button>
 
     <div class="documento-actions">
       <h3>Opciones de Documento</h3>
@@ -1010,7 +1134,7 @@
   </div>
 
   <!-- PDF Viewer a la derecha -->
-  <div class="pdf-container">
+  <div class="pdf-container pdf-workspace">
     <div class="file-upload-section">
       <h2>Modificar Variables del Documento</h2>
 
@@ -1037,6 +1161,72 @@
       </div>
     </div>
 
+
+    <div class="pdf-toolbar" *ngIf="pdfSrc || modoModificacion">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" type="button" (click)="togglePanelVariables()">
+          {{ panelVariablesContraido ? 'Mostrar variables' : 'Ocultar variables' }}
+        </button>
+        <button class="toolbar-btn" type="button" [class.active]="!vistaFinalPDF" (click)="vistaFinalPDF ? toggleVistaFinalPDF() : null">
+          Edición
+        </button>
+        <button class="toolbar-btn" type="button" [class.active]="vistaFinalPDF" (click)="toggleVistaFinalPDF()">
+          Vista final
+        </button>
+        <button class="toolbar-btn" type="button" [class.active]="mostrarDebugCoordenadas" (click)="toggleDebugCoordenadas()">
+          Coordenadas
+        </button>
+      </div>
+
+      <div class="toolbar-part-tabs" *ngIf="pdfPartesInfo.length > 0">
+        <span class="toolbar-label">PDF</span>
+        <button
+          *ngFor="let parte of pdfPartesInfo"
+          type="button"
+          class="pdf-part-tab"
+          [class.active]="seccionPDFActiva?.indice === parte.indice"
+          [style.--pdf-part-color]="parte.color"
+          [title]="(parte.tipo === 'ORIGINAL' ? 'PDF original: ' : 'Anexo ' + parte.etiqueta + ': ') + parte.nombreArchivo"
+          (click)="scrollAPdfParte(parte)">
+          {{ parte.etiqueta }}
+        </button>
+      </div>
+
+      <div class="toolbar-group zoom-group">
+        <span class="toolbar-label">Zoom</span>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 0.85" (click)="setZoomPDF(0.85)">85%</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1" (click)="setZoomPDF(1)">Base</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1.15" (click)="setZoomPDF(1.15)">115%</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1.25" (click)="setZoomPDF(1.25)">125%</button>
+        <button class="toolbar-btn compact" type="button" [class.active]="zoomPDF === 1.4" (click)="setZoomPDF(1.4)">140%</button>
+      </div>
+
+      <div class="toolbar-status">
+        <span>{{ totalPages || 0 }} páginas</span>
+        <span>{{ getNumeroVariables() }} variables</span>
+        <span *ngIf="pdfPartesInfo.length > 0" class="status-pdf-section" [style.--pdf-part-color]="seccionPDFActiva?.color">
+          {{ seccionPDFActiva?.etiqueta || 'O' }} · {{ seccionPDFActiva?.tipo === 'ANEXO' ? 'Anexo' : 'Original' }}
+        </span>
+        <span *ngIf="totalAnexosPDF > 0">{{ totalAnexosPDF }} anexos</span>
+        <span *ngIf="haycambiosPendientes" class="status-warning">Cambios sin guardar</span>
+      </div>
+    </div>
+
+    <div class="selected-variable-panel" *ngIf="variableSeleccionadaParaPropiedades as seleccion">
+      <div>
+        <strong>{{ formatearNombreVariable(seleccion.nombre) }}</strong>
+        <span>Página {{ seleccion.pagina }}</span>
+      </div>
+      <div class="selected-variable-grid">
+        <span>X: {{ seleccion.posX | number:'1.1-1' }}</span>
+        <span>Y: {{ seleccion.posY | number:'1.1-1' }}</span>
+        <span *ngIf="seleccion.width">Ancho: {{ seleccion.width | number:'1.1-1' }}</span>
+        <span *ngIf="seleccion.height">Alto: {{ seleccion.height | number:'1.1-1' }}</span>
+        <span>Fuente: {{ seleccion.fontSize || 9 }} pt</span>
+        <span>Alineación: {{ esCampocentrado(seleccion.nombre) ? 'Centro' : 'Izquierda' }}</span>
+      </div>
+      <button class="selected-delete-btn" type="button" (click)="eliminarVariableSeleccionada()">Eliminar</button>
+    </div>
     <div class="pdf-viewer-wrapper" *ngIf="isBrowser">
       <div *ngIf="isLoading" class="loading-indicator">
         <div class="spinner"></div>
@@ -1051,8 +1241,9 @@
       <div
         id="pdf-container"
         class="pdf-viewer"
-        [style.display]="(pdfSrc && !isLoading && !errorMessage) ? 'block' : 'none'"
-        [style.min-height]="'600px'">
+        [class.vista-final-pdf]="vistaFinalPDF"
+        [class.debug-coordenadas-activo]="mostrarDebugCoordenadas"
+        [class.pdf-hidden]="!pdfSrc || !!errorMessage">
       </div>
     </div>
   </div>

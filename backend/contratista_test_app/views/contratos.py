@@ -281,7 +281,14 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
 
     def delete(self, request, documento_id, *args, **kwargs):
         try:
-            documento = get_object_or_404(ContratoVariables, id=documento_id)
+            documento = ContratoVariables.objects.filter(id=documento_id).first()
+
+            if not documento:
+                return Response({
+                    "mensaje": "El formato ya no existe o ya fue eliminado.",
+                    "documento_id": documento_id,
+                    "ya_eliminado": True
+                }, status=status.HTTP_200_OK)
 
             if documento.holding != request.user.holding:
                 return Response(
@@ -299,6 +306,7 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             ).update(formato=None)
 
             archivo_eliminado = False
+
             if archivo_pdf and archivo_pdf.name:
                 try:
                     if archivo_pdf.storage.exists(archivo_pdf.name):
@@ -322,7 +330,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             return Response({
                 "mensaje": f"Formato '{nombre}' eliminado exitosamente",
                 "archivo_pdf": archivo_nombre,
-                "archivo_eliminado": archivo_eliminado
+                "archivo_eliminado": archivo_eliminado,
+                "documento_id": documento_id
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -334,6 +343,57 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 {"error": f"Error al eliminar el documento: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    def _formatear_rut_o_nic(self, valor):
+        """
+        Formatea RUT/NIC guardados sin puntos ni guion.
+
+        Ejemplos:
+            123457899  -> 12.345.789-9
+            12345678K  -> 1.234.567-8K no aplica; se toma último carácter como DV.
+            12345678K  -> 1.234.567-8K solo si viene con más de un DV, por eso se espera formato limpio real.
+            1234567K   -> 123.456-7K no aplica; se toma último carácter como DV.
+
+        Regla usada:
+            cuerpo = todo menos el último carácter
+            dv     = último carácter
+        """
+        if valor is None:
+            return ''
+
+        limpio = str(valor).strip().upper()
+        limpio = limpio.replace('.', '').replace('-', '').replace(' ', '')
+
+        if not limpio:
+            return ''
+
+        if len(limpio) < 2:
+            return limpio
+
+        cuerpo = limpio[:-1]
+        dv = limpio[-1]
+
+        if not cuerpo.isdigit():
+            return limpio
+
+        cuerpo_formateado = ''
+        while len(cuerpo) > 3:
+            cuerpo_formateado = f'.{cuerpo[-3:]}{cuerpo_formateado}'
+            cuerpo = cuerpo[:-3]
+
+        cuerpo_formateado = f'{cuerpo}{cuerpo_formateado}'
+
+        return f'{cuerpo_formateado}-{dv}'
+
+    def _formatear_valor_para_pdf(self, nombre_variable, valor):
+        """
+        Normaliza valores justo antes de imprimirlos en el PDF.
+        Esto evita modificar cómo se guardan en BD o cómo viajan desde el frontend.
+        """
+        if nombre_variable in ['rut', 'nic']:
+            return self._formatear_rut_o_nic(valor)
+
+        return valor
 
     def _obtener_supervisor(self, trabajador):
         from ..models import SupervisorTrabajadorHistorial
@@ -490,6 +550,8 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
     def _actualizar_documento(self, request, documento_id):
         """Actualizar nombre, tipo y/o variables de un documento existente"""
         try:
+            import json
+
             documento = get_object_or_404(ContratoVariables, id=documento_id)
 
             if documento.holding != request.user.holding:
@@ -500,7 +562,6 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
 
             actualizado = False
 
-            # Actualizar nombre
             if 'nombre' in request.data:
                 nuevo_nombre = str(request.data.get('nombre') or '').strip()
 
@@ -513,7 +574,6 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 documento.nombre = nuevo_nombre
                 actualizado = True
 
-            # Actualizar tipo, opcional
             if 'tipo' in request.data:
                 nuevo_tipo = str(request.data.get('tipo') or '').strip().upper()
 
@@ -527,7 +587,6 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 documento.tipo = nuevo_tipo
                 actualizado = True
 
-            # Actualizar variables
             if 'variables' in request.data:
                 variables_data = request.data['variables']
 
@@ -573,7 +632,7 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                 exc_info=True
             )
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     def _generar_pdf_prueba(self, request):
         try:
             documento_id    = request.data.get('documento_id')
@@ -589,7 +648,12 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
                     {"error": "No tienes permisos para generar este documento"},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            pdf_buffer = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=debug)
+
+            pdf_buffer = self._generar_documento_coordenadas_nativas(
+                documento_id,
+                datos_variables,
+                debug=debug
+            )
 
             response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = 'inline; filename="vista_previa.pdf"'
@@ -604,32 +668,129 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
         import os
         from django.conf import settings
 
-        documento      = ContratoVariables.objects.get(id=documento_id)
+        documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
 
         BASE_FONT_SIZE = 9
-        OFFSET_X       = -8
+        FONT_NAME = "helv"
 
         campos_centrados = [
-            'rut', 'dni', 'nic', 'estado_civil',
-            'fecha_nacimiento', 'fecha_emision',
-            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino'
+            'rut',
+            'dni',
+            'nic',
+            'estado_civil',
+            'fecha_nacimiento',
+            'fecha_emision',
+            'fecha_ingreso',
+            'fecha_inicio_contrato',
+            'fecha_termino',
         ]
 
+        def _to_float(value, default=0.0):
+            try:
+                if value is None:
+                    return float(default)
+                return float(value)
+            except (TypeError, ValueError):
+                return float(default)
+
+        def _draw_debug_anchor(page, x, y):
+            if not debug:
+                return
+
+            size = 2.5
+            page.draw_line(
+                fitz.Point(x - size, y),
+                fitz.Point(x + size, y),
+                color=(1, 0, 0),
+                width=0.4
+            )
+            page.draw_line(
+                fitz.Point(x, y - size),
+                fitz.Point(x, y + size),
+                color=(1, 0, 0),
+                width=0.4
+            )
+
+        def _insert_text_baseline(page, x, y, valor, font_size=None, centered=False):
+            """
+            Inserta texto usando posX/posY como coordenada nativa del PDF.
+
+            IMPORTANTE:
+            Después del ajuste del frontend, posY representa la baseline del texto.
+            Por eso NO se debe hacer:
+                y + font_size
+            porque eso baja el texto en el PDF generado.
+            """
+            if valor is None or str(valor) == '':
+                return
+
+            texto = str(valor)
+            size = _to_float(font_size, BASE_FONT_SIZE)
+
+            x_text = _to_float(x)
+            y_text = _to_float(y)
+
+            if centered:
+                text_width = fitz.get_text_length(
+                    texto,
+                    fontname=FONT_NAME,
+                    fontsize=size
+                )
+                x_text -= text_width / 2
+
+            page.insert_text(
+                fitz.Point(x_text, y_text),
+                texto,
+                fontsize=size,
+                fontname=FONT_NAME,
+                color=(0, 0, 0)
+            )
+
+            _draw_debug_anchor(page, x_text, y_text)
+
+        def _insert_image_top_left(page, path, x, y, width, height):
+            """
+            Inserta imágenes usando posX/posY como esquina superior izquierda.
+            Las imágenes NO usan baseline.
+            """
+            if not path or not os.path.exists(path):
+                return
+
+            x_img = _to_float(x)
+            y_img = _to_float(y)
+            w = _to_float(width)
+            h = _to_float(height)
+
+            if w <= 0 or h <= 0:
+                return
+
+            rect = fitz.Rect(
+                x_img,
+                y_img,
+                x_img + w,
+                y_img + h
+            )
+
+            page.insert_image(rect, filename=path, keep_proportion=True)
+            _draw_debug_anchor(page, x_img, y_img)
+
         variables_por_pagina = {}
-        for variable_data in documento.variables:
+
+        for variable_data in documento.variables or []:
             nombre_variable = variable_data.get('nombre')
+
             for ubicacion in variable_data.get('ubicaciones', []):
-                pagina = ubicacion.get('pagina', 1)
-                if pagina not in variables_por_pagina:
-                    variables_por_pagina[pagina] = []
-                variables_por_pagina[pagina].append({
+                pagina = int(ubicacion.get('pagina', 1) or 1)
+
+                variables_por_pagina.setdefault(pagina, []).append({
                     'nombre': nombre_variable,
-                    'posX':   ubicacion.get('posX', 0),
-                    'posY':   ubicacion.get('posY', 0),
-                    'width':  ubicacion.get('width'),
+                    'posX': _to_float(ubicacion.get('posX', 0)),
+                    'posY': _to_float(ubicacion.get('posY', 0)),
+                    'width': ubicacion.get('width'),
                     'height': ubicacion.get('height'),
-                    'valor':  ubicacion.get('valor'),
+                    'valor': ubicacion.get('valor'),
+                    'fontSize': ubicacion.get('fontSize'),
                 })
 
         agregar_textos_libres_por_pagina(variables_por_pagina, documento.variables)
@@ -647,164 +808,257 @@ class DocumentoVariablesNativasAPIView(BaseAPIView):
             try:
                 trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
             except PersonalTrabajadores.DoesNotExist:
-                pass
+                trabajador = None
 
-        # ── Supervisor de charla via RegistroCharlaSupervisor ──────────────────
-        persona_supervisor = obtener_persona_supervisor_charla(datos_variables.get('contrato_id'))
+        persona_supervisor = obtener_persona_supervisor_charla(
+            datos_variables.get('contrato_id')
+        )
 
         doc = fitz.open(input_pdf_path)
 
         for page_num in range(len(doc)):
             ui_page_num = page_num + 1
+
             if ui_page_num not in variables_por_pagina:
                 continue
 
             page = doc[page_num]
 
             for var_data in variables_por_pagina[ui_page_num]:
-                nombre_variable = var_data['nombre']
-                x_nativo        = var_data['posX']
-                y_nativo        = var_data['posY']
+                nombre_variable = var_data.get('nombre')
+                x_nativo = _to_float(var_data.get('posX', 0))
+                y_nativo = _to_float(var_data.get('posY', 0))
+                font_size = _to_float(var_data.get('fontSize') or BASE_FONT_SIZE, BASE_FONT_SIZE)
 
+                # ------------------------------------------------------------
+                # TEXTO LIBRE
+                # ------------------------------------------------------------
                 if nombre_variable == TEXTO_LIBRE_RENDER_NAME:
                     valor = var_data.get('valor') or ''
-                    if valor:
-                        font_size = var_data.get('fontSize') or BASE_FONT_SIZE
-                        x_text = x_nativo + OFFSET_X
-                        y_text = y_nativo + font_size
-                        page.insert_text(
-                            fitz.Point(x_text, y_text),
-                            str(valor),
-                            fontsize=font_size,
-                            fontname="helv",
-                            color=(0, 0, 0)
-                        )
+
+                    _insert_text_baseline(
+                        page=page,
+                        x=x_nativo,
+                        y=y_nativo,
+                        valor=valor,
+                        font_size=font_size,
+                        centered=False
+                    )
                     continue
 
+                # ------------------------------------------------------------
+                # FIRMA EMPLEADOR
+                # ------------------------------------------------------------
+                if nombre_variable == 'firma_empleador':
+                    if holding.firma_empleador:
+                        try:
+                            firma_path = holding.firma_empleador.path
+
+                            if os.path.exists(firma_path):
+                                _insert_image_top_left(
+                                    page=page,
+                                    path=firma_path,
+                                    x=x_nativo,
+                                    y=y_nativo,
+                                    width=var_data.get('width') or 150,
+                                    height=var_data.get('height') or 50
+                                )
+                            else:
+                                logger.warning(
+                                    f"firma_empleador no existe físicamente en disco: {firma_path}"
+                                )
+
+                        except Exception:
+                            logger.error(
+                                "Error insertando firma_empleador en PDF de prueba",
+                                exc_info=True
+                            )
+                    else:
+                        logger.warning(
+                            f"El holding {holding.id} no tiene firma_empleador configurada"
+                        )
+
+                    continue
+
+                # ------------------------------------------------------------
+                # TIMBRE EMPLEADOR
+                # ------------------------------------------------------------
                 if nombre_variable == 'timbre_empleador':
                     path = obtener_timbre_empleador_path(holding)
-                    w = var_data.get('width') or 150
-                    h = var_data.get('height') or 50
-                    x_img = x_nativo + OFFSET_X
-                    rect = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
-                    page.insert_image(rect, filename=path, keep_proportion=True)
+
+                    _insert_image_top_left(
+                        page=page,
+                        path=path,
+                        x=x_nativo,
+                        y=y_nativo,
+                        width=var_data.get('width') or 150,
+                        height=var_data.get('height') or 50
+                    )
                     continue
 
+                # ------------------------------------------------------------
+                # FIRMAS/HUELLAS ORGANIZACIÓN
+                # ------------------------------------------------------------
                 if nombre_variable in firmas_org:
-                    path  = firmas_org[nombre_variable]
-                    w     = var_data.get('width')  or (100 if nombre_variable.startswith('firma') else 80)
-                    h     = var_data.get('height') or (40  if nombre_variable.startswith('firma') else 100)
-                    x_img = x_nativo + OFFSET_X
-                    rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
-                    page.insert_image(rect, filename=path, keep_proportion=True)
+                    path = firmas_org[nombre_variable]
+
+                    _insert_image_top_left(
+                        page=page,
+                        path=path,
+                        x=x_nativo,
+                        y=y_nativo,
+                        width=var_data.get('width') or (100 if nombre_variable.startswith('firma') else 80),
+                        height=var_data.get('height') or (40 if nombre_variable.startswith('firma') else 100)
+                    )
                     continue
 
-                elif nombre_variable == 'firma':
+                # ------------------------------------------------------------
+                # FIRMA TRABAJADOR
+                # ------------------------------------------------------------
+                if nombre_variable == 'firma':
                     if trabajador and bool(getattr(trabajador, 'firma', None)):
                         firma_path = trabajador.firma.path
                     else:
-                        firma_path = os.path.join(settings.MEDIA_ROOT, 'firma_trabajador_placeholder.png')
-                    if os.path.exists(firma_path):
-                        w     = var_data.get('width')  or 100
-                        h     = var_data.get('height') or 40
-                        x_img = x_nativo + OFFSET_X
-                        rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
-                        page.insert_image(rect, filename=firma_path, keep_proportion=True)
+                        firma_path = os.path.join(
+                            settings.MEDIA_ROOT,
+                            'firma_trabajador_placeholder.png'
+                        )
+
+                    _insert_image_top_left(
+                        page=page,
+                        path=firma_path,
+                        x=x_nativo,
+                        y=y_nativo,
+                        width=var_data.get('width') or 100,
+                        height=var_data.get('height') or 40
+                    )
                     continue
 
-                elif nombre_variable == 'huella':
+                # ------------------------------------------------------------
+                # HUELLA TRABAJADOR
+                # ------------------------------------------------------------
+                if nombre_variable == 'huella':
                     if trabajador and bool(getattr(trabajador, 'huella_digital', None)):
                         huella_path = trabajador.huella_digital.path
                     else:
-                        huella_path = os.path.join(settings.MEDIA_ROOT, 'huella_trabajador_placeholder.png')
-                    if os.path.exists(huella_path):
-                        w     = var_data.get('width')  or 80
-                        h     = var_data.get('height') or 100
-                        x_img = x_nativo + OFFSET_X
-                        rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
-                        page.insert_image(rect, filename=huella_path, keep_proportion=True)
+                        huella_path = os.path.join(
+                            settings.MEDIA_ROOT,
+                            'huella_trabajador_placeholder.png'
+                        )
+
+                    _insert_image_top_left(
+                        page=page,
+                        path=huella_path,
+                        x=x_nativo,
+                        y=y_nativo,
+                        width=var_data.get('width') or 80,
+                        height=var_data.get('height') or 100
+                    )
                     continue
 
-                # ── Variables del supervisor de charla ─────────────────────────
-                elif nombre_variable == 'nombre_supervisor':
+                # ------------------------------------------------------------
+                # NOMBRE SUPERVISOR
+                # ------------------------------------------------------------
+                if nombre_variable == 'nombre_supervisor':
                     if persona_supervisor:
                         valor = f"{persona_supervisor.nombres or ''} {persona_supervisor.apellidos or ''}".strip()
-                        if valor:
-                            x_text = x_nativo + OFFSET_X
-                            y_text = y_nativo + BASE_FONT_SIZE
-                            page.insert_text(
-                                fitz.Point(x_text, y_text),
-                                valor,
-                                fontsize=BASE_FONT_SIZE,
-                                fontname="helv",
-                                color=(0, 0, 0)
-                            )
+
+                        _insert_text_baseline(
+                            page=page,
+                            x=x_nativo,
+                            y=y_nativo,
+                            valor=valor,
+                            font_size=font_size,
+                            centered=False
+                        )
                     continue
 
-                elif nombre_variable == 'firma_supervisor':
+                # ------------------------------------------------------------
+                # FIRMA SUPERVISOR
+                # ------------------------------------------------------------
+                if nombre_variable == 'firma_supervisor':
                     if persona_supervisor and persona_supervisor.firma:
                         try:
                             firma_path = persona_supervisor.firma.path
-                            if os.path.exists(firma_path):
-                                w     = var_data.get('width')  or 150
-                                h     = var_data.get('height') or 50
-                                x_img = x_nativo + OFFSET_X
-                                rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
-                                page.insert_image(rect, filename=firma_path, keep_proportion=True)
+
+                            _insert_image_top_left(
+                                page=page,
+                                path=firma_path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=var_data.get('width') or 150,
+                                height=var_data.get('height') or 50
+                            )
                         except Exception:
-                            logger.error('Error insertando firma_supervisor (prueba)', exc_info=True)
+                            logger.error(
+                                'Error insertando firma_supervisor en PDF de prueba',
+                                exc_info=True
+                            )
                     continue
 
-                elif nombre_variable == 'huella_supervisor':
+                # ------------------------------------------------------------
+                # HUELLA SUPERVISOR
+                # ------------------------------------------------------------
+                if nombre_variable == 'huella_supervisor':
                     if persona_supervisor and persona_supervisor.huella_digital:
                         try:
                             huella_path = persona_supervisor.huella_digital.path
-                            if os.path.exists(huella_path):
-                                w     = var_data.get('width')  or 80
-                                h     = var_data.get('height') or 100
-                                x_img = x_nativo + OFFSET_X
-                                rect  = fitz.Rect(x_img, y_nativo, x_img + w, y_nativo + h)
-                                page.insert_image(rect, filename=huella_path, keep_proportion=True)
+
+                            _insert_image_top_left(
+                                page=page,
+                                path=huella_path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=var_data.get('width') or 80,
+                                height=var_data.get('height') or 100
+                            )
                         except Exception:
-                            logger.error('Error insertando huella_supervisor (prueba)', exc_info=True)
+                            logger.error(
+                                'Error insertando huella_supervisor en PDF de prueba',
+                                exc_info=True
+                            )
                     continue
 
-                elif nombre_variable in ['elemento_seguridad', 'cantidad_seguridad']:
+                # ------------------------------------------------------------
+                # ELEMENTOS DE SEGURIDAD
+                # ------------------------------------------------------------
+                if nombre_variable in ['elemento_seguridad', 'cantidad_seguridad']:
                     valor = var_data.get('valor') or ''
-                    if valor:
-                        x_text = x_nativo + OFFSET_X
-                        y_text = y_nativo + BASE_FONT_SIZE
-                        page.insert_text(
-                            fitz.Point(x_text, y_text),
-                            str(valor),
-                            fontsize=BASE_FONT_SIZE,
-                            fontname="helv",
-                            color=(0, 0, 0)
-                        )
+
+                    _insert_text_baseline(
+                        page=page,
+                        x=x_nativo,
+                        y=y_nativo,
+                        valor=valor,
+                        font_size=font_size,
+                        centered=False
+                    )
                     continue
 
-                else:
-                    valor = datos_variables.get(nombre_variable, '')
-                    if valor:
-                        x_text = x_nativo + OFFSET_X
-                        y_text = y_nativo + BASE_FONT_SIZE
-                        if nombre_variable in campos_centrados:
-                            tw     = fitz.get_text_length(str(valor), fontname="helv", fontsize=BASE_FONT_SIZE)
-                            x_text = x_text - tw / 2
-                        page.insert_text(
-                            fitz.Point(x_text, y_text),
-                            str(valor),
-                            fontsize=BASE_FONT_SIZE,
-                            fontname="helv",
-                            color=(0, 0, 0)
-                        )
+                # ------------------------------------------------------------
+                # VARIABLES NORMALES
+                # ------------------------------------------------------------
+                valor = datos_variables.get(nombre_variable, '')
+
+                if valor:
+                    valor = self._formatear_valor_para_pdf(nombre_variable, valor)
+
+                    _insert_text_baseline(
+                        page=page,
+                        x=x_nativo,
+                        y=y_nativo,
+                        valor=valor,
+                        font_size=font_size,
+                        centered=nombre_variable in campos_centrados
+                    )
 
         output_buffer = io.BytesIO()
         doc.save(output_buffer, garbage=4, deflate=True, clean=True)
         output_buffer.seek(0)
         doc.close()
-        return output_buffer
 
+        return output_buffer
+    
 # ==============================================================================
 # GENERAR TXT BANCO
 # ==============================================================================
@@ -983,17 +1237,29 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                     datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
                     datos_variables['trabajador_id'] = trabajador.id
 
-                    # ── Buscar el contrato activo para resolver el supervisor de charla ──
                     contrato_activo = trabajador.contratos.filter(
                         fecha_inicio_contrato__lte=date.today()
                     ).filter(
                         Q(fecha_termino_contrato__gte=date.today()) | Q(fecha_termino_contrato__isnull=True)
                     ).order_by('-fecha_inicio_contrato').first()
+
                     if contrato_activo:
                         datos_variables['contrato_id'] = contrato_activo.id
 
-                    pdf_buffer = self._generar_documento_coordenadas_nativas(documento_id, datos_variables, debug=False)
-                    pdf_url    = self._guardar_contrato_generado(pdf_buffer, trabajador, documento, request, marcar_como_generado)
+                    pdf_buffer = self._generar_documento_coordenadas_nativas(
+                        documento_id,
+                        datos_variables,
+                        debug=False
+                    )
+
+                    pdf_url = self._guardar_contrato_generado(
+                        pdf_buffer,
+                        trabajador,
+                        documento,
+                        request,
+                        marcar_como_generado
+                    )
+
                     urls_generadas.append({
                         'trabajador_id':         trabajador.id,
                         'trabajador_nombre':     f'{trabajador.nombres} {trabajador.apellidos}',
@@ -1001,10 +1267,14 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                         'success':               True,
                         'marcado_como_generado': marcar_como_generado,
                     })
+
                 except PersonalTrabajadores.DoesNotExist:
                     errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
                 except Exception as e:
-                    logger.error(f'GenerarDocumentosMasivoAPIView POST: error en trabajador {trabajador_id}', exc_info=True)
+                    logger.error(
+                        f'GenerarDocumentosMasivoAPIView POST: error en trabajador {trabajador_id}',
+                        exc_info=True
+                    )
                     errores.append({'trabajador_id': trabajador_id, 'error': str(e)})
 
             return Response({
@@ -1019,6 +1289,56 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
         except Exception as e:
             logger.error('GenerarDocumentosMasivoAPIView POST: error inesperado', exc_info=True)
             return Response({'error': f'Error al generar contratos: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _formatear_rut_o_nic(self, valor):
+        """
+        Formatea RUT/NIC guardados sin puntos ni guion.
+
+        Ejemplos:
+            123457899 -> 12.345.789-9
+            12345678K -> 1.234.567-8K no aplica si trae más de un DV;
+                         se espera valor limpio donde el último carácter es DV.
+
+        Regla usada:
+            cuerpo = todo menos el último carácter
+            dv     = último carácter
+        """
+        if valor is None:
+            return ''
+
+        limpio = str(valor).strip().upper()
+        limpio = limpio.replace('.', '').replace('-', '').replace(' ', '')
+
+        if not limpio:
+            return ''
+
+        if len(limpio) < 2:
+            return limpio
+
+        cuerpo = limpio[:-1]
+        dv = limpio[-1]
+
+        if not cuerpo.isdigit():
+            return limpio
+
+        cuerpo_formateado = ''
+        while len(cuerpo) > 3:
+            cuerpo_formateado = f'.{cuerpo[-3:]}{cuerpo_formateado}'
+            cuerpo = cuerpo[:-3]
+
+        cuerpo_formateado = f'{cuerpo}{cuerpo_formateado}'
+
+        return f'{cuerpo_formateado}-{dv}'
+
+    def _formatear_valor_para_pdf(self, nombre_variable, valor):
+        """
+        Normaliza valores justo antes de imprimirlos en el PDF.
+        Esto deja protegido el flujo aunque datos_variables llegue sin formatear.
+        """
+        if nombre_variable in ['rut', 'nic']:
+            return self._formatear_rut_o_nic(valor)
+
+        return valor
 
     def _obtener_supervisor(self, trabajador):
         from ..models import SupervisorTrabajadorHistorial
@@ -1055,7 +1375,10 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
                 contrato.contrato_generado = True
                 contrato.save(update_fields=['contrato_generado'])
             except ContratoTrabajador.DoesNotExist:
-                logger.error(f'GenerarDocumentosMasivoAPIView _guardar_contrato_generado: trabajador {trabajador.id} sin contrato registrado')
+                logger.error(
+                    f'GenerarDocumentosMasivoAPIView _guardar_contrato_generado: '
+                    f'trabajador {trabajador.id} sin contrato registrado'
+                )
 
         return url_absoluta
 
@@ -1064,21 +1387,6 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             if not fecha:
                 return ''
             return fecha if isinstance(fecha, str) else fecha.strftime('%d/%m/%Y')
-
-        def formatear_rut(rut):
-            if not rut:
-                return ''
-            rut = rut.replace('.', '').replace('-', '')
-            if len(rut) < 2:
-                return ''
-            rut_num       = rut[:-1]
-            dv            = rut[-1]
-            rut_formateado = ''
-            for i, digit in enumerate(reversed(rut_num)):
-                if i > 0 and i % 3 == 0:
-                    rut_formateado = '.' + rut_formateado
-                rut_formateado = digit + rut_formateado
-            return f'{rut_formateado}-{dv}'
 
         contrato_activo = trabajador.contratos.filter(
             fecha_inicio_contrato__lte=date.today()
@@ -1089,7 +1397,9 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
 
         if fecha_emision:
             try:
-                fecha_emision_formateada = formatear_fecha(datetime.strptime(fecha_emision, '%Y-%m-%d').date())
+                fecha_emision_formateada = formatear_fecha(
+                    datetime.strptime(fecha_emision, '%Y-%m-%d').date()
+                )
             except ValueError:
                 fecha_emision_formateada = formatear_fecha(date.today())
         else:
@@ -1100,7 +1410,10 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             try:
                 sociedad_nombre = Sociedad.objects.get(id=sociedad_id).nombre
             except Sociedad.DoesNotExist:
-                logger.error(f'GenerarDocumentosMasivoAPIView _mapear_datos_trabajador: sociedad {sociedad_id} no encontrada')
+                logger.error(
+                    f'GenerarDocumentosMasivoAPIView _mapear_datos_trabajador: '
+                    f'sociedad {sociedad_id} no encontrada'
+                )
 
         return {
             'fecha_emision':                  fecha_emision_formateada,
@@ -1108,9 +1421,9 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             'fecha_inicio_contrato':          formatear_fecha(contrato_activo.fecha_inicio_contrato) if contrato_activo else '',
             'fecha_termino':                  formatear_fecha(contrato_activo.fecha_termino_contrato) if contrato_activo else '',
             'nombre_completo':                f"{trabajador.nombres or ''} {trabajador.apellidos or ''}".strip(),
-            'rut':                            formatear_rut(trabajador.rut) if trabajador.rut else '',
+            'rut':                            self._formatear_rut_o_nic(trabajador.rut) if trabajador.rut else '',
             'dni':                            trabajador.dni or '',
-            'nic':                            trabajador.nic or '',
+            'nic':                            self._formatear_rut_o_nic(trabajador.nic) if trabajador.nic else '',
             'nacionalidad':                   trabajador.nacionalidad or '',
             'fecha_nacimiento':               formatear_fecha(trabajador.fecha_nacimiento),
             'estado_civil':                   trabajador.estado_civil or '',
@@ -1137,284 +1450,506 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
         }
 
     def _generar_documento_coordenadas_nativas(self, documento_id, datos_variables, debug=False):
-        documento      = ContratoVariables.objects.get(id=documento_id)
+        import fitz
+        import io
+        import os
+        from django.conf import settings
+
+        documento = ContratoVariables.objects.get(id=documento_id)
         input_pdf_path = documento.archivo_pdf.path
-        reader         = PdfReader(open(input_pdf_path, 'rb'))
 
         BASE_FONT_SIZE = 9
-        BASE_OFFSET_X  = -8
-        BASE_OFFSET_Y  = -15.2
-        FONT_BASELINE  = BASE_FONT_SIZE * 0.3
+        FONT_NAME = "helv"
+
         campos_centrados = [
-            'rut', 'dni', 'nic', 'estado_civil',
-            'fecha_nacimiento', 'fecha_emision',
-            'fecha_ingreso', 'fecha_inicio_contrato', 'fecha_termino',
+            'rut',
+            'dni',
+            'nic',
+            'estado_civil',
+            'fecha_nacimiento',
+            'fecha_emision',
+            'fecha_ingreso',
+            'fecha_inicio_contrato',
+            'fecha_termino',
         ]
 
+        def _to_float(value, default=0.0):
+            try:
+                if value is None:
+                    return float(default)
+                return float(value)
+            except (TypeError, ValueError):
+                return float(default)
+
+        def _draw_debug_anchor(page, x, y):
+            if not debug:
+                return
+
+            size = 2.5
+            page.draw_line(
+                fitz.Point(x - size, y),
+                fitz.Point(x + size, y),
+                color=(1, 0, 0),
+                width=0.4
+            )
+            page.draw_line(
+                fitz.Point(x, y - size),
+                fitz.Point(x, y + size),
+                color=(1, 0, 0),
+                width=0.4
+            )
+
+        def _insert_text_baseline(page, x, y, valor, font_size=None, centered=False):
+            """
+            Inserta texto usando posX/posY como coordenada nativa del PDF.
+
+            IMPORTANTE:
+            El frontend ahora guarda posY como baseline del texto.
+            Por eso aquí NO se debe hacer:
+                page_height - posY
+                y + font_size
+                offsets manuales
+
+            PyMuPDF usa origen superior izquierdo, igual que PDF.js en el visor.
+            """
+            if valor is None or str(valor) == '':
+                return False
+
+            texto = str(valor)
+            size = _to_float(font_size, BASE_FONT_SIZE)
+
+            x_text = _to_float(x)
+            y_text = _to_float(y)
+
+            if centered:
+                text_width = fitz.get_text_length(
+                    texto,
+                    fontname=FONT_NAME,
+                    fontsize=size
+                )
+                x_text -= text_width / 2
+
+            page.insert_text(
+                fitz.Point(x_text, y_text),
+                texto,
+                fontsize=size,
+                fontname=FONT_NAME,
+                color=(0, 0, 0)
+            )
+
+            _draw_debug_anchor(page, x_text, y_text)
+            return True
+
+        def _insert_image_top_left(page, path, x, y, width, height):
+            """
+            Inserta imágenes usando posX/posY como esquina superior izquierda.
+            Las imágenes no usan baseline.
+            """
+            if not path or not os.path.exists(path):
+                return False
+
+            x_img = _to_float(x)
+            y_img = _to_float(y)
+            w = _to_float(width)
+            h = _to_float(height)
+
+            if w <= 0 or h <= 0:
+                return False
+
+            rect = fitz.Rect(
+                x_img,
+                y_img,
+                x_img + w,
+                y_img + h
+            )
+
+            page.insert_image(
+                rect,
+                filename=path,
+                keep_proportion=True
+            )
+
+            _draw_debug_anchor(page, x_img, y_img)
+            return True
+
         variables_por_pagina = {}
-        for variable_data in documento.variables:
+
+        for variable_data in documento.variables or []:
             nombre_variable = variable_data.get('nombre')
+
             for ubicacion in variable_data.get('ubicaciones', []):
-                pagina = ubicacion.get('pagina', 1)
-                if pagina not in variables_por_pagina:
-                    variables_por_pagina[pagina] = []
-                variables_por_pagina[pagina].append({
+                pagina = int(ubicacion.get('pagina', 1) or 1)
+
+                variables_por_pagina.setdefault(pagina, []).append({
                     'nombre': nombre_variable,
-                    'posX':   ubicacion.get('posX', 0),
-                    'posY':   ubicacion.get('posY', 0),
-                    'width':  ubicacion.get('width'),
+                    'posX': _to_float(ubicacion.get('posX', 0)),
+                    'posY': _to_float(ubicacion.get('posY', 0)),
+                    'width': ubicacion.get('width'),
                     'height': ubicacion.get('height'),
-                    'valor':  ubicacion.get('valor'),
+                    'valor': ubicacion.get('valor'),
+                    'fontSize': ubicacion.get('fontSize'),
                 })
 
-        agregar_textos_libres_por_pagina(variables_por_pagina, documento.variables)
+        agregar_textos_libres_por_pagina(
+            variables_por_pagina,
+            documento.variables
+        )
 
-        holding                    = documento.holding
-        firma_empleador_disponible = bool(holding.firma_empleador)
+        holding = documento.holding
 
         trabajador = None
         if 'trabajador_id' in datos_variables:
             try:
-                trabajador = PersonalTrabajadores.objects.get(id=datos_variables['trabajador_id'])
+                trabajador = PersonalTrabajadores.objects.get(
+                    id=datos_variables['trabajador_id']
+                )
             except PersonalTrabajadores.DoesNotExist:
                 logger.error(
                     f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: '
                     f'trabajador {datos_variables["trabajador_id"]} no encontrado'
                 )
 
-        # ── Supervisor de charla: PersonalTrabajadores del supervisor que dictó la charla ──
-        persona_supervisor = obtener_persona_supervisor_charla(datos_variables.get('contrato_id'))
+        persona_supervisor = obtener_persona_supervisor_charla(
+            datos_variables.get('contrato_id')
+        )
 
-        final_writer = PdfWriter()
+        firmas_org = {
+            f"{f.tipo}_{slugify_nombre(f.nombre)}": f.imagen.path
+            for f in FirmaOrganizacion.objects.filter(holding=holding)
+            if f.imagen and os.path.exists(f.imagen.path)
+        }
 
-        for page_num in range(len(reader.pages)):
-            ui_page_num     = page_num + 1
-            temp_doc_buffer = io.BytesIO()
-            temp_doc_writer = PdfWriter()
-            original_page   = reader.pages[page_num]
-            temp_doc_writer.add_page(original_page)
-            temp_doc_writer.write(temp_doc_buffer)
-            temp_doc_buffer.seek(0)
-            temp_doc_reader = PdfReader(temp_doc_buffer)
-            isolated_page   = temp_doc_reader.pages[0]
-            page_width      = float(isolated_page.mediabox.width)
-            page_height     = float(isolated_page.mediabox.height)
+        doc = fitz.open(input_pdf_path)
+
+        for page_num in range(len(doc)):
+            ui_page_num = page_num + 1
 
             if ui_page_num not in variables_por_pagina:
-                final_writer.add_page(isolated_page)
                 continue
 
-            overlay_buffer     = io.BytesIO()
-            can                = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+            page = doc[page_num]
             variables_escritas = 0
 
             for variable in variables_por_pagina[ui_page_num]:
-                nombre = variable['nombre']
+                nombre = variable.get('nombre')
+                x_nativo = _to_float(variable.get('posX', 0))
+                y_nativo = _to_float(variable.get('posY', 0))
+                font_size = _to_float(
+                    variable.get('fontSize') or BASE_FONT_SIZE,
+                    BASE_FONT_SIZE
+                )
 
+                # ------------------------------------------------------------
+                # TEXTO LIBRE
+                # ------------------------------------------------------------
                 if nombre == TEXTO_LIBRE_RENDER_NAME:
                     valor = variable.get('valor') or ''
-                    if valor:
-                        font_size = variable.get('fontSize') or BASE_FONT_SIZE
-                        pdf_x = variable['posX'] + BASE_OFFSET_X
-                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + (font_size * 0.3)
-                        can.setFont('Helvetica', font_size)
-                        can.drawString(pdf_x, pdf_y, str(valor))
+
+                    if _insert_text_baseline(
+                        page=page,
+                        x=x_nativo,
+                        y=y_nativo,
+                        valor=valor,
+                        font_size=font_size,
+                        centered=False
+                    ):
                         variables_escritas += 1
+
                     continue
 
+                # ------------------------------------------------------------
+                # FIRMA EMPLEADOR
+                # ------------------------------------------------------------
                 if nombre == 'firma_empleador':
-                    if firma_empleador_disponible:
+                    if holding.firma_empleador:
                         try:
                             firma_path = holding.firma_empleador.path
-                            if os.path.exists(firma_path):
-                                img_width  = variable.get('width', 150)
-                                img_height = variable.get('height', 50)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                            preserveAspectRatio=True, mask='auto')
+
+                            if _insert_image_top_left(
+                                page=page,
+                                path=firma_path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=variable.get('width') or 150,
+                                height=variable.get('height') or 50
+                            ):
                                 variables_escritas += 1
+
                         except Exception:
-                            logger.error('Error insertando firma_empleador', exc_info=True)
+                            logger.error(
+                                'Error insertando firma_empleador',
+                                exc_info=True
+                            )
+                    else:
+                        logger.warning(
+                            f'El holding {holding.id} no tiene firma_empleador configurada'
+                        )
+
                     continue
 
+                # ------------------------------------------------------------
+                # TIMBRE EMPLEADOR
+                # ------------------------------------------------------------
                 if nombre == 'timbre_empleador':
                     try:
                         timbre_path = obtener_timbre_empleador_path(holding)
-                        img_width  = variable.get('width', 150)
-                        img_height = variable.get('height', 50)
-                        pdf_x = variable['posX'] + BASE_OFFSET_X
-                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                        can.drawImage(timbre_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                    preserveAspectRatio=True, mask='auto')
-                        variables_escritas += 1
+
+                        if _insert_image_top_left(
+                            page=page,
+                            path=timbre_path,
+                            x=x_nativo,
+                            y=y_nativo,
+                            width=variable.get('width') or 150,
+                            height=variable.get('height') or 50
+                        ):
+                            variables_escritas += 1
+
                     except ValueError:
                         raise
                     except Exception:
-                        logger.error('Error insertando timbre_empleador', exc_info=True)
-                        raise ValueError('No se puede generar el contrato porque timbre_empleador no pudo insertarse.')
-                    continue
-
-                elif nombre == 'firma':
-                    if trabajador:
-                        firma_trabajador_disponible = bool(trabajador.firma and os.path.exists(trabajador.firma.path))
-                        if firma_trabajador_disponible:
-                            try:
-                                img_width  = variable.get('width', 100)
-                                img_height = variable.get('height', 40)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(trabajador.firma.path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                            preserveAspectRatio=True, mask='auto')
-                                variables_escritas += 1
-                            except Exception:
-                                logger.error('Error insertando firma trabajador', exc_info=True)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-                                can.drawString(pdf_x, pdf_y, '[ERROR FIRMA]')
-                        else:
-                            pdf_x = variable['posX'] + BASE_OFFSET_X
-                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-                            can.drawString(pdf_x, pdf_y, '[FIRMA PENDIENTE]')
-                    continue
-
-                elif nombre == 'huella':
-                    if trabajador:
-                        huella_trabajador_disponible = bool(
-                            trabajador.huella_digital and os.path.exists(trabajador.huella_digital.path)
+                        logger.error(
+                            'Error insertando timbre_empleador',
+                            exc_info=True
                         )
-                        if huella_trabajador_disponible:
-                            try:
-                                img_width  = variable.get('width', 80)
-                                img_height = variable.get('height', 100)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(trabajador.huella_digital.path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                            preserveAspectRatio=True, mask='auto')
-                                variables_escritas += 1
-                            except Exception:
-                                logger.error('Error insertando huella trabajador', exc_info=True)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-                                can.drawString(pdf_x, pdf_y, '[ERROR HUELLA]')
-                        else:
-                            pdf_x = variable['posX'] + BASE_OFFSET_X
-                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-                            can.drawString(pdf_x, pdf_y, '[HUELLA PENDIENTE]')
+                        raise ValueError(
+                            'No se puede generar el contrato porque timbre_empleador no pudo insertarse.'
+                        )
+
                     continue
 
-                # ── Variables del supervisor de charla ─────────────────────────
-                elif nombre == 'nombre_supervisor':
+                # ------------------------------------------------------------
+                # FIRMAS/HUELLAS ORGANIZACIÓN
+                # ------------------------------------------------------------
+                if nombre in firmas_org:
+                    path = firmas_org[nombre]
+
+                    if _insert_image_top_left(
+                        page=page,
+                        path=path,
+                        x=x_nativo,
+                        y=y_nativo,
+                        width=variable.get('width') or (100 if nombre.startswith('firma') else 80),
+                        height=variable.get('height') or (40 if nombre.startswith('firma') else 100)
+                    ):
+                        variables_escritas += 1
+
+                    continue
+
+                # ------------------------------------------------------------
+                # FIRMA TRABAJADOR
+                # ------------------------------------------------------------
+                if nombre == 'firma':
+                    if trabajador and trabajador.firma and os.path.exists(trabajador.firma.path):
+                        try:
+                            if _insert_image_top_left(
+                                page=page,
+                                path=trabajador.firma.path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=variable.get('width') or 100,
+                                height=variable.get('height') or 40
+                            ):
+                                variables_escritas += 1
+
+                        except Exception:
+                            logger.error(
+                                'Error insertando firma trabajador',
+                                exc_info=True
+                            )
+
+                            if _insert_text_baseline(
+                                page=page,
+                                x=x_nativo,
+                                y=y_nativo,
+                                valor='[ERROR FIRMA]',
+                                font_size=BASE_FONT_SIZE,
+                                centered=False
+                            ):
+                                variables_escritas += 1
+                    else:
+                        if _insert_text_baseline(
+                            page=page,
+                            x=x_nativo,
+                            y=y_nativo,
+                            valor='[FIRMA PENDIENTE]',
+                            font_size=BASE_FONT_SIZE,
+                            centered=False
+                        ):
+                            variables_escritas += 1
+
+                    continue
+
+                # ------------------------------------------------------------
+                # HUELLA TRABAJADOR
+                # ------------------------------------------------------------
+                if nombre == 'huella':
+                    if trabajador and trabajador.huella_digital and os.path.exists(trabajador.huella_digital.path):
+                        try:
+                            if _insert_image_top_left(
+                                page=page,
+                                path=trabajador.huella_digital.path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=variable.get('width') or 80,
+                                height=variable.get('height') or 100
+                            ):
+                                variables_escritas += 1
+
+                        except Exception:
+                            logger.error(
+                                'Error insertando huella trabajador',
+                                exc_info=True
+                            )
+
+                            if _insert_text_baseline(
+                                page=page,
+                                x=x_nativo,
+                                y=y_nativo,
+                                valor='[ERROR HUELLA]',
+                                font_size=BASE_FONT_SIZE,
+                                centered=False
+                            ):
+                                variables_escritas += 1
+                    else:
+                        if _insert_text_baseline(
+                            page=page,
+                            x=x_nativo,
+                            y=y_nativo,
+                            valor='[HUELLA PENDIENTE]',
+                            font_size=BASE_FONT_SIZE,
+                            centered=False
+                        ):
+                            variables_escritas += 1
+
+                    continue
+
+                # ------------------------------------------------------------
+                # NOMBRE SUPERVISOR
+                # ------------------------------------------------------------
+                if nombre == 'nombre_supervisor':
                     if persona_supervisor:
                         valor = f"{persona_supervisor.nombres or ''} {persona_supervisor.apellidos or ''}".strip()
-                        if valor:
-                            pdf_x = variable['posX'] + BASE_OFFSET_X
-                            pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-                            can.setFont('Helvetica', BASE_FONT_SIZE)
-                            can.drawString(pdf_x, pdf_y, valor)
+
+                        if _insert_text_baseline(
+                            page=page,
+                            x=x_nativo,
+                            y=y_nativo,
+                            valor=valor,
+                            font_size=font_size,
+                            centered=False
+                        ):
                             variables_escritas += 1
+
                     continue
 
-                elif nombre == 'firma_supervisor':
+                # ------------------------------------------------------------
+                # FIRMA SUPERVISOR
+                # ------------------------------------------------------------
+                if nombre == 'firma_supervisor':
                     if persona_supervisor and persona_supervisor.firma:
                         try:
                             firma_path = persona_supervisor.firma.path
-                            if os.path.exists(firma_path):
-                                img_width  = variable.get('width', 150)
-                                img_height = variable.get('height', 50)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(firma_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                            preserveAspectRatio=True, mask='auto')
+
+                            if _insert_image_top_left(
+                                page=page,
+                                path=firma_path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=variable.get('width') or 150,
+                                height=variable.get('height') or 50
+                            ):
                                 variables_escritas += 1
+
                         except Exception:
-                            logger.error('Error insertando firma_supervisor', exc_info=True)
+                            logger.error(
+                                'Error insertando firma_supervisor',
+                                exc_info=True
+                            )
+
                     continue
 
-                elif nombre == 'huella_supervisor':
+                # ------------------------------------------------------------
+                # HUELLA SUPERVISOR
+                # ------------------------------------------------------------
+                if nombre == 'huella_supervisor':
                     if persona_supervisor and persona_supervisor.huella_digital:
                         try:
                             huella_path = persona_supervisor.huella_digital.path
-                            if os.path.exists(huella_path):
-                                img_width  = variable.get('width', 80)
-                                img_height = variable.get('height', 100)
-                                pdf_x = variable['posX'] + BASE_OFFSET_X
-                                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y - img_height
-                                can.drawImage(huella_path, pdf_x, pdf_y, width=img_width, height=img_height,
-                                            preserveAspectRatio=True, mask='auto')
+
+                            if _insert_image_top_left(
+                                page=page,
+                                path=huella_path,
+                                x=x_nativo,
+                                y=y_nativo,
+                                width=variable.get('width') or 80,
+                                height=variable.get('height') or 100
+                            ):
                                 variables_escritas += 1
+
                         except Exception:
-                            logger.error('Error insertando huella_supervisor', exc_info=True)
+                            logger.error(
+                                'Error insertando huella_supervisor',
+                                exc_info=True
+                            )
+
                     continue
 
-                elif nombre in ['elemento_seguridad', 'cantidad_seguridad']:
+                # ------------------------------------------------------------
+                # ELEMENTOS DE SEGURIDAD
+                # ------------------------------------------------------------
+                if nombre in ['elemento_seguridad', 'cantidad_seguridad']:
                     valor = variable.get('valor') or ''
-                    if valor:
-                        pdf_x = variable['posX'] + BASE_OFFSET_X
-                        pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
-                        can.setFont('Helvetica', BASE_FONT_SIZE)
-                        can.drawString(pdf_x, pdf_y, str(valor))
+
+                    if _insert_text_baseline(
+                        page=page,
+                        x=x_nativo,
+                        y=y_nativo,
+                        valor=valor,
+                        font_size=font_size,
+                        centered=False
+                    ):
                         variables_escritas += 1
 
-                        if debug:
-                            can.saveState()
-                            can.setStrokeColorRGB(1, 0, 0)
-                            can.setLineWidth(1)
-                            can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
-                            can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
-                            can.restoreState()
                     continue
 
+                # ------------------------------------------------------------
+                # VARIABLES NORMALES
+                # ------------------------------------------------------------
                 if nombre not in datos_variables:
                     continue
-                valor = datos_variables[nombre]
+
+                valor = datos_variables.get(nombre)
+
                 if not valor:
                     continue
 
-                pdf_x = variable['posX'] + BASE_OFFSET_X
-                pdf_y = page_height - variable['posY'] + BASE_OFFSET_Y + FONT_BASELINE
+                valor = self._formatear_valor_para_pdf(nombre, valor)
 
-                if nombre == 'rut':
-                    pdf_x += BASE_OFFSET_X * 0.5
-                elif nombre == 'nombre':
-                    pdf_x += BASE_OFFSET_X * 0.1
+                if _insert_text_baseline(
+                    page=page,
+                    x=x_nativo,
+                    y=y_nativo,
+                    valor=valor,
+                    font_size=font_size,
+                    centered=nombre in campos_centrados
+                ):
+                    variables_escritas += 1
 
-                valor_str = str(valor)
-                can.setFont('Helvetica', BASE_FONT_SIZE)
-                if nombre in campos_centrados:
-                    text_width = can.stringWidth(valor_str, 'Helvetica', BASE_FONT_SIZE)
-                    can.drawString(pdf_x - (text_width / 2), pdf_y, valor_str)
-                else:
-                    can.drawString(pdf_x, pdf_y, valor_str)
-                variables_escritas += 1
-
-                if debug:
-                    can.saveState()
-                    can.setStrokeColorRGB(1, 0, 0)
-                    can.setLineWidth(1)
-                    can.line(pdf_x - 9, pdf_y, pdf_x + 9, pdf_y)
-                    can.line(pdf_x, pdf_y - 9, pdf_x, pdf_y + 9)
-                    can.restoreState()
-
-            can.save()
-            overlay_buffer.seek(0)
             logger.debug(
                 f'GenerarDocumentosMasivoAPIView _generar_documento_coordenadas_nativas: '
                 f'página {ui_page_num} — {variables_escritas} variables'
             )
 
-            if variables_escritas > 0:
-                try:
-                    overlay_reader = PdfReader(overlay_buffer)
-                    isolated_page.merge_page(overlay_reader.pages[0])
-                except Exception:
-                    logger.error(f'Error en merge página {ui_page_num}', exc_info=True)
-
-            final_writer.add_page(isolated_page)
-
         output_buffer = io.BytesIO()
-        final_writer.write(output_buffer)
+        doc.save(
+            output_buffer,
+            garbage=4,
+            deflate=True,
+            clean=True
+        )
         output_buffer.seek(0)
+        doc.close()
+
         return output_buffer
     
 # ==============================================================================
@@ -2694,7 +3229,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                             logger.error('Error insertando huella_supervisor', exc_info=True)
                     continue
 
-                elif nombre == 'elemento_seguridad':
+                elif nombre in ['elemento_seguridad', 'cantidad_seguridad']:
                     valor = variable.get('valor') or ''
                     if valor:
                         pdf_x = variable['posX'] + BASE_OFFSET_X
