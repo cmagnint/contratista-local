@@ -14,6 +14,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
@@ -205,6 +206,26 @@ def obtener_timbre_empleador_path(holding):
 
 def slugify_nombre(nombre):
     return re.sub(r'[^a-z0-9]', '_', nombre.lower().strip())
+
+
+def filtrar_contratos_por_vigencia(qs, estado_vigencia):
+    hoy = timezone.localdate()
+    if estado_vigencia == 'activo':
+        return qs.filter(
+            Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
+        )
+    if estado_vigencia == 'vencido':
+        return qs.filter(fecha_termino_contrato__lt=hoy)
+    raise ValueError('estado_vigencia inválido')
+
+
+def serializar_contrato_generacion(contrato):
+    return {
+        'id': contrato.id,
+        'fecha_inicio_contrato': contrato.fecha_inicio_contrato.isoformat(),
+        'fecha_termino_contrato': contrato.fecha_termino_contrato.isoformat() if contrato.fecha_termino_contrato else None,
+        'estado_vigencia': 'vencido' if contrato.fecha_termino_contrato and contrato.fecha_termino_contrato < timezone.localdate() else 'activo',
+    }
 
 def obtener_persona_supervisor_charla(contrato_id):
     """
@@ -1211,18 +1232,51 @@ class GenerarTxtBancoAPIView(BaseAPIView):
 # ==============================================================================
 class GenerarDocumentosMasivoAPIView(BaseAPIView):
 
+    def _resolver_contrato_para_generacion(self, trabajador, contrato_id, estado_vigencia):
+        contratos_qs = filtrar_contratos_por_vigencia(
+            ContratoTrabajador.objects.filter(
+                trabajador=trabajador,
+                holding=trabajador.holding,
+            ),
+            estado_vigencia
+        ).order_by('-fecha_inicio_contrato')
+
+        if contrato_id not in [None, '']:
+            try:
+                contrato_id = int(contrato_id)
+            except (TypeError, ValueError):
+                raise ValueError(f'Contrato inválido para trabajador {trabajador.id}')
+
+            contrato = contratos_qs.filter(id=contrato_id).first()
+            if not contrato:
+                raise ValueError(f'Contrato inválido para trabajador {trabajador.id}')
+            return contrato
+
+        contratos = list(contratos_qs[:2])
+        if len(contratos) == 1:
+            return contratos[0]
+        if len(contratos) >= 2:
+            raise ValueError(f'Contrato no especificado para trabajador {trabajador.id}')
+        raise ValueError(f'No hay contrato {estado_vigencia} para trabajador {trabajador.id}')
+
     def post(self, request, *args, **kwargs):
         try:
             documento_id         = request.data.get('documento_id')
-            trabajador_ids       = request.data.get('trabajador_ids', [])
+            trabajadores_payload = request.data.get('trabajadores', [])
+            estado_vigencia      = request.data.get('estado_vigencia', 'activo')
             fecha_emision        = request.data.get('fecha_emision')
             sociedad_id          = request.data.get('sociedad_id')
             marcar_como_generado = request.data.get('marcar_como_generado', False)
 
             if not documento_id:
                 return Response({'error': 'Se requiere documento_id'}, status=status.HTTP_400_BAD_REQUEST)
-            if not trabajador_ids:
-                return Response({'error': 'Se requiere al menos un trabajador_id'}, status=status.HTTP_400_BAD_REQUEST)
+            if not trabajadores_payload:
+                return Response({'error': 'Se requiere al menos un trabajador'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                filtrar_contratos_por_vigencia(ContratoTrabajador.objects.none(), estado_vigencia)
+            except ValueError:
+                return Response({'error': 'estado_vigencia inválido'}, status=status.HTTP_400_BAD_REQUEST)
 
             documento = get_object_or_404(ContratoVariables, id=documento_id)
             if documento.holding != request.user.holding:
@@ -1231,20 +1285,21 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
             urls_generadas = []
             errores        = []
 
-            for trabajador_id in trabajador_ids:
+            for item in trabajadores_payload:
+                if not isinstance(item, dict) or not item.get('trabajador_id'):
+                    return Response({'error': 'Trabajador inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+                trabajador_id = item.get('trabajador_id')
                 try:
                     trabajador      = PersonalTrabajadores.objects.get(id=trabajador_id, holding=request.user.holding)
-                    datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
+                    contrato        = self._resolver_contrato_para_generacion(
+                        trabajador,
+                        item.get('contrato_id'),
+                        estado_vigencia
+                    )
+                    datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id, contrato)
                     datos_variables['trabajador_id'] = trabajador.id
-
-                    contrato_activo = trabajador.contratos.filter(
-                        fecha_inicio_contrato__lte=date.today()
-                    ).filter(
-                        Q(fecha_termino_contrato__gte=date.today()) | Q(fecha_termino_contrato__isnull=True)
-                    ).order_by('-fecha_inicio_contrato').first()
-
-                    if contrato_activo:
-                        datos_variables['contrato_id'] = contrato_activo.id
+                    datos_variables['contrato_id'] = contrato.id
 
                     pdf_buffer = self._generar_documento_coordenadas_nativas(
                         documento_id,
@@ -1270,6 +1325,8 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
 
                 except PersonalTrabajadores.DoesNotExist:
                     errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
+                except ValueError as e:
+                    return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
                 except Exception as e:
                     logger.error(
                         f'GenerarDocumentosMasivoAPIView POST: error en trabajador {trabajador_id}',
@@ -1382,18 +1439,19 @@ class GenerarDocumentosMasivoAPIView(BaseAPIView):
 
         return url_absoluta
 
-    def _mapear_datos_trabajador(self, trabajador, fecha_emision=None, sociedad_id=None):
+    def _mapear_datos_trabajador(self, trabajador, fecha_emision=None, sociedad_id=None, contrato_resuelto=None):
         def formatear_fecha(fecha):
             if not fecha:
                 return ''
             return fecha if isinstance(fecha, str) else fecha.strftime('%d/%m/%Y')
 
-        contrato_activo = trabajador.contratos.filter(
-            fecha_inicio_contrato__lte=date.today()
-        ).filter(
-            Q(fecha_termino_contrato__gte=date.today()) |
-            Q(fecha_termino_contrato__isnull=True)
-        ).order_by('-fecha_inicio_contrato').first()
+        if contrato_resuelto:
+            contrato_activo = contrato_resuelto
+        else:
+            contrato_activo = filtrar_contratos_por_vigencia(
+                trabajador.contratos.all(),
+                'activo'
+            ).order_by('-fecha_inicio_contrato').first()
 
         if fecha_emision:
             try:
@@ -2911,6 +2969,31 @@ class ContratoAsociadoTrabajadorAPIView(BaseAPIView):
         return Response({'mensaje': 'Asociación eliminada'})
 
 # ==============================================================================
+# CONTRATOS POR TRABAJADOR
+# ==============================================================================
+class ContratosTrabajadorAPIView(BaseAPIView):
+
+    def get(self, request, *args, **kwargs):
+        trabajador_id = request.query_params.get('trabajador_id')
+        estado_vigencia = request.query_params.get('estado_vigencia')
+
+        if not trabajador_id:
+            return Response({'error': 'trabajador_id es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        if estado_vigencia not in ['activo', 'vencido']:
+            return Response({'error': 'estado_vigencia inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        contratos = filtrar_contratos_por_vigencia(
+            ContratoTrabajador.objects.filter(
+                trabajador_id=trabajador_id,
+                holding=request.user.holding,
+            ),
+            estado_vigencia
+        ).order_by('-fecha_inicio_contrato')
+
+        return Response([serializar_contrato_generacion(contrato) for contrato in contratos])
+
+
+# ==============================================================================
 # TRABAJADORES POR PARÁMETRO (para el selector del modo nuevo)
 # ==============================================================================
 class TrabajadoresPorParametroAPIView(BaseAPIView):
@@ -2945,12 +3028,20 @@ class TrabajadoresPorParametroAPIView(BaseAPIView):
         for ca in qs:
             t = ca.trabajador
             if t.id not in mapa:
+                contratos_activos = filtrar_contratos_por_vigencia(
+                    ContratoTrabajador.objects.filter(
+                        trabajador=t,
+                        holding=request.user.holding,
+                    ),
+                    'activo'
+                ).order_by('-fecha_inicio_contrato')
                 mapa[t.id] = {
                     'trabajador_id': t.id,
                     'nombres':       t.nombres,
                     'apellidos':     t.apellidos or '',
                     'rut':           t.rut or t.dni or '',
                     'cargo':         t.cargo.nombre if t.cargo else '',
+                    'contratos_activos': [serializar_contrato_generacion(contrato) for contrato in contratos_activos],
                     'pdfs': [],
                 }
             mapa[t.id]['pdfs'].append({
@@ -2992,6 +3083,7 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
         for item in trabajadores:
             trabajador_id        = item.get('trabajador_id')
             contrato_asociado_id = item.get('contrato_asociado_id')
+            contrato_id          = item.get('contrato_id')
 
             try:
                 trabajador = PersonalTrabajadores.objects.get(
@@ -3008,8 +3100,15 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                     })
                     continue
 
-                datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id)
+                contrato = self._resolver_contrato_para_generacion(
+                    trabajador,
+                    contrato_id,
+                    'activo'
+                )
+
+                datos_variables = self._mapear_datos_trabajador(trabajador, fecha_emision, sociedad_id, contrato)
                 datos_variables['trabajador_id'] = trabajador.id
+                datos_variables['contrato_id'] = contrato.id
 
                 pdf_buffer = self._generar_con_pdf_custom(
                     pdf_path  = contrato_asociado.archivo_pdf.path,
@@ -3033,6 +3132,8 @@ class GenerarDocumentosPorParametroAPIView(GenerarDocumentosMasivoAPIView):
                 errores.append({'trabajador_id': trabajador_id, 'error': 'Trabajador no encontrado'})
             except ContratoAsociadoTrabajador.DoesNotExist:
                 errores.append({'trabajador_id': trabajador_id, 'error': 'PDF asociado no encontrado'})
+            except ValueError as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 logger.error(f'GenerarDocumentosPorParametroAPIView: error trabajador {trabajador_id}', exc_info=True)
                 errores.append({'trabajador_id': trabajador_id, 'error': str(e)})

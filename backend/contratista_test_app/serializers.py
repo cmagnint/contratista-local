@@ -3553,8 +3553,6 @@ class ElementoSeguridadSerializer(serializers.ModelSerializer):
 
 
 class RegistroCharlaSupervisorSerializer(serializers.ModelSerializer):
-    usuario_nombre = serializers.SerializerMethodField()
-    usuario_rut = serializers.CharField(source='usuario.rut', read_only=True)
     supervisor_nombre = serializers.SerializerMethodField(read_only=True)
     supervisor_rut = serializers.CharField(source='supervisor.usuario.rut', read_only=True)
     contrato_id = serializers.IntegerField(source='contrato.id', read_only=True)

@@ -749,14 +749,13 @@ class PersonalFiltradoAPIView(BaseAPIView):
         if not holding_id:
             return Response({'error': 'El parámetro holding es necesario'}, status=status.HTTP_400_BAD_REQUEST)
 
-        hoy = date.today()
+        hoy = timezone.localdate()
         query = Q(holding_id=holding_id, estado=True)
         if sociedad_id:
             query &= Q(sociedad_id=sociedad_id)
 
         contrato_vigente = ContratoTrabajador.objects.filter(
             trabajador=OuterRef('pk'),
-            fecha_inicio_contrato__lte=hoy,
         ).filter(
             Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
         )
@@ -772,14 +771,10 @@ class PersonalFiltradoAPIView(BaseAPIView):
             trabajadores = trabajadores.filter(Exists(contrato_vigente))
             contrato_ref = contrato_vigente
         elif estado_vigencia == 'vencido':
-            trabajadores = trabajadores.filter(
-                Exists(contrato_vencido),
-                ~Exists(contrato_vigente),
-            )
+            trabajadores = trabajadores.filter(Exists(contrato_vencido))
             contrato_ref = contrato_vencido
         else:
-            contrato_ref = ContratoTrabajador.objects.filter(trabajador=OuterRef('pk'))
-            trabajadores = trabajadores.filter(Exists(contrato_ref))
+            return Response({'error': 'estado_vigencia inválido'}, status=status.HTTP_400_BAD_REQUEST)
 
         if filtro_contrato == 'sin_contrato':
             trabajadores = trabajadores.filter(Exists(contrato_ref.filter(contrato_generado=False)))
@@ -790,7 +785,31 @@ class PersonalFiltradoAPIView(BaseAPIView):
             tiene_contrato=Exists(contrato_ref.filter(contrato_generado=True))
         )
 
-        return Response(PersonalConAsignacionesSerializer(trabajadores, many=True).data)
+        data = PersonalConAsignacionesSerializer(trabajadores, many=True).data
+        trabajador_ids = [item['id'] for item in data]
+        contratos_qs = ContratoTrabajador.objects.filter(
+            trabajador_id__in=trabajador_ids,
+            holding_id=holding_id,
+        )
+        if estado_vigencia == 'activo':
+            contratos_qs = contratos_qs.filter(
+                Q(fecha_termino_contrato__gte=hoy) | Q(fecha_termino_contrato__isnull=True)
+            )
+        else:
+            contratos_qs = contratos_qs.filter(fecha_termino_contrato__lt=hoy)
+
+        contratos_por_trabajador = {}
+        for contrato in contratos_qs.order_by('trabajador_id', '-fecha_inicio_contrato'):
+            contratos_por_trabajador.setdefault(contrato.trabajador_id, []).append({
+                'id': contrato.id,
+                'fecha_inicio_contrato': contrato.fecha_inicio_contrato.isoformat(),
+                'fecha_termino_contrato': contrato.fecha_termino_contrato.isoformat() if contrato.fecha_termino_contrato else None,
+            })
+
+        for item in data:
+            item['contratos_disponibles'] = contratos_por_trabajador.get(item['id'], [])
+
+        return Response(data)
 
 
 # ==============================================================================

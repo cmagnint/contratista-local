@@ -447,6 +447,14 @@
         [(ngModel)]="nombreTrabajadorNew" 
         (ngModelChange)="nombreTrabajadorNew = $event.toUpperCase()"
         placeholder="INGRESE EL NOMBRE DEL TRABAJADOR">
+      
+      <h4 class="h4-subtitle">Apellidos Trabajador:</h4>
+      <input 
+        type="text" 
+        class="input-perfil" 
+        [(ngModel)]="apellidoTrabajadorNew" 
+        (ngModelChange)="apellidoTrabajadorNew = $event.toUpperCase()"
+        placeholder="INGRESE LOS APELLIDOS DEL TRABAJADOR">
 
       <h4 class="h4-subtitle">RUT Trabajador:</h4>
       <input 

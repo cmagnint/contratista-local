@@ -106,6 +106,8 @@ export class PersonalComponent implements OnInit {
   public fechaIngreso: string | null = null;
   public fechaNacimiento: string | null = null;
   public estadoCivil: string = 'SOLTERO(A)';
+  public apellidoTrabajadorNew: string = '';
+
 
   public correoTrabajadorNew: string = '';
   public direccionTrabajadorNew: string = '';
@@ -410,6 +412,7 @@ export class PersonalComponent implements OnInit {
       id: this.selectedTrabajadorId,
       holding: this.holding,
       nombres: this.nombreTrabajadorNew,
+      apellidos: this.apellidoTrabajadorNew,
       rut: this.rutTrabajadorNew.replace(/[\.\-]/g, ''),
       dni: this.dniTrabajadorNew,
       nic: this.nicTrabajadorNew,
@@ -865,6 +868,7 @@ export class PersonalComponent implements OnInit {
       this.selectedTrabajadorId = selectedRow.id;
       
       this.nombreTrabajadorNew = selectedRow.nombres;
+      this.apellidoTrabajadorNew = selectedRow.apellidos || '';
       this.rutTrabajadorNew = selectedRow.rut ? this.formatRUTString(selectedRow.rut) : '';
       this.dniTrabajadorNew = selectedRow.dni || '';
       this.nicTrabajadorNew = selectedRow.nic || '';
@@ -900,6 +904,7 @@ export class PersonalComponent implements OnInit {
 
   limpiarFormularioModificacion(): void {
     this.nombreTrabajadorNew = '';
+    this.apellidoTrabajadorNew = '';
     this.rutTrabajadorNew = '';
     this.dniTrabajadorNew = '';
     this.nicTrabajadorNew = '';

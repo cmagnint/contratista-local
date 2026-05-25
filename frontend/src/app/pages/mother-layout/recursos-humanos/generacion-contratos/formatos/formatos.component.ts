@@ -1301,6 +1301,7 @@ export class FormatosComponent implements OnInit, OnDestroy {
           console.log('📦 Respuesta del backend:', response);
 
           this.documentoSeleccionado = response;
+          this.tipoContrato = response.tipo || 'CHILENO';
 
           if (response.variables && Array.isArray(response.variables)) {
             console.log(`📋 Cargando ${response.variables.length} variables desde el backend...`);

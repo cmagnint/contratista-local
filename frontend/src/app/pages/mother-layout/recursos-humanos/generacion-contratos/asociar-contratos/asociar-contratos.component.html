@@ -48,9 +48,8 @@
             type="file"
             accept="application/pdf"
             (change)="onArchivoSeleccionado($event)"
-            style="display:none"
-            #fileInput>
-          <span class="file-btn" (click)="fileInput.click()">
+            style="display:none">
+          <span class="file-btn">
             <mat-icon>upload_file</mat-icon>
             {{ archivoSeleccionado ? archivoSeleccionado.name : 'Seleccionar PDF' }}
           </span>

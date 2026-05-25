@@ -65,6 +65,7 @@ export class GenerarContratosComponent implements OnInit {
   tipoFormato     = '';
   selection       = new SelectionModel<any>(true, []);
   selectedRows: any[] = [];
+  contratoSeleccionadoPorTrabajador: { [trabajadorId: number]: number | null } = {};
 
   // ─── Filtros de columna ───────────────────────────
   filtros: { [key: string]: string } = {
@@ -113,7 +114,7 @@ export class GenerarContratosComponent implements OnInit {
   selectedRowsParam: any[]   = [];
 
   displayedColumnsParam: string[] = [
-    'select', 'nombres', 'rut', 'pdf_selector'
+    'select', 'nombres', 'rut', 'pdf_selector', 'contrato_selector'
   ];
 
   // ─── Lifecycle ────────────────────────────────────
@@ -163,6 +164,7 @@ export class GenerarContratosComponent implements OnInit {
     this.documentoSeleccionado = null;
     this.tipoFormato           = '';
     this.filtroVigencia        = 'activo';
+    this.contratoSeleccionadoPorTrabajador = {};
     this.selection.clear();
     this.selectedRows          = [];
     // filtros de columna
@@ -194,6 +196,7 @@ export class GenerarContratosComponent implements OnInit {
     this.apiService.get(`api_personal_filtrado/?${params}`).subscribe({
       next: (res) => {
         this.trabajadores = res;
+        this.contratoSeleccionadoPorTrabajador = {};
         Object.keys(this.filtros).forEach(k => (this.filtros[k] = ''));
         this.selection.clear();
       },
@@ -206,6 +209,7 @@ export class GenerarContratosComponent implements OnInit {
     this.tipoFormato           = '';
     this.documentos            = [];
     this.documentoSeleccionado = null;
+    this.contratoSeleccionadoPorTrabajador = {};
     this.selection.clear();
     this.cargarTrabajadores();
   }
@@ -215,6 +219,7 @@ export class GenerarContratosComponent implements OnInit {
     this.tipoFormato           = '';
     this.documentos            = [];
     this.documentoSeleccionado = null;
+    this.contratoSeleccionadoPorTrabajador = {};
     this.selection.clear();
     this.cargarTrabajadores();
   }
@@ -248,10 +253,32 @@ export class GenerarContratosComponent implements OnInit {
     }
   }
 
+  tieneVariosContratos = (_index: number, row: any): boolean =>
+    (row.contratos_disponibles?.length || 0) >= 2;
+
+  contratoLabel(contrato: any): string {
+    return `${contrato.fecha_inicio_contrato} → ${contrato.fecha_termino_contrato || 'Sin término'}`;
+  }
+
+  obtenerContratoSeleccionadoClasico(trabajador: any): number | null {
+    const contratos = trabajador.contratos_disponibles || [];
+    if (contratos.length === 1) return contratos[0].id;
+    return this.contratoSeleccionadoPorTrabajador[trabajador.id] ?? null;
+  }
+
   generarContratosClasico(): void {
     if (!this.selectedRows.length)   { this.mostrarError('Selecciona al menos un trabajador'); return; }
     if (!this.documentoSeleccionado) { this.mostrarError('Selecciona un tipo de documento');   return; }
     if (!this.fechaEmision)          { this.mostrarError('Selecciona una fecha de emisión');   return; }
+
+    const sinContratoSeleccionado = this.selectedRows.find(t =>
+      (t.contratos_disponibles?.length || 0) >= 2 &&
+      !this.contratoSeleccionadoPorTrabajador[t.id]
+    );
+    if (sinContratoSeleccionado) {
+      this.mostrarError(`Selecciona el contrato para ${sinContratoSeleccionado.nombres}`);
+      return;
+    }
 
     const conContrato = this.selectedRows.filter(t => t.tiene_contrato);
     if (conContrato.length > 0 && this.filtroContrato !== 'con_contrato') {
@@ -271,7 +298,11 @@ export class GenerarContratosComponent implements OnInit {
   confirmarGeneracionClasica(): void {
     const payload = {
       documento_id:         this.documentoSeleccionado,
-      trabajador_ids:       this.selectedRows.map(t => t.id),
+      estado_vigencia:      this.filtroVigencia,
+      trabajadores:         this.selectedRows.map(t => ({
+        trabajador_id: t.id,
+        contrato_id: this.obtenerContratoSeleccionadoClasico(t),
+      })),
       fecha_emision:        this.fechaEmision,
       sociedad_id:          this.sociedad,
       marcar_como_generado: this.marcarComoGenerado,
@@ -312,6 +343,7 @@ export class GenerarContratosComponent implements OnInit {
         this.trabajadoresParametro = res.map((t: any) => ({
           ...t,
           pdfSeleccionadoId: t.pdfs?.[0]?.id ?? null,
+          contratoActivoSeleccionado: t.contratos_activos?.length === 1 ? t.contratos_activos[0].id : null,
         }));
       },
       error: () => this.mostrarError('Error al cargar trabajadores del parámetro'),
@@ -319,20 +351,38 @@ export class GenerarContratosComponent implements OnInit {
   }
 
   isAllSelectedParam(): boolean {
-    return this.selectionParam.selected.length === this.trabajadoresParametro.length;
+    const seleccionables = this.trabajadoresParametro.filter(t => this.tieneContratoActivo(t));
+    return seleccionables.length > 0 && this.selectionParam.selected.length === seleccionables.length;
   }
 
   toggleAllRowsParam(): void {
     if (this.isAllSelectedParam()) {
       this.selectionParam.clear();
     } else {
-      this.trabajadoresParametro.forEach(r => this.selectionParam.select(r));
+      this.trabajadoresParametro
+        .filter(r => this.tieneContratoActivo(r))
+        .forEach(r => this.selectionParam.select(r));
     }
+  }
+
+  tieneContratoActivo(trabajador: any): boolean {
+    return (trabajador.contratos_activos?.length || 0) > 0;
+  }
+
+  toggleSeleccionParametro(trabajador: any): void {
+    if (!this.tieneContratoActivo(trabajador)) return;
+    this.selectionParam.toggle(trabajador);
   }
 
   generarContratosPorParametro(): void {
     if (!this.selectedRowsParam.length) { this.mostrarError('Selecciona al menos un trabajador'); return; }
     if (!this.fechaEmision)             { this.mostrarError('Selecciona una fecha de emisión');   return; }
+
+    const sinContratoActivo = this.selectedRowsParam.find(t => !t.contratoActivoSeleccionado);
+    if (sinContratoActivo) {
+      this.mostrarError(`Selecciona el contrato para ${sinContratoActivo.nombres}`);
+      return;
+    }
 
     const payload = {
       parametro_id:  this.parametroSeleccionado,
@@ -341,6 +391,7 @@ export class GenerarContratosComponent implements OnInit {
       trabajadores:  this.selectedRowsParam.map(t => ({
         trabajador_id:        t.trabajador_id,
         contrato_asociado_id: t.pdfSeleccionadoId,
+        contrato_id:          t.contratoActivoSeleccionado,
       })),
     };
 
