@@ -3473,7 +3473,7 @@ export class FormatosComponent implements OnInit, OnDestroy {
 
     if (this.tipoContrato === 'CHILENO') {
       vars = vars.filter(v => v.nombre !== 'dni' && v.nombre !== 'nic');
-    } else {
+    } else if (!this.modoModificacion) {
       vars = vars.filter(v => v.nombre !== 'rut');
     }
 
