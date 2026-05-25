@@ -2969,31 +2969,6 @@ class ContratoAsociadoTrabajadorAPIView(BaseAPIView):
         return Response({'mensaje': 'Asociación eliminada'})
 
 # ==============================================================================
-# CONTRATOS POR TRABAJADOR
-# ==============================================================================
-class ContratosTrabajadorAPIView(BaseAPIView):
-
-    def get(self, request, *args, **kwargs):
-        trabajador_id = request.query_params.get('trabajador_id')
-        estado_vigencia = request.query_params.get('estado_vigencia')
-
-        if not trabajador_id:
-            return Response({'error': 'trabajador_id es requerido'}, status=status.HTTP_400_BAD_REQUEST)
-        if estado_vigencia not in ['activo', 'vencido']:
-            return Response({'error': 'estado_vigencia inválido'}, status=status.HTTP_400_BAD_REQUEST)
-
-        contratos = filtrar_contratos_por_vigencia(
-            ContratoTrabajador.objects.filter(
-                trabajador_id=trabajador_id,
-                holding=request.user.holding,
-            ),
-            estado_vigencia
-        ).order_by('-fecha_inicio_contrato')
-
-        return Response([serializar_contrato_generacion(contrato) for contrato in contratos])
-
-
-# ==============================================================================
 # TRABAJADORES POR PARÁMETRO (para el selector del modo nuevo)
 # ==============================================================================
 class TrabajadoresPorParametroAPIView(BaseAPIView):
